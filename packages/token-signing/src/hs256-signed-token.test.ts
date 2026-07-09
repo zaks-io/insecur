@@ -16,10 +16,7 @@ describe("signed HS256 token codec", () => {
   }
 
   function decodeTokenHeader(token: string): unknown {
-    const header = token.split(".")[0];
-    if (header === undefined) {
-      return null;
-    }
+    const [header = ""] = token.split(".");
     const bytes = base64UrlToBytes(header);
     if (bytes === null) {
       return null;

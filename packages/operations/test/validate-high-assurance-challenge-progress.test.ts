@@ -64,136 +64,160 @@ describe("assertHighAssuranceChallengeEvidence", () => {
     );
   });
 
-  it("rejects malformed required high-assurance fields", () => {
-    const cases = [
-      {
-        evidence: { ...baseEvidence, challengeId: "" },
-        message: /challengeId must be a 1-256 character opaque token/,
+  it.each([
+    {
+      name: "empty challengeId",
+      evidence: { ...baseEvidence, challengeId: "" },
+      message: /challengeId must be a 1-256 character opaque token/,
+    },
+    {
+      name: "oversized challengeId",
+      evidence: { ...baseEvidence, challengeId: "a".repeat(257) },
+      message: /challengeId must be a 1-256 character opaque token/,
+    },
+    {
+      name: "unstable riskReasonCode",
+      evidence: { ...baseEvidence, riskReasonCode: "HIGH_ASSURANCE" },
+      message: /riskReasonCode must be a stable dotted code/,
+    },
+    {
+      name: "wrong projectId prefix",
+      evidence: { ...baseEvidence, projectId: "org_00000000000000000000000001" as never },
+      message: /projectId must be a project opaque ID/,
+    },
+    {
+      name: "non-string projectId",
+      evidence: { ...baseEvidence, projectId: 123 as never },
+      message: /projectId must be a project opaque ID/,
+    },
+    {
+      name: "invalid requestedAt",
+      evidence: { ...baseEvidence, requestedAt: "soon" },
+      message: /requestedAt must be an ISO-8601 timestamp/,
+    },
+    {
+      name: "invalid expiresAt",
+      evidence: { ...baseEvidence, expiresAt: "later" },
+      message: /expiresAt must be an ISO-8601 timestamp/,
+    },
+    {
+      name: "wrong requestAuditEventId prefix",
+      evidence: {
+        ...baseEvidence,
+        requestAuditEventId: "req_00000000000000000000000001" as never,
       },
-      {
-        evidence: { ...baseEvidence, riskReasonCode: "HIGH_ASSURANCE" },
-        message: /riskReasonCode must be a stable dotted code/,
-      },
-      {
-        evidence: { ...baseEvidence, projectId: "org_00000000000000000000000001" as never },
-        message: /projectId must be a project opaque ID/,
-      },
-      {
-        evidence: { ...baseEvidence, projectId: 123 as never },
-        message: /projectId must be a project opaque ID/,
-      },
-      {
-        evidence: { ...baseEvidence, requestedAt: "soon" },
-        message: /requestedAt must be an ISO-8601 timestamp/,
-      },
-      {
-        evidence: { ...baseEvidence, expiresAt: "later" },
-        message: /expiresAt must be an ISO-8601 timestamp/,
-      },
-      {
-        evidence: {
-          ...baseEvidence,
-          requestAuditEventId: "req_00000000000000000000000001" as never,
-        },
-        message: /requestAuditEventId must be an audit event opaque ID/,
-      },
-      {
-        evidence: { ...baseEvidence, requestAuditEventId: 123 as never },
-        message: /requestAuditEventId must be an audit event opaque ID/,
-      },
-    ] satisfies readonly {
-      readonly evidence: OperationHighAssuranceChallengeEvidence;
-      readonly message: RegExp;
-    }[];
-
-    for (const testCase of cases) {
-      expectInvalidMetadata(testCase.evidence, testCase.message);
-    }
+      message: /requestAuditEventId must be an audit event opaque ID/,
+    },
+    {
+      name: "non-string requestAuditEventId",
+      evidence: { ...baseEvidence, requestAuditEventId: 123 as never },
+      message: /requestAuditEventId must be an audit event opaque ID/,
+    },
+  ] satisfies readonly {
+    readonly name: string;
+    readonly evidence: OperationHighAssuranceChallengeEvidence;
+    readonly message: RegExp;
+  }[])("rejects malformed required high-assurance field: $name", ({ evidence, message }) => {
+    expectInvalidMetadata(evidence, message);
   });
 
-  it("rejects malformed optional high-assurance lifecycle fields", () => {
-    const cases = [
-      {
-        evidence: { ...baseEvidence, environmentId: "prj_00000000000000000000000001" as never },
-        message: /environmentId must be an environment opaque ID/,
+  it.each([
+    {
+      name: "wrong environmentId prefix",
+      evidence: { ...baseEvidence, environmentId: "prj_00000000000000000000000001" as never },
+      message: /environmentId must be an environment opaque ID/,
+    },
+    {
+      name: "non-string environmentId",
+      evidence: { ...baseEvidence, environmentId: 123 as never },
+      message: /environmentId must be an environment opaque ID/,
+    },
+    {
+      name: "wrong requestingUserId prefix",
+      evidence: {
+        ...baseEvidence,
+        requestingUserId: "mach_00000000000000000000000001" as never,
       },
-      {
-        evidence: { ...baseEvidence, environmentId: 123 as never },
-        message: /environmentId must be an environment opaque ID/,
+      message: /requestingUserId must be a user opaque ID/,
+    },
+    {
+      name: "non-string requestingUserId",
+      evidence: { ...baseEvidence, requestingUserId: 123 as never },
+      message: /requestingUserId must be a user opaque ID/,
+    },
+    {
+      name: "wrong requestingMachineIdentityId prefix",
+      evidence: {
+        ...baseEvidence,
+        requestingMachineIdentityId: "usr_00000000000000000000000001" as never,
       },
-      {
-        evidence: {
-          ...baseEvidence,
-          requestingUserId: "mach_00000000000000000000000001" as never,
-        },
-        message: /requestingUserId must be a user opaque ID/,
+      message: /requestingMachineIdentityId must be a machine identity opaque ID/,
+    },
+    {
+      name: "non-string requestingMachineIdentityId",
+      evidence: {
+        ...baseEvidence,
+        requestingMachineIdentityId: 123 as never,
       },
-      {
-        evidence: { ...baseEvidence, requestingUserId: 123 as never },
-        message: /requestingUserId must be a user opaque ID/,
+      message: /requestingMachineIdentityId must be a machine identity opaque ID/,
+    },
+    {
+      name: "invalid clearedAt",
+      evidence: { ...baseEvidence, clearedAt: "done" },
+      message: /clearedAt must be an ISO-8601 timestamp/,
+    },
+    {
+      name: "wrong clearingUserId prefix",
+      evidence: { ...baseEvidence, clearingUserId: "aud_00000000000000000000000001" as never },
+      message: /clearingUserId must be a user opaque ID/,
+    },
+    {
+      name: "unstable clearAuthenticationMethodCode",
+      evidence: { ...baseEvidence, clearAuthenticationMethodCode: "PASSKEY" },
+      message: /clearAuthenticationMethodCode must be a stable dotted code/,
+    },
+    {
+      name: "wrong clearAuditEventId prefix",
+      evidence: {
+        ...baseEvidence,
+        clearAuditEventId: "usr_00000000000000000000000001" as never,
       },
-      {
-        evidence: {
-          ...baseEvidence,
-          requestingMachineIdentityId: "usr_00000000000000000000000001" as never,
-        },
-        message: /requestingMachineIdentityId must be a machine identity opaque ID/,
+      message: /clearAuditEventId must be an audit event opaque ID/,
+    },
+    {
+      name: "invalid consumedAt",
+      evidence: { ...baseEvidence, consumedAt: "now" },
+      message: /consumedAt must be an ISO-8601 timestamp/,
+    },
+    {
+      name: "wrong consumeAuditEventId prefix",
+      evidence: {
+        ...baseEvidence,
+        consumeAuditEventId: "usr_00000000000000000000000001" as never,
       },
-      {
-        evidence: {
-          ...baseEvidence,
-          requestingMachineIdentityId: 123 as never,
-        },
-        message: /requestingMachineIdentityId must be a machine identity opaque ID/,
+      message: /consumeAuditEventId must be an audit event opaque ID/,
+    },
+    {
+      name: "wrong denyingUserId prefix",
+      evidence: { ...baseEvidence, denyingUserId: "aud_00000000000000000000000001" as never },
+      message: /denyingUserId must be a user opaque ID/,
+    },
+    {
+      name: "wrong denyAuditEventId prefix",
+      evidence: {
+        ...baseEvidence,
+        denyAuditEventId: "usr_00000000000000000000000001" as never,
       },
-      {
-        evidence: { ...baseEvidence, clearedAt: "done" },
-        message: /clearedAt must be an ISO-8601 timestamp/,
-      },
-      {
-        evidence: { ...baseEvidence, clearingUserId: "aud_00000000000000000000000001" as never },
-        message: /clearingUserId must be a user opaque ID/,
-      },
-      {
-        evidence: { ...baseEvidence, clearAuthenticationMethodCode: "PASSKEY" },
-        message: /clearAuthenticationMethodCode must be a stable dotted code/,
-      },
-      {
-        evidence: {
-          ...baseEvidence,
-          clearAuditEventId: "usr_00000000000000000000000001" as never,
-        },
-        message: /clearAuditEventId must be an audit event opaque ID/,
-      },
-      {
-        evidence: { ...baseEvidence, consumedAt: "now" },
-        message: /consumedAt must be an ISO-8601 timestamp/,
-      },
-      {
-        evidence: {
-          ...baseEvidence,
-          consumeAuditEventId: "usr_00000000000000000000000001" as never,
-        },
-        message: /consumeAuditEventId must be an audit event opaque ID/,
-      },
-      {
-        evidence: { ...baseEvidence, denyingUserId: "aud_00000000000000000000000001" as never },
-        message: /denyingUserId must be a user opaque ID/,
-      },
-      {
-        evidence: {
-          ...baseEvidence,
-          denyAuditEventId: "usr_00000000000000000000000001" as never,
-        },
-        message: /denyAuditEventId must be an audit event opaque ID/,
-      },
-    ] satisfies readonly {
-      readonly evidence: OperationHighAssuranceChallengeEvidence;
-      readonly message: RegExp;
-    }[];
-
-    for (const testCase of cases) {
-      expectInvalidMetadata(testCase.evidence, testCase.message);
-    }
-  });
+      message: /denyAuditEventId must be an audit event opaque ID/,
+    },
+  ] satisfies readonly {
+    readonly name: string;
+    readonly evidence: OperationHighAssuranceChallengeEvidence;
+    readonly message: RegExp;
+  }[])(
+    "rejects malformed optional high-assurance lifecycle field: $name",
+    ({ evidence, message }) => {
+      expectInvalidMetadata(evidence, message);
+    },
+  );
 });
