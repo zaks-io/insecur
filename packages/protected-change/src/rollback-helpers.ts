@@ -21,6 +21,7 @@ import { persistRollbackApprovalRequestOnDb } from "./create-rollback-approval-r
 import { loadApprovalImpactReviewState } from "./load-approval-impact-review-state.js";
 import type { RequestProtectedRollbackInput } from "./request-protected-rollback-types.js";
 import { toAuditActor } from "./to-audit-actor.js";
+import { toSecretVersionCreatorActor } from "./to-secret-version-creator-actor.js";
 
 export interface ExecuteProtectedRollbackPersistenceInput {
   readonly input: RequestProtectedRollbackInput;
@@ -49,6 +50,7 @@ export async function executeProtectedRollbackPersistence(
       toSourceVersionId: input.toVersionId,
       newSecretVersionId,
       asDraft: true,
+      createdByActor: toSecretVersionCreatorActor(input.actor),
     });
   }
 
@@ -134,6 +136,7 @@ async function copyVersionAndCreateRollbackApproval(input: {
         toSourceVersionId: input.input.toVersionId,
         newSecretVersionId: input.newSecretVersionId,
         asDraft: true,
+        createdByActor: toSecretVersionCreatorActor(input.input.actor),
       });
       await persistRollbackApprovalRequestOnDb(db, {
         organizationId: input.input.organizationId,
@@ -172,6 +175,7 @@ export async function copyRollbackVersion(input: {
   readonly toSourceVersionId: SecretVersionId;
   readonly newSecretVersionId: ReturnType<typeof secretVersionId.generate>;
   readonly asDraft: boolean;
+  readonly createdByActor: Parameters<typeof copyRetainedSecretVersion>[1]["createdByActor"];
 }): Promise<CopyRetainedSecretVersionResult> {
   return withTenantScope({ kind: "organization", organizationId: input.organizationId }, ({ db }) =>
     copyRetainedSecretVersionOrThrow(db, {
@@ -180,6 +184,7 @@ export async function copyRollbackVersion(input: {
       toSourceVersionId: input.toSourceVersionId,
       newSecretVersionId: input.newSecretVersionId,
       asDraft: input.asDraft,
+      createdByActor: input.createdByActor,
     }),
   );
 }
