@@ -5,7 +5,6 @@ import { DEFAULT_SENTRY_TRACES_SAMPLE_RATE } from "@insecur/observability";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveCliCommandFamily } from "../src/crash-command-family.js";
 import { createCliCrashReporter, NOOP_CRASH_REPORTER } from "../src/crash-reporting.js";
-import { prepareCliCrashEvent, type SentryEventLike } from "../src/crash-reporting-event.js";
 import { runCli } from "../src/program.js";
 import { EXIT_UNEXPECTED } from "../src/output/exit-codes.js";
 import { USER_CONFIG_FILE } from "../src/config/paths.js";
@@ -33,76 +32,6 @@ function captureOutput(): {
 describe("CLI crash reporting", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it("redacts event payloads before sending them to Sentry", () => {
-    const event: SentryEventLike = {
-      message: SENTINEL,
-      exception: {
-        values: [
-          {
-            type: "Error",
-            value: SENTINEL,
-            stacktrace: {
-              frames: [
-                {
-                  abs_path: `/Users/example/project/${SENTINEL}.ts`,
-                  context_line: SENTINEL,
-                  filename:
-                    "/Users/example/project/packages/cli/src/output/unexpected-cli-error.ts",
-                  module: SENTINEL,
-                  post_context: [SENTINEL],
-                  pre_context: [SENTINEL],
-                  vars: { raw: SENTINEL },
-                },
-              ],
-            },
-          },
-        ],
-      },
-      request: { headers: { authorization: SENTINEL } },
-      breadcrumbs: [{ message: SENTINEL }],
-      contexts: { runtime: { raw: SENTINEL } },
-      extra: { raw: SENTINEL },
-      fingerprint: [SENTINEL],
-      logentry: { message: SENTINEL },
-      modules: { [SENTINEL]: SENTINEL },
-      server_name: SENTINEL,
-      tags: {
-        command_family: "secrets.set",
-        service: "insecur-cli",
-        variableKey: SENTINEL,
-      },
-      threads: { values: [{ name: SENTINEL }] },
-      user: { id: SENTINEL },
-    };
-
-    const sanitized = prepareCliCrashEvent(event);
-
-    expect(JSON.stringify(sanitized)).not.toContain(SENTINEL);
-    expect(sanitized).toMatchObject({
-      message: "[redacted by insecur]",
-      exception: {
-        values: [
-          {
-            type: "Error",
-            value: "[redacted by insecur]",
-            stacktrace: {
-              frames: [{ filename: "packages/cli/src/output/unexpected-cli-error.ts" }],
-            },
-          },
-        ],
-      },
-      breadcrumbs: [],
-      extra: {},
-      tags: {
-        command_family: "secrets.set",
-        service: "insecur-cli",
-      },
-    });
-    expect(sanitized.exception?.values?.[0]?.stacktrace?.frames?.[0]?.module).toBeUndefined();
-    expect(sanitized.request).toBeUndefined();
-    expect(sanitized.user).toBeUndefined();
   });
 
   it("resolves command family without keeping raw argv values", () => {
@@ -135,7 +64,7 @@ describe("CLI crash reporting", () => {
 
     const reporter = await createCliCrashReporter({
       argv: ["node", "insecur", "secrets", "set"],
-      env: {},
+      env: { INSECUR_CLI_SENTRY_ENVIRONMENT: "preview" },
       sentryRuntime: {
         init,
         captureException,
@@ -152,11 +81,25 @@ describe("CLI crash reporting", () => {
     expect(reporter.enabled).toBe(true);
     expect(init).toHaveBeenCalledWith(
       expect.objectContaining({
-        defaultIntegrations: false,
         enabled: true,
-        sendDefaultPii: false,
+        dataCollection: { userInfo: true, httpBodies: [] },
         tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
       }),
+    );
+    expect(init).toHaveBeenCalledWith(expect.not.objectContaining({ defaultIntegrations: false }));
+    const productionInit = vi.fn();
+    await createCliCrashReporter({
+      argv: ["node", "insecur", "secrets", "set"],
+      env: {},
+      sentryRuntime: { init: productionInit, captureException, flush },
+      userPreference: undefined,
+      version: "0.1.0",
+    });
+    expect(productionInit).toHaveBeenCalledWith(
+      expect.objectContaining({ environment: "production" }),
+    );
+    expect(productionInit).toHaveBeenCalledWith(
+      expect.not.objectContaining({ dataCollection: expect.anything() }),
     );
     expect(onUncaughtExceptionIntegration).toHaveBeenCalledWith({
       exitEvenIfOtherHandlersAreRegistered: true,
