@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ERROR_CATALOG, getErrorCatalogEntry } from "./error-catalog.js";
-import { LLMS_TXT } from "./llms-txt.js";
+import { LLMS_FULL_TXT, LLMS_TXT } from "./llms-txt.js";
 import { DOC_PAGES, DOC_SECTIONS, getDocPage } from "./manifest.js";
 import { renderDocHtml } from "./render.js";
 
@@ -68,6 +68,17 @@ describe("llms.txt", () => {
     for (const [, slug] of links) {
       expect(slug).toBeDefined();
       expect(getDocPage(slug ?? ""), slug).toBeDefined();
+    }
+  });
+});
+
+describe("llms-full.txt", () => {
+  it("contains every page's body under its source URL", () => {
+    for (const page of DOC_PAGES) {
+      expect(LLMS_FULL_TXT, page.slug).toContain(
+        `Source: https://insecur.cloud${page.markdownHref}`,
+      );
+      expect(LLMS_FULL_TXT, page.slug).toContain(page.body.trim().slice(0, 200));
     }
   });
 });

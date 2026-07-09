@@ -38,6 +38,14 @@ describe("docs static routes", () => {
     expect(await response?.text()).toContain("https://insecur.cloud/docs/quickstart.md");
   });
 
+  it("serves llms-full.txt with the whole corpus", async () => {
+    const response = tryStaticSiteResponse("/llms-full.txt", "GET", env);
+    expect(response?.status).toBe(200);
+    const body = await response?.text();
+    expect(body).toContain("Source: https://insecur.cloud/docs/agent-quickstart.md");
+    expect(body).toContain("Source: https://insecur.cloud/docs/reference/errors.md");
+  });
+
   it("serves every page's markdown twin verbatim", async () => {
     for (const page of DOC_PAGES) {
       const response = tryStaticSiteResponse(page.markdownHref, "GET", env);

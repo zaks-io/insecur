@@ -109,7 +109,7 @@ Public marketing/legal/security/documentation surface (ADR-0078). Holds no auth 
 
 `/.well-known/insecur/audit-export-signing-keys.json` publishes the current and historical Ed25519 public keys used to verify audit-export signatures (ADR-0045). The document is metadata-only and carries the honest claim ceiling (`tamper-evident, independently verifiable`). Operators update it during signing-key bootstrap and rotation; private key material never appears here.
 
-`/docs/` and `/docs/$` are the public documentation pages, built from the markdown content tree in `apps/site/src/docs/content` (hand-written guides plus pages generated from CLI/domain source by `pnpm docs:cli`). Every page is dual-format: rendered HTML at `/docs/<slug>` and the raw markdown twin at `/docs/<slug>.md` (the `/docs/$` splat row covers both; the `.md` twins are served by a static pathname guard). `/llms.txt` is the agent-facing docs index linking the markdown twins.
+`/docs/` and `/docs/$` are the public documentation pages, built from the markdown content tree in `apps/site/src/docs/content` (hand-written guides plus pages generated from CLI/domain source by `pnpm docs:cli`). Every page is dual-format: rendered HTML at `/docs/<slug>` and the raw markdown twin at `/docs/<slug>.md` (the `/docs/$` splat row covers both; the `.md` twins are served by a static pathname guard). `/llms.txt` is the agent-facing docs index linking the markdown twins; `/llms-full.txt` is the whole docs corpus concatenated as markdown.
 
 `/errors/` and `/errors/$` are the error-reference landing pages generated from the normative error-code registry in `docs/cli-and-sync.md`. The API's RFC 9457 `type` URIs (`https://insecur.dev/errors/<slug>`) resolve to `/errors/$` on the insecur.dev custom domain bound to this Worker.
 
@@ -125,6 +125,7 @@ Public marketing/legal/security/documentation surface (ADR-0078). Holds no auth 
 | GET    | `/healthz`                                            |
 | GET    | `/install.ps1`                                        |
 | GET    | `/install.sh`                                         |
+| GET    | `/llms-full.txt`                                      |
 | GET    | `/llms.txt`                                           |
 | GET    | `/privacy`                                            |
 | GET    | `/security`                                           |

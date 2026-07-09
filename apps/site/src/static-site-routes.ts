@@ -1,5 +1,5 @@
 import { badgeJsonResponse } from "./badge-json-response.js";
-import { LLMS_TXT } from "./docs/llms-txt.js";
+import { LLMS_FULL_TXT, LLMS_TXT } from "./docs/llms-txt.js";
 import { getDocPage } from "./docs/manifest.js";
 import type { SiteEnv } from "./env.js";
 import coverageBadge from "./generated/coverage-badge.json" with { type: "json" };
@@ -24,6 +24,10 @@ const LLMS_TXT_CONTENT_TYPE = "text/plain; charset=utf-8";
 function tryDocsTextResponse(pathname: string, method: string): Response | null {
   if (pathname === "/llms.txt") {
     return staticTextResponse(LLMS_TXT, LLMS_TXT_CONTENT_TYPE, method);
+  }
+
+  if (pathname === "/llms-full.txt") {
+    return staticTextResponse(LLMS_FULL_TXT, LLMS_TXT_CONTENT_TYPE, method);
   }
 
   if (pathname.startsWith("/docs/") && pathname.endsWith(".md")) {
