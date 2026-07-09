@@ -11,7 +11,7 @@ export interface ApprovalNotificationEnvelope {
   /** Alert-only: the approver must authenticate before seeing anything. */
   readonly alert: "approval_pending";
   readonly organizationId: string;
-  /** Opaque Approval Request reference (`req_…`). Not a Display Name. */
+  /** Opaque Approval Request reference (`apr_…`). Not a Display Name. */
   readonly approvalRequestId: string;
   readonly createdAt: string;
   /** Non-authorizing deep link to the authenticated approval view. */
