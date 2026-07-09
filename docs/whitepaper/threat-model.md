@@ -2,7 +2,7 @@
 
 **A design white paper.**
 
-Status: draft for review. Last updated 2026-07-05.
+Status: draft for review. Last updated 2026-07-09.
 
 This document describes what insecur is designed to prevent, the adversaries it models, and the
 structural controls it relies on. It describes the **design and its guarantees** — the properties
@@ -12,9 +12,13 @@ The most important framing is [§2.4](#24-no-reveal-custody-defined): insecur pr
 custody**, a guarantee about the product surface, and deliberately does not claim to be
 zero-knowledge. That distinction is drawn precisely there.
 
-Terminology and the authoritative product decisions live in the repo: the product spec
+This paper owns the threat model: assets, trust boundaries, modeled adversaries, the no-reveal
+claim ceiling, and the local / hosted-development / Protected Environment custody boundary.
+Terminology and authoritative product behavior live in the repo: the product spec
 (`docs/specs/product-spec.md`), the architecture doc (`docs/architecture.md`), and the ADRs
-(`docs/adr/`). Where this paper and those disagree, those win.
+(`docs/adr/`). Where this paper and those disagree about product behavior, those win. Where
+another doc disagrees with this paper about the threat model or claim boundary, update that other
+doc instead.
 
 ---
 
