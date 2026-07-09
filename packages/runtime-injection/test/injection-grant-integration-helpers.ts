@@ -25,9 +25,28 @@ import { TEST_USER_ID } from "../../tenant-store/test/rls/test-ids.js";
 export const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 export const PREVIEW_PROTECTED_ENV_ID = "env_00000000000000000000000085";
 
+type RuntimeSql = Parameters<Parameters<typeof withTenantScope>[1]>[0]["sql"];
+
+async function cleanupProtectedChangeData(
+  organizationId: OrganizationId,
+  sql: RuntimeSql,
+): Promise<void> {
+  await sql`
+    DELETE FROM protected_change_approval_evidence
+    WHERE org_id = ${organizationId} AND protected_change_id IN (
+      SELECT id FROM protected_changes
+      WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+    )
+  `;
+  await sql`
+    DELETE FROM protected_changes
+    WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
+  `;
+}
+
 async function cleanupProtectedPreviewEnvironmentData(
   organizationId: OrganizationId,
-  sql: Parameters<Parameters<typeof withTenantScope>[1]>[0]["sql"],
+  sql: RuntimeSql,
 ): Promise<void> {
   await sql`
     DELETE FROM injection_grants
@@ -65,6 +84,7 @@ async function cleanupProtectedPreviewEnvironmentData(
     DELETE FROM secrets
     WHERE org_id = ${organizationId} AND environment_id = ${PREVIEW_PROTECTED_ENV_ID}
   `;
+  await cleanupProtectedChangeData(organizationId, sql);
   await sql`DELETE FROM environments WHERE id = ${PREVIEW_PROTECTED_ENV_ID}`;
 }
 
