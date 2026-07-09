@@ -55,7 +55,8 @@ ship. Full counsel punch list in [research/legal-liability.md](research/legal-li
   attestation. Counsel work; the exclusion only holds if it is enforced and not knowingly undercut.
 - **Claim-wording governance (ADR-0044, 0045, 0046, 0047):** no claims register (decided ADRs-only).
   Marketing and contract copy for no-reveal custody, tamper-evident audit, US residency, and the
-  regulated-industry exclusion must be checked against the governing ADR before publishing. Use
+  regulated-industry exclusion must be checked against the governing ADR and the threat-model claim
+  boundary before publishing. Use
   [security-and-privacy-posture-record.md](security-and-privacy-posture-record.md) as the internal
   private source record for high-level external security/privacy documentation, not as publishable
   copy or a public-documentation draft.

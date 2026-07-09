@@ -1,6 +1,10 @@
 # Security Plan
 
-This document tracks the security plans insecur must account for while staying developer-first and agent-friendly. It is planning material, not a claim that the current disposable scaffold already implements these controls.
+This document tracks the security work insecur must account for while staying developer-first and
+agent-friendly. It is planning material, not current implementation status and not the threat-model
+owner. Current delivered / verified / missing state lives in
+[project-status.md](project-status.md). Assets, adversaries, trust boundaries, custody tiers, and
+claim ceilings live in [whitepaper/threat-model.md](whitepaper/threat-model.md).
 
 ## Security Posture
 
@@ -29,65 +33,28 @@ Production Secret Delivery and Secret Sync are blocked until the [Storage Securi
 
 ## Threat Model
 
-Primary assets:
+The owning threat model is [whitepaper/threat-model.md](whitepaper/threat-model.md). That document
+owns the asset list, trust boundaries, adversary model, no-reveal / zero-knowledge claim line, and
+the local / hosted-development / Protected Environment custody table.
 
-- Secret values, secret versions, and other Sensitive Values.
-- Organization data keys, project data keys, and per-record data encryption keys.
-- App connection credentials for Vercel, GitHub, and Cloudflare.
-- Machine identity auth method credentials and access tokens.
-- Session cookies and refresh credentials.
-- Audit log integrity.
-
-Important attacker goals:
-
-- Read secrets from another organization or project.
-- Write or rollback secrets without permission.
-- Use a stolen token after it should have expired or rotated.
-- Abuse a provider connection to push or exfiltrate secrets.
-- Abuse a provider connection as a metadata oracle to enumerate provider-side secrets, variables, repositories, environments, or project structure outside explicit insecur records.
-- Replay ciphertext or move encrypted records across tenants.
-- Suppress, forge, or evade audit records.
-- Trick agents or CLI scripts into leaking secrets to stdout, JSON output, logs, shell history, model context, or committed files.
-- Cause insecur to persist or log plaintext secrets through errors, audit metadata, provider responses, queues, caches, traces, or analytics.
-- Smuggle Sensitive Values through URLs, query strings, route params, command arguments, shell history, browser history, process listings, or telemetry.
-- Abuse expensive endpoints or sync jobs for denial of service.
-- Register or control hostile tenants to probe tenant boundaries, quota behavior, onboarding flows, and public abuse defenses when broad public signup is enabled.
-- Compromise the build/dependency supply chain.
-
-Operating assumption about agents: assume any coding agent or automated caller running in an authorized session will read every Sensitive Value it can reach, including values delivered into a child process by Runtime Injection. Agent exposure to plaintext is controlled structurally rather than by agent restraint, and is tiered by environment: acceptable for non-protected development values, tightly controlled for Protected Environment values (typically staging and production).
-
-Explicit non-goals for the near term:
-
-- Enterprise identity surfaces such as SCIM, SAML, and LDAP.
-- HSM/KMIP/FIPS modes.
-- Broad dynamic secret engines.
-- Large custom policy languages.
+This plan derives implementation work from that model. Do not add a second asset, adversary, or
+custody-boundary list here. If the model changes, update the threat model first, then reflect any
+concrete implementation work in the plan below.
 
 ## Agent Access Model
 
-A local coding agent has no identity of its own (ADR-0032). It runs inside a human-initiated session, inherits the short-lived `INSECUR_SESSION_TOKEN` from the process environment, and acts with the human's Effective Access. This model assumes the agent will read every Sensitive Value it can reach and will call the API directly with the inherited token rather than only through the CLI. Controls are therefore server-side on the token's risk tier, not CLI-side and not dependent on agent restraint.
+The agent access boundary is owned by
+[whitepaper/threat-model.md §2.5](whitepaper/threat-model.md#25-the-custody-boundary-local-dev-and-production)
+and
+[§4](whitepaper/threat-model.md#4-defeating-the-primary-adversary-a1-the-local-agent).
+Product behavior for Runtime Injection, protected grants, and approval gates is owned by
+[specs/product-spec.md](specs/product-spec.md).
 
-What it holds: the session token, in its process environment. The token, not the CLI, is the capability. Anything the CLI can do with it, the agent can do by calling the API directly. The token is short-lived and cannot satisfy a High-Assurance Challenge, so the agent inherits exactly the human's autonomous Effective Access and nothing gated behind a fresh challenge.
+Implementation work below must preserve these consequences:
 
-What it can read as values: Runtime Injection is a read path. It delivers plaintext into a child process the agent controls, and the child can read its delivered environment once it crosses the Runtime Trust Boundary. Any Environment the agent can inject from, it can read in full, regardless of Secret Reveal being unavailable. A Protected Environment never offers Secret Reveal, but that is moot if the agent can trigger injection and print the delivered environment. On disk it can read only plaintext another tool left lying around, because insecur persists no plaintext secret to disk.
-
-What it can read as metadata: freely, with normal authorized access, it reads Scoped Lists, Secret Shapes, Display Names, opaque IDs, counts, status, presence flags, non-sensitive lengths, and hashes. Decrypted Sensitive Metadata, such as provider-side names, exact Protected Environment Secret value byte lengths, and security-relevant relationships, stays behind the Sensitive Detail Gate, which needs a fresh High-Assurance Challenge the agent cannot clear.
-
-What it can do autonomously, within the human's Effective Access and with no fresh challenge: generate and set non-protected secrets, including server-side `--generate` where it never sees the value; assemble and read configuration; resolve Display Names through Scoped Lists; stage Draft Versions in a Protected Environment; and run non-protected development Runtime Injection.
-
-What requires a human, failing closed with `auth.high_assurance_required` and exit code `10`: Promotion, protected rollback, Runtime Injection Policy create/update/publish/disable, Secret Sync enable or manual run, App Connection or Connection Boundary changes, protected Shared Secret Source attachment, and Push Device Registration.
-
-Where the human step happens matters. Protected Environment approval, High-Assurance Challenge completion, protected delivery configuration approval, protected Secret Sync enable/run, and production Cloudflare Worker Secret Deploy approval evidence must happen in the authenticated web app Human Approval Surface in V1. The CLI/API path may request, plan, and poll the bounded operation, but it must not be sufficient to clear the protected production gate.
-
-Delivery Risk Policy can deliberately allow non-protected development or preview delivery through agent-reachable channels. V1 exposes that choice through Delivery Risk Policy Presets: Strict, Balanced, and Automation-Friendly. Guided Organization Provisioning applies Balanced automatically without a first-run preset picker, and each preset is backed by versioned policy infrastructure with scope, effective policy, and audit history. Balanced allows non-protected development automation by default, but each non-protected preview Environment requires its own Preview Automation Opt-In. Automation-Friendly grants the same Preview Automation Authority by default for non-protected preview Environments in scope, but selecting Automation-Friendly after onboarding is a Risk-Broadening Delivery Change. Preview Automation Authority is execution-only for existing Runtime Injection Policies, Secret Syncs, and Secret Sync Bindings; adding provider targets, changing bindings or policies, or expanding the delivered Secret set requires a separate risk-broadening change. Risk-broadening changes require the Human Approval Surface and a High-Assurance Challenge; risk-tightening changes may use ordinary authenticated web app settings and still require audit. This is a configurable risk posture for lower-risk environments, not a shortcut around Protected Environment production approval.
-
-The guided first-run proof must be worded narrowly. It may prove that insecur generated a development secret through a normal Blind Secret Write, stored it, delivered it to a verifier through normal Runtime Injection, and returned metadata-only success without exposing the Sensitive Value in CLI output, local files, or agent transcript. It must not claim that an arbitrary local agent cannot read non-protected development values after Runtime Injection gives them to a child process.
-
-Seams this exposes:
-
-- Runtime Injection, not Secret Reveal, is the real read boundary, because the child process the caller controls can read its delivered environment. Resolved by ADR-0038: issuing an Injection Grant for a Protected Environment requires a Machine Identity credential, a deploy key or OIDC identity, that lives in CI/CD and that the agent does not hold. A human session token, including the one an agent inherits, cannot obtain a Protected Environment Injection Grant, so the agent has no path to Protected Environment values. Creating or rotating that credential stays a High-Assurance Challenge action so the agent cannot mint its own.
-- The token is the capability, not the CLI. Every boundary above must hold server-side against the raw token, because the agent can bypass the CLI. CLI-side nudges, such as preferring `--generate` or preferring injection over `.env`, are ergonomics, not controls.
-- Non-protected development values are forfeit by design. The model accepts that the agent reads them, so a non-protected Environment must hold only development-grade values and never a production-grade Sensitive Value.
+- A local agent can read any non-protected development value it can cause to be injected.
+- Protected Environment injection grants require machine-held authority, not a human session token.
+- CLI behavior is ergonomics; API and Runtime checks enforce the boundary server-side.
 
 ## Security Plans
 
