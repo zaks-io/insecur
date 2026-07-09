@@ -10,4 +10,5 @@ export interface PublicEdgeRateLimitBindings {
   readonly BOOTSTRAP_IP?: RateLimiterBinding;
   readonly BOOTSTRAP_ACTOR?: RateLimiterBinding;
   readonly AUTH_EXCHANGE_IP?: RateLimiterBinding;
+  readonly AUTH_DEVICE_TOKEN_IP?: RateLimiterBinding;
 }

@@ -23,6 +23,8 @@ export function unsupportedLocalApi(capability: string) {
 
 const HOSTED_NAVIGATION_STUBS = {
   exchangeCliPkceSession: unsupportedLocalApi("exchangeCliPkceSession"),
+  startCliDeviceAuthorization: unsupportedLocalApi("startCliDeviceAuthorization"),
+  pollCliDeviceToken: unsupportedLocalApi("pollCliDeviceToken"),
   provisionPersonalOrganization: unsupportedLocalApi("provisionPersonalOrganization"),
   listEnvironmentSecrets: unsupportedLocalApi("listEnvironmentSecrets"),
   listSecretVersions: unsupportedLocalApi("listSecretVersions"),

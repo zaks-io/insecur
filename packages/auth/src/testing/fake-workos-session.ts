@@ -1,5 +1,7 @@
 import type { WorkOSAuthFactorSummary } from "../mfa-posture.js";
 import type {
+  WorkOSDeviceAuthorizationResult,
+  WorkOSDeviceTokenResult,
   WorkOSSessionAuthenticateResult,
   WorkOSSessionContext,
   WorkOSSessionPort,
@@ -30,6 +32,23 @@ export interface FakeWorkOSSessionEntry {
   readonly authenticateFailure?: "expired" | "invalid" | "missing";
   readonly refreshFailure?: "expired" | "invalid" | "missing" | "mfa_enrollment";
   readonly registeredPasskey?: boolean;
+  /**
+   * Device-authorization support. When set, the fake serves this device code from
+   * `startDeviceAuthorization` and resolves it to this entry's session on `authenticateDeviceCode`.
+   */
+  readonly deviceCode?: string;
+  readonly userCode?: string;
+  readonly verificationUri?: string;
+  readonly verificationUriComplete?: string;
+  readonly deviceExpiresInSeconds?: number;
+  readonly deviceIntervalSeconds?: number;
+  /**
+   * Ordered non-terminal poll states returned before the terminal outcome. Each is consumed once.
+   * Example: ["authorization_pending", "slow_down"] then success on the third poll.
+   */
+  readonly devicePollStates?: readonly ("authorization_pending" | "slow_down")[];
+  /** Terminal device-code outcome; defaults to authenticated success for the entry's session. */
+  readonly deviceTerminal?: "authenticated" | "denied" | "expired" | "invalid";
 }
 
 function contextFromEntry(entry: FakeWorkOSSessionEntry): WorkOSSessionContext {
@@ -145,15 +164,81 @@ function refreshFakeSealedSession(
   });
 }
 
+function deviceEntry(
+  entries: readonly FakeWorkOSSessionEntry[],
+): FakeWorkOSSessionEntry | undefined {
+  return entries.find((candidate) => candidate.deviceCode !== undefined);
+}
+
+function fakeStartDeviceAuthorization(
+  entries: readonly FakeWorkOSSessionEntry[],
+): Promise<WorkOSDeviceAuthorizationResult> {
+  const entry = deviceEntry(entries);
+  if (entry?.deviceCode === undefined) {
+    return Promise.reject(new Error("Fake WorkOS device authorization is not configured."));
+  }
+  const verificationUriComplete = entry.verificationUriComplete;
+  return Promise.resolve({
+    deviceCode: entry.deviceCode,
+    userCode: entry.userCode ?? "WDJB-MJHT",
+    verificationUri: entry.verificationUri ?? "https://workos.test/device",
+    ...(verificationUriComplete === undefined ? {} : { verificationUriComplete }),
+    expiresInSeconds: entry.deviceExpiresInSeconds ?? 300,
+    intervalSeconds: entry.deviceIntervalSeconds ?? 5,
+  });
+}
+
+function terminalDeviceTokenResult(entry: FakeWorkOSSessionEntry): WorkOSDeviceTokenResult {
+  switch (entry.deviceTerminal ?? "authenticated") {
+    case "denied":
+      return { status: "denied" };
+    case "expired":
+      return { status: "expired" };
+    case "invalid":
+      return { status: "invalid", reason: "invalid" };
+    case "authenticated":
+      // The real WorkOS device-code grant returns no sealed session; the fake mirrors that shape.
+      return {
+        status: "authenticated",
+        context: contextFromEntry(entry),
+      };
+  }
+}
+
+function fakeAuthenticateDeviceCode(
+  entries: readonly FakeWorkOSSessionEntry[],
+  devicePollCursor: Map<string, number>,
+  deviceCode: string,
+): Promise<WorkOSDeviceTokenResult> {
+  const entry = entries.find((candidate) => candidate.deviceCode === deviceCode);
+  if (entry === undefined) {
+    return Promise.resolve({ status: "invalid", reason: "invalid" });
+  }
+  const cursor = devicePollCursor.get(deviceCode) ?? 0;
+  const pending = entry.devicePollStates ?? [];
+  const pendingStatus = pending[cursor];
+  if (pendingStatus !== undefined) {
+    devicePollCursor.set(deviceCode, cursor + 1);
+    return Promise.resolve({ status: pendingStatus });
+  }
+  return Promise.resolve(terminalDeviceTokenResult(entry));
+}
+
 export function createFakeWorkOSSessionPort(
   entries: readonly FakeWorkOSSessionEntry[],
 ): WorkOSSessionPort {
   const bySession = new Map(entries.map((entry) => [entry.sessionData, entry]));
   const consumedCodes = new Set<string>();
+  const devicePollCursor = new Map<string, number>();
   seedRegisteredPasskeys(entries);
 
   return {
     createAuthorizationUrl: fakeAuthorizationUrl,
+
+    startDeviceAuthorization: () => fakeStartDeviceAuthorization(entries),
+
+    authenticateDeviceCode: (deviceCode) =>
+      fakeAuthenticateDeviceCode(entries, devicePollCursor, deviceCode),
 
     authenticateAuthorizationCode: (input) =>
       authenticateFakeAuthorizationCode(entries, consumedCodes, input),

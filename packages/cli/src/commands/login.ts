@@ -7,6 +7,7 @@ import { renderSuccess } from "../output/render.js";
 import { asEchoId, buildEnvelopeMeta } from "../output/target-echo.js";
 import { setMemorySession } from "../session/memory-session.js";
 import { defaultSessionStore, type SessionStore } from "../session/persisted-session.js";
+import { runDeviceLogin, type DeviceLoginOptions } from "./login-device.js";
 import { runBrowserPkceLogin } from "./login-pkce.js";
 import { runManagedLoginShell } from "./login-shell.js";
 
@@ -14,9 +15,15 @@ export interface LoginCommandOptions {
   readonly shell: boolean;
   readonly openBrowser: boolean;
   readonly persist: boolean;
+  /** Device-authorization flow for headless/remote shells (ADR-0010). Defaults to loopback PKCE. */
+  readonly device?: boolean;
+  /** `--agent-session` mints the resulting session agent-marked (only with --device). */
+  readonly agentSession?: boolean;
   readonly callbackPort?: number;
   readonly callbackTimeoutSeconds?: number;
   readonly sessionStore?: SessionStore;
+  /** Test-only overrides for the device polling loop. */
+  readonly deviceLoginOverrides?: Pick<DeviceLoginOptions, "sleep" | "now">;
 }
 
 async function exchangeLoginSession(
@@ -25,6 +32,17 @@ async function exchangeLoginSession(
   host: string,
   commandOptions: LoginCommandOptions,
 ) {
+  if (commandOptions.device === true) {
+    return runDeviceLogin({
+      flags,
+      api,
+      host,
+      options: {
+        agentSession: commandOptions.agentSession === true,
+        ...(commandOptions.deviceLoginOverrides ?? {}),
+      },
+    });
+  }
   return runBrowserPkceLogin({
     flags,
     api,
