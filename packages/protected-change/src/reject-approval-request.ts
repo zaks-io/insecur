@@ -1,13 +1,11 @@
 import type { AuditActorRef } from "@insecur/audit";
-import { recordApprovalAudit } from "@insecur/audit";
 import type {
   ApprovalRequestId,
-  OpaqueResourceId,
+  EnvironmentId,
   OrganizationId,
   ProjectId,
   RequestId,
 } from "@insecur/domain";
-import type { EnvironmentId } from "@insecur/domain";
 import { TenantApprovalRequestStore, withTenantScope } from "@insecur/tenant-store";
 import { APPROVAL_ERROR_CODES } from "@insecur/domain";
 import type { ActorRef } from "@insecur/access";
@@ -15,6 +13,7 @@ import type { ActorRef } from "@insecur/access";
 import { assertApprovalRequestRejectAccess } from "./approval-request-review-access.js";
 import { ApprovalRequestError } from "./approval-request-errors.js";
 import { loadApprovalRequestForReviewDecision } from "./get-approval-request-review.js";
+import { recordApprovalRequestSuccessAudit } from "./record-approval-request-success-audit.js";
 
 export interface RejectApprovalRequestInput {
   readonly actor: ActorRef;
@@ -73,17 +72,13 @@ async function recordRejectedApprovalRequestAudit(input: {
   readonly approvalRequestId: ApprovalRequestId;
   readonly requestId: RequestId;
 }): Promise<void> {
-  await recordApprovalAudit({
+  await recordApprovalRequestSuccessAudit({
     action: "request_rejected",
-    outcome: "success",
-    actor: input.auditActor,
+    auditActor: input.auditActor,
     organizationId: input.organizationId,
     projectId: input.projectId,
     environmentId: input.environmentId,
-    resource: {
-      type: "approval_request",
-      id: input.approvalRequestId as unknown as OpaqueResourceId,
-    },
+    approvalRequestId: input.approvalRequestId,
     requestId: input.requestId,
   });
 }

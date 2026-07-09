@@ -43,6 +43,7 @@ export interface RecordKeyCustodyAuditInput {
 export type ApprovalAuditAction =
   | "request_created"
   | "request_approved"
+  | "request_canceled"
   | "request_rejected"
   | "request_superseded"
   | "request_draft_discard_closed"
@@ -59,6 +60,19 @@ export interface RecordApprovalAuditInput {
   requestId?: RequestId;
   reasonCode?: KnownErrorCode;
 }
+
+const APPROVAL_SUCCESS_EVENT_CODES = {
+  request_created: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestCreated,
+  request_approved: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestApproved,
+  request_canceled: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestCanceled,
+  request_rejected: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestRejected,
+  request_superseded: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestSuperseded,
+  request_draft_discard_closed: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestDraftDiscardClosed,
+  action_denied: PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied,
+} satisfies Record<
+  ApprovalAuditAction,
+  (typeof PRODUCTION_AUDIT_EVENT_CODES)[keyof typeof PRODUCTION_AUDIT_EVENT_CODES]
+>;
 
 function syncEventCode(input: RecordSyncAuditInput) {
   if (input.phase === "revalidation") {
@@ -84,20 +98,7 @@ function approvalEventCode(input: RecordApprovalAuditInput) {
   if (input.outcome === "denied") {
     return PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied;
   }
-  switch (input.action) {
-    case "request_created":
-      return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestCreated;
-    case "request_approved":
-      return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestApproved;
-    case "request_rejected":
-      return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestRejected;
-    case "request_superseded":
-      return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestSuperseded;
-    case "request_draft_discard_closed":
-      return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestDraftDiscardClosed;
-    case "action_denied":
-      return PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied;
-  }
+  return APPROVAL_SUCCESS_EVENT_CODES[input.action];
 }
 
 /**

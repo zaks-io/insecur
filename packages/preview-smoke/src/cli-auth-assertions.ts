@@ -3,7 +3,7 @@ import { AUTH_ERROR_CODES, assertMetadataOnlyEnvelopeShape } from "@insecur/doma
 import type { PreviewConfig } from "./env.js";
 import { assertEqual, asRecord, requireString, type JsonRecord } from "./http.js";
 import { requireObjectArray } from "./metadata-read-assertions.js";
-import { parseCliSmokeJson } from "./cli-smoke.js";
+import { parseLastCliSmokeJson } from "./cli-smoke.js";
 
 const FORBIDDEN_OUTPUT_KEYS = [
   "credential",
@@ -86,7 +86,7 @@ function parseCliSmokeError(stderr: string, label: string): JsonRecord {
   if (trimmed === "") {
     throw new Error(`${label} produced no JSON error output on stderr`);
   }
-  return parseCliSmokeJson(trimmed, label);
+  return parseLastCliSmokeJson(trimmed, label);
 }
 
 export function assertCliAuthFailure(input: {

@@ -26,7 +26,8 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const response = await gotoAuthedWebPage(page, preview.webBaseUrl, "/whoami");
     const html = await page.content();
 
-    assertAuthedConsolePage({
+    await assertAuthedConsolePage({
+      page,
       response,
       pageUrl: page.url(),
       html,
@@ -49,7 +50,8 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const response = await gotoAuthedWebPage(page, preview.webBaseUrl, "/orgs/");
     const html = await page.content();
 
-    assertAuthedConsolePage({
+    await assertAuthedConsolePage({
+      page,
       response,
       pageUrl: page.url(),
       html,
@@ -72,7 +74,8 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     );
     const html = await page.content();
 
-    assertAuthedConsolePage({
+    await assertAuthedConsolePage({
+      page,
       response,
       pageUrl: page.url(),
       html,
@@ -111,7 +114,8 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
       expectedText.push("No projects yet", "insecur init");
     }
 
-    assertAuthedConsolePage({
+    await assertAuthedConsolePage({
+      page,
       response,
       pageUrl: page.url(),
       html,
@@ -169,7 +173,8 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     for (const route of routes) {
       const response = await gotoAuthedWebPage(page, preview.webBaseUrl, route.path);
       const html = await page.content();
-      assertAuthedConsolePage({
+      await assertAuthedConsolePage({
+        page,
         response,
         pageUrl: page.url(),
         html,
@@ -204,7 +209,8 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     for (const route of routes) {
       const response = await gotoAuthedWebPage(page, preview.webBaseUrl, route.path);
       const html = await page.content();
-      assertAuthedConsolePage({
+      await assertAuthedConsolePage({
+        page,
         response,
         pageUrl: page.url(),
         html,
@@ -224,7 +230,8 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const response = await gotoAuthedWebPage(page, preview.webBaseUrl, "/onboarding");
     const html = await page.content();
 
-    assertAuthedConsolePage({
+    await assertAuthedConsolePage({
+      page,
       response,
       pageUrl: page.url(),
       html,
@@ -263,7 +270,8 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const response = await page.goto(handoff.toString(), { waitUntil: "domcontentloaded" });
     const html = await page.content();
 
-    assertAuthedConsolePage({
+    await assertAuthedConsolePage({
+      page,
       response,
       pageUrl: page.url(),
       html,
@@ -304,7 +312,8 @@ test.describe("preview onboarding entry for org-less smoke actor @preview @happy
     const response = await gotoAuthedWebPage(page, preview.webBaseUrl, "/onboarding");
     const html = await page.content();
 
-    assertAuthedConsolePage({
+    await assertAuthedConsolePage({
+      page,
       response,
       pageUrl: page.url(),
       html,
