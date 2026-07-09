@@ -351,6 +351,12 @@ importers:
 
   apps/site:
     dependencies:
+      '@fontsource-variable/archivo':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/archivo-black':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@insecur/observability':
         specifier: workspace:*
         version: link:../../packages/observability

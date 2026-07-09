@@ -3,6 +3,8 @@ import { getGlobalStartContext } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 import { SiteFooter, SiteHeader, SiteShell, Wordmark } from "@insecur/ui";
 import { sentryBrowserConfigScript } from "@insecur/observability";
+import archivoVariableUrl from "@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2?url";
+import archivoBlackUrl from "@fontsource/archivo-black/files/archivo-black-latin-400-normal.woff2?url";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -20,7 +22,23 @@ export const Route = createRootRoute({
       // Placeholder site: keep it out of search indexes until launch.
       { name: "robots", content: "noindex, nofollow" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      {
+        rel: "preload",
+        href: archivoVariableUrl,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        href: archivoBlackUrl,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
+      { rel: "stylesheet", href: appCss },
+    ],
   }),
   shellComponent: RootDocument,
 });
