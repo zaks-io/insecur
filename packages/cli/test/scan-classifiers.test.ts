@@ -7,6 +7,7 @@ import {
 import {
   classifyDotenvValueShape,
   extractDotenvValue,
+  isObviouslyNonSecret,
   parseDotenvKeys,
 } from "../src/scan/dotenv-parser.js";
 
@@ -20,6 +21,26 @@ describe("dotenv parser", () => {
   it("parses keys without returning values", () => {
     const entries = parseDotenvKeys("API_SECRET=hidden\nPORT=3000\n# comment\n");
     expect(entries.map((entry) => entry.key)).toEqual(["API_SECRET", "PORT"]);
+  });
+
+  it("parses export-prefixed and whitespace-padded keys with source line numbers", () => {
+    const entries = parseDotenvKeys(
+      [
+        "",
+        "   # ignored",
+        " export API_SECRET = hidden",
+        "not-an-assignment",
+        "1INVALID=value",
+        "TOKEN=value#literal",
+        " DATABASE_PASSWORD = masked ",
+      ].join("\n"),
+    );
+
+    expect(entries).toEqual([
+      { key: "API_SECRET", lineNumber: 3 },
+      { key: "TOKEN", lineNumber: 6 },
+      { key: "DATABASE_PASSWORD", lineNumber: 7 },
+    ]);
   });
 
   it("classifies strong key names as likely-secret", () => {
@@ -67,6 +88,19 @@ describe("dotenv parser", () => {
     expect(result?.remediation).toBe("insecur secrets set --variable-key API_SECRET --value-stdin");
   });
 
+  it("classifies known token prefixes as likely secrets regardless of key name", () => {
+    const syntheticAwsAccessKey = ["AKIA", "1234567890"].join("");
+    expect(classifyDotenvEntry("PACKAGE_REGISTRY", "ghp_metadataOnly123")).toMatchObject({
+      confidence: "likely-secret",
+    });
+    expect(classifyDotenvEntry("AWS_ACCESS", syntheticAwsAccessKey)).toMatchObject({
+      confidence: "likely-secret",
+    });
+    expect(classifyDotenvEntry("CHAT_BOT", "xoxb-metadata-only")).toMatchObject({
+      confidence: "likely-secret",
+    });
+  });
+
   it("detects secret file kinds by path and content head", () => {
     expect(detectSecretFileKind(".env.local", "")).toBe("dotenv-entry");
     expect(detectSecretFileKind("service-account.json", "")).toBe("credential-json");
@@ -81,9 +115,28 @@ describe("dotenv parser", () => {
   });
 
   it("value shape helper never exposes raw values in API", () => {
-    const shape = classifyDotenvValueShape('"quoted-value"');
+    const shape = classifyDotenvValueShape('  "quoted-value"  ');
+    expect(shape.trimmed).toBe('"quoted-value"');
     expect(shape.unquoted).toBe("quoted-value");
     expect(shape.length).toBe(12);
+  });
+
+  it("distinguishes mixed-character secret shapes from benign short or single-class values", () => {
+    const cases = [
+      { value: "abc12345", looksSecretLike: true },
+      { value: "abc_defg", looksSecretLike: true },
+      { value: "1234_678", looksSecretLike: true },
+      { value: "abc1234", looksSecretLike: false },
+      { value: "abcdefgh", looksSecretLike: false },
+      { value: "12345678", looksSecretLike: false },
+      { value: "________", looksSecretLike: false },
+    ];
+
+    for (const testCase of cases) {
+      expect(classifyDotenvValueShape(testCase.value).looksSecretLike).toBe(
+        testCase.looksSecretLike,
+      );
+    }
   });
 
   it("strips shell-style inline comments from unquoted dotenv values", () => {
@@ -93,5 +146,58 @@ describe("dotenv parser", () => {
     expect(classifyDotenvValueShape('"keep # hash"').unquoted).toBe("keep # hash");
     expect(extractDotenvValue("PORT=3000 # local dev")).toBe("3000");
     expect(extractDotenvValue('API_SECRET="keep # hash" # ignored')).toBe("keep # hash");
+  });
+
+  it("extracts dotenv value shapes without exposing values outside parser calls", () => {
+    expect(extractDotenvValue("missing-assignment")).toBeNull();
+    expect(extractDotenvValue(" export API_SECRET=masked")).toBe("masked");
+    expect(extractDotenvValue("API_SECRET=  unquoted  ")).toBe("unquoted");
+    expect(extractDotenvValue("API_SECRET=value next")).toBe("value");
+    expect(extractDotenvValue("API_SECRET='single quoted # kept' trailing")).toBe(
+      "single quoted # kept",
+    );
+    expect(extractDotenvValue('API_SECRET="unterminated')).toBe("unterminated");
+    expect(extractDotenvValue("API_SECRET=# comment")).toBe("");
+    expect(extractDotenvValue("API_SECRET=value #comment")).toBe("value");
+    expect(extractDotenvValue("API_SECRET=value# comment")).toBe("value#");
+    expect(extractDotenvValue("API_SECRET=value#fragment")).toBe("value#fragment");
+    expect(extractDotenvValue("API_SECRET=value # comment")).toBe("value");
+  });
+
+  it("treats plain URLs as benign but not URLs carrying credentials or token params", () => {
+    expect(isObviouslyNonSecret("https://example.test/path")).toBe(true);
+    expect(isObviouslyNonSecret("http://example.test")).toBe(true);
+    expect(isObviouslyNonSecret("ftp://example.test")).toBe(false);
+    expect(isObviouslyNonSecret("https://user:masked@example.test")).toBe(false);
+    expect(isObviouslyNonSecret("http://user:masked@example.test")).toBe(false);
+    expect(isObviouslyNonSecret("http://[::1")).toBe(false);
+    expect(isObviouslyNonSecret("https://example.test?auth=token")).toBe(false);
+    expect(isObviouslyNonSecret("https://example.test?api-key=masked")).toBe(false);
+    expect(isObviouslyNonSecret("https://example.test?apikey=masked")).toBe(false);
+    expect(isObviouslyNonSecret("https://example.test?credential=masked")).toBe(false);
+    expect(isObviouslyNonSecret("https://example.test?credentials=masked")).toBe(false);
+    expect(isObviouslyNonSecret("https://example.test?mytoken=masked")).toBe(true);
+    expect(isObviouslyNonSecret("https://example.test?tokenized=masked")).toBe(true);
+  });
+
+  it("keeps the explicit benign value allowlist narrow", () => {
+    for (const value of [
+      "true",
+      "false",
+      "development",
+      "production",
+      "test",
+      "staging",
+      "localhost",
+      "http://localhost",
+      "https://localhost",
+      "12345",
+    ]) {
+      expect(isObviouslyNonSecret(value)).toBe(true);
+    }
+
+    expect(isObviouslyNonSecret("12345", { suppressNumericBenign: true })).toBe(false);
+    expect(isObviouslyNonSecret("prod")).toBe(false);
+    expect(isObviouslyNonSecret("http://localhost.evil.test?token=masked")).toBe(false);
   });
 });

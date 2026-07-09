@@ -2,6 +2,7 @@ import {
   mintDerivedAgentSessionCredential,
   mintEphemeralSessionCredential,
   mintScopedAccessToken,
+  type WorkOSSessionPort,
 } from "@insecur/auth";
 import { INSECUR_API_TOKEN_AUDIENCE, INSECUR_RUNTIME_TOKEN_AUDIENCE } from "@insecur/auth";
 import { testSessionSigningSecret, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
@@ -23,11 +24,18 @@ vi.mock("@insecur/worker-kit", async (importOriginal) => {
       const fakeSessions = (
         env as { readonly WORKOS_TEST_FAKE_SESSIONS?: readonly FakeWorkOSSessionEntry[] }
       ).WORKOS_TEST_FAKE_SESSIONS;
+      const workos = (
+        env as {
+          readonly WORKOS_TEST_SESSION_PORT?: WorkOSSessionPort;
+        }
+      ).WORKOS_TEST_SESSION_PORT;
       return actual.createAuthContext(env, {
         ...options,
-        ...(fakeSessions === undefined
-          ? {}
-          : { workos: createFakeWorkOSSessionPort(fakeSessions) }),
+        ...(workos === undefined
+          ? fakeSessions === undefined
+            ? {}
+            : { workos: createFakeWorkOSSessionPort(fakeSessions) }
+          : { workos }),
       });
     },
   };
@@ -58,6 +66,46 @@ const env = {
     },
   ],
 };
+
+function createSuccessfulPkceExchangeWorkos() {
+  const authenticateAuthorizationCode = vi.fn<WorkOSSessionPort["authenticateAuthorizationCode"]>(
+    () =>
+      Promise.resolve({
+        authenticated: true,
+        sealedSession: "sealed_metadata_test",
+        context: {
+          user: { id: workosUserId },
+          sessionId: "session_metadata_test",
+          authenticationMethod: "Passkey",
+          authFactors: [],
+        },
+      }),
+  );
+  const workos: WorkOSSessionPort = {
+    createAuthorizationUrl: () => {
+      throw new Error("createAuthorizationUrl must not run in PKCE exchange metadata test");
+    },
+    startDeviceAuthorization: () =>
+      Promise.reject(
+        new Error("startDeviceAuthorization must not run in PKCE exchange metadata test"),
+      ),
+    authenticateDeviceCode: () =>
+      Promise.reject(
+        new Error("authenticateDeviceCode must not run in PKCE exchange metadata test"),
+      ),
+    authenticateAuthorizationCode,
+    authenticateSealedSession: () =>
+      Promise.reject(
+        new Error("authenticateSealedSession must not run in PKCE exchange metadata test"),
+      ),
+    refreshSealedSession: () =>
+      Promise.reject(new Error("refreshSealedSession must not run in PKCE exchange metadata test")),
+    listAuthFactors: () => Promise.resolve([]),
+    userHasRegisteredPasskey: () => Promise.resolve(false),
+    recordUserApprovalPasskeyEnrollment: () => Promise.resolve(),
+  };
+  return { authenticateAuthorizationCode, workos };
+}
 
 describe("worker session routes", () => {
   it("returns auth.required for unauthenticated whoami", async () => {
@@ -327,10 +375,24 @@ describe("worker session routes", () => {
     expect(url.searchParams.get("state")).toBe("state_test");
     expect(url.searchParams.get("code_challenge")).toBe("challenge_test");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.searchParams.get("screen_hint")).toBe("sign-in");
   });
 
   it("accepts IPv6 loopback CLI PKCE redirect URIs", async () => {
     const redirectUri = "http://[::1]:49152/callback";
+    const response = await app.request(
+      `/v1/auth/cli/authorize?redirect_uri=${encodeURIComponent(redirectUri)}&state=state_test&code_challenge=challenge_test&code_challenge_method=S256`,
+      { method: "GET" },
+      env,
+    );
+    expect(response.status).toBe(302);
+    const location = response.headers.get("Location");
+    const url = new URL(location ?? "");
+    expect(url.searchParams.get("redirect_uri")).toBe(redirectUri);
+  });
+
+  it("accepts localhost CLI PKCE redirect URIs", async () => {
+    const redirectUri = "http://localhost:49152/callback";
     const response = await app.request(
       `/v1/auth/cli/authorize?redirect_uri=${encodeURIComponent(redirectUri)}&state=state_test&code_challenge=challenge_test&code_challenge_method=S256`,
       { method: "GET" },
@@ -354,6 +416,48 @@ describe("worker session routes", () => {
       ok: false,
       error: { code: "validation.invalid_command_input" },
     });
+  });
+
+  it("rejects missing, blank, and unsupported CLI PKCE authorization inputs", async () => {
+    const cases = [
+      {
+        path: "/v1/auth/cli/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A49152%2Fcallback&code_challenge=challenge_test&code_challenge_method=S256",
+        message: "Missing PKCE authorization parameter.",
+      },
+      {
+        path: "/v1/auth/cli/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A49152%2Fcallback&state=state_test&code_challenge=%20%20&code_challenge_method=S256",
+        message: "Missing PKCE authorization parameter.",
+      },
+      {
+        path: "/v1/auth/cli/authorize?redirect_uri=http%3A%2F%2F127.0.0.1.evil.example%3A49152%2Fcallback&state=state_test&code_challenge=challenge_test&code_challenge_method=S256",
+        message: "CLI redirect URI must be loopback HTTP.",
+      },
+      {
+        path: "/v1/auth/cli/authorize?redirect_uri=https%3A%2F%2F127.0.0.1%3A49152%2Fcallback&state=state_test&code_challenge=challenge_test&code_challenge_method=S256",
+        message: "CLI redirect URI must be loopback HTTP.",
+      },
+      {
+        path: "/v1/auth/cli/authorize?redirect_uri=not-a-url&state=state_test&code_challenge=challenge_test&code_challenge_method=S256",
+        message: "CLI redirect URI must be loopback HTTP.",
+      },
+      {
+        path: "/v1/auth/cli/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A49152%2Fcallback&state=state_test&code_challenge=challenge_test&code_challenge_method=plain",
+        message: "CLI PKCE challenge method must be S256.",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const response = await app.request(testCase.path, { method: "GET" }, env);
+      expect(response.status).toBe(400);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: {
+          code: "validation.invalid_command_input",
+          message: testCase.message,
+        },
+      });
+    }
   });
 
   it("exchanges a WorkOS PKCE code for a CLI credential header", async () => {
@@ -385,6 +489,152 @@ describe("worker session routes", () => {
       );
       expect(whoami.status).toBe(200);
     }
+  });
+
+  it("rejects malformed and blank CLI PKCE exchange bodies", async () => {
+    const cases = [
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{",
+        },
+        message: "Expected JSON PKCE exchange body.",
+      },
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(["code_pkce_test", "verifier_pkce_test"]),
+        },
+        message: "Missing PKCE exchange code or verifier.",
+      },
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify("code_pkce_test"),
+        },
+        message: "Expected JSON PKCE exchange body.",
+      },
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(null),
+        },
+        message: "Expected JSON PKCE exchange body.",
+      },
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ codeVerifier: "verifier_pkce_test" }),
+        },
+        message: "Missing PKCE exchange code or verifier.",
+      },
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: 123, codeVerifier: "verifier_pkce_test" }),
+        },
+        message: "Missing PKCE exchange code or verifier.",
+      },
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: "code_pkce_test", codeVerifier: 123 }),
+        },
+        message: "Missing PKCE exchange code or verifier.",
+      },
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: "   ", codeVerifier: "verifier_pkce_test" }),
+        },
+        message: "Missing PKCE exchange code or verifier.",
+      },
+      {
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: "code_pkce_test", codeVerifier: "\t" }),
+        },
+        message: "Missing PKCE exchange code or verifier.",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const response = await app.request("/v1/auth/cli/pkce/exchange", testCase.init, env);
+      expect(response.status).toBe(400);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({
+        ok: false,
+        error: {
+          code: "validation.invalid_command_input",
+          message: testCase.message,
+        },
+      });
+    }
+  });
+
+  it("forwards non-blank CLI PKCE request metadata to WorkOS", async () => {
+    const { authenticateAuthorizationCode, workos } = createSuccessfulPkceExchangeWorkos();
+
+    const response = await app.request(
+      "/v1/auth/cli/pkce/exchange",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "cf-connecting-ip": "203.0.113.42",
+          "user-agent": "insecur-cli/1.0",
+        },
+        body: JSON.stringify({
+          code: "code_metadata_test",
+          codeVerifier: "verifier_metadata_test",
+        }),
+      },
+      { ...env, WORKOS_TEST_SESSION_PORT: workos },
+    );
+
+    expect(response.status).toBe(200);
+    expect(authenticateAuthorizationCode).toHaveBeenCalledWith({
+      code: "code_metadata_test",
+      codeVerifier: "verifier_metadata_test",
+      ipAddress: "203.0.113.42",
+      userAgent: "insecur-cli/1.0",
+    });
+  });
+
+  it("omits blank CLI PKCE request metadata from WorkOS", async () => {
+    const { authenticateAuthorizationCode, workos } = createSuccessfulPkceExchangeWorkos();
+
+    const response = await app.request(
+      "/v1/auth/cli/pkce/exchange",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "cf-connecting-ip": "   ",
+          "user-agent": "\t",
+        },
+        body: JSON.stringify({
+          code: "code_metadata_test",
+          codeVerifier: "verifier_metadata_test",
+        }),
+      },
+      { ...env, WORKOS_TEST_SESSION_PORT: workos },
+    );
+
+    expect(response.status).toBe(200);
+    expect(authenticateAuthorizationCode).toHaveBeenCalledWith({
+      code: "code_metadata_test",
+      codeVerifier: "verifier_metadata_test",
+    });
   });
 
   it("returns auth.reauth_required for insufficient-assurance PKCE sessions", async () => {
