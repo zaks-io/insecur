@@ -14,8 +14,34 @@ export function buildCliFirstValueRunArgs(verifyScript: string): readonly string
   ];
 }
 
-export function buildCliSecretsSetValueStdinArgs(): readonly string[] {
-  return ["secrets", "set", "--variable-key", PROOF_VARIABLE_KEY, "--value-stdin"];
+export function buildCliSecretsSetValueStdinArgs(
+  variableKey = PROOF_VARIABLE_KEY,
+  input: { readonly allowEmpty?: boolean } = {},
+): readonly string[] {
+  return [
+    "secrets",
+    "set",
+    "--variable-key",
+    variableKey,
+    "--value-stdin",
+    ...(input.allowEmpty === true ? ["--allow-empty"] : []),
+  ];
+}
+
+export function buildCliSecretsSetGenerateArgs(input: {
+  readonly variableKey: string;
+  readonly lengthBytes?: number;
+}): readonly string[] {
+  return [
+    "secrets",
+    "set",
+    "--variable-key",
+    input.variableKey,
+    "--generate",
+    "random",
+    "--length",
+    String(input.lengthBytes ?? 32),
+  ];
 }
 
 export function buildCliSecretsVersionsArgs(secretId: string): readonly string[] {
