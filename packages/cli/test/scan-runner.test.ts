@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EXIT_ACTION_REQUIRED } from "../src/output/exit-codes.js";
 import {
+  assertScanModeFlagsCompatible,
   renderScanResult,
   resolveScanMode,
   runScan,
@@ -25,6 +26,19 @@ describe("shared scan runner", () => {
     expect(resolveScanMode({ agentTranscripts: true })).toBe("agent-transcripts");
     expect(resolveScanMode({ transcriptPaths: ["/tmp/example.jsonl"] })).toBe("agent-transcripts");
     expect(resolveScanMode({ transcriptGlobs: ["**/*.jsonl"] })).toBe("agent-transcripts");
+  });
+
+  it("resolves agent-project mode separately from transcript exposure mode", () => {
+    expect(resolveScanMode({ agentProjects: true })).toBe("agent-projects");
+    expect(() =>
+      assertScanModeFlagsCompatible({ agentProjects: true, agentTranscripts: true }),
+    ).toThrow(/cannot combine/u);
+    expect(() => assertScanModeFlagsCompatible({ agentProjects: true, machine: true })).toThrow(
+      /default project scan/u,
+    );
+    expect(() =>
+      assertScanModeFlagsCompatible({ machine: true, transcriptPaths: ["agent.jsonl"] }),
+    ).toThrow(/default project scan/u);
   });
 
   it("runs project scan through the shared runner with the project report shape", async () => {
@@ -73,6 +87,15 @@ describe("shared scan runner", () => {
 
     expect(scanStrictExitCode(transcriptResult, false)).toBe(0);
     expect(scanStrictExitCode(transcriptResult, true)).toBe(EXIT_ACTION_REQUIRED);
+
+    const agentProjectResult = await runScan({
+      rootDir: layout.projectRoot,
+      mode: "agent-projects",
+      agentProjects: { homeDir: layout.homeDir },
+    });
+
+    expect(scanStrictExitCode(agentProjectResult, false)).toBe(0);
+    expect(scanStrictExitCode(agentProjectResult, true)).toBe(0);
   });
 
   it("renders project and transcript strict-quiet summaries through one path", async () => {
@@ -98,6 +121,16 @@ describe("shared scan runner", () => {
     renderScanResult(transcriptResult, { json: false, quiet: true }, true);
     const transcriptLine = String(stderr.mock.calls[0]?.[0] ?? "");
     expect(transcriptLine).toMatch(/^insecur scan --agent-transcripts: exposures=/u);
+
+    stderr.mockClear();
+    const agentProjectResult = await runScan({
+      rootDir: layout.projectRoot,
+      mode: "agent-projects",
+      agentProjects: { homeDir: layout.homeDir },
+    });
+    renderScanResult(agentProjectResult, { json: false, quiet: true }, true);
+    const agentProjectLine = String(stderr.mock.calls[0]?.[0] ?? "");
+    expect(agentProjectLine).toMatch(/^insecur scan --agent-projects: likely_secrets=/u);
 
     stderr.mockRestore();
   });

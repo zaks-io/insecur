@@ -942,6 +942,11 @@ insecur scan --agent-transcripts --strict
 insecur scan --agent-transcripts --transcript-path /path/to/export.jsonl
 insecur scan --agent-transcripts --transcript-glob '/exports/**/*.jsonl'
 insecur scan --agent-transcripts --config-dir /path/to/project
+insecur scan --agent-projects
+insecur scan --agent-projects --json
+insecur scan --agent-projects --strict
+insecur scan --agent-projects --transcript-path /path/to/export.jsonl
+insecur scan --agent-projects --transcript-glob '/exports/**/*.jsonl'
 ```
 
 Rules:
@@ -978,6 +983,7 @@ Rules:
 
 #### Agent transcript exposure scan (`--agent-transcripts`)
 
+- Answers: "did an agent conversation contain a secret?"
 - Offline, read-only, and metadata-only: no auth, no network, no upload of transcripts or candidate values, and no automatic rotation, deletion, or cleanup.
 - Reuses project-secret candidate detection from the project scan, comparing candidate values to local transcript text in process memory only.
 - Auto-discovers well-known local Cursor (`~/.cursor/projects/*/agent-transcripts/`), Claude Code (`~/.claude/projects/**/*.jsonl`), and Codex (`~/.codex/sessions/**/*.jsonl`) transcript locations when they are readable; missing default locations produce metadata-only warnings and exit `0` unless `--strict` finds exposures.
@@ -987,6 +993,19 @@ Rules:
 - Human and `--json` output never print raw secret values or transcript excerpts; each finding includes redacted `valueShape` and stable local `valueFingerprint` metadata only.
 - Findings include provider/tool, source path, session/conversation id and timestamp when parseable, detector id, confidence, and suggested next steps (`rotate_or_revoke`, `migrate_to_insecur` when migratable, `clean_local_transcripts`, `mark_false_positive`, `ignore`); insecur does not execute these automatically.
 - Exit `0` by default even when exposures exist; `--strict` exits `7` (action-required) when exposures exist; `--strict --quiet` prints one machine-terse stderr summary line and cannot be combined with `--json`.
+- `--machine` belongs to the default project scan and cannot be combined with agent scan modes; run it separately.
+
+#### Agent-readable env inventory scan (`--agent-projects`)
+
+- Answers: "where are `.env` files in code directories an agent has been working in?"
+- Offline, read-only, and metadata-only: no auth, no network, no transcript upload, no automatic rotation, deletion, or cleanup.
+- Auto-discovers the same well-known Cursor, Claude Code, and Codex transcript locations as `--agent-transcripts`, then extracts local absolute path references and resolvable Claude Code project paths from those conversations.
+- Uses only discovered, readable project roots; it does not crawl the home directory or filesystem looking for projects.
+- Scans each discovered project root with the same project-secret detection rules as `insecur scan`, including gitignored `.env` files, while skipping `node_modules`, `.git`, build output, cache, and coverage directories.
+- Supports explicit `--transcript-path` and `--transcript-glob` to point the inventory scan at exported logs or unsupported agent tools.
+- Human output lists agent-touched project roots and metadata-only findings: file path, dotenv key name, confidence, migratability, and remediation command when available. It never prints raw values or transcript excerpts.
+- `--agent-projects` cannot be combined with `--agent-transcripts`; they answer different questions and should be run separately.
+- Exit `0` by default even when findings exist; `--strict` exits `7` when likely secrets are found in agent-touched projects; `--strict --quiet` prints one machine-terse stderr summary line and cannot be combined with `--json`.
 
 ### Guide
 

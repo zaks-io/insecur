@@ -22,6 +22,10 @@ export function registerScanCommand(
       "scan local agent conversation logs and transcript exports for secret exposure evidence",
     )
     .option(
+      "--agent-projects",
+      "discover agent-touched code directories from local conversations, then scan those projects",
+    )
+    .option(
       "--transcript-path <path>",
       "explicit transcript or log file to scan (repeatable)",
       collectRepeatedOption,
@@ -50,6 +54,7 @@ async function runScanAction(
     strict?: boolean;
     machine?: boolean;
     agentTranscripts?: boolean;
+    agentProjects?: boolean;
     transcriptPath?: string[];
     transcriptGlob?: string[];
   }>();
@@ -57,6 +62,7 @@ async function runScanAction(
     strict: options.strict === true,
     machine: options.machine === true,
     agentTranscripts: options.agentTranscripts === true,
+    agentProjects: options.agentProjects === true,
     ...(options.transcriptPath !== undefined ? { transcriptPaths: options.transcriptPath } : {}),
     ...(options.transcriptGlob !== undefined ? { transcriptGlobs: options.transcriptGlob } : {}),
   });

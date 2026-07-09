@@ -20,6 +20,13 @@ export interface CollectTranscriptFilesOptions {
   readonly maxTranscriptFiles?: number;
 }
 
+export interface TranscriptDiscoveryInputOptions {
+  readonly homeDir?: string;
+  readonly transcriptPaths?: readonly string[];
+  readonly transcriptGlobs?: readonly string[];
+  readonly maxTranscriptFiles?: number;
+}
+
 export interface CollectTranscriptFilesResult {
   readonly files: readonly CollectedTranscriptFile[];
   readonly warnings: readonly { code: string; message: string; sourcePath?: string }[];
@@ -175,6 +182,30 @@ export async function collectTranscriptFiles(
     warnings: state.warnings,
     limitReached: state.limitReached,
   };
+}
+
+export function transcriptDiscoveryInput(
+  options: TranscriptDiscoveryInputOptions,
+): CollectTranscriptFilesOptions {
+  const input: {
+    homeDir?: string;
+    transcriptPaths?: readonly string[];
+    transcriptGlobs?: readonly string[];
+    maxTranscriptFiles?: number;
+  } = {};
+  if (options.homeDir !== undefined) {
+    input.homeDir = options.homeDir;
+  }
+  if (options.transcriptPaths !== undefined) {
+    input.transcriptPaths = options.transcriptPaths;
+  }
+  if (options.transcriptGlobs !== undefined) {
+    input.transcriptGlobs = options.transcriptGlobs;
+  }
+  if (options.maxTranscriptFiles !== undefined) {
+    input.maxTranscriptFiles = options.maxTranscriptFiles;
+  }
+  return input;
 }
 
 function createCollectState(maxTranscriptFiles?: number): CollectState {
