@@ -1,7 +1,7 @@
 import { assertMetadataOnlyEnvelopeShape } from "@insecur/domain";
 
 import { assertEqual, asRecord, requireString, type JsonRecord } from "./http.js";
-import { parseCliSmokeJson } from "./cli-smoke.js";
+import { parseLastCliSmokeJson } from "./cli-smoke.js";
 
 /** Asserts a successful `insecur operations get`/`operations wait` envelope and returns its data. */
 export function assertCliOperationPollMetadataOnly(body: JsonRecord, label: string): JsonRecord {
@@ -83,7 +83,7 @@ export function assertCliErrorEnvelope(input: {
   if (input.stdout.trim() !== "") {
     throw new Error(`${input.label} must not write success JSON to stdout on failure`);
   }
-  const body = parseCliSmokeJson(input.stderr, input.label);
+  const body = parseLastCliSmokeJson(input.stderr, input.label);
   assertMetadataOnlyEnvelopeShape(body);
   assertEqual(body.ok, false, `${input.label} ok`);
   const error = asRecord(body.error, `${input.label} error`);

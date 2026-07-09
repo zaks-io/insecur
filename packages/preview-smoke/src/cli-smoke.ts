@@ -79,10 +79,10 @@ export function parseCliSmokeJson(stdout: string, label: string): Record<string,
  * emitted first and the CLI `--json` envelope is the LAST well-formed JSON
  * object on stdout. Walk lines from the end and return the first that parses.
  */
-export function parseLastCliSmokeJson(stdout: string, label: string): Record<string, unknown> {
-  const object = firstParsableObject(stdoutLines(stdout).reverse());
+export function parseLastCliSmokeJson(output: string, label: string): Record<string, unknown> {
+  const object = firstParsableObject(outputLines(output).reverse());
   if (object === undefined) {
-    throw new Error(`${label} returned no JSON object on stdout`);
+    throw new Error(`${label} returned no JSON object`);
   }
   return object;
 }
@@ -92,7 +92,7 @@ export function parseLastCliSmokeJson(stdout: string, label: string): Record<str
  * well-formed JSON object on stdout. Walk lines from the start.
  */
 export function parseCliRunChildProof(stdout: string, label: string): Record<string, unknown> {
-  const object = firstParsableObject(stdoutLines(stdout));
+  const object = firstParsableObject(outputLines(stdout));
   if (object === undefined) {
     throw new Error(`${label} child emitted no JSON proof on stdout`);
   }
@@ -113,8 +113,8 @@ export function assertCliRunChildObservedSentinel(
   assertEqual(proof.proof, "hmac-challenge", `${label} child proof kind`);
 }
 
-function stdoutLines(stdout: string): string[] {
-  return stdout
+function outputLines(output: string): string[] {
+  return output
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line !== "");

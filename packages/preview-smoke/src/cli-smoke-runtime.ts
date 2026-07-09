@@ -41,6 +41,7 @@ export interface RunCliSmokeCommandInput {
  * (e.g. this suite itself may run under Claude Code or Cursor, which set these markers).
  */
 const AGENT_HARNESS_MARKER_ENV_KEYS = ["CLAUDECODE", "CURSOR_AGENT", "CURSOR_TRACE_ID"] as const;
+const INSECUR_ENV_PREFIX = "INSECUR_";
 
 export async function createCliSmokeWorkspace(): Promise<CliSmokeWorkspace> {
   const configHomeDir = await mkdtemp(join(tmpdir(), "insecur-preview-cli-home-"));
@@ -77,13 +78,23 @@ function omitKeys(env: NodeJS.ProcessEnv, keys: readonly string[]): NodeJS.Proce
   return Object.fromEntries(Object.entries(env).filter(([key]) => !omitted.has(key)));
 }
 
+function omitInsecurKeys(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([key]) => !key.startsWith(INSECUR_ENV_PREFIX)),
+  );
+}
+
 export function buildCliChildEnv(
   configHomeDir: string,
   bearer: string,
   extraEnv: NodeJS.ProcessEnv = {},
 ): NodeJS.ProcessEnv {
   const baseline = omitKeys(
-    { ...process.env, INSECUR_CONFIG_HOME: configHomeDir, INSECUR_SESSION_TOKEN: bearer },
+    {
+      ...omitInsecurKeys(process.env),
+      INSECUR_CONFIG_HOME: configHomeDir,
+      INSECUR_SESSION_TOKEN: bearer,
+    },
     AGENT_HARNESS_MARKER_ENV_KEYS,
   );
   const undefinedKeys = Object.entries(extraEnv)
