@@ -45,7 +45,6 @@ export interface CliProcessResult {
 
 export interface CliIntegrationHarness {
   readonly baseUrl: string;
-  mintSessionToken(sessionId: string): Promise<string>;
   runCli(
     args: readonly string[],
     options?: { readonly authenticated?: boolean },
@@ -184,7 +183,6 @@ export async function createCliIntegrationHarness(): Promise<CliIntegrationHarne
 
   return {
     baseUrl,
-    mintSessionToken: mintCliSessionToken,
     async runCli(args, options = {}) {
       const token = options.authenticated === false ? undefined : defaultToken;
       const env = await createIsolatedCliEnv(token);
