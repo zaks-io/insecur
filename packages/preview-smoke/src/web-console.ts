@@ -23,6 +23,7 @@ interface AuthedConsolePageInput {
   readonly expectation?: AuthedConsolePageExpectation;
   readonly html: string;
   readonly label: string;
+  readonly page: Page;
   readonly pageUrl: string;
   readonly response: PageResponse | null;
 }
@@ -53,7 +54,7 @@ function assertConsoleShell(html: string, label: string): void {
   }
 }
 
-export function assertAuthedConsolePage(input: AuthedConsolePageInput): void {
+export async function assertAuthedConsolePage(input: AuthedConsolePageInput): Promise<void> {
   const expectation = input.expectation ?? {};
   assertNoLoginRedirect(input.pageUrl, input.label);
   assertStatus(input.response, 200, input.label, { bodyText: input.html });
@@ -62,7 +63,7 @@ export function assertAuthedConsolePage(input: AuthedConsolePageInput): void {
   if (expectation.privateDocument ?? true) {
     assertPrivateAuthedDocument(pageResponse, input.label);
   }
-  assertCspNonceMatchesHtml(pageResponse, input.html, input.label);
+  await assertCspNonceMatchesScripts(input.page, pageResponse, input.html, input.label);
 
   if (expectation.consoleShell === true) {
     assertConsoleShell(input.html, input.label);
@@ -95,7 +96,12 @@ function assertPrivateAuthedDocument(response: PageResponse, label: string): voi
   assertHeaderEquals(response, "vary", "Cookie", label);
 }
 
-function assertCspNonceMatchesHtml(response: PageResponse, html: string, label: string): void {
+async function assertCspNonceMatchesScripts(
+  page: Page,
+  response: PageResponse,
+  html: string,
+  label: string,
+): Promise<void> {
   assertHeaderContains(response, "content-security-policy", "default-src", label);
   const csp = headerValue(response, "content-security-policy") ?? "";
   const nonceMatch = /'nonce-([^']+)'/u.exec(csp);
@@ -103,7 +109,17 @@ function assertCspNonceMatchesHtml(response: PageResponse, html: string, label: 
     throw new Error(`${label} CSP missing nonce directive`);
   }
   const nonce = nonceMatch[1] ?? "";
-  if (!html.includes(`nonce="${nonce}"`) && !html.includes(`nonce='${nonce}'`)) {
+  const inlineScripts = await page.evaluate((expectedNonce) => {
+    const scripts = Array.from(document.scripts).filter((script) => !script.hasAttribute("src"));
+    return {
+      count: scripts.length,
+      mismatched: scripts.filter((script) => script.nonce !== expectedNonce).length,
+    };
+  }, nonce);
+  if (inlineScripts.count === 0) {
+    throw new Error(`${label} rendered no inline scripts to validate against the CSP nonce`);
+  }
+  if (inlineScripts.mismatched > 0) {
     throw new Error(`${label} inline scripts missing matching nonce attribute`);
   }
   if (INLINE_STYLE_ATTR.test(html)) {

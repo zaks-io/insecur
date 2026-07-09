@@ -1,6 +1,9 @@
-import { randomUUID } from "node:crypto";
-
-import { auditEventId, operationId, userId } from "@insecur/domain";
+import {
+  auditEventId,
+  generateOpaqueResourceIdForPrefix,
+  operationId,
+  userId,
+} from "@insecur/domain";
 
 import { loadOrganizationAuditEvents, withServiceRoleSql } from "../src/audit-verification-db";
 import {
@@ -60,7 +63,7 @@ test.describe("preview high-assurance challenge review lifecycle @preview @happy
       }));
 
     const seededOperationId = operationId.generate();
-    const seededChallengeId = `chlg_smoke_${randomUUID()}`;
+    const seededChallengeId = generateOpaqueResourceIdForPrefix("chlg");
     const seededRequestAuditEventId = auditEventId.generate();
     const ownerUserId = userId.brand(preview.ownerUserId);
 
@@ -254,7 +257,7 @@ test.describe("preview high-assurance challenge review lifecycle @preview @happy
       }));
 
     const seededOperationId = operationId.generate();
-    const seededChallengeId = `chlg_smoke_web_${randomUUID()}`;
+    const seededChallengeId = generateOpaqueResourceIdForPrefix("chlg");
     const seededRequestAuditEventId = auditEventId.generate();
     const ownerUserId = userId.brand(preview.ownerUserId);
 
