@@ -22,6 +22,25 @@ export interface MutateSmokeProtectedPromotionDraftInput {
   readonly valueByteLength: number;
 }
 
+export interface SeedSmokeProtectedPromotionApprovalRequestInput {
+  readonly approvalRequestId: string;
+  readonly createdByUserId: string;
+  readonly databaseUrl: string;
+  readonly environmentId: string;
+  readonly impactReviewFingerprint: string;
+  readonly organizationId: string;
+  readonly projectId: string;
+  readonly secretId: string;
+  readonly secretVersionId: string;
+}
+
+export interface UpdateSmokeProtectedPromotionApprovalFingerprintInput {
+  readonly approvalRequestId: string;
+  readonly databaseUrl: string;
+  readonly impactReviewFingerprint: string;
+  readonly organizationId: string;
+}
+
 export async function seedSmokeProtectedPromotionDraft(
   input: SeedSmokeProtectedPromotionDraftInput,
 ): Promise<void> {
@@ -122,6 +141,69 @@ async function seedProtectedDraftVersion(
       ${"matches"}
     )
   `;
+}
+
+export async function seedSmokeProtectedPromotionApprovalRequest(
+  input: SeedSmokeProtectedPromotionApprovalRequestInput,
+): Promise<void> {
+  await withServiceRoleSql(input.databaseUrl, async (sql) => {
+    await sql`
+      INSERT INTO approval_requests (
+        id,
+        org_id,
+        project_id,
+        environment_id,
+        purpose,
+        status,
+        requester_user_id,
+        impact_review_fingerprint,
+        comment_length
+      )
+      VALUES (
+        ${input.approvalRequestId},
+        ${input.organizationId},
+        ${input.projectId},
+        ${input.environmentId},
+        ${"protected_promotion"},
+        ${"pending"},
+        ${input.createdByUserId},
+        ${input.impactReviewFingerprint},
+        ${0}
+      )
+    `;
+    await sql`
+      INSERT INTO promotion_change_set_draft_versions (
+        org_id,
+        approval_request_id,
+        secret_id,
+        secret_version_id
+      )
+      VALUES (
+        ${input.organizationId},
+        ${input.approvalRequestId},
+        ${input.secretId},
+        ${input.secretVersionId}
+      )
+    `;
+  });
+}
+
+export async function updateSmokeProtectedPromotionApprovalFingerprint(
+  input: UpdateSmokeProtectedPromotionApprovalFingerprintInput,
+): Promise<void> {
+  await withServiceRoleSql(input.databaseUrl, async (sql) => {
+    const rows = await sql<{ id: string }[]>`
+      UPDATE approval_requests
+      SET impact_review_fingerprint = ${input.impactReviewFingerprint}
+      WHERE org_id = ${input.organizationId}
+        AND id = ${input.approvalRequestId}
+        AND status = ${"pending"}
+      RETURNING id
+    `;
+    if (rows.length !== 1) {
+      throw new Error("Protected approval request fingerprint update did not update one request.");
+    }
+  });
 }
 
 export async function mutateSmokeProtectedPromotionDraftImpact(

@@ -1,26 +1,30 @@
-import { environmentId, secretId, secretVersionId } from "@insecur/domain";
+import { approvalRequestId, environmentId, secretId, secretVersionId } from "@insecur/domain";
 
 import {
   asRecord,
   assertEnvelopeData,
+  assertEnvelopeError,
   assertEqual,
   assertResponseFreeOfRedactedPatterns,
+  assertStatus,
   authHeaders,
   findById,
   getJson,
   mintSmokeSentinel,
   mutateSmokeProtectedPromotionDraftImpact,
-  postJson,
   provisionFirstValueCoords,
+  readJsonResponse,
   redactorFor,
   requireBoolean,
   requireObjectArray,
   requireString,
+  seedSmokeProtectedPromotionApprovalRequest,
   seedSmokeProtectedPromotionDraft,
   test,
+  updateSmokeProtectedPromotionApprovalFingerprint,
 } from "../src/fixtures";
 
-test("preview protected-change approval request create/list/stale read @preview @custody @approval", async ({
+test("preview protected-change approval request gate/list/stale read @preview @custody @approval", async ({
   ownerBearer,
   preview,
 }) => {
@@ -42,6 +46,7 @@ test("preview protected-change approval request create/list/stale read @preview 
   const protectedEnvironmentId = environmentId.generate();
   const protectedSecretId = secretId.generate();
   const draftVersionId = secretVersionId.generate();
+  const seededApprovalRequestId = approvalRequestId.generate();
 
   await test.step("protected_change.seed_protected_draft", async () => {
     await seedSmokeProtectedPromotionDraft({
@@ -56,46 +61,72 @@ test("preview protected-change approval request create/list/stale read @preview 
     });
   });
 
-  let approvalRequestId = "";
+  await test.step("protected_change.promote_create_requires_step_up", async () => {
+    const label = "Protected promotion request high-assurance gate";
+    const response = await fetch(
+      `${preview.apiBaseUrl}/v1/orgs/${coords.organizationId}/projects/${coords.projectId}/environments/${protectedEnvironmentId}/promote`,
+      {
+        body: JSON.stringify({
+          comment: "Preview smoke protected promotion metadata proof.",
+          draftVersionIds: [draftVersionId],
+        }),
+        headers: { ...authHeaders(ownerBearer), "Content-Type": "application/json" },
+        method: "POST",
+      },
+    );
+    const text = await response.text();
+    assertStatus(response, 401, label, { bodyText: text, redactor });
+    const body = await readJsonResponse(response, label, text);
+    assertResponseFreeOfRedactedPatterns(redactor, body, label);
+    assertEnvelopeError(body, "auth.high_assurance_required", label);
+    const meta = asRecord(body.meta, `${label} meta`);
+    requireString(meta.operationId, `${label} operationId`);
+  });
+
   let fingerprintAtCreation = "";
 
-  await test.step("protected_change.promote_create_request", async () => {
-    const body = await postJson({
-      bearer: ownerBearer,
-      body: {
-        comment: "Preview smoke protected promotion metadata proof.",
-        draftVersionIds: [draftVersionId],
-      },
-      label: "Protected promotion request",
-      redactor,
-      url: `${preview.apiBaseUrl}/v1/orgs/${coords.organizationId}/projects/${coords.projectId}/environments/${protectedEnvironmentId}/promote`,
+  await test.step("protected_change.seed_pending_approval_request", async () => {
+    await seedSmokeProtectedPromotionApprovalRequest({
+      approvalRequestId: seededApprovalRequestId,
+      createdByUserId: preview.ownerUserId,
+      databaseUrl: preview.databaseUrl,
+      environmentId: protectedEnvironmentId,
+      impactReviewFingerprint: "sha256:preview-smoke-seeded-before-review",
+      organizationId: coords.organizationId,
+      projectId: coords.projectId,
+      secretId: protectedSecretId,
+      secretVersionId: draftVersionId,
     });
-    assertResponseFreeOfRedactedPatterns(redactor, body, "Protected promotion request");
-    const data = assertEnvelopeData(body, "Protected promotion request");
+  });
 
-    approvalRequestId = requireString(
-      data.approvalRequestId,
-      "Protected promotion request approvalRequestId",
+  await test.step("protected_change.capture_current_fingerprint", async () => {
+    const detail = await loadApprovalDetail({
+      approvalRequestId: seededApprovalRequestId,
+      bearer: ownerBearer,
+      label: "Approval request detail initial",
+      organizationId: coords.organizationId,
+      previewApiBaseUrl: preview.apiBaseUrl,
+      redactor,
+    });
+    const impactReview = asRecord(
+      detail.impactReview,
+      "Approval request detail initial impactReview",
     );
     fingerprintAtCreation = requireString(
-      data.impactReviewFingerprint,
-      "Protected promotion request impactReviewFingerprint",
-    );
-    assertEqual(
-      approvalRequestId.startsWith("apr_"),
-      true,
-      "Protected promotion request approvalRequestId prefix",
+      impactReview.currentFingerprint,
+      "Approval request detail initial currentFingerprint",
     );
     assertEqual(
       fingerprintAtCreation.startsWith("sha256:"),
       true,
-      "Protected promotion request fingerprint prefix",
+      "Approval request detail initial fingerprint prefix",
     );
-    const draftVersionIds = requireStringArray(
-      data.draftVersionIds,
-      "Protected promotion request draftVersionIds",
-    );
-    assertEqual(draftVersionIds[0], draftVersionId, "Protected promotion request draftVersionId");
+    await updateSmokeProtectedPromotionApprovalFingerprint({
+      approvalRequestId: seededApprovalRequestId,
+      databaseUrl: preview.databaseUrl,
+      impactReviewFingerprint: fingerprintAtCreation,
+      organizationId: coords.organizationId,
+    });
   });
 
   await test.step("protected_change.environment_approvals_list", async () => {
@@ -111,7 +142,7 @@ test("preview protected-change approval request create/list/stale read @preview 
     const approval = findById(
       approvals,
       "approvalRequestId",
-      approvalRequestId,
+      seededApprovalRequestId,
       "Environment approval request list",
     );
     assertEqual(approval.status, "pending", "Environment approval request status");
@@ -134,14 +165,14 @@ test("preview protected-change approval request create/list/stale read @preview 
     findById(
       approvalRequests,
       "approvalRequestId",
-      approvalRequestId,
+      seededApprovalRequestId,
       "Pending approval request list",
     );
   });
 
   await test.step("protected_change.approval_detail_fresh", async () => {
     const detail = await loadApprovalDetail({
-      approvalRequestId,
+      approvalRequestId: seededApprovalRequestId,
       bearer: ownerBearer,
       label: "Approval request detail fresh",
       organizationId: coords.organizationId,
@@ -180,7 +211,7 @@ test("preview protected-change approval request create/list/stale read @preview 
 
   await test.step("protected_change.approval_detail_stale", async () => {
     const detail = await loadApprovalDetail({
-      approvalRequestId,
+      approvalRequestId: seededApprovalRequestId,
       bearer: ownerBearer,
       label: "Approval request detail stale",
       organizationId: coords.organizationId,
@@ -203,11 +234,14 @@ test("preview protected-change approval request create/list/stale read @preview 
 
   test.info().annotations.push({
     description:
-      "Approve/execute is intentionally not exercised in preview-smoke: POST " +
+      "Promotion create and approve/execute are intentionally not completed in preview-smoke: POST " +
+      "/v1/orgs/:organizationId/projects/:projectId/environments/:environmentId/promote returns " +
+      "auth.high_assurance_required without server-verified WorkOS step-up, and POST " +
       "/v1/orgs/:organizationId/approval-requests/:approvalRequestId/approve requires a " +
-      "server-verified WorkOS step-up exchange. This smoke covers the preview-reachable create, " +
-      "list, detail, and stale-read path without faking human step-up.",
-    type: "protected_change.approve_not_exercised",
+      "server-verified WorkOS step-up exchange. This smoke asserts the live create gate, seeds " +
+      "metadata-only pending review state, then covers preview-reachable list, detail, and " +
+      "stale-read paths without faking human step-up.",
+    type: "protected_change.create_approve_not_completed",
   });
 });
 
@@ -228,11 +262,4 @@ async function loadApprovalDetail(input: {
   assertResponseFreeOfRedactedPatterns(input.redactor, body, input.label);
   const data = assertEnvelopeData(body, input.label);
   return asRecord(data.approvalRequest, `${input.label} approvalRequest`);
-}
-
-function requireStringArray(value: unknown, label: string): string[] {
-  if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array`);
-  }
-  return value.map((entry, index) => requireString(entry, `${label}[${String(index)}]`));
 }
