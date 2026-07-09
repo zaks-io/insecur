@@ -674,32 +674,32 @@ pair rather than allocating resources per PR.
 
 ### Preview deploy: `deploy-preview`
 
-Trigger: `workflow_dispatch`, or local `pnpm deploy:preview`. The workflow first runs
-`pnpm deploy:preview:preflight`, which builds and Wrangler dry-runs Runtime, API, Web, and Site
-with the Preview GitHub Environment variables materialized. Only after that preflight passes does
-it run `pnpm migrate:preview` and deploy the bounded shared Preview Worker fleet
-(`insecur-runtime-preview`, `insecur-api-preview`, `insecur-web-preview`, and
-`insecur-site-preview`) through package-level `deploy:preview` scripts selected by
-`turbo run deploy:preview`. The deploy workflow does not run preview smoke. During deployment, the workflow writes
-temporary per-Worker `--secrets-file` inputs so Cloudflare receives encrypted Worker secrets with
-the deployed Worker version: `RUNTIME_TOKEN_SIGNING_SECRET` to Runtime, and
-`RUNTIME_TOKEN_SIGNING_SECRET`, `SESSION_SIGNING_SECRET`, `WORKOS_API_KEY`, and
-`WORKOS_COOKIE_PASSWORD` to API/Web according to each deploy's binding needs. The root script
-excludes non-app packages, and `turbo.json` passes the temporary secrets-file paths through strict
-env filtering for preview deploy tasks. A full deploy covers every Worker app while targeted
-deploys use ordinary Turbo filters:
+Trigger: manually dispatched `Deploy Preview`. `scripts/preview-deploy.mjs` is CI-only: it
+materializes the Preview GitHub Environment, creates temporary per-Worker secrets files, dry-runs
+the full fleet, migrates preview Postgres, and deploys the fleet. Preview smoke remains manual
+through the separate `Preview Smoke` workflow.
+
+For a dirty local Web bundle, use the Web package's direct Wrangler deploy:
 
 ```sh
-pnpm deploy:preview --filter @insecur/web
+pnpm --filter @insecur/web deploy:preview
 ```
 
-Preview and production deploys require `SENTRY_AUTH_TOKEN` in the approved GitHub Actions secret
+It builds then runs `wrangler deploy --env preview --keep-vars` through the existing generated-config
+adapter. No Preview GitHub Environment IDs or Worker secret values are loaded locally. The adapter
+sets only `DEPLOY_SHA`, `DEPLOY_RUN_ID`, `DEPLOYED_AT`, and `SENTRY_RELEASE`, leaving the existing
+Cloudflare-side Web variables in place. Runtime and API remain CI-only because their Worker versions
+include mutable resource bindings, which `--keep-vars` does not preserve.
+
+CI preview and production deploys require `SENTRY_AUTH_TOKEN` in the approved GitHub Actions secret
 store. Deploy jobs reference `secrets.SENTRY_AUTH_TOKEN`, which GitHub resolves from a repository
 secret or, if present, an environment-scoped override in `Preview` / `Production`. The current
 approved store is the repository secret named `SENTRY_AUTH_TOKEN`; environment-scoped copies are
 optional and only needed when preview and production must use different tokens. CI sets
-`SENTRY_RELEASE` to the deployed commit SHA, materializes that value into every Worker config, and
-uploads source maps during deploy. Web and Site upload hidden Vite source maps through the official
+`SENTRY_RELEASE` to the deployed commit SHA. Local dirty-tree preview deploys set it to a synthetic
+artifact identity like `local-<head>-dirty-<hash>` so Sentry and `/healthz` identify the actual
+uncommitted bundle. The value is materialized into every Worker config and used for source-map
+upload. Web and Site upload hidden Vite source maps through the official
 Sentry Vite plugin and delete client `.map` files before asset deployment. API and Runtime use
 Wrangler `--upload-source-maps` plus `sentry-cli sourcemaps upload` against the Wrangler output
 directory. Web and Site also run `sentry-cli sourcemaps upload` against `dist/server` so the
@@ -719,8 +719,8 @@ Create the token outside the repo and store it only in the approved GitHub Actio
    environment-specific name. Add environment-scoped `SENTRY_AUTH_TOKEN` secrets only when preview
    and production must use different tokens. Never commit the token, paste it into Linear, or print
    it in workflow logs.
-4. Deploy workflows already set `SENTRY_ORG=zaksio`, `SENTRY_PROJECT=insecur`, and
-   `SENTRY_RELEASE` to the deployed commit SHA. No additional repo variables are required.
+4. Deploy workflows already set `SENTRY_ORG=zaksio`, `SENTRY_PROJECT=insecur`, and derive
+   `SENTRY_RELEASE` from the deploy artifact identity. No additional repo variables are required.
 
 Local builds skip source-map upload when `SENTRY_AUTH_TOKEN` is unset. Preview and production deploy
 workflows set `INSECUR_REQUIRE_SENTRY_SOURCEMAPS=true`, so a missing or malformed upload
@@ -739,7 +739,7 @@ To confirm readable stacks in the Sentry UI after a deploy:
 
 1. Open the preview or production app and trigger a handled error from a route you control, or wait
    for the next real error on the deployed release.
-2. In Sentry, filter Issues by release equal to the deployed commit SHA (`SENTRY_RELEASE`).
+2. In Sentry, filter Issues by release equal to the deploy artifact identity (`SENTRY_RELEASE`).
 3. Open the issue stack trace and confirm frames point at original TypeScript paths (for example
    `apps/web/src/...`) rather than minified `index.js` offsets only.
 

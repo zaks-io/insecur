@@ -73,7 +73,7 @@ pnpm verify
 pnpm build
 pnpm duplicates:ci
 pnpm --filter @insecur/cli start --host https://api.preview.insecur.cloud login --help
-pnpm deploy:preview
+pnpm --filter @insecur/web deploy:preview
 ```
 
 Results:
@@ -91,10 +91,10 @@ Results:
   Worker binding both `env.DB` and `env.INSTANCE_ROOT_KEY_V1`.
 - Current CLI `login --help` starts with the preview host configured and shows the PKCE
   flags: `--no-open` and `--callback-port <port>`.
-- `pnpm deploy:preview` did not deploy on that checkout because the previous preview deploy
-  path required local smoke/migration configuration before any Worker deploy could start.
-  The current deploy path uses package-level Turbo deploys for the preview Workers; the
-  manual `Deploy Preview` workflow runs `pnpm migrate:preview` before deploy.
+- The previous root preview command did not deploy on that checkout because it required local
+  smoke/migration configuration before any Worker deploy could start. Local Web code deploys now
+  use `pnpm --filter @insecur/web deploy:preview`; the manual `Deploy Preview` workflow owns the
+  full fleet and runs `pnpm migrate:preview` before deploy.
 - The currently deployed preview still returns `200` for `/healthz`.
 - The currently deployed preview returns `404` for `/v1/auth/cli/authorize`, proving
   the PKCE route is not deployed there yet.
