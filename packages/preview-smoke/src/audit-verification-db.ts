@@ -87,3 +87,20 @@ export async function loadOperationRow(
   `;
   return rows[0];
 }
+
+export async function loadOrganizationOperationRows(
+  sql: ReturnType<typeof postgres>,
+  organizationId: string,
+): Promise<OperationRow[]> {
+  return await sql<OperationRow[]>`
+    SELECT
+      id,
+      org_id AS "orgId",
+      state,
+      intent_code AS "intentCode",
+      progress
+    FROM operations
+    WHERE org_id = ${organizationId}
+    ORDER BY created_at ASC
+  `;
+}
