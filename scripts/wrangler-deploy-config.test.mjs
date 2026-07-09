@@ -377,6 +377,30 @@ test("Turbo deploy tasks pass through Runtime binding env vars", async () => {
   }
 });
 
+test("Turbo deploy tasks pass through Site binding env vars", async () => {
+  const turbo = JSON.parse(await readFile(new URL("../turbo.json", import.meta.url), "utf8"));
+  const siteBindingEnv = ["INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY"];
+  const deployTasks = [
+    "deploy",
+    "@insecur/api#deploy",
+    "@insecur/web#deploy",
+    "deploy:preview",
+    "deploy:preview:dry-run",
+    "@insecur/api#deploy:preview",
+    "@insecur/web#deploy:preview",
+  ];
+
+  for (const taskName of deployTasks) {
+    const passThroughEnv = turbo.tasks[taskName]?.passThroughEnv ?? [];
+    for (const envName of siteBindingEnv) {
+      assert.ok(
+        passThroughEnv.includes(envName),
+        `${taskName} must pass ${envName} through Turbo strict env filtering`,
+      );
+    }
+  }
+});
+
 test("Turbo build and deploy tasks pass through Sentry release upload env", async () => {
   const turbo = JSON.parse(await readFile(new URL("../turbo.json", import.meta.url), "utf8"));
   const buildEnv = turbo.tasks.build?.env ?? [];
