@@ -67,6 +67,8 @@ export type {
   RecordAdmissionDeniedRpcPayload,
   RecordAbuseDeniedRpcInput,
   RecordAbuseDeniedRpcPayload,
+  RecordDeviceAuthorizationAuditRpcInput,
+  RecordDeviceAuthorizationAuditRpcPayload,
   ResolveAdmissionRpcInput,
   ResolveAdmissionRpcPayload,
   RevokeCliSessionRpcInput,

@@ -3,10 +3,7 @@ import type {
   EvaluateHighAssuranceChallengeClearInput,
   FreshStepUpFactorType,
 } from "./high-assurance-challenge-clear-assurance.js";
-import {
-  hasEligibleEnrolledMfaFactor,
-  isHighAssuranceAuthenticationMethod,
-} from "./mfa-posture.js";
+import { isHighAssuranceAuthenticationMethod } from "./mfa-posture.js";
 import type { UserActor } from "./user-actor.js";
 import type { WorkOSSessionContext, WorkOSSessionPort } from "./workos-session-port.js";
 
@@ -15,9 +12,6 @@ export function deriveFreshStepUpFactorFromWorkOSContext(
 ): FreshStepUpFactorType | null {
   if (isHighAssuranceAuthenticationMethod(context.authenticationMethod)) {
     return "passkey";
-  }
-  if (hasEligibleEnrolledMfaFactor(context.authFactors)) {
-    return "totp";
   }
   return null;
 }

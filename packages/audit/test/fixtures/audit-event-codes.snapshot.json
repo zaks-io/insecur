@@ -9,6 +9,7 @@
   "approval.request_superseded",
   "approval_notification.failed",
   "approval_notification.sent",
+  "auth.cli_device_authorization_approved",
   "auth.cli_device_token_denied",
   "auth.cli_pkce_exchange_denied",
   "backup.export_failed",

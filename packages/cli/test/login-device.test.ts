@@ -31,11 +31,18 @@ interface DeviceApiOptions {
 function createDeviceApi(options: DeviceApiOptions): {
   api: ApiClient;
   pollCalls: { deviceCode: string; agentSession: boolean }[];
+  startCalls: { host: string; agentSession: boolean; requesterHost: string }[];
 } {
   const pollCalls: { deviceCode: string; agentSession: boolean }[] = [];
+  const startCalls: { host: string; agentSession: boolean; requesterHost: string }[] = [];
   let pollIndex = 0;
   const api = {
-    startCliDeviceAuthorization: async () => {
+    startCliDeviceAuthorization: async (input: {
+      host: string;
+      agentSession: boolean;
+      requesterHost: string;
+    }) => {
+      startCalls.push(input);
       if (options.startFails === true) {
         return {
           ok: false as const,
@@ -68,7 +75,7 @@ function createDeviceApi(options: DeviceApiOptions): {
       return next as CliDeviceTokenPollResult;
     },
   } as unknown as ApiClient;
-  return { api, pollCalls };
+  return { api, pollCalls, startCalls };
 }
 
 const authenticatedPoll: CliDeviceTokenPollResult = {
@@ -145,16 +152,19 @@ describe("runDeviceLogin", () => {
     expect(pollCalls.every((call) => call.agentSession === false)).toBe(true);
   });
 
-  it("forwards the agentSession flag to the token poll", async () => {
-    const { api, pollCalls } = createDeviceApi({ polls: [authenticatedPoll] });
+  it("binds agent intent at authorization start and forwards it to token polling", async () => {
+    const { api, pollCalls, startCalls } = createDeviceApi({ polls: [authenticatedPoll] });
 
     await runDeviceLogin({
       flags,
       api,
       host: "https://insecur.test",
-      options: { agentSession: true, sleep: noopSleep },
+      options: { agentSession: true, requesterHost: "remote-agent-host", sleep: noopSleep },
     });
 
+    expect(startCalls).toEqual([
+      { agentSession: true, requesterHost: "remote-agent-host", host: "https://insecur.test" },
+    ]);
     expect(pollCalls[0]?.agentSession).toBe(true);
   });
 

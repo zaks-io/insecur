@@ -30,6 +30,7 @@ export const RUNTIME_RPC_STUB_DEFAULTS: Partial<{
     ),
   recordAdmissionDenied: () => Promise.resolve(ok({ recorded: true as const })),
   recordAbuseDenied: () => Promise.resolve(ok({ recorded: true as const })),
+  recordDeviceAuthorizationAudit: () => Promise.resolve(ok({ recorded: true as const })),
   revokeCliSession: () => Promise.resolve(ok({ revoked: true })),
   resolveSessionWhoami: () => Promise.resolve(defaultResolveSessionWhoami),
 };

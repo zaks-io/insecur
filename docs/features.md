@@ -216,11 +216,13 @@ App Connection management is implemented as metadata-safe setup infrastructure:
 - list, create, status, rotate, reauthorize, and disconnect commands/routes
 - GitHub App and Cloudflare scoped-token connection model support
 - encrypted provider credential attachment
-- connection-boundary validation and sync-eligibility checks
+- Cloudflare connection-boundary validation and sync-eligibility checks
 - audit events for connection create, credential attach, validation, denial, and disconnect
 - metadata-safe connection status projections that do not expose provider credentials
 
-Actual provider secret writes and end-to-end GitHub/Cloudflare Secret Sync are not delivered yet.
+GitHub App installation verification is not delivered yet and fails closed instead of activating a
+connection from locally supplied installation metadata. Actual provider secret writes and end-to-end
+GitHub/Cloudflare Secret Sync are also not delivered yet.
 
 ## Operations, Audit, Webhooks, And Evidence
 

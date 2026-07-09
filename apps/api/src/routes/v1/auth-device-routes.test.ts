@@ -2,7 +2,7 @@ import { INSECUR_SESSION_CREDENTIAL_HEADER, readSessionCredentialMetadata } from
 import { testSessionSigningSecret, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
 import { describe, expect, it, vi } from "vitest";
 import { createRuntimeRpcStub } from "../../../test/support/runtime-rpc-stub.js";
-import { WORKOS_USER_ID } from "../../../test/support/setup-unit-auth.js";
+import { ADMITTED_USER_ID_RAW, WORKOS_USER_ID } from "../../../test/support/setup-unit-auth.js";
 
 vi.mock("@insecur/worker-kit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/worker-kit")>();
@@ -57,13 +57,32 @@ function deviceEnv(overrides: Partial<FakeWorkOSSessionEntry> = {}) {
   };
 }
 
-async function requestDeviceToken(env: ReturnType<typeof deviceEnv>, agentSession: boolean) {
+async function requestDeviceToken(
+  env: ReturnType<typeof deviceEnv>,
+  agentSession: boolean,
+  deviceCode?: string,
+) {
+  const boundDeviceCode =
+    deviceCode ??
+    (
+      await readBody(
+        await app.request(
+          "/v1/auth/cli/device/authorize",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agentSession }),
+          },
+          env,
+        ),
+      )
+    ).data.deviceCode;
   return app.request(
     "/v1/auth/cli/device/token",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceCode: "device_code_route", agentSession }),
+      body: JSON.stringify({ deviceCode: boundDeviceCode, agentSession }),
     },
     env,
   );
@@ -93,6 +112,25 @@ async function readBody(response: Response): Promise<DeviceRouteBody> {
 }
 
 describe("device authorization routes", () => {
+  it("rejects a token poll that changes agent intent after authorization starts", async () => {
+    const env = deviceEnv();
+    const started = await app.request(
+      "/v1/auth/cli/device/authorize",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentSession: true, requesterHost: "remote-agent-host" }),
+      },
+      env,
+    );
+    const startBody = await readBody(started);
+
+    const response = await requestDeviceToken(env, false, startBody.data.deviceCode);
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER)).toBeNull();
+  });
+
   it("starts device authorization with the user code and verification URLs", async () => {
     const response = await app.request(
       "/v1/auth/cli/device/authorize",
@@ -104,7 +142,8 @@ describe("device authorization routes", () => {
     expect(body.ok).toBe(true);
     expect(body.data.userCode).toBe("WDJB-MJHT");
     expect(body.data.verificationUri).toBe("https://workos.test/device");
-    expect(body.data.deviceCode).toBe("device_code_route");
+    expect(body.data.deviceCode).toEqual(expect.any(String));
+    expect(body.data.deviceCode).not.toBe("device_code_route");
     expect(body.meta?.requestId).toMatch(/^req_/);
   });
 
@@ -121,7 +160,21 @@ describe("device authorization routes", () => {
   });
 
   it("mints a human session on approval and returns the credential in the header only", async () => {
-    const response = await requestDeviceToken(deviceEnv(), false);
+    const env = deviceEnv();
+    const started = await app.request(
+      "/v1/auth/cli/device/authorize",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "cf-connecting-ip": "203.0.113.9",
+        },
+        body: JSON.stringify({ agentSession: false, requesterHost: "developer-laptop" }),
+      },
+      env,
+    );
+    const startBody = await readBody(started);
+    const response = await requestDeviceToken(env, false, startBody.data.deviceCode);
     expect(response.status).toBe(200);
     const credential = response.headers.get(INSECUR_SESSION_CREDENTIAL_HEADER);
     expect(credential).toBeTruthy();
@@ -134,6 +187,15 @@ describe("device authorization routes", () => {
     expect(body.meta?.requestId).toMatch(/^req_/);
     const metadata = await readSessionCredentialMetadata(credential ?? "", SESSION_SIGNING_SECRET);
     expect(metadata.agentMarked).toBe(false);
+    expect(env.RUNTIME.recordDeviceAuthorizationAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "approved",
+        actorUserId: ADMITTED_USER_ID_RAW,
+        agentSession: false,
+        requesterHost: "developer-laptop",
+        requesterIp: "203.0.113.9",
+      }),
+    );
   });
 
   it("mints an agent-marked session when agentSession is set", async () => {
@@ -150,22 +212,36 @@ describe("device authorization routes", () => {
   });
 
   it("maps device access denial to 403 auth.device_authorization_denied", async () => {
-    const response = await requestDeviceToken(deviceEnv({ deviceTerminal: "denied" }), false);
+    const env = deviceEnv({ deviceTerminal: "denied" });
+    const response = await requestDeviceToken(env, false);
     expect(response.status).toBe(403);
     const body = await readBody(response);
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe("auth.device_authorization_denied");
     expect(body.error.retryable).toBe(false);
     expect(body.meta?.requestId).toMatch(/^req_/);
+    expect(env.RUNTIME.recordDeviceAuthorizationAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        reasonCode: "auth.device_authorization_denied",
+      }),
+    );
   });
 
   it("maps device code expiry to 401 auth.device_authorization_expired", async () => {
-    const response = await requestDeviceToken(deviceEnv({ deviceTerminal: "expired" }), false);
+    const env = deviceEnv({ deviceTerminal: "expired" });
+    const response = await requestDeviceToken(env, false);
     expect(response.status).toBe(401);
     const body = await readBody(response);
     expect(body.error.code).toBe("auth.device_authorization_expired");
     expect(body.error.retryable).toBe(false);
     expect(body.meta?.requestId).toMatch(/^req_/);
+    expect(env.RUNTIME.recordDeviceAuthorizationAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        reasonCode: "auth.device_authorization_expired",
+      }),
+    );
   });
 
   it("rejects a missing device code with validation.invalid_command_input", async () => {

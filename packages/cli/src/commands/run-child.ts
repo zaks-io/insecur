@@ -37,6 +37,17 @@ export function wipeInjectedEnvKeys(env: NodeJS.ProcessEnv, keys: readonly Varia
   }
 }
 
+export function assertSupportedProcessTreePlatform(platform = process.platform): void {
+  if (platform === "win32") {
+    throw new CliError({
+      code: INJECTION_ERROR_CODES.grantDenied,
+      message:
+        "Runtime injection on Windows is unavailable until descendant processes can be contained securely.",
+      retryable: false,
+    });
+  }
+}
+
 function exitCodeForChildClose(code: number | null, signal: NodeJS.Signals | null): number {
   if (code !== null) {
     return code;
@@ -48,6 +59,25 @@ function exitCodeForChildClose(code: number | null, signal: NodeJS.Signals | nul
   return 128 + signalNumber;
 }
 
+function forceCleanupExitedChildProcessTree(child: ChildProcess): void {
+  if (child.pid === undefined) {
+    return;
+  }
+  if (process.platform === "win32") {
+    spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+      shell: false,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    return;
+  }
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    // ESRCH means the owned group ended with its direct child, so nothing remains to clean.
+  }
+}
+
 export function spawnCommandManaged(
   command: readonly string[],
   childEnv: NodeJS.ProcessEnv,
@@ -56,15 +86,47 @@ export function spawnCommandManaged(
   if (executable === undefined) {
     throw new Error("spawnCommandManaged requires a validated command");
   }
+  assertSupportedProcessTreePlatform();
   const args = command.slice(1);
-  const child = spawn(executable, args, { env: childEnv, stdio: "inherit", shell: false });
+  const child = spawn(executable, args, {
+    detached: true,
+    env: childEnv,
+    stdio: "inherit",
+    shell: false,
+  });
   const exitCode = new Promise<number>((resolve, reject) => {
     child.on("error", reject);
     child.on("close", (code, signal) => {
+      forceCleanupExitedChildProcessTree(child);
       resolve(exitCodeForChildClose(code, signal));
     });
   });
   return { child, exitCode };
+}
+
+/** Terminate the complete process tree that inherited injected Sensitive Values. */
+export function terminateChildProcessTree(child: ChildProcess, signal: NodeJS.Signals): void {
+  if (process.platform === "win32" && child.pid !== undefined) {
+    const force = signal === "SIGKILL" ? ["/F"] : [];
+    spawn("taskkill", ["/PID", String(child.pid), "/T", ...force], {
+      shell: false,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    return;
+  }
+  if (child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch {
+      // The child may have replaced its process group; fall back to its direct PID.
+    }
+  }
+  if (child.exitCode != null || child.signalCode != null) {
+    return;
+  }
+  child.kill(signal);
 }
 
 export function spawnCommand(

@@ -33,7 +33,8 @@ export function findingsFromGrype(report, context = {}) {
 
 function grypeFinding(match, context) {
   const vulnerability = objectValue(match?.vulnerability);
-  if (!isCriticalText(vulnerability.severity)) {
+  const severity = reportableSeverity(vulnerability.severity);
+  if (severity === null) {
     return null;
   }
   const artifact = objectValue(match?.artifact);
@@ -41,7 +42,7 @@ function grypeFinding(match, context) {
   const packageId = packageIdentifier(artifact);
   return normalizedFinding({
     scanner: "grype",
-    severity: "critical",
+    severity,
     category,
     package_path: packageId,
     artifact_url: context.workflowUrl,
@@ -213,6 +214,11 @@ export function truncate(value, maxLength) {
 
 function isCriticalText(value) {
   return safeText(value, "").toLowerCase() === "critical";
+}
+
+function reportableSeverity(value) {
+  const severity = safeText(value, "").toLowerCase();
+  return severity === "critical" || severity === "high" ? severity : null;
 }
 
 function asArray(value) {

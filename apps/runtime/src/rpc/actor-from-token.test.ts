@@ -37,6 +37,10 @@ describe("actorFromHopToken", () => {
       env,
       await mintRuntimeToken(INSECUR_RUNTIME_TOKEN_AUDIENCE),
     );
+    expect(recovered.type).toBe("user");
+    if (recovered.type === "machine") {
+      throw new Error("expected user actor");
+    }
     expect(recovered.userId).toBe(actor.userId);
   });
 

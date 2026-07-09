@@ -60,8 +60,7 @@ function workosFakeSessions(): readonly FakeWorkOSSessionEntry[] {
       sessionId,
       authorizationCode: stepUpCode,
       codeVerifier: stepUpCodeVerifier,
-      authenticationMethod: "Password",
-      authFactors: [{ type: "totp" }],
+      authenticationMethod: "Passkey",
     },
   ];
 }
@@ -321,8 +320,8 @@ describe("high-assurance challenge worker routes", () => {
         projectId: projectIdValue,
       });
       expect(clearCall?.sessionAssurance).toMatchObject({
-        freshStepUpFactor: "totp",
-        authenticationMethod: "Password",
+        freshStepUpFactor: "passkey",
+        authenticationMethod: "Passkey",
       });
       const body: unknown = await response.json();
       expect(body).toMatchObject({
@@ -458,6 +457,7 @@ describe("high-assurance challenge worker routes", () => {
             ...baseSession,
             authorizationCode: "code_no_mfa",
             codeVerifier: "verifier_no_mfa",
+            authenticationMethod: "Password",
             authFactors: [],
           },
         ],

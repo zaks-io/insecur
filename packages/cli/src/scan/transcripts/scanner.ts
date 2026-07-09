@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import { collectProjectSecretCandidates } from "./candidates.js";
 import { collectTranscriptFiles, transcriptDiscoveryInput } from "./discovery.js";
-import { describeHeuristicHit, findCandidateMatches, findHeuristicSecrets } from "./heuristics.js";
-import { fingerprintSecretValue, redactValueShape } from "./fingerprint.js";
+import { findCandidateMatches, findHeuristicSecrets } from "./heuristics.js";
+import { fingerprintSecretValue } from "./fingerprint.js";
 import { DEFAULT_MAX_TRANSCRIPT_BYTES, readTranscriptFileWithLimit } from "./file-read.js";
 import type {
   CollectedTranscriptFile,
@@ -34,6 +35,7 @@ function defaultNextSteps(candidate?: ProjectSecretCandidate): readonly Transcri
 function toCandidateFinding(
   file: CollectedTranscriptFile,
   candidate: ProjectSecretCandidate,
+  startIndex: number,
 ): TranscriptFinding {
   return {
     findingKind: "candidate_match",
@@ -43,8 +45,7 @@ function toCandidateFinding(
     ...(file.observedAt ? { observedAt: file.observedAt } : {}),
     detectorId: "project.candidate_match",
     confidence: "confirmed",
-    valueShape: redactValueShape(candidate.value),
-    valueFingerprint: fingerprintSecretValue(candidate.value),
+    findingId: metadataFindingId(file, "project.candidate_match", startIndex),
     candidateKey: candidate.key,
     candidateFile: candidate.file,
     nextSteps: defaultNextSteps(candidate),
@@ -55,7 +56,6 @@ function toHeuristicFinding(
   file: CollectedTranscriptFile,
   hit: ReturnType<typeof findHeuristicSecrets>[number],
 ): TranscriptFinding {
-  const described = describeHeuristicHit(hit);
   return {
     findingKind: "heuristic_transcript_secret",
     provider: file.provider,
@@ -64,10 +64,19 @@ function toHeuristicFinding(
     ...(file.observedAt ? { observedAt: file.observedAt } : {}),
     detectorId: hit.detectorId,
     confidence: hit.confidence,
-    valueShape: described.valueShape,
-    valueFingerprint: described.valueFingerprint,
+    findingId: metadataFindingId(file, hit.detectorId, hit.startIndex),
     nextSteps: defaultNextSteps(),
   };
+}
+
+function metadataFindingId(
+  file: CollectedTranscriptFile,
+  detectorId: string,
+  startIndex: number,
+): string {
+  return createHash("sha256")
+    .update([file.provider, file.absolutePath, detectorId, String(startIndex)].join("\0"), "utf8")
+    .digest("hex");
 }
 
 function scanTranscriptContent(
@@ -79,7 +88,7 @@ function scanTranscriptContent(
   const findings: TranscriptFinding[] = [];
 
   for (const match of findCandidateMatches(content, candidates)) {
-    findings.push(toCandidateFinding(file, match.candidate));
+    findings.push(toCandidateFinding(file, match.candidate, match.startIndex));
   }
 
   for (const hit of findHeuristicSecrets(content)) {
@@ -100,7 +109,7 @@ function dedupeFindings(findings: readonly TranscriptFinding[]): TranscriptFindi
       finding.findingKind,
       finding.sourcePath,
       finding.detectorId,
-      finding.valueFingerprint,
+      finding.findingId,
       finding.candidateKey ?? "",
       finding.candidateFile ?? "",
     ].join("\0");

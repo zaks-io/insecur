@@ -3,8 +3,8 @@ import {
   recordRuntimeInjectionAuditInTenantScope,
   type AuditActorRef,
   type AuditRequestRef,
-  type AuditUserActorRef,
 } from "@insecur/audit";
+import type { ActorRef } from "@insecur/access";
 import {
   AUTH_ERROR_CODES,
   INJECTION_ERROR_CODES,
@@ -22,6 +22,7 @@ import {
 } from "@insecur/tenant-store";
 
 import { assertRuntimeInjectionAccess, CONSUME_SCOPE } from "./assert-runtime-injection-access.js";
+import { actorMatchesGrantOwner, issuedToFromGrant } from "./injection-grant-owner.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 
 export interface RecordInjectionRunCompletedInput {
@@ -29,6 +30,7 @@ export interface RecordInjectionRunCompletedInput {
   grantId: InjectionGrantId;
   childExitCode: number;
   actor: AuditActorRef;
+  accessActor?: ActorRef;
   request?: AuditRequestRef;
 }
 
@@ -37,13 +39,17 @@ export interface RecordInjectionRunCompletedResult {
   alreadyRecorded: boolean;
 }
 
-function assertUserActorForRunCompleted(actor: AuditActorRef): asserts actor is AuditUserActorRef {
-  if (actor.type !== "user") {
+function accessActorForRunCompleted(input: RecordInjectionRunCompletedInput): ActorRef {
+  if (input.accessActor !== undefined) {
+    return input.accessActor;
+  }
+  if (input.actor.type !== "user") {
     throw new InjectionGrantError(
       AUTH_ERROR_CODES.insufficientScope,
       "injection run completion denied",
     );
   }
+  return input.actor;
 }
 
 function assertValidChildExitCode(childExitCode: number): number {
@@ -86,7 +92,7 @@ async function assertConsumedGrantForRunCompletion(
   grantProjectId: ReturnType<typeof projectId.brand>;
   grantEnvironmentId: ReturnType<typeof environmentId.brand>;
 }> {
-  assertUserActorForRunCompleted(input.actor);
+  const accessActor = accessActorForRunCompleted(input);
 
   const grant = await new TenantInjectionGrantStore(handles.db).getGrant(
     input.organizationId,
@@ -101,8 +107,15 @@ async function assertConsumedGrantForRunCompletion(
 
   const grantProjectId = projectId.brand(grant.project_id);
   const grantEnvironmentId = environmentId.brand(grant.environment_id);
+  const owner = issuedToFromGrant(grant);
+  if (owner === undefined || !actorMatchesGrantOwner(accessActor, owner)) {
+    throw new InjectionGrantError(
+      AUTH_ERROR_CODES.insufficientScope,
+      "injection run completion denied",
+    );
+  }
   await assertRuntimeInjectionAccess(
-    input.actor,
+    accessActor,
     {
       organizationId: input.organizationId,
       projectId: grantProjectId,
