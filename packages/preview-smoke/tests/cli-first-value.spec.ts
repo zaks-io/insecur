@@ -89,7 +89,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
     });
 
     await test.step("cli.secrets_set_empty_rejects_without_opt_in", async () => {
-      const { exitCode, stderr } = await runCliSmokeCommandExpectFailure({
+      const result = await runCliSmokeCommandExpectFailure({
         apiBaseUrl: preview.apiBaseUrl,
         args: buildCliSecretsSetValueStdinArgs(EMPTY_SECRET_VARIABLE_KEY),
         bearer: ownerBearer,
@@ -99,10 +99,10 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         redactor,
         stdinInput: "",
       });
-      if (exitCode !== EXIT_VALIDATION) {
-        throw new Error(`CLI secrets set empty rejected exited ${String(exitCode)}`);
+      if (result.exitCode !== EXIT_VALIDATION) {
+        throw new Error(`CLI secrets set empty rejected exited ${String(result.exitCode)}`);
       }
-      assertCliErrorCode(stderr, SECRET_EMPTY_VALUE_ERROR, "CLI secrets set empty rejected");
+      assertCliErrorCode(result, SECRET_EMPTY_VALUE_ERROR, "CLI secrets set empty rejected");
     });
 
     await test.step("cli.secrets_set_empty_allow_empty", async () => {
@@ -122,7 +122,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
     });
 
     await test.step("cli.secrets_set_generated_length_validation", async () => {
-      const { exitCode, stderr } = await runCliSmokeCommandExpectFailure({
+      const result = await runCliSmokeCommandExpectFailure({
         apiBaseUrl: preview.apiBaseUrl,
         args: buildCliSecretsSetGenerateArgs({
           lengthBytes: 49_153,
@@ -134,11 +134,11 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         label: "CLI secrets set oversized generated",
         redactor,
       });
-      if (exitCode !== EXIT_VALIDATION) {
-        throw new Error(`CLI secrets set oversized generated exited ${String(exitCode)}`);
+      if (result.exitCode !== EXIT_VALIDATION) {
+        throw new Error(`CLI secrets set oversized generated exited ${String(result.exitCode)}`);
       }
       assertCliErrorCode(
-        stderr,
+        result,
         SECRET_VALUE_TOO_LARGE_ERROR,
         "CLI secrets set oversized generated",
       );
@@ -186,8 +186,15 @@ function assertSecretWriteMetadataOnly(body: Record<string, unknown>, label: str
   expect(JSON.stringify(body)).not.toMatch(/valueUtf8|encodedValueUtf8|plaintext/i);
 }
 
-function assertCliErrorCode(stderr: string, expectedCode: string, label: string): void {
-  const body = parseCliSmokeJson(stderr, label);
+function assertCliErrorCode(
+  result: { readonly stderr: string; readonly stdout: string },
+  expectedCode: string,
+  label: string,
+): void {
+  if (result.stdout.trim() !== "") {
+    throw new Error(`${label} must not write success JSON to stdout on failure`);
+  }
+  const body = parseLastCliSmokeJson(result.stderr, label);
   const error = body.error;
   if (typeof error !== "object" || error === null || Array.isArray(error)) {
     throw new Error(`${label} error must be an object`);
