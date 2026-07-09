@@ -39,6 +39,37 @@ describe("enforcePublicEdgeRateLimit", () => {
     ).rejects.toBeInstanceOf(AbuseLimitError);
   });
 
+  it("throttles the device-token target on its own bucket, not the PKCE exchange bucket", async () => {
+    const bindings = {
+      AUTH_DEVICE_TOKEN_IP: createInMemoryRateLimiter(1),
+      AUTH_EXCHANGE_IP: createInMemoryRateLimiter(5),
+    };
+
+    await enforcePublicEdgeRateLimit({
+      bindings,
+      target: "auth_cli_device_token",
+      ipAddress: "203.0.113.9",
+    });
+
+    // Second device poll from the same IP trips the dedicated device bucket.
+    await expect(
+      enforcePublicEdgeRateLimit({
+        bindings,
+        target: "auth_cli_device_token",
+        ipAddress: "203.0.113.9",
+      }),
+    ).rejects.toBeInstanceOf(AbuseLimitError);
+
+    // The PKCE exchange bucket is untouched by device polling.
+    await expect(
+      enforcePublicEdgeRateLimit({
+        bindings,
+        target: "auth_cli_pkce_exchange",
+        ipAddress: "203.0.113.9",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it("throws abuse.rate_limited when the onboarding actor limiter rejects", async () => {
     const bindings = { ONBOARDING_ACTOR: createInMemoryRateLimiter(1) };
 

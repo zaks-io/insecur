@@ -15,7 +15,7 @@ import type {
 export type ResolveWorkOSSessionResult =
   { ok: true; context: WorkOSSessionContext } | { ok: false; failure: AuthFailure };
 
-function authFailureForAssuranceReason(reason: SessionAssuranceFailureReason): AuthFailure {
+export function authFailureForAssuranceReason(reason: SessionAssuranceFailureReason): AuthFailure {
   switch (reason) {
     case "sms_not_allowed":
       return authFailureForReason("invalid");

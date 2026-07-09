@@ -8,7 +8,12 @@ import {
   reauthAppConnection,
   rotateAppConnectionCredential,
 } from "./http-client-connections.js";
-import { createCliAuthorizationUrl, exchangeCliPkceSession } from "./http-client-auth.js";
+import {
+  createCliAuthorizationUrl,
+  exchangeCliPkceSession,
+  pollCliDeviceToken,
+  startCliDeviceAuthorization,
+} from "./http-client-auth.js";
 import { revokeCliSession } from "./http-client-logout.js";
 import {
   createEnvironment,
@@ -47,6 +52,8 @@ export function createHttpApiClientForHost(host: string): ApiClient {
   return {
     createCliAuthorizationUrl: (input) => createCliAuthorizationUrl(base, input),
     exchangeCliPkceSession: (input) => exchangeCliPkceSession(base, input),
+    startCliDeviceAuthorization: () => startCliDeviceAuthorization(base),
+    pollCliDeviceToken: (input) => pollCliDeviceToken(base, input),
     provisionPersonalOrganization: (input) => provisionPersonalOrganization(base, input),
     writeSecretByVariableKey: (input) => writeSecretByVariableKey(base, input),
     listEnvironmentSecrets: (input) => listEnvironmentSecrets(base, input),
