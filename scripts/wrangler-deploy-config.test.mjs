@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -18,6 +18,7 @@ import {
 } from "./wrangler-deploy-config.mjs";
 
 const DEPLOY_ENV = {
+  INSECUR_PREVIEW_CODE_DEPLOY: "false",
   INSECUR_API_RATELIMIT_AUTH_EXCHANGE_IP_NAMESPACE_ID: "auth-exchange-ip-ns",
   INSECUR_API_RATELIMIT_AUTH_DEVICE_TOKEN_IP_NAMESPACE_ID: "auth-device-token-ip-ns",
   INSECUR_API_RATELIMIT_BOOTSTRAP_ACTOR_NAMESPACE_ID: "bootstrap-actor-ns",
@@ -83,6 +84,61 @@ test("materializes Web preview deploy identifiers", () => {
   assert.equal(config.env.preview.vars.WORKOS_AUTHKIT_ORIGIN, "https://tenant-live.authkit.app");
   assert.equal(config.env.preview.vars.DEPLOY_SHA, "abc123");
   assert.equal(config.env.preview.vars.SENTRY_RELEASE, "abc123");
+});
+
+test("local Web preview deploy defaults to a code-only config", () => {
+  const config = materializeDeployWranglerConfig(webConfig(), {
+    env: {
+      INSECUR_DEPLOYED_AT: "2026-07-04T12:00:00.000Z",
+      INSECUR_DEPLOY_RUN_ID: "local-run",
+      INSECUR_DEPLOY_SHA: "local-sha",
+    },
+    wranglerEnv: "preview",
+  });
+
+  assert.deepEqual(config.env.preview.vars, {
+    DEPLOYED_AT: "2026-07-04T12:00:00.000Z",
+    DEPLOY_RUN_ID: "local-run",
+    DEPLOY_SHA: "local-sha",
+    SENTRY_RELEASE: "local-sha",
+  });
+});
+
+test("local Web preview deploy derives an identity when one is not supplied", async () => {
+  const untrackedDirectory = path.resolve(".insecur-local-deploy-identity-test");
+  await mkdir(untrackedDirectory, { recursive: true });
+  await writeFile(path.join(untrackedDirectory, "artifact"), "untracked test artifact\n");
+
+  try {
+    const config = materializeDeployWranglerConfig(webConfig(), {
+      env: {},
+      sourcePath: path.resolve("apps/web/wrangler.jsonc"),
+      wranglerEnv: "preview",
+    });
+
+    assert.match(config.env.preview.vars.DEPLOY_SHA, /^local-.*-dirty-/u);
+    assert.match(config.env.preview.vars.DEPLOY_RUN_ID, /^local-/u);
+    assert.match(config.env.preview.vars.SENTRY_RELEASE, /^local-/u);
+    assert.equal(Number.isNaN(Date.parse(config.env.preview.vars.DEPLOYED_AT)), false);
+  } finally {
+    await rm(untrackedDirectory, { force: true, recursive: true });
+  }
+});
+
+test("local preview code deploy refuses Workers with mutable resource bindings", () => {
+  assert.throws(
+    () =>
+      materializeDeployWranglerConfig(apiConfig(), {
+        env: {
+          INSECUR_DEPLOYED_AT: "2026-07-04T12:00:00.000Z",
+          INSECUR_DEPLOY_RUN_ID: "local-run",
+          INSECUR_DEPLOY_SHA: "local-sha",
+          INSECUR_PREVIEW_CODE_DEPLOY: "true",
+        },
+        wranglerEnv: "preview",
+      }),
+    /Local code-only preview deploy does not support insecur-api/u,
+  );
 });
 
 test("materializes generated Web preview deploy config", () => {
@@ -428,6 +484,10 @@ test("Turbo build and deploy tasks pass through Sentry release upload env", asyn
   for (const taskName of deployTasks) {
     const passThroughEnv = turbo.tasks[taskName]?.passThroughEnv ?? [];
     assert.ok(passThroughEnv.includes("SENTRY_RELEASE"), `${taskName} must pass SENTRY_RELEASE`);
+    assert.ok(
+      passThroughEnv.includes("INSECUR_PREVIEW_CODE_DEPLOY"),
+      `${taskName} must pass INSECUR_PREVIEW_CODE_DEPLOY`,
+    );
   }
 
   for (const taskName of [

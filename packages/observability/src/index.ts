@@ -1,4 +1,17 @@
 import type { CloudflareOptions } from "@sentry/cloudflare";
+import {
+  prepareSentryEvent,
+  prepareSentrySpan,
+  prepareSentryTransaction,
+  type SentryEventLike,
+  type SentrySpanLike,
+  type SentryTransactionLike,
+} from "./sentry-sanitization.js";
+
+export {
+  requestWithoutSentryBaggage,
+  sentryFetchWithBaggageGuard,
+} from "./sentry-request-handler.js";
 
 export interface SentryBindings {
   readonly SENTRY_DSN?: string;
@@ -6,7 +19,6 @@ export interface SentryBindings {
   readonly SENTRY_ENVIRONMENT?: string;
   readonly SENTRY_RELEASE?: string;
   readonly SENTRY_SERVICE?: string;
-  readonly SENTRY_TRACES_SAMPLE_RATE?: string;
 }
 
 export interface SentryBrowserConfig {
@@ -15,7 +27,7 @@ export interface SentryBrowserConfig {
   readonly environment?: string;
   readonly release?: string;
   readonly service?: string;
-  readonly tracesSampleRate?: number;
+  readonly tracesSampleRate: number;
 }
 
 export interface BrowserSentryRuntime<TRouter, TIntegration> {
@@ -28,32 +40,44 @@ export interface BrowserSentryOptions<TIntegration> {
   readonly enabled: true;
   readonly environment?: string;
   readonly release?: string;
-  readonly tracesSampleRate?: number;
-  readonly dataCollection: {
-    readonly userInfo: false;
-    readonly httpBodies: [];
-  };
+  readonly tracesSampleRate: number;
+  readonly dataCollection: MetadataOnlySentryDataCollection;
   readonly enableLogs: boolean;
   readonly integrations: TIntegration[];
   readonly beforeSend: <TEvent extends SentryEventLike>(event: TEvent) => TEvent;
+  readonly beforeSendSpan: <TSpan extends SentrySpanLike>(span: TSpan) => TSpan;
+  readonly beforeSendTransaction: <TEvent extends SentryTransactionLike>(event: TEvent) => TEvent;
 }
 
-interface SentryEventLike {
-  message?: string;
-  exception?: {
-    values?: SentryExceptionLike[];
+interface MetadataOnlySentryDataCollection {
+  readonly cookies: false;
+  readonly frameContextLines: 0;
+  readonly genAI: {
+    readonly inputs: false;
+    readonly outputs: false;
   };
-  request?: unknown;
-  breadcrumbs?: unknown[];
-  extra?: Record<string, unknown>;
-  tags?: Record<string, unknown>;
+  readonly httpBodies: [];
+  readonly httpHeaders: {
+    readonly request: false;
+    readonly response: false;
+  };
+  readonly queryParams: false;
+  readonly stackFrameVariables: false;
+  readonly userInfo: false;
 }
 
-interface SentryExceptionLike {
-  value?: string;
-}
+export const DEFAULT_SENTRY_TRACES_SAMPLE_RATE = 1;
 
-const REDACTED_SENTRY_MESSAGE = "[redacted by insecur]";
+const METADATA_ONLY_DATA_COLLECTION: MetadataOnlySentryDataCollection = {
+  cookies: false,
+  frameContextLines: 0,
+  genAI: { inputs: false, outputs: false },
+  httpBodies: [],
+  httpHeaders: { request: false, response: false },
+  queryParams: false,
+  stackFrameVariables: false,
+  userInfo: false,
+};
 
 let browserSentryInitialized = false;
 
@@ -62,22 +86,24 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
   const environment = optional(env.SENTRY_ENVIRONMENT);
   const release = optional(env.SENTRY_RELEASE);
   const service = optional(env.SENTRY_SERVICE);
-  const tracesSampleRate = parseSampleRate(env.SENTRY_TRACES_SAMPLE_RATE);
 
   return {
     enabled: Boolean(dsn),
     ...(dsn ? { dsn } : {}),
     ...(environment ? { environment } : {}),
     ...(release ? { release } : {}),
-    ...(tracesSampleRate === undefined ? {} : { tracesSampleRate }),
-    dataCollection: {
-      userInfo: false,
-      httpBodies: [],
-    },
+    tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
+    dataCollection: METADATA_ONLY_DATA_COLLECTION,
     enableLogs: env.SENTRY_ENABLE_LOGS === "true",
     enableRpcTracePropagation: true,
     beforeSend(event) {
       return prepareSentryEvent(event, service);
+    },
+    beforeSendSpan(span) {
+      return prepareSentrySpan(span);
+    },
+    beforeSendTransaction(event) {
+      return prepareSentryTransaction(event, service);
     },
   };
 }
@@ -91,14 +117,13 @@ export function sentryBrowserConfig(env: SentryBindings): SentryBrowserConfig | 
   const environment = optional(env.SENTRY_ENVIRONMENT);
   const release = optional(env.SENTRY_RELEASE);
   const service = optional(env.SENTRY_SERVICE);
-  const tracesSampleRate = parseSampleRate(env.SENTRY_TRACES_SAMPLE_RATE);
 
   return {
     dsn,
     ...(environment ? { environment } : {}),
     ...(release ? { release } : {}),
     ...(service ? { service } : {}),
-    ...(tracesSampleRate === undefined ? {} : { tracesSampleRate }),
+    tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
     ...(env.SENTRY_ENABLE_LOGS === "true" ? { enableLogs: true } : {}),
   };
 }
@@ -148,45 +173,20 @@ function browserSentryOptions<TRouter, TIntegration>(
     enabled: true,
     ...(config.environment ? { environment: config.environment } : {}),
     ...(config.release ? { release: config.release } : {}),
-    ...(config.tracesSampleRate === undefined ? {} : { tracesSampleRate: config.tracesSampleRate }),
-    dataCollection: {
-      userInfo: false,
-      httpBodies: [],
-    },
+    tracesSampleRate: config.tracesSampleRate,
+    dataCollection: METADATA_ONLY_DATA_COLLECTION,
     enableLogs: config.enableLogs === true,
-    integrations: config.tracesSampleRate === undefined ? [] : [routerTracingIntegration(router)],
+    integrations: [routerTracingIntegration(router)],
     beforeSend(event) {
       return prepareSentryEvent(event, config.service);
     },
+    beforeSendSpan(span) {
+      return prepareSentrySpan(span);
+    },
+    beforeSendTransaction(event) {
+      return prepareSentryTransaction(event, config.service);
+    },
   };
-}
-
-/**
- * Redact Sentry events to metadata-only before they leave the worker/browser.
- *
- * Tag policy (INS-388): caller-supplied `event.tags` are dropped. Only the configured
- * `service` tag is retained so deploy identity survives without inheriting arbitrary
- * key/value pairs that upstream SDK hooks or error paths may attach. Tradeoff: custom
- * Sentry tags for debugging (for example release channel or route name) must be added
- * through an explicit allowlist change here, not by callers at capture time.
- */
-function prepareSentryEvent<TEvent extends SentryEventLike>(
-  event: TEvent,
-  service: string | undefined,
-): TEvent {
-  event.message = REDACTED_SENTRY_MESSAGE;
-  for (const value of event.exception?.values ?? []) {
-    value.value = REDACTED_SENTRY_MESSAGE;
-  }
-  delete event.request;
-  event.breadcrumbs = [];
-  event.extra = {};
-  if (service) {
-    event.tags = { service };
-  } else {
-    delete event.tags;
-  }
-  return event;
 }
 
 function optional(value: string | undefined): string | undefined {
@@ -195,16 +195,6 @@ function optional(value: string | undefined): string | undefined {
     return undefined;
   }
   return trimmed;
-}
-
-function parseSampleRate(value: string | undefined): number | undefined {
-  const raw = optional(value);
-  if (!raw) {
-    return undefined;
-  }
-
-  const rate = Number(raw);
-  return Number.isFinite(rate) && rate >= 0 && rate <= 1 ? rate : undefined;
 }
 
 declare global {

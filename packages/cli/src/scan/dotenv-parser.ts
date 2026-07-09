@@ -6,10 +6,6 @@ export interface DotenvEntry {
 }
 
 function parseDotenvLine(trimmed: string, lineNumber: number): DotenvEntry | null {
-  if (trimmed.length === 0 || trimmed.startsWith("#")) {
-    return null;
-  }
-
   const body = normalizeDotenvLineBody(trimmed);
   const key = parseKeyValueLine(body);
   return key ? { key, lineNumber } : null;
@@ -23,11 +19,7 @@ export function parseDotenvKeys(content: string): readonly DotenvEntry[] {
   const entries: DotenvEntry[] = [];
   const lines = content.split(/\r?\n/u);
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line === undefined) {
-      continue;
-    }
+  for (const [index, line] of lines.entries()) {
     const parsed = parseDotenvLine(line.trim(), index + 1);
     if (parsed) {
       entries.push(parsed);
@@ -101,13 +93,13 @@ function stripUnquotedDotenvSuffix(value: string): string {
       end = index;
       break;
     }
-    if (char === "#" && (index === 0 || /\s/u.test(value.charAt(index - 1)))) {
+    if (char === "#" && index === 0) {
       end = index;
       break;
     }
   }
 
-  return value.slice(0, end).trimEnd();
+  return value.slice(0, end);
 }
 
 function stripQuotes(value: string): string {
@@ -120,9 +112,6 @@ function hasKnownSecretPrefix(value: string): boolean {
 }
 
 function hasMixedCharset(value: string): boolean {
-  if (value.length < 8) {
-    return false;
-  }
   const hasAlpha = /[A-Za-z]/u.test(value);
   const hasDigit = /\d/u.test(value);
   const hasSpecial = /[^A-Za-z0-9]/u.test(value);
@@ -169,8 +158,6 @@ export function isObviouslyNonSecret(
     "test",
     "staging",
     "localhost",
-    "http://localhost",
-    "https://localhost",
   ]);
   if (benign.has(lower)) {
     return true;

@@ -362,7 +362,7 @@ importers:
         version: 10.63.0(@cloudflare/workers-types@5.20260703.1)
       '@sentry/tanstackstart-react':
         specifier: ^10.63.0
-        version: 10.63.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(react@19.2.7)(rollup@4.60.4)
+        version: 10.63.0(react@19.2.7)(rollup@4.60.4)
       '@tanstack/react-router':
         specifier: ^1.170.17
         version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -438,7 +438,7 @@ importers:
         version: 10.63.0(@cloudflare/workers-types@5.20260703.1)
       '@sentry/tanstackstart-react':
         specifier: ^10.63.0
-        version: 10.63.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(react@19.2.7)(rollup@4.60.4)
+        version: 10.63.0(react@19.2.7)(rollup@4.60.4)
       '@tanstack/react-router':
         specifier: ^1.170.17
         version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -662,6 +662,12 @@ importers:
 
   packages/cli:
     dependencies:
+      '@insecur/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@sentry/node':
+        specifier: ^10.63.0
+        version: 10.63.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
@@ -681,6 +687,9 @@ importers:
       '@insecur/local-store':
         specifier: workspace:*
         version: link:../local-store
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
       '@insecur/worker-kit':
         specifier: workspace:*
         version: link:../worker-kit
@@ -8353,7 +8362,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@sentry/tanstackstart-react@10.63.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(react@19.2.7)(rollup@4.60.4)':
+  '@sentry/tanstackstart-react@10.63.0(react@19.2.7)(rollup@4.60.4)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@sentry/browser-utils': 10.63.0

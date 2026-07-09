@@ -185,6 +185,7 @@ describe("CLI usage errors", () => {
 
       expect(exitCode).toBe(0);
       expect(output.stdout).toContain("Usage: insecur");
+      expect(output.stdout).toContain("Crash reporting: on by default");
       expect(output.stderr).toBe("");
       expect(output.stderr).not.toContain('"ok"');
     });

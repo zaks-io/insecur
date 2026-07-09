@@ -23,6 +23,7 @@ export {
   closeRuntimeSql,
   configureRuntimeConnection,
   runWithRuntimeConnection,
+  type RuntimeConnectionOptions,
   RuntimeConfigMissingError,
 } from "./db/connection.js";
 export * from "./readiness/index.js";

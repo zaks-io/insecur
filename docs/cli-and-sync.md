@@ -14,6 +14,14 @@ The CLI should be the primary interface for developers, agents, and CI.
 - Safe input only: Sensitive Values enter through stdin, masked prompts, request bodies, service generation, provider authorization flows, or development-only Secret Import. Ordinary secret-write commands never accept URLs, CLI arguments, or named local value files.
 - Misuse-resistant defaults: ordinary management commands should not have accidental reveal, readback, or export shapes.
 - Scriptable by default: every command supports `--json`, and JSON output never contains Sensitive Values.
+- Default-on crash reporting is limited to unexpected CLI failures. CLI trace correlation uses the
+  shared Sentry sampling default of `1`, and all telemetry must remain metadata-only:
+  sanitized exception class and stack-frame filename, CLI version,
+  release, platform, Node major, command family, service tag, and Sentry `sentry-trace`/`baggage`
+  propagation headers only. It must never send raw argv, cwd, environment variables, stdout/stderr,
+  request bodies, user identity, secret names or values, transcript content, breadcrumbs, arbitrary
+  tags, or child-process data. Users can disable it per command with `--no-crash-reports`, through
+  `INSECUR_CRASH_REPORTS=off`, or durably with `insecur config set crash-reports off`.
 - Agent-friendly: stable exit codes, stable error codes, dry-runs, operation IDs, and resumable long-running operations.
 - Developer-friendly: project defaults live in a committed non-secret config, while credentials live outside the repo.
 - Tenant-aware: organization context is explicit or loaded from a checked local config.
@@ -212,6 +220,8 @@ session record (`session.v1.sealed`) may also live in that directory; it is not 
 
 It may contain:
 
+- `crashReports` (`"on"` or `"off"`), the durable local preference for default-on sanitized CLI
+  crash reporting and API trace correlation.
 - Profiles.
 - Host aliases.
 - Human session metadata without credential material.
@@ -227,6 +237,7 @@ Example profile shape:
 
 ```json
 {
+  "crashReports": "on",
   "profiles": {
     "prof_01JZ8E6H2R7M4T0V9X3C5D8F1G": {
       "slug": "local-dev",
@@ -253,6 +264,8 @@ Example profile shape:
 Profile rules:
 
 - CLI Profiles are selectors only; they do not contain Sensitive Values.
+- `crashReports` is a local CLI observability preference only. It is not a profile, credential,
+  audit record, or project setting.
 - A profile selects organization (when hosted), project, environment, and default Runtime Policy Key by opaque ID.
 - Local profiles set `"host": "local"` and omit `orgId` ([Local Mode](#local-mode)).
 - A CLI Profile is not a secret group. It may choose the default Runtime Injection Policy for a local context, but the policy owns the exact secret bindings for one workflow.
@@ -317,6 +330,8 @@ Non-secret environment variables:
 - `INSECUR_CLIENT_ID`
 - `INSECUR_CONFIG_DIR`
 - `INSECUR_AGENT_TAG` (Agent Attribution Tag override; see Agent Attribution below)
+- `INSECUR_CRASH_REPORTS` (`off`, `false`, `0`, `no`, or `disabled` disables sanitized CLI crash
+  reporting and API trace correlation; `on`, `true`, `1`, `yes`, or `enabled` enables it)
 
 Auth-bearing environment variables:
 
@@ -892,6 +907,7 @@ insecur init \
 insecur config show --json
 insecur config set default-env-id env_01JZ8E5B6Q1N4M7T0V3X9Z2C8D
 insecur config set branch-env.main env_01JZ8E4R2P7M9N3K5T8V1X6Z0A
+insecur config set crash-reports off
 ```
 
 ### CLI Profiles

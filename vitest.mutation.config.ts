@@ -15,6 +15,7 @@ const projectRoots = [
   "packages/access",
   "packages/audit",
   "packages/auth",
+  "packages/backup-restore",
   "packages/cli",
   "packages/crypto",
   "packages/domain",

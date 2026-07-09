@@ -1,4 +1,5 @@
 import type { ListAuditEventsFiltersInput } from "./types.js";
+import type { HttpClientOptions } from "./http-client-envelope.js";
 import { authorizedJsonRequest } from "./http-client-metadata.js";
 import type { ApiClient, ListAuditEventsData } from "./types.js";
 
@@ -40,6 +41,7 @@ function buildAuditEventsQueryString(input: {
 export async function listAuditEvents(
   base: string,
   input: Parameters<ApiClient["listAuditEvents"]>[0],
+  options?: HttpClientOptions,
 ) {
   const path =
     `/v1/orgs/${input.organizationId}/audit-events` +
@@ -50,5 +52,6 @@ export async function listAuditEvents(
     });
   return authorizedJsonRequest<ListAuditEventsData>(base, path, input.bearerCredential, {
     method: "GET",
+    options,
   });
 }

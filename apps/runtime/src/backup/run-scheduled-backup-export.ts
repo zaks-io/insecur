@@ -5,6 +5,7 @@ import { runWithRuntimeConnection } from "@insecur/tenant-store";
 
 import type { RuntimeEnv } from "../env.js";
 import { maybeRuntimeConnectionString } from "../env.js";
+import { instrumentRuntimeSql } from "../sentry-postgres.js";
 
 function createR2BackupExportStorage(bucket: R2Bucket): BackupExportStorage {
   return {
@@ -43,8 +44,10 @@ export async function runScheduledBackupExport(
   };
 
   if (connectionString) {
-    const { closing } = await runWithRuntimeConnection(connectionString, async () =>
-      runBackupExport(exportInput),
+    const { closing } = await runWithRuntimeConnection(
+      connectionString,
+      async () => runBackupExport(exportInput),
+      { instrumentSql: instrumentRuntimeSql },
     );
     await closing;
     return;

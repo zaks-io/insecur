@@ -12,6 +12,7 @@ import {
 } from "./deploy-content-only-public-vars.mjs";
 import {
   assertDeployedSecretsStoreSecrets,
+  reconcileDeployedObservability,
   runContentOnlyDeploy,
   updatePublicDeployVars,
 } from "./deploy-content-only-lib.mjs";
@@ -60,12 +61,24 @@ const PRODUCTION_SETTINGS_WITHOUT_RELEASE = PRODUCTION_GET_SETTINGS_BINDINGS.fil
   (binding) => binding.name !== "SENTRY_RELEASE",
 );
 
+const PRODUCTION_SETTINGS_WITHOUT_ROOT_KEY = PRODUCTION_GET_SETTINGS_BINDINGS.filter(
+  (binding) => binding.name !== "INSTANCE_ROOT_KEY_V1",
+);
+
 const PRODUCTION_SETTINGS_RESULT = {
   compatibility_date: "2026-05-27",
   compatibility_flags: ["nodejs_compat"],
   observability: {
     enabled: true,
     logs: { enabled: true, destinations: ["axiom-logs"] },
+    traces: { enabled: true, destinations: ["axiom-traces", "sentry-traces-insecur"] },
+  },
+};
+
+const PRODUCTION_SETTINGS_WITHOUT_SENTRY_TRACES_DESTINATION = {
+  ...PRODUCTION_SETTINGS_RESULT,
+  observability: {
+    ...PRODUCTION_SETTINGS_RESULT.observability,
     traces: { enabled: true, destinations: ["axiom-traces"] },
   },
 };
@@ -211,6 +224,29 @@ test("updatePublicDeployVars skips PATCH when public deploy vars already match",
   );
 });
 
+test("reconcileDeployedObservability attaches a configured trace destination without changing bindings", async () => {
+  const calls = [];
+
+  await reconcileDeployedObservability(
+    createSettingsCloudflareJson({
+      calls,
+      observability: PRODUCTION_SETTINGS_WITHOUT_SENTRY_TRACES_DESTINATION.observability,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+    }),
+    "account-id",
+    "insecur-runtime",
+    PRODUCTION_SETTINGS_RESULT.observability,
+  );
+
+  const patchCall = calls.find(
+    (call) => call.method === "PATCH" && call.apiPath.endsWith("/settings"),
+  );
+  assert.ok(patchCall);
+  assert.deepEqual(patchCall.settings, {
+    observability: PRODUCTION_SETTINGS_RESULT.observability,
+  });
+});
+
 test("assertDeployedSecretsStoreSecrets requires INSTANCE_ROOT_KEY_V1 in deploy config", () => {
   assert.throws(
     () =>
@@ -264,6 +300,56 @@ test("runContentOnlyDeploy backfills missing SENTRY_RELEASE binding", async () =
   assert.ok(patchCall);
 });
 
+test("runContentOnlyDeploy reconciles observability before uploading Runtime content", async () => {
+  const calls = [];
+
+  await runContentOnlyDeploy({
+    env: CONTENT_ONLY_DEPLOY_ENV,
+    readFileFn: createReadFileStub(),
+    fetchFn: createContentOnlyDeployFetchHandler({
+      calls,
+      observability: PRODUCTION_SETTINGS_WITHOUT_SENTRY_TRACES_DESTINATION.observability,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+    }),
+  });
+
+  const observabilityPatchIndex = calls.findIndex(
+    (call) => call.method === "PATCH" && call.settings?.observability,
+  );
+  const contentUploadIndex = calls.findIndex(
+    (call) => call.method === "PUT" && call.url.endsWith("/content"),
+  );
+
+  assert.ok(observabilityPatchIndex >= 0);
+  assert.ok(contentUploadIndex > observabilityPatchIndex);
+});
+
+test("runContentOnlyDeploy refuses custody drift before reconciling observability", async () => {
+  const calls = [];
+
+  await assert.rejects(
+    runContentOnlyDeploy({
+      env: CONTENT_ONLY_DEPLOY_ENV,
+      readFileFn: createReadFileStub(),
+      fetchFn: createContentOnlyDeployFetchHandler({
+        calls,
+        observability: PRODUCTION_SETTINGS_WITHOUT_SENTRY_TRACES_DESTINATION.observability,
+        settingsBindings: PRODUCTION_SETTINGS_WITHOUT_ROOT_KEY,
+      }),
+    }),
+    /missing INSTANCE_ROOT_KEY_V1/,
+  );
+
+  assert.equal(
+    calls.some((call) => call.method === "PATCH"),
+    false,
+  );
+  assert.equal(
+    calls.some((call) => call.method === "PUT"),
+    false,
+  );
+});
+
 function createReadFileStub() {
   return async (filePath) => {
     if (filePath.endsWith("index.js")) {
@@ -277,39 +363,54 @@ function createContentOnlyDeployFetchHandler(options) {
   return (url, init = {}) => routeContentOnlyDeployFetch(url, init, options);
 }
 
-async function routeContentOnlyDeployFetch(url, init, { calls, settingsBindings }) {
+async function routeContentOnlyDeployFetch(url, init, options) {
+  const { calls, settingsBindings } = options;
   const method = init.method ?? "GET";
+
+  if (url.endsWith("/settings") && method === "PATCH") {
+    const settings = await readSettingsPatch(init.body);
+    calls.push({ url, method, settings });
+    if (settings.observability) {
+      options.observability = settings.observability;
+      return jsonResponse({ success: true, result: {} });
+    }
+    return respondToSettingsPatch(settings);
+  }
+
   calls.push({ url, method });
 
   if (url.endsWith("/content") && method === "PUT") {
     return jsonResponse({ success: true, result: {} });
   }
 
-  if (url.endsWith("/settings") && method === "PATCH") {
-    return respondToSettingsPatch(init.body);
-  }
-
   if (url.endsWith("/settings") && method === "GET") {
-    return respondWithSettings(settingsBindings);
+    return respondWithSettings(settingsBindings, options.observability);
   }
 
   throw new Error(`Unexpected fetch: ${method} ${url}`);
 }
 
-function respondWithSettings(settingsBindings) {
+function respondWithSettings(
+  settingsBindings,
+  observability = PRODUCTION_SETTINGS_RESULT.observability,
+) {
   return jsonResponse({
     success: true,
     result: {
       ...PRODUCTION_SETTINGS_RESULT,
+      observability,
       bindings: settingsBindings,
     },
   });
 }
 
-async function respondToSettingsPatch(body) {
+async function readSettingsPatch(body) {
   assert.ok(body instanceof FormData);
   const settingsBlob = body.get("settings");
-  const settings = JSON.parse(await settingsBlob.text());
+  return JSON.parse(await settingsBlob.text());
+}
+
+function respondToSettingsPatch(settings) {
   const releaseBinding = settings.bindings.find((binding) => binding.name === "SENTRY_RELEASE");
   const rootKeyBinding = settings.bindings.find(
     (binding) => binding.name === "INSTANCE_ROOT_KEY_V1",
@@ -337,19 +438,29 @@ function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), { status });
 }
 
-function createSettingsCloudflareJson({ calls, settingsBindings }) {
-  return async (method, apiPath, init = {}) => {
-    calls.push({ method, apiPath });
+function createSettingsCloudflareJson({
+  calls,
+  observability = PRODUCTION_SETTINGS_RESULT.observability,
+  settingsBindings,
+}) {
+  let deployedObservability = observability;
 
+  return async (method, apiPath, init = {}) => {
     if (apiPath.endsWith("/settings") && method === "GET") {
+      calls.push({ method, apiPath });
       return {
         ...PRODUCTION_SETTINGS_RESULT,
+        observability: deployedObservability,
         bindings: settingsBindings,
       };
     }
 
     if (apiPath.endsWith("/settings") && method === "PATCH") {
-      await respondToSettingsPatch(init.body);
+      const settings = await readSettingsPatch(init.body);
+      calls.push({ method, apiPath, settings });
+      if (settings.observability) {
+        deployedObservability = settings.observability;
+      }
       return {};
     }
 

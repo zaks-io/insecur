@@ -3,11 +3,11 @@
 insecur's tests are organized by where Postgres comes from and what failure class each catches.
 The decision record is [ADR-0065](../adr/0065-test-layers-and-preview-smoke.md).
 
-| Layer                | Postgres                   | Runtime                                                                            | Command                                                                                                                                                                                         | Runs where             |
-| -------------------- | -------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| Unit                 | none                       | Node Vitest                                                                        | `pnpm test`                                                                                                                                                                                     | local, CI, agents      |
-| Integration + RLS    | Postgres 17                | Node Vitest, real route stack + `postgres` driver                                  | `pnpm smoke:local` against configured Postgres, or `pnpm smoke:local:docker` to reset Docker Compose Postgres first                                                                             | local, CI, agents, PRs |
-| Shared preview smoke | shared preview Neon branch | deployed Cloudflare Workers + Hyperdrive + Runtime Service Binding + Secrets Store | `Deploy Preview` or `pnpm deploy:preview:preflight && pnpm migrate:preview && node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs && pnpm deploy:preview && pnpm smoke:preview` | shared preview only    |
+| Layer                | Postgres                   | Runtime                                                                            | Command                                                                                                                                                 | Runs where             |
+| -------------------- | -------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Unit                 | none                       | Node Vitest                                                                        | `pnpm test`                                                                                                                                             | local, CI, agents      |
+| Integration + RLS    | Postgres 17                | Node Vitest, real route stack + `postgres` driver                                  | `pnpm smoke:local` against configured Postgres, or `pnpm smoke:local:docker` to reset Docker Compose Postgres first                                     | local, CI, agents, PRs |
+| Shared preview smoke | shared preview Neon branch | deployed Cloudflare Workers + Hyperdrive + Runtime Service Binding + Secrets Store | Manual `Preview Smoke` workflow, or `node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs && pnpm smoke:preview` after deploying preview | shared preview only    |
 
 ## Manual Mutation Review
 
@@ -117,6 +117,14 @@ nonce, no inline style attributes, and the unauthenticated console redirect. It 
 it stays out of `pnpm verify` because the vite build + Miniflare boot is too slow for that hot
 path. The unit-level companion is the authed-SSR harness in `apps/web/test/support/`.
 
+`pnpm test:cli:postgres` builds the real `insecur` CLI and runs it as a child process against an
+in-process API Worker + Runtime Service composition backed by real Postgres. The suite seeds the
+standard tenant baseline, mints a short-lived test session credential with `@insecur/auth/testing`,
+passes it via `INSECUR_SESSION_TOKEN`, and then exercises metadata-only CLI commands (`whoami`,
+`orgs list`, `projects list`, `envs list`). It deliberately does not add a test-login bypass:
+auth follows the same signed CLI session credential and admission resolution path as the API e2e
+tests. `pnpm smoke:local` and CI's DB-backed runner include this suite after `test:e2e`.
+
 ## Layer boundaries
 
 - **Unit vs integration**: DB-backed package integration suites live alongside unit tests but are
@@ -132,8 +140,10 @@ path. The unit-level companion is the authed-SSR harness in `apps/web/test/suppo
   expected SHA, smoke signing secret, smoke actor IDs, and migration database URL are set. The smoke
   mints short-lived credentials during the run; Web preview accepts them only behind the
   `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview flag. The `Deploy Preview` workflow preflights
-  all preview Workers before mutating preview, deploys the shared Worker fleet, then runs the
-  `@insecur/preview-smoke` Playwright suite. Playwright verifies API/Web/Site deploy identities,
+  all preview Workers before mutating preview and deploys the shared Worker fleet, but it does not
+  run the smoke suite. Run the `Preview Smoke` workflow manually when hosted smoke evidence is
+  needed. That workflow seeds smoke actors, then runs the `@insecur/preview-smoke` Playwright suite.
+  Playwright verifies API/Web/Site deploy identities,
   drives the current happy paths over HTTP, exercises the built `insecur` CLI for auth/session and
   metadata navigation (`whoami`, `orgs list`, `projects list`, `envs list`, `config show`, `logout`)
   from isolated temp config directories, runs the First Value CLI proof (`init`, `secrets set`, `run`),
@@ -160,8 +170,9 @@ path. The unit-level companion is the authed-SSR harness in `apps/web/test/suppo
 The DB-backed `Verify` step in `.github/workflows/ci.yml` resets Docker Compose Postgres 17 once,
 runs `@insecur/tenant-store` `assert:rls-credentials` (migration vs runtime URLs differ; runtime
 `NOBYPASSRLS`), then `scripts/ci/postgres-integration-tests.mjs` which sets
-`INSECUR_CI_RLS_GATE=1` and runs every workspace `test:rls` suite, `test:e2e`, and
-`test:canary`; each fails closed under that gate rather than skipping. The no-plaintext canary gate
+`INSECUR_CI_RLS_GATE=1` and runs every workspace `test:rls` suite, `test:e2e`,
+`@insecur/cli` `test:integration`, and `test:canary`; each fails closed under that gate rather
+than skipping. The no-plaintext canary gate
 ([ADR-0069](../adr/0069-no-plaintext-canary-gate.md)) runs after `test:e2e` via
 `apps/api/test/canary/no-plaintext-canary.test.ts`: it drives the real route stack with a
 fresh high-entropy sentinel, then sweeps every `public` schema column from live

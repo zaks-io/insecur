@@ -23,6 +23,7 @@ import {
   renderFlags,
 } from "./program-deps.js";
 import { cliVersion } from "./version.js";
+import { NOOP_CRASH_REPORTER, type CliCrashReporter } from "./crash-reporting.js";
 
 function createInsecurRootProgram(): Command {
   const program = attachGlobalOptions(new Command());
@@ -35,12 +36,16 @@ function createInsecurRootProgram(): Command {
   return program
     .name("insecur")
     .description("insecur CLI — metadata-only output, sealed local session auth")
-    .version(cliVersion());
+    .version(cliVersion())
+    .addHelpText(
+      "after",
+      "\nCrash reporting: on by default for unexpected CLI failures. Tracing is enabled for every CLI command. Disable crash reports with --no-crash-reports, INSECUR_CRASH_REPORTS=off, or `insecur config set crash-reports off`.",
+    );
 }
 
-function buildProgram(): Command {
+function buildProgram(options: { readonly crashReporter: CliCrashReporter }): Command {
   const program = createInsecurRootProgram();
-  const deps = createProgramDeps();
+  const deps = createProgramDeps({ traceHeaders: options.crashReporter.traceHeaders });
 
   registerLoginCommand(program, deps);
   registerLogoutCommand(program, deps);
@@ -56,14 +61,18 @@ function buildProgram(): Command {
   return program;
 }
 
-export async function runCli(argv: readonly string[]): Promise<number> {
+export async function runCli(
+  argv: readonly string[],
+  options: { readonly crashReporter?: CliCrashReporter } = {},
+): Promise<number> {
   resetCommanderUsageCapture();
-  const program = buildProgram();
+  const crashReporter = options.crashReporter ?? NOOP_CRASH_REPORTER;
+  const program = buildProgram({ crashReporter });
   try {
-    await program.parseAsync(argv);
+    await crashReporter.withCommandTrace(argv, () => program.parseAsync(argv));
     const code = process.exitCode;
     return typeof code === "number" ? code : 0;
   } catch (error) {
-    return renderCliRunFailure(error, renderFlags(program));
+    return await renderCliRunFailure(error, renderFlags(program), crashReporter);
   }
 }

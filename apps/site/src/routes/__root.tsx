@@ -48,9 +48,20 @@ function RootDocument({ children }: { children: ReactNode }) {
           }
           footer={
             <SiteFooter>
-              <div className="flex flex-col gap-1 text-xs tracking-wide uppercase sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 text-xs tracking-wide uppercase sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-semibold">Secrets your agents never have to hold.</span>
-                <span className="text-muted-foreground">insecur.cloud</span>
+                <nav className="flex gap-5">
+                  <a href="/security" className="underline-offset-4 hover:underline">
+                    Security
+                  </a>
+                  <a href="/privacy" className="underline-offset-4 hover:underline">
+                    Privacy
+                  </a>
+                  <a href="/terms" className="underline-offset-4 hover:underline">
+                    Terms
+                  </a>
+                  <span className="text-muted-foreground">insecur.cloud</span>
+                </nav>
               </div>
             </SiteFooter>
           }

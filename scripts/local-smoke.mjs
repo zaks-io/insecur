@@ -88,6 +88,7 @@ Runs the DB-backed local smoke gate. Without --with-docker, the configured
 Postgres service is reset and migrated first:
   pnpm test:rls
   pnpm test:e2e
+  pnpm --filter @insecur/cli test:integration
   pnpm test:canary
 
 Options:

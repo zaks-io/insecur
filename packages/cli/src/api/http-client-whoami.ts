@@ -1,6 +1,7 @@
 import type { AgentSessionId, SessionWhoamiData } from "@insecur/domain";
 import type { EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
 import type { ErrorEnvelope, SuccessEnvelope } from "@insecur/domain";
+import type { HttpClientOptions } from "./http-client-envelope.js";
 import { authorizedJsonRequest } from "./http-client-metadata.js";
 
 export interface SessionWhoamiRequestInput {
@@ -36,6 +37,7 @@ function buildWhoamiPath(input: SessionWhoamiRequestInput): string {
 export async function sessionWhoami(
   base: string,
   input: SessionWhoamiRequestInput,
+  options?: HttpClientOptions,
 ): Promise<
   | { ok: true; envelope: SuccessEnvelope<SessionWhoamiData> }
   | { ok: false; envelope: ErrorEnvelope; httpStatus: number }
@@ -44,6 +46,6 @@ export async function sessionWhoami(
     base,
     buildWhoamiPath(input),
     input.bearerCredential,
-    { method: "GET" },
+    { method: "GET", options },
   );
 }

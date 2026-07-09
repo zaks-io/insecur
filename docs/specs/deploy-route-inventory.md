@@ -117,6 +117,9 @@ Public marketing/legal/security surface (ADR-0078). Holds no auth session, datab
 | GET    | `/healthz`                                            |
 | GET    | `/install.ps1`                                        |
 | GET    | `/install.sh`                                         |
+| GET    | `/privacy`                                            |
+| GET    | `/security`                                           |
+| GET    | `/terms`                                              |
 
 ## Runtime Worker — `apps/runtime` (`insecur-runtime`)
 

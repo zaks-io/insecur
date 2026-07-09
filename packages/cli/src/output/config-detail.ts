@@ -20,6 +20,7 @@ interface ConfigData {
   readonly profileId?: string;
   readonly profileSlug?: string;
   readonly projectConfigPath?: string;
+  readonly crashReports: "on" | "off";
   readonly branchEnv: Readonly<Record<string, string>>;
   readonly profiles: readonly ConfigProfile[];
 }
@@ -88,6 +89,7 @@ export function formatConfigShowHuman(data: ConfigData): string {
           ? emptyValue()
           : sanitizeDisplayText(data.projectConfigPath),
     },
+    { label: "Crash Reports", value: data.crashReports },
   ];
   const sections: DetailSection[] = [branchSection(data.branchEnv)];
   if (data.profiles.length > 0) {

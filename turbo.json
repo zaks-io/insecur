@@ -61,7 +61,13 @@
     },
     "test:integration": {
       "cache": false,
-      "env": ["DATABASE_URL", "DATABASE_URL_MIGRATION", "DATABASE_URL_RUNTIME"]
+      "env": [
+        "DATABASE_URL",
+        "DATABASE_URL_MIGRATION",
+        "DATABASE_URL_RUNTIME",
+        "INSECUR_CI_RLS_GATE",
+        "INSECUR_TEST_SKIP_MIGRATE"
+      ]
     },
     "test:e2e": {
       "cache": false,
@@ -107,6 +113,7 @@
         "INSECUR_DEPLOY_RUN_ID",
         "INSECUR_DEPLOYED_AT",
         "INSECUR_REQUIRE_DEPLOY_IDENTITY",
+        "INSECUR_PREVIEW_CODE_DEPLOY",
         "INSECUR_INSTANCE_ID",
         "INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY",
         "INSECUR_TURNSTILE_SITE_KEY",
@@ -142,6 +149,7 @@
         "INSECUR_DEPLOY_RUN_ID",
         "INSECUR_DEPLOYED_AT",
         "INSECUR_REQUIRE_DEPLOY_IDENTITY",
+        "INSECUR_PREVIEW_CODE_DEPLOY",
         "INSECUR_INSTANCE_ID",
         "INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY",
         "INSECUR_TURNSTILE_SITE_KEY",
@@ -177,6 +185,7 @@
         "INSECUR_DEPLOY_RUN_ID",
         "INSECUR_DEPLOYED_AT",
         "INSECUR_REQUIRE_DEPLOY_IDENTITY",
+        "INSECUR_PREVIEW_CODE_DEPLOY",
         "INSECUR_INSTANCE_ID",
         "INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY",
         "INSECUR_TURNSTILE_SITE_KEY",
@@ -212,6 +221,7 @@
         "INSECUR_DEPLOY_RUN_ID",
         "INSECUR_DEPLOYED_AT",
         "INSECUR_REQUIRE_DEPLOY_IDENTITY",
+        "INSECUR_PREVIEW_CODE_DEPLOY",
         "INSECUR_INSTANCE_ID",
         "INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY",
         "INSECUR_TURNSTILE_SITE_KEY",
@@ -250,6 +260,7 @@
         "INSECUR_DEPLOY_RUN_ID",
         "INSECUR_DEPLOYED_AT",
         "INSECUR_REQUIRE_DEPLOY_IDENTITY",
+        "INSECUR_PREVIEW_CODE_DEPLOY",
         "INSECUR_INSTANCE_ID",
         "INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY",
         "INSECUR_TURNSTILE_SITE_KEY",
@@ -281,6 +292,7 @@
         "INSECUR_DEPLOY_RUN_ID",
         "INSECUR_DEPLOYED_AT",
         "INSECUR_REQUIRE_DEPLOY_IDENTITY",
+        "INSECUR_PREVIEW_CODE_DEPLOY",
         "INSECUR_INSTANCE_ID",
         "INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY",
         "INSECUR_TURNSTILE_SITE_KEY",
@@ -309,7 +321,7 @@
       ]
     },
     "@insecur/web#deploy:preview": {
-      "dependsOn": ["build", "@insecur/api#deploy:preview", "@insecur/runtime#deploy:preview"],
+      "dependsOn": ["@insecur/api#deploy:preview", "@insecur/runtime#deploy:preview"],
       "cache": false,
       "env": ["CLOUDFLARE_ENV"],
       "passThroughEnv": [
@@ -319,6 +331,7 @@
         "INSECUR_DEPLOY_RUN_ID",
         "INSECUR_DEPLOYED_AT",
         "INSECUR_REQUIRE_DEPLOY_IDENTITY",
+        "INSECUR_PREVIEW_CODE_DEPLOY",
         "INSECUR_INSTANCE_ID",
         "INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY",
         "INSECUR_TURNSTILE_SITE_KEY",

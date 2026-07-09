@@ -1,4 +1,6 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { lstatSync, readFileSync, readlinkSync, readdirSync } from "node:fs";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -70,6 +72,11 @@ export function materializeDeployWranglerConfig(config, options = {}) {
     workerName,
     wranglerEnv,
   };
+
+  if (isPreviewCodeDeploy(deployContext)) {
+    materializePreviewCodeDeployConfig(scope, deployContext);
+    return next;
+  }
 
   switch (workerName) {
     case "insecur-api":
@@ -222,6 +229,85 @@ export async function runWrangler(args, label = "wrangler") {
 
   if (exitCode !== 0) {
     throw new Error(`${label} failed with exit code ${exitCode}.`);
+  }
+}
+
+function materializePreviewCodeDeployConfig(scope, context) {
+  if (context.workerName !== "insecur-web" && context.workerName !== "insecur-site") {
+    throw new Error(
+      `Local code-only preview deploy does not support ${context.workerName}. Use CI/full preview deploy for Workers with mutable resource bindings.`,
+    );
+  }
+  const identity = resolveLocalPreviewDeployIdentity(context);
+  scope.vars = {
+    DEPLOYED_AT: identity.deployedAt,
+    DEPLOY_RUN_ID: identity.runId,
+    DEPLOY_SHA: identity.sha,
+    SENTRY_RELEASE: identity.release,
+  };
+}
+
+function isPreviewCodeDeploy(context) {
+  return context.wranglerEnv === "preview" && context.env.INSECUR_PREVIEW_CODE_DEPLOY !== "false";
+}
+
+function resolveLocalPreviewDeployIdentity(context) {
+  const sha = context.env.INSECUR_DEPLOY_SHA || localDeploySha(context.sourcePath);
+  return {
+    deployedAt: context.env.INSECUR_DEPLOYED_AT || new Date().toISOString(),
+    release: context.env.SENTRY_RELEASE || sha,
+    runId: context.env.INSECUR_DEPLOY_RUN_ID || `local-${Date.now()}`,
+    sha,
+  };
+}
+
+function localDeploySha(sourcePath) {
+  const startDirectory = sourcePath ? path.dirname(sourcePath) : process.cwd();
+  const repoRoot = gitOutput(startDirectory, ["rev-parse", "--show-toplevel"]);
+  if (!repoRoot) {
+    return "local-no-git";
+  }
+
+  const head = gitOutput(repoRoot, ["rev-parse", "--short=12", "HEAD"]) || "no-head";
+  const diff = gitOutput(repoRoot, ["diff", "--binary", "HEAD"]);
+  const untracked = gitOutput(repoRoot, ["ls-files", "--others", "--exclude-standard", "-z"]);
+  if (!diff && !untracked) {
+    return `local-${head}`;
+  }
+
+  const hash = createHash("sha256");
+  hash.update(diff);
+  for (const relativePath of untracked.split("\0").filter(Boolean).sort()) {
+    hashUntrackedPath(hash, repoRoot, relativePath);
+  }
+  return `local-${head}-dirty-${hash.digest("hex").slice(0, 12)}`;
+}
+
+function hashUntrackedPath(hash, repoRoot, relativePath) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  hash.update(relativePath);
+
+  const entry = lstatSync(absolutePath);
+  if (entry.isDirectory()) {
+    for (const childName of readdirSync(absolutePath).sort()) {
+      hashUntrackedPath(hash, repoRoot, path.join(relativePath, childName));
+    }
+    return;
+  }
+  if (entry.isSymbolicLink()) {
+    hash.update(readlinkSync(absolutePath));
+    return;
+  }
+  if (entry.isFile()) {
+    hash.update(readFileSync(absolutePath));
+  }
+}
+
+function gitOutput(cwd, args) {
+  try {
+    return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
+  } catch {
+    return "";
   }
 }
 

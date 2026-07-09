@@ -215,7 +215,7 @@ function extractPublicRoutes(indexPath) {
     let match;
     while ((match = pattern.exec(source)) !== null) {
       const callName = match[2] === undefined ? undefined : match[1];
-      if (callName === "use" && isSentryMiddlewareUse(source, match.index)) {
+      if (callName === "use" && isNonRouteMiddlewareUse(source, match.index)) {
         continue;
       }
       const prefix = match[2] ?? match[1];
@@ -238,7 +238,7 @@ function extractPublicRoutes(indexPath) {
   const pathOmittedUsePattern = /app\.use\(\s*(?!["'`])/g;
   let useMatch;
   while ((useMatch = pathOmittedUsePattern.exec(source)) !== null) {
-    if (!isSentryMiddlewareUse(source, useMatch.index)) {
+    if (!isNonRouteMiddlewareUse(source, useMatch.index)) {
       mounts.add("*");
     }
   }
@@ -254,11 +254,12 @@ function extractPublicRoutes(indexPath) {
   return [...mounts].sort();
 }
 
-function isSentryMiddlewareUse(source, callIndex) {
+function isNonRouteMiddlewareUse(source, callIndex) {
   const snippet = source.slice(callIndex, callIndex + 160);
   return (
     /^app\.use\(\s*sentry\(/.test(snippet) ||
-    /^app\.use\(\s*["'`][^"'`]+["'`]\s*,\s*sentry\(/.test(snippet)
+    /^app\.use\(\s*["'`][^"'`]+["'`]\s*,\s*sentry\(/.test(snippet) ||
+    /^app\.use\(\s*apiRequestAnalyticsMiddleware\s*\)/.test(snippet)
   );
 }
 

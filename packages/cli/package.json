@@ -13,10 +13,13 @@
     "start": "node --import tsx/esm src/index.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
+    "test:integration": "pnpm run build && vitest run --config vitest.integration.config.ts",
     "test:local-features": "pnpm build && node scripts/local-feature-suite.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@insecur/observability": "workspace:*",
+    "@sentry/node": "^10.63.0",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
@@ -25,6 +28,7 @@
     "@insecur/auth": "workspace:*",
     "@insecur/domain": "workspace:*",
     "@insecur/local-store": "workspace:*",
+    "@insecur/tenant-store": "workspace:*",
     "@insecur/worker-kit": "workspace:*",
     "@types/node": "catalog:",
     "commander": "^15.0.0",

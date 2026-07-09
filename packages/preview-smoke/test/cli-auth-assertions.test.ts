@@ -27,32 +27,41 @@ const preview = {
 
 describe("cli auth assertions", () => {
   it("accepts metadata-only whoami success", () => {
-    expect(() => {
-      assertCliWhoamiSuccess(
-        {
-          ok: true,
-          data: {
-            actorType: "user",
-            userId: preview.ownerUserId,
-            sessionId: "sess_test",
-            sessionValid: true,
-            sessionExpiresAt: "2026-08-01T00:00:00.000Z",
-            resolvedContext: {
-              organizationId: "org_test",
-              projectId: "prj_test",
-              environmentId: "env_test",
-            },
-            attribution: { tier: "none" },
+    const data = assertCliWhoamiSuccess(
+      {
+        ok: true,
+        data: {
+          actorType: "user",
+          userId: preview.ownerUserId,
+          sessionId: "sess_test",
+          sessionValid: true,
+          sessionExpiresAt: "2026-08-01T00:00:00.000Z",
+          resolvedContext: {
+            organizationId: "org_test",
+            projectId: "prj_test",
+            environmentId: "env_test",
           },
+          attribution: { tier: "none" },
         },
-        preview,
-        {
-          organizationId: "org_test",
-          projectId: "prj_test",
-          environmentId: "env_test",
-        },
-      );
-    }).not.toThrow();
+      },
+      preview,
+      {
+        organizationId: "org_test",
+        projectId: "prj_test",
+        environmentId: "env_test",
+      },
+    );
+
+    expect(data).toMatchObject({
+      actorType: "user",
+      userId: preview.ownerUserId,
+      sessionValid: true,
+      resolvedContext: {
+        organizationId: "org_test",
+        projectId: "prj_test",
+        environmentId: "env_test",
+      },
+    });
   });
 
   it("accepts navigation list envelopes", () => {
@@ -67,58 +76,114 @@ describe("cli auth assertions", () => {
   });
 
   it("accepts config show with resolved scope", () => {
-    expect(() => {
-      assertCliConfigShowSuccess(
-        {
-          ok: true,
-          data: {
-            host: preview.apiBaseUrl,
-            orgId: "org_test",
-            projectId: "prj_test",
-            envId: "env_test",
-            projectConfigPath: "/tmp/project/insecur.json",
-            branchEnv: {},
-            profiles: [
-              {
-                profileId: "prof_test",
-                slug: "local-dev",
-                displayName: "Local development",
-                host: preview.apiBaseUrl,
-                orgId: "org_test",
-                projectId: "prj_test",
-                envId: "env_test",
-              },
-            ],
-          },
-        },
-        "CLI config show",
-        {
+    const data = assertCliConfigShowSuccess(
+      {
+        ok: true,
+        data: {
           host: preview.apiBaseUrl,
-          organizationId: "org_test",
+          orgId: "org_test",
           projectId: "prj_test",
-          environmentId: "env_test",
+          envId: "env_test",
+          projectConfigPath: "/tmp/project/insecur.json",
+          branchEnv: {},
+          profiles: [
+            {
+              profileId: "prof_test",
+              slug: "local-dev",
+              displayName: "Local development",
+              host: preview.apiBaseUrl,
+              orgId: "org_test",
+              projectId: "prj_test",
+              envId: "env_test",
+            },
+          ],
         },
-      );
-    }).not.toThrow();
+      },
+      "CLI config show",
+      {
+        host: preview.apiBaseUrl,
+        organizationId: "org_test",
+        projectId: "prj_test",
+        environmentId: "env_test",
+      },
+    );
+
+    expect(data.profiles).toEqual([
+      expect.objectContaining({
+        profileId: "prof_test",
+        slug: "local-dev",
+        host: preview.apiBaseUrl,
+      }),
+    ]);
   });
 
   it("accepts logout success", () => {
+    assertCliLogoutSuccess(
+      {
+        ok: true,
+        data: {
+          revoked: true,
+          removed: true,
+          revokeAttempted: true,
+        },
+      },
+      "CLI logout",
+    );
+  });
+
+  it("rejects logout envelopes that did not revoke the session", () => {
     expect(() => {
       assertCliLogoutSuccess(
         {
           ok: true,
           data: {
-            revoked: true,
+            revoked: false,
             removed: true,
             revokeAttempted: true,
           },
         },
         "CLI logout",
       );
-    }).not.toThrow();
+    }).toThrow(/CLI logout revoked/);
   });
 
   it("accepts auth.invalid failure envelopes on stderr", () => {
+    assertCliAuthFailure({
+      exitCode: CLI_AUTH_REQUIRED_EXIT_CODE,
+      label: "CLI whoami after logout",
+      stdout: "",
+      stderr: JSON.stringify({
+        ok: false,
+        error: {
+          code: AUTH_ERROR_CODES.invalid,
+          message: "Session is no longer valid.",
+          retryable: false,
+        },
+        remediation: { login: ["insecur", "login", "--shell"] },
+      }),
+    });
+  });
+
+  it("accepts auth failure stderr with runtime warnings before JSON", () => {
+    assertCliAuthFailure({
+      exitCode: CLI_AUTH_REQUIRED_EXIT_CODE,
+      label: "CLI whoami after logout",
+      stdout: "",
+      stderr: [
+        "(node:1) ExperimentalWarning: SQLite is an experimental feature",
+        JSON.stringify({
+          ok: false,
+          error: {
+            code: AUTH_ERROR_CODES.invalid,
+            message: "Session is no longer valid.",
+            retryable: false,
+          },
+        }),
+      ].join("\n"),
+    });
+  });
+
+  it("rejects auth failure output that leaks forbidden remediation fields", () => {
     expect(() => {
       assertCliAuthFailure({
         exitCode: CLI_AUTH_REQUIRED_EXIT_CODE,
@@ -131,31 +196,10 @@ describe("cli auth assertions", () => {
             message: "Session is no longer valid.",
             retryable: false,
           },
-          remediation: { login: ["insecur", "login", "--shell"] },
+          remediation: { token: "must-not-appear" },
         }),
       });
-    }).not.toThrow();
-  });
-
-  it("accepts auth failure stderr with runtime warnings before JSON", () => {
-    expect(() => {
-      assertCliAuthFailure({
-        exitCode: CLI_AUTH_REQUIRED_EXIT_CODE,
-        label: "CLI whoami after logout",
-        stdout: "",
-        stderr: [
-          "(node:1) ExperimentalWarning: SQLite is an experimental feature",
-          JSON.stringify({
-            ok: false,
-            error: {
-              code: AUTH_ERROR_CODES.invalid,
-              message: "Session is no longer valid.",
-              retryable: false,
-            },
-          }),
-        ].join("\n"),
-      });
-    }).not.toThrow();
+    }).toThrow(/forbidden key: token/);
   });
 
   it("rejects auth failures with the wrong exit code", () => {
