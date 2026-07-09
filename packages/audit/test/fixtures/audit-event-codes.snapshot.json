@@ -2,6 +2,7 @@
   "access.denied",
   "approval.action_denied",
   "approval.request_approved",
+  "approval.request_canceled",
   "approval.request_created",
   "approval.request_draft_discard_closed",
   "approval.request_rejected",

@@ -1,13 +1,7 @@
 import type { AuditActorRef } from "@insecur/audit";
-import { recordApprovalAudit } from "@insecur/audit";
 import type { EvaluateHighAssuranceChallengeClearInput } from "@insecur/auth";
 import { evaluateHighAssuranceChallengeClearAssurance } from "@insecur/auth";
-import type {
-  ApprovalRequestId,
-  OpaqueResourceId,
-  OrganizationId,
-  RequestId,
-} from "@insecur/domain";
+import type { ApprovalRequestId, OrganizationId, RequestId } from "@insecur/domain";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   TenantApprovalRequestStore,
@@ -16,7 +10,10 @@ import {
 } from "@insecur/tenant-store";
 import type { ActorRef } from "@insecur/access";
 
-import { assertRecordedImpactReviewFresh } from "./assert-impact-review-fresh.js";
+import {
+  assertImpactReviewFresh,
+  assertRecordedImpactReviewFresh,
+} from "./assert-impact-review-fresh.js";
 import { assertApprovalRequestApproveAccess } from "./approval-request-review-access.js";
 import { ApprovalRequestError } from "./approval-request-errors.js";
 import {
@@ -24,6 +21,7 @@ import {
   resolveCurrentImpactFingerprint,
 } from "./approval-request-impact-review.js";
 import { loadApprovalRequestForReviewDecision } from "./get-approval-request-review.js";
+import { recordApprovalRequestSuccessAudit } from "./record-approval-request-success-audit.js";
 
 export interface ApproveApprovalRequestInput {
   readonly actor: ActorRef;
@@ -100,6 +98,10 @@ export async function approveApprovalRequest(input: ApproveApprovalRequestInput)
     row,
     draftTargets,
   });
+  assertImpactReviewFresh({
+    submittedFingerprint: input.impactReviewFingerprint,
+    currentFingerprint,
+  });
   assertRecordedImpactReviewFresh({
     recordedFingerprint: row.impactReviewFingerprint,
     currentFingerprint,
@@ -111,17 +113,13 @@ export async function approveApprovalRequest(input: ApproveApprovalRequestInput)
     draftTargets,
   });
 
-  await recordApprovalAudit({
+  await recordApprovalRequestSuccessAudit({
     action: "request_approved",
-    outcome: "success",
-    actor: input.auditActor,
+    auditActor: input.auditActor,
     organizationId: input.organizationId,
     projectId: row.projectId,
     environmentId: row.environmentId,
-    resource: {
-      type: "approval_request",
-      id: input.approvalRequestId as unknown as OpaqueResourceId,
-    },
+    approvalRequestId: input.approvalRequestId,
     requestId: input.requestId,
   });
 

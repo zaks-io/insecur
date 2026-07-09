@@ -100,6 +100,29 @@ describe("production audit helpers", () => {
     );
   });
 
+  it("recordApprovalAudit writes request cancellation with tenant scope", async () => {
+    writeMock.mockClear();
+
+    await recordApprovalAudit({
+      action: "request_canceled",
+      outcome: "success",
+      actor: { type: "user", userId: USER },
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      requestId: REQUEST,
+    });
+
+    expect(writeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventCode: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestCanceled,
+        projectId: PROJECT,
+        environmentId: ENV,
+        request: { requestId: REQUEST },
+      }),
+    );
+  });
+
   it("recordApprovalAudit writes action_denied for denied approval actions", async () => {
     writeMock.mockClear();
 

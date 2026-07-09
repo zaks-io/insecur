@@ -1,13 +1,13 @@
 import type { AuditActorRef } from "@insecur/audit";
-import { recordApprovalAudit } from "@insecur/audit";
 import type {
   ApprovalRequestId,
   EnvironmentId,
-  OpaqueResourceId,
   OrganizationId,
   ProjectId,
   RequestId,
 } from "@insecur/domain";
+
+import { recordApprovalRequestSuccessAudit } from "./record-approval-request-success-audit.js";
 
 export async function recordSupersededApprovalRequestAudits(input: {
   readonly auditActor: AuditActorRef;
@@ -18,17 +18,13 @@ export async function recordSupersededApprovalRequestAudits(input: {
   readonly requestId: RequestId;
 }): Promise<void> {
   for (const supersededApprovalRequestId of input.supersededApprovalRequestIds) {
-    await recordApprovalAudit({
+    await recordApprovalRequestSuccessAudit({
       action: "request_superseded",
-      outcome: "success",
-      actor: input.auditActor,
+      auditActor: input.auditActor,
       organizationId: input.organizationId,
       projectId: input.projectId,
       environmentId: input.environmentId,
-      resource: {
-        type: "approval_request",
-        id: supersededApprovalRequestId as unknown as OpaqueResourceId,
-      },
+      approvalRequestId: supersededApprovalRequestId,
       requestId: input.requestId,
     });
   }
