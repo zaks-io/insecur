@@ -16,9 +16,24 @@ import {
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 
+const NODE_SQLITE_WARNING =
+  /^\(node:\d+\) ExperimentalWarning: SQLite is an experimental feature and might change at any time$/;
+const NODE_TRACE_WARNING =
+  /^\(Use `node --trace-warnings \.\.\.` to show where the warning was created\)$/;
+
+function stripAllowedRuntimeWarnings(output: string): string {
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(
+      (line) => line !== "" && !NODE_SQLITE_WARNING.test(line) && !NODE_TRACE_WARNING.test(line),
+    )
+    .join("\n");
+}
+
 function parseJsonOutput(result: CliProcessResult): unknown {
   expect(result.code).toBe(0);
-  expect(result.stderr).toBe("");
+  expect(stripAllowedRuntimeWarnings(result.stderr)).toBe("");
   return JSON.parse(result.stdout.trim());
 }
 
@@ -105,7 +120,7 @@ describeIntegration("CLI against real Postgres", () => {
     const result = await harness.runCli(["whoami"], { authenticated: false });
     expect(result.code).toBe(3);
     expect(result.stdout).toBe("");
-    const output = JSON.parse(result.stderr.trim());
+    const output = JSON.parse(stripAllowedRuntimeWarnings(result.stderr));
     expect(output).toMatchObject({
       ok: false,
       error: { code: "auth.required" },
