@@ -60,6 +60,7 @@ describe("runScheduledBackupExport", () => {
     expect(runWithRuntimeConnectionMock).toHaveBeenCalledWith(
       "postgres://runtime@example/db",
       expect.any(Function),
+      { instrumentSql: expect.any(Function) },
     );
     expect(runBackupExportMock).toHaveBeenCalledWith(
       expect.objectContaining({

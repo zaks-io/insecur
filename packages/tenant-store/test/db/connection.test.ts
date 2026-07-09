@@ -94,6 +94,25 @@ describe("runWithRuntimeConnection", () => {
     expect(activeRuntimeConnection()).toBeUndefined();
   });
 
+  it("uses the runtime SQL instrumentation only for the request-scoped client", async () => {
+    const connStr = "postgres://req:req@instrumented-host:5432/db";
+    let received: ReturnType<typeof getRuntimeSql> | undefined;
+
+    const { result, closing } = await runWithRuntimeConnection(
+      connStr,
+      async () => getRuntimeSql(),
+      {
+        instrumentSql(sql) {
+          received = sql;
+          return sql;
+        },
+      },
+    );
+
+    expect(result).toBe(received);
+    await expect(closing).resolves.toBeUndefined();
+  });
+
   it("closes the client and rethrows when the body throws", async () => {
     const connStr = "postgres://req:req@throw-host:5432/db";
     await expect(
