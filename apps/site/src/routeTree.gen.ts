@@ -13,6 +13,10 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ErrorsIndexRouteImport } from './routes/errors.index'
+import { Route as DocsIndexRouteImport } from './routes/docs.index'
+import { Route as ErrorsSplatRouteImport } from './routes/errors.$'
+import { Route as DocsSplatRouteImport } from './routes/docs.$'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -34,18 +38,46 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErrorsIndexRoute = ErrorsIndexRouteImport.update({
+  id: '/errors/',
+  path: '/errors/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsIndexRoute = DocsIndexRouteImport.update({
+  id: '/docs/',
+  path: '/docs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ErrorsSplatRoute = ErrorsSplatRouteImport.update({
+  id: '/errors/$',
+  path: '/errors/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsSplatRoute = DocsSplatRouteImport.update({
+  id: '/docs/$',
+  path: '/docs/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/security': typeof SecurityRoute
   '/terms': typeof TermsRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/errors/$': typeof ErrorsSplatRoute
+  '/docs/': typeof DocsIndexRoute
+  '/errors/': typeof ErrorsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/security': typeof SecurityRoute
   '/terms': typeof TermsRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/errors/$': typeof ErrorsSplatRoute
+  '/docs': typeof DocsIndexRoute
+  '/errors': typeof ErrorsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +85,42 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/security': typeof SecurityRoute
   '/terms': typeof TermsRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/errors/$': typeof ErrorsSplatRoute
+  '/docs/': typeof DocsIndexRoute
+  '/errors/': typeof ErrorsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/privacy' | '/security' | '/terms'
+  fullPaths:
+    | '/'
+    | '/privacy'
+    | '/security'
+    | '/terms'
+    | '/docs/$'
+    | '/errors/$'
+    | '/docs/'
+    | '/errors/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/privacy' | '/security' | '/terms'
-  id: '__root__' | '/' | '/privacy' | '/security' | '/terms'
+  to:
+    | '/'
+    | '/privacy'
+    | '/security'
+    | '/terms'
+    | '/docs/$'
+    | '/errors/$'
+    | '/docs'
+    | '/errors'
+  id:
+    | '__root__'
+    | '/'
+    | '/privacy'
+    | '/security'
+    | '/terms'
+    | '/docs/$'
+    | '/errors/$'
+    | '/docs/'
+    | '/errors/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +128,10 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   SecurityRoute: typeof SecurityRoute
   TermsRoute: typeof TermsRoute
+  DocsSplatRoute: typeof DocsSplatRoute
+  ErrorsSplatRoute: typeof ErrorsSplatRoute
+  DocsIndexRoute: typeof DocsIndexRoute
+  ErrorsIndexRoute: typeof ErrorsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +164,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/errors/': {
+      id: '/errors/'
+      path: '/errors'
+      fullPath: '/errors/'
+      preLoaderRoute: typeof ErrorsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/': {
+      id: '/docs/'
+      path: '/docs'
+      fullPath: '/docs/'
+      preLoaderRoute: typeof DocsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/errors/$': {
+      id: '/errors/$'
+      path: '/errors/$'
+      fullPath: '/errors/$'
+      preLoaderRoute: typeof ErrorsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/$': {
+      id: '/docs/$'
+      path: '/docs/$'
+      fullPath: '/docs/$'
+      preLoaderRoute: typeof DocsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +200,10 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   SecurityRoute: SecurityRoute,
   TermsRoute: TermsRoute,
+  DocsSplatRoute: DocsSplatRoute,
+  ErrorsSplatRoute: ErrorsSplatRoute,
+  DocsIndexRoute: DocsIndexRoute,
+  ErrorsIndexRoute: ErrorsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

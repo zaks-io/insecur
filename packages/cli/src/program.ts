@@ -61,6 +61,15 @@ function buildProgram(options: { readonly crashReporter: CliCrashReporter }): Co
   return program;
 }
 
+/**
+ * The fully registered command tree with no live crash reporter, for introspection. The docs
+ * generator (scripts/docs/generate-cli-docs.mjs) walks this to emit the public CLI reference, so
+ * published docs and `--help` can never disagree.
+ */
+export function buildProgramForIntrospection(): Command {
+  return buildProgram({ crashReporter: NOOP_CRASH_REPORTER });
+}
+
 export async function runCli(
   argv: readonly string[],
   options: { readonly crashReporter?: CliCrashReporter } = {},

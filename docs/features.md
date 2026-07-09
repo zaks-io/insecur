@@ -161,6 +161,22 @@ Runtime Injection is implemented for both the First Value path and policy-shaped
 
 The value is delivered only to the intended runtime boundary. CLI/API outputs remain metadata-only.
 
+## Public Documentation Surface
+
+The Public Site serves user-facing documentation built for humans and agents:
+
+- `/docs/` renders the markdown content tree in `apps/site/src/docs/content` (getting started,
+  concepts, guides, reference)
+- every page is dual-format: rendered HTML at `/docs/<slug>` plus a raw markdown twin at
+  `/docs/<slug>.md`, and `/llms.txt` indexes the markdown twins for agent consumption
+- the CLI reference, exit-code, and error-code pages are generated from the real commander tree
+  and the normative error registry by `pnpm docs:cli`; the site build regenerates them, a
+  pre-commit hook stages them, and `pnpm docs:cli:check` in `verify:policy` fails CI on drift
+- `/errors/<slug>` landing pages resolve the RFC 9457 error `type` URIs
+  (`https://insecur.dev/errors/<slug>`; insecur.dev binds the same Site Worker)
+- a lockstep test in `@insecur/cli` validates every `insecur` invocation in the hand-written
+  pages against the real command tree
+
 ## Metadata Web Console
 
 The Web Console BFF has implemented authenticated routes for the main metadata and approval views:
