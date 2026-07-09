@@ -14,6 +14,7 @@ import { listEnvironmentSecretMetadataRows } from "../src/secrets/environment-se
 import { TenantSecretVersionStore } from "../src/index.js";
 import { testDescriptiveVerdicts } from "./helpers/descriptive-verdicts.js";
 import { createMockTenantDb } from "./helpers/mock-tenant-db.js";
+import { TEST_CREATOR_ACTOR } from "./helpers/test-creator-actor.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PROJECT = projectId.brand("prj_00000000000000000000000001");
@@ -84,6 +85,7 @@ describe("secret version descriptive verdict metadata reads", () => {
       secretVersionId: VERSION,
       createdSecretShape: true,
       descriptiveVerdicts,
+      createdByActor: TEST_CREATOR_ACTOR,
       wrapped: {
         organizationDataKeyVersion: 1,
         projectDataKeyVersion: 1,

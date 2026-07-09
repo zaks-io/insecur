@@ -176,6 +176,20 @@
       "when": 1784500000000,
       "tag": "0024_secret_syncs",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1784600000000,
+      "tag": "0025_secret_version_discarded_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1784700000000,
+      "tag": "0026_secret_version_created_by_actor",
+      "breakpoints": true
     }
   ]
 }

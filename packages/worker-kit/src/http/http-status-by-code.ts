@@ -132,6 +132,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [APPROVAL_ERROR_CODES.wildcardSelectionRejected, 400],
   [APPROVAL_ERROR_CODES.promotionChangeSetImmutable, 409],
   [APPROVAL_ERROR_CODES.rollbackTargetNotEligible, 400],
+  [APPROVAL_ERROR_CODES.draftVersionNotDiscardable, 400],
   [APP_CONNECTION_ERROR_CODES.notFound, 404],
   [APP_CONNECTION_ERROR_CODES.resourceConflict, 409],
   [APP_CONNECTION_ERROR_CODES.invalidConnectionMethod, 400],

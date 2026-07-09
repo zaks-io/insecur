@@ -158,4 +158,33 @@ describe("TenantApprovalRequestStore", () => {
       rollbackPromoteRequested: true,
     });
   });
+
+  it("closes pending approval requests whose change set includes the discarded draft", async () => {
+    const { db, updateSets, updateWheres } = createMockTenantDb({
+      selectResults: [[{ id: REQUEST }]],
+    });
+    const store = new TenantApprovalRequestStore(db);
+
+    const closed = await store.closePendingApprovalRequestsForDiscardedDraftVersion({
+      organizationId: ORG,
+      secretVersionId: DRAFT,
+    });
+
+    expect(closed).toEqual([REQUEST]);
+    expect(updateSets[0]).toMatchObject({ status: "draft_discard_closed" });
+    expect(updateWheres).toHaveLength(1);
+  });
+
+  it("returns no closed requests when nothing pending references the draft", async () => {
+    const { db, updateSets } = createMockTenantDb({ selectResults: [[]] });
+    const store = new TenantApprovalRequestStore(db);
+
+    const closed = await store.closePendingApprovalRequestsForDiscardedDraftVersion({
+      organizationId: ORG,
+      secretVersionId: DRAFT,
+    });
+
+    expect(closed).toEqual([]);
+    expect(updateSets).toHaveLength(0);
+  });
 });

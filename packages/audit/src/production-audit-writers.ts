@@ -45,6 +45,7 @@ export type ApprovalAuditAction =
   | "request_approved"
   | "request_rejected"
   | "request_superseded"
+  | "request_draft_discard_closed"
   | "action_denied";
 
 export interface RecordApprovalAuditInput {
@@ -92,6 +93,8 @@ function approvalEventCode(input: RecordApprovalAuditInput) {
       return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestRejected;
     case "request_superseded":
       return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestSuperseded;
+    case "request_draft_discard_closed":
+      return PRODUCTION_AUDIT_EVENT_CODES.approvalRequestDraftDiscardClosed;
     case "action_denied":
       return PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied;
   }

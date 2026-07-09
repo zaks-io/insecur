@@ -104,6 +104,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [APPROVAL_ERROR_CODES.wildcardSelectionRejected]: EXIT_VALIDATION,
   [APPROVAL_ERROR_CODES.promotionChangeSetImmutable]: EXIT_CONFLICT,
   [APPROVAL_ERROR_CODES.rollbackTargetNotEligible]: EXIT_VALIDATION,
+  [APPROVAL_ERROR_CODES.draftVersionNotDiscardable]: EXIT_VALIDATION,
   [APP_CONNECTION_ERROR_CODES.notFound]: EXIT_NOT_FOUND,
   [APP_CONNECTION_ERROR_CODES.resourceConflict]: EXIT_CONFLICT,
   [APP_CONNECTION_ERROR_CODES.disconnected]: EXIT_ACTION_REQUIRED,
