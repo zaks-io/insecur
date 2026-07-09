@@ -107,7 +107,7 @@ function argumentRows(command) {
 }
 
 function escapeCell(text) {
-  return text.replace(/\|/g, "\\|").replace(/\n/g, " ");
+  return text.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ");
 }
 
 function commandSection(command, depth, includeHeading = true) {
