@@ -28,7 +28,7 @@ export interface BrowserSentryOptions<TIntegration> {
   readonly environment?: string;
   readonly release?: string;
   readonly tracesSampleRate: number;
-  readonly sendDefaultPii: boolean;
+  readonly dataCollection?: { readonly userInfo: true };
   readonly enableLogs: boolean;
   readonly integrations: TIntegration[];
   readonly initialScope?: { readonly tags: Record<string, string> };
@@ -38,13 +38,22 @@ export const DEFAULT_SENTRY_TRACES_SAMPLE_RATE = 1;
 
 let browserSentryInitialized = false;
 
-// Prelaunch telemetry posture: full-fidelity events (PII, payloads, breadcrumbs) so we can see
-// what the SDK actually captures. Re-tightening before go-live is tracked in Linear.
+// Prelaunch telemetry posture: full-fidelity events (PII, payloads, breadcrumbs) outside
+// production so we can see what the SDK actually captures; production keeps the SDK's
+// conservative PII-deny defaults by omitting `dataCollection`. Re-tightening is tracked in
+// INS-553. `userInfo: true` is the only category the SDK does not already default to permissive.
+export function sentryDataCollection(
+  environment: string | undefined,
+): { readonly userInfo: true } | undefined {
+  return environment === "production" ? undefined : { userInfo: true };
+}
+
 export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions {
   const dsn = optional(env.SENTRY_DSN);
   const environment = optional(env.SENTRY_ENVIRONMENT);
   const release = optional(env.SENTRY_RELEASE);
   const service = optional(env.SENTRY_SERVICE);
+  const dataCollection = sentryDataCollection(environment);
 
   return {
     enabled: Boolean(dsn),
@@ -52,7 +61,7 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
     ...(environment ? { environment } : {}),
     ...(release ? { release } : {}),
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
-    sendDefaultPii: true,
+    ...(dataCollection ? { dataCollection } : {}),
     enableLogs: env.SENTRY_ENABLE_LOGS === "true",
     enableRpcTracePropagation: true,
     ...(service ? { initialScope: { tags: { service } } } : {}),
@@ -119,13 +128,14 @@ function browserSentryOptions<TRouter, TIntegration>(
   router: TRouter,
   routerTracingIntegration: (router: TRouter) => TIntegration,
 ): BrowserSentryOptions<TIntegration> {
+  const dataCollection = sentryDataCollection(config.environment);
   return {
     dsn: config.dsn,
     enabled: true,
     ...(config.environment ? { environment: config.environment } : {}),
     ...(config.release ? { release: config.release } : {}),
     tracesSampleRate: config.tracesSampleRate,
-    sendDefaultPii: true,
+    ...(dataCollection ? { dataCollection } : {}),
     enableLogs: config.enableLogs === true,
     integrations: [routerTracingIntegration(router)],
     ...(config.service ? { initialScope: { tags: { service: config.service } } } : {}),

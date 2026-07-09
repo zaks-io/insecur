@@ -31,7 +31,7 @@ describe("observability sentry config", () => {
       enableRpcTracePropagation: true,
       environment: "preview",
       release: "version-1",
-      sendDefaultPii: true,
+      dataCollection: { userInfo: true },
       tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
       initialScope: { tags: { service: "insecur-api" } },
     });
@@ -54,6 +54,15 @@ describe("observability sentry config", () => {
       service: "insecur-web",
       tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
     });
+  });
+
+  it("keeps default PII out of production telemetry", () => {
+    const production = cloudflareSentryOptions({
+      SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+      SENTRY_ENVIRONMENT: "production",
+    });
+
+    expect(production).not.toHaveProperty("dataCollection");
   });
 
   it("uses the shared trace sampling default", () => {

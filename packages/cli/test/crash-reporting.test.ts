@@ -64,7 +64,7 @@ describe("CLI crash reporting", () => {
 
     const reporter = await createCliCrashReporter({
       argv: ["node", "insecur", "secrets", "set"],
-      env: {},
+      env: { INSECUR_CLI_SENTRY_ENVIRONMENT: "preview" },
       sentryRuntime: {
         init,
         captureException,
@@ -82,11 +82,25 @@ describe("CLI crash reporting", () => {
     expect(init).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: true,
-        sendDefaultPii: true,
+        dataCollection: { userInfo: true },
         tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
       }),
     );
     expect(init).toHaveBeenCalledWith(expect.not.objectContaining({ defaultIntegrations: false }));
+    const productionInit = vi.fn();
+    await createCliCrashReporter({
+      argv: ["node", "insecur", "secrets", "set"],
+      env: {},
+      sentryRuntime: { init: productionInit, captureException, flush },
+      userPreference: undefined,
+      version: "0.1.0",
+    });
+    expect(productionInit).toHaveBeenCalledWith(
+      expect.objectContaining({ environment: "production" }),
+    );
+    expect(productionInit).toHaveBeenCalledWith(
+      expect.not.objectContaining({ dataCollection: expect.anything() }),
+    );
     expect(onUncaughtExceptionIntegration).toHaveBeenCalledWith({
       exitEvenIfOtherHandlersAreRegistered: true,
     });

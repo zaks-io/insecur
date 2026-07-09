@@ -1,5 +1,5 @@
 import process from "node:process";
-import { DEFAULT_SENTRY_TRACES_SAMPLE_RATE } from "@insecur/observability";
+import { DEFAULT_SENTRY_TRACES_SAMPLE_RATE, sentryDataCollection } from "@insecur/observability";
 import { resolveCliCommandFamily } from "./crash-command-family.js";
 import { loadUserConfig } from "./config/user-config.js";
 import { cliVersion } from "./version.js";
@@ -105,16 +105,18 @@ function sentryOptions(
   settings: CrashReporterSettings,
   runtime: SentryRuntime,
 ): Record<string, unknown> {
-  // Prelaunch telemetry posture: default integrations and full-fidelity events so we can see
-  // what the SDK actually captures. Re-tightening before go-live is tracked in Linear.
+  // Prelaunch telemetry posture: default integrations and full-fidelity events outside
+  // production so we can see what the SDK actually captures. Re-tightening is tracked in INS-553.
+  const environment = optional(settings.env[CLI_SENTRY_ENVIRONMENT_ENV]) ?? "production";
+  const dataCollection = sentryDataCollection(environment);
   return {
     dsn: settings.dsn,
     enabled: true,
-    environment: optional(settings.env[CLI_SENTRY_ENVIRONMENT_ENV]) ?? "production",
+    environment,
     initialScope: { tags: sentryTags(settings.argv) },
     integrations: crashHandlingIntegrations(runtime),
     release: `insecur-cli@${settings.version}`,
-    sendDefaultPii: true,
+    ...(dataCollection ? { dataCollection } : {}),
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
   };
 }
