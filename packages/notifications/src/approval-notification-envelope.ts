@@ -70,12 +70,21 @@ function assertNoForbiddenKeys(record: Record<string, unknown>): void {
  * The authenticated approval view route (INS-381): `/orgs/:orgId/approvals/:approvalRequestId`.
  * The link only routes to the view; it does not approve, reject, or satisfy any challenge.
  */
+/** Linear-time trailing-slash trim (avoids the polynomial backtracking of `/\/+$/`). */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47 /* "/" */) {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
 export function buildApprovalDeepLinkUrl(input: {
   readonly webBaseUrl: string;
   readonly organizationId: string;
   readonly approvalRequestId: string;
 }): string {
-  const base = input.webBaseUrl.replace(/\/+$/u, "");
+  const base = stripTrailingSlashes(input.webBaseUrl);
   return `${base}/orgs/${input.organizationId}/approvals/${input.approvalRequestId}`;
 }
 

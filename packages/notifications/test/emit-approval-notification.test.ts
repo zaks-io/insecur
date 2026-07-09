@@ -112,6 +112,8 @@ describe("emitApprovalNotification", () => {
     expect(event?.eventCode).toBe(PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationSent);
     expect(event?.outcome).toBe("success");
     expect(event?.resource).toEqual({ type: "approval_request", id: APPROVAL });
+    // The bounded recipient count is actually recorded in the metadata-safe details map.
+    expect(event?.details).toEqual({ recipientCount: 1 });
     // Nothing beyond metadata is present on the audit event.
     expect(JSON.stringify(event)).not.toMatch(/approve|reject|secret|context.?note/i);
   });
@@ -130,16 +132,45 @@ describe("emitApprovalNotification", () => {
     expect(email).not.toHaveBeenCalled();
   });
 
-  it("swallows a channel failure and still records the sent audit", async () => {
+  it("still records a sent audit when one channel fails but the other delivers", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    // in-app fails, email still delivers -> at least one delivery -> sent.
     const { ports } = makePorts({
       inApp: { persistApprovalAlert: vi.fn().mockRejectedValue(new Error("db down")) },
     });
 
     await expect(emit(ports)).resolves.toBeUndefined();
     expect(writeAuditEvent).toHaveBeenCalledTimes(1);
+    const event = vi.mocked(writeAuditEvent).mock.calls[0]?.[0];
+    expect(event?.eventCode).toBe(PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationSent);
+    expect(event?.details).toEqual({ recipientCount: 1 });
+  });
+
+  it("records a FAILED audit (not sent) when every channel fails for every approver", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { ports } = makePorts({
+      inApp: { persistApprovalAlert: vi.fn().mockRejectedValue(new Error("db down")) },
+      email: { sendApprovalAlert: vi.fn().mockRejectedValue(new Error("smtp down")) },
+    });
+
+    await emit(ports);
+
+    expect(writeAuditEvent).toHaveBeenCalledTimes(1);
+    const event = vi.mocked(writeAuditEvent).mock.calls[0]?.[0];
+    expect(event?.eventCode).toBe(PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed);
+    expect(event?.outcome).toBe("denied");
+  });
+
+  it("records a FAILED audit (not sent) when no approvers resolve", async () => {
+    const { ports } = makePorts({
+      recipients: { resolveApprovers: vi.fn().mockResolvedValue([]) },
+    });
+
+    await emit(ports);
+
+    expect(writeAuditEvent).toHaveBeenCalledTimes(1);
     expect(vi.mocked(writeAuditEvent).mock.calls[0]?.[0]?.eventCode).toBe(
-      PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationSent,
+      PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed,
     );
   });
 

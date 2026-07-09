@@ -1,6 +1,6 @@
 import type { AuditEventActorRef } from "@insecur/audit";
 import {
-  AUTH_ERROR_CODES,
+  NOTIFICATION_ERROR_CODES,
   type ApprovalRequestId,
   type KnownErrorCode,
   type OrganizationId,
@@ -109,6 +109,22 @@ async function recordSent(
 }
 
 /**
+ * Records the delivery outcome: a `.sent` success only when at least one channel actually
+ * delivered, otherwise a `.failed` audit. Recording `.sent` with zero deliveries would log a
+ * silent notification failure (all channels down, or no approver resolved) as a success.
+ */
+async function recordDeliveryOutcome(
+  input: EmitApprovalNotificationInput,
+  deliveredCount: number,
+): Promise<void> {
+  if (deliveredCount > 0) {
+    await recordSent(input, deliveredCount);
+    return;
+  }
+  await recordFailure(input, NOTIFICATION_ERROR_CODES.deliveryFailed);
+}
+
+/**
  * Alerts the Organization's approvers over the V1 fallback channels (in-app + email) that an
  * Approval Request needs attention. The payload is metadata-safe (product-spec §10, ADR-0017) and
  * the deep link routes only to the authenticated approval view. Delivery failures are swallowed
@@ -122,18 +138,18 @@ export async function emitApprovalNotification(
     envelope = buildApprovalNotificationEnvelope(input);
   } catch (error) {
     logApprovalNotificationFailure(input, error, "envelope build failed");
-    await recordFailure(input, AUTH_ERROR_CODES.insufficientScope);
+    await recordFailure(input, NOTIFICATION_ERROR_CODES.deliveryFailed);
     return;
   }
 
   const recipients = await resolveApproverRecipients(input);
   if (recipients === null) {
-    await recordFailure(input, AUTH_ERROR_CODES.insufficientScope);
+    await recordFailure(input, NOTIFICATION_ERROR_CODES.deliveryFailed);
     return;
   }
 
   const deliveredCount = await deliverToRecipients(input, envelope, recipients);
-  await recordSent(input, deliveredCount);
+  await recordDeliveryOutcome(input, deliveredCount);
 }
 
 async function deliverToRecipient(

@@ -25,7 +25,8 @@ interface ApprovalNotificationAuditScope {
 
 /**
  * Records a metadata-only `approval_notification.sent` audit. `recipientCount` is a bounded
- * integer, not a Display Name or email, so the audit stays metadata-safe.
+ * finite integer, recorded in the metadata-safe `details` map (a number is an allowed detail
+ * primitive), never a Display Name or email.
  */
 export async function recordApprovalNotificationSent(
   input: ApprovalNotificationAuditScope & { readonly recipientCount: number },
@@ -36,6 +37,7 @@ export async function recordApprovalNotificationSent(
     actor: input.actor,
     organizationId: input.organizationId,
     resource: approvalRequestResource(input.approvalRequestId),
+    details: { recipientCount: input.recipientCount },
   });
 }
 
