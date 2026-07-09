@@ -18,6 +18,10 @@ export const INIT_REMEDIATION: ErrorRemediation = {
   init: ["insecur", "init"],
 };
 
+const LOGIN_DEVICE_REMEDIATION: ErrorRemediation = {
+  login: ["insecur", "login", "--device"],
+};
+
 /**
  * Static remediation the CLI can emit without server-provided envelope fields.
  * Lockstep-tested against docs/cli-and-sync.md remediation-required rows.
@@ -27,6 +31,7 @@ export const CLI_REMEDIATION_BY_CODE: Partial<Record<KnownErrorCode, ErrorRemedi
   [AUTH_ERROR_CODES.expired]: LOGIN_REMEDIATION,
   [AUTH_ERROR_CODES.invalid]: LOGIN_REMEDIATION,
   [AUTH_ERROR_CODES.reauthRequired]: LOGIN_REMEDIATION,
+  [AUTH_ERROR_CODES.deviceAuthorizationExpired]: LOGIN_DEVICE_REMEDIATION,
   [CLI_ERROR_CODES.parentScopeUnresolved]: INIT_REMEDIATION,
 };
 

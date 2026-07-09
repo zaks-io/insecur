@@ -62,6 +62,50 @@ export function parseLoginCallbackTimeout(value: string | undefined): number | u
   return timeoutSeconds;
 }
 
+export function assertDeviceOptionCombination(options: {
+  readonly device?: boolean;
+  readonly agentSession?: boolean;
+}): void {
+  if (options.agentSession === true && options.device !== true) {
+    throw new CliError(
+      {
+        code: VALIDATION_ERROR_CODES.invalidCommandInput,
+        message: "--agent-session is only valid together with --device.",
+        retryable: false,
+      },
+      EXIT_VALIDATION,
+    );
+  }
+}
+
+interface LoginCliOptions {
+  readonly shell?: boolean;
+  readonly open?: boolean;
+  readonly persist?: boolean;
+  readonly device?: boolean;
+  readonly agentSession?: boolean;
+  readonly callbackPort?: string;
+  readonly callbackTimeout?: string;
+}
+
+async function runLoginAction(deps: ProgramDeps, command: CommanderCommand): Promise<void> {
+  const flags = deps.globalFlags(command);
+  const { api, context } = await deps.resolveApi(flags);
+  const options = command.opts<LoginCliOptions>();
+  assertDeviceOptionCombination(options);
+  const callbackPort = parseLoginCallbackPort(options.callbackPort);
+  const callbackTimeoutSeconds = parseLoginCallbackTimeout(options.callbackTimeout);
+  process.exitCode = await runLoginCommand(flags, api, context, {
+    shell: options.shell === true,
+    openBrowser: options.open !== false,
+    persist: options.persist !== false,
+    device: options.device === true,
+    agentSession: options.agentSession === true,
+    ...(callbackPort === undefined || Number.isNaN(callbackPort) ? {} : { callbackPort }),
+    ...(callbackTimeoutSeconds === undefined ? {} : { callbackTimeoutSeconds }),
+  });
+}
+
 export function registerLoginCommand(program: Command, deps: ProgramDeps): void {
   program
     .command("login")
@@ -80,24 +124,10 @@ export function registerLoginCommand(program: Command, deps: ProgramDeps): void 
       "--shell",
       "start a managed interactive shell with the session credential in the child environment only",
     )
-    .action(async function loginAction(_args, command: CommanderCommand) {
-      const flags = deps.globalFlags(command);
-      const { api, context } = await deps.resolveApi(flags);
-      const options = command.opts<{
-        shell?: boolean;
-        open?: boolean;
-        persist?: boolean;
-        callbackPort?: string;
-        callbackTimeout?: string;
-      }>();
-      const callbackPort = parseLoginCallbackPort(options.callbackPort);
-      const callbackTimeoutSeconds = parseLoginCallbackTimeout(options.callbackTimeout);
-      process.exitCode = await runLoginCommand(flags, api, context, {
-        shell: options.shell === true,
-        openBrowser: options.open !== false,
-        persist: options.persist !== false,
-        ...(callbackPort === undefined || Number.isNaN(callbackPort) ? {} : { callbackPort }),
-        ...(callbackTimeoutSeconds === undefined ? {} : { callbackTimeoutSeconds }),
-      });
-    });
+    .option(
+      "--device",
+      "use the OAuth device-authorization flow for headless or remote shells that cannot open a loopback browser",
+    )
+    .option("--agent-session", "mint the session agent-marked (only valid with --device)")
+    .action((_args, command: CommanderCommand) => runLoginAction(deps, command));
 }
