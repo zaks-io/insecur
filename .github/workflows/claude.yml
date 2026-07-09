@@ -17,16 +17,13 @@ permissions:
 
 jobs:
   claude:
+    # Bot comments are allowed through; the reusable workflow's allowed_bots
+    # list decides which bots may actually trigger a run.
     if: |
-      (github.event_name != 'issue_comment' || github.event.comment.user.type != 'Bot') &&
-      (github.event_name != 'pull_request_review_comment' || github.event.comment.user.type != 'Bot') &&
-      (github.event_name != 'pull_request_review' || github.event.review.user.type != 'Bot') &&
+      github.event_name != 'issue_comment' ||
       (
-        github.event_name != 'issue_comment' ||
-        (
-          github.event.comment.body != '/review' &&
-          !startsWith(github.event.comment.body, '/review ')
-        )
+        github.event.comment.body != '/review' &&
+        !startsWith(github.event.comment.body, '/review ')
       )
     # Upstream has no semver tags; pinned to main HEAD as of 2026-07-09.
     # Bump SHA to update; review diff before bumping.
@@ -39,7 +36,6 @@ jobs:
     if: |
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
-      github.event.comment.user.type != 'Bot' &&
       (
         github.event.comment.body == '/review' ||
         startsWith(github.event.comment.body, '/review ')
