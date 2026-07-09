@@ -1,7 +1,9 @@
 import { emitAuditNotificationIfConfigured } from "../../audit/src/audit-notification-emitter.js";
+import { PRODUCTION_AUDIT_EVENT_CODES } from "@insecur/audit";
 import { organizationId } from "@insecur/domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ApprovalDeliveryPorts } from "../src/approval-delivery-ports.js";
 import {
   clearAuditNotificationEmitter,
   registerAuditNotificationEmitter,
@@ -26,10 +28,29 @@ vi.mock("../src/emit-event-notifications.js", () => ({
   emitEventNotificationsForEnvelope: vi.fn(),
 }));
 
+vi.mock("../src/emit-approval-notification.js", () => ({
+  emitApprovalNotification: vi.fn(),
+}));
+
+import { emitApprovalNotification } from "../src/emit-approval-notification.js";
 import { emitEventNotificationsForEnvelope } from "../src/emit-event-notifications.js";
 import { resolveEnvelopeDisplayNames } from "../src/resolve-envelope-display-names.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
+const APPROVAL_RESOURCE_ID = "apr_00000000000000000000000001";
+
+const approvalDeliveryPorts = {
+  recipients: { resolveApprovers: vi.fn() },
+  inApp: { persistApprovalAlert: vi.fn() },
+} as unknown as ApprovalDeliveryPorts;
+
+const approvalCreatedEvent = {
+  eventCode: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestCreated,
+  outcome: "success" as const,
+  actor: { type: "user" as const, userId: "usr_00000000000000000000000001" },
+  organizationId: ORG,
+  resource: { type: "approval_request" as const, id: APPROVAL_RESOURCE_ID as never },
+};
 
 describe("registerAuditNotificationEmitter", () => {
   afterEach(() => {
@@ -53,5 +74,44 @@ describe("registerAuditNotificationEmitter", () => {
     clearAuditNotificationEmitter();
     await emitAuditNotificationIfConfigured(event);
     expect(emitEventNotificationsForEnvelope).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires an approval notification on approval.request_created when approval wiring is present", async () => {
+    registerAuditNotificationEmitter({
+      keyring: {} as never,
+      approval: { deliveryPorts: approvalDeliveryPorts, webBaseUrl: "https://app.insecur.cloud" },
+    });
+
+    await emitAuditNotificationIfConfigured(approvalCreatedEvent);
+
+    expect(emitApprovalNotification).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(emitApprovalNotification).mock.calls[0]?.[0];
+    expect(call?.organizationId).toBe(ORG);
+    expect(call?.approvalRequestId).toBe(APPROVAL_RESOURCE_ID);
+    expect(call?.webBaseUrl).toBe("https://app.insecur.cloud");
+  });
+
+  it("does not fire an approval notification for unrelated event codes", async () => {
+    registerAuditNotificationEmitter({
+      keyring: {} as never,
+      approval: { deliveryPorts: approvalDeliveryPorts, webBaseUrl: "https://app.insecur.cloud" },
+    });
+
+    await emitAuditNotificationIfConfigured({
+      eventCode: "secret.non_protected_write",
+      outcome: "success" as const,
+      actor: { type: "user" as const, userId: "usr_00000000000000000000000001" },
+      organizationId: ORG,
+    });
+
+    expect(emitApprovalNotification).not.toHaveBeenCalled();
+  });
+
+  it("does not fire an approval notification when approval wiring is absent", async () => {
+    registerAuditNotificationEmitter({ keyring: {} as never });
+
+    await emitAuditNotificationIfConfigured(approvalCreatedEvent);
+
+    expect(emitApprovalNotification).not.toHaveBeenCalled();
   });
 });

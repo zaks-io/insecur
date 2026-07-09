@@ -23,4 +23,22 @@ describe("ensureAuditNotificationEmitterRegistered", () => {
       keyring: { kind: "test-keyring" },
     });
   });
+
+  it("threads optional approval delivery wiring into registration", () => {
+    const env = { INSTANCE_ROOT_KEY_V1: "11".repeat(32) } as never;
+    const approval = {
+      webBaseUrl: "https://app.insecur.cloud",
+      deliveryPorts: {
+        recipients: { resolveApprovers: vi.fn() },
+        inApp: { persistApprovalAlert: vi.fn() },
+      },
+    } as never;
+
+    ensureAuditNotificationEmitterRegistered(env, approval);
+
+    expect(registerAuditNotificationEmitter).toHaveBeenCalledWith({
+      keyring: { kind: "test-keyring" },
+      approval,
+    });
+  });
 });

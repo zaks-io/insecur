@@ -7,4 +7,6 @@ export const NOTIFICATIONS_AUDIT_EVENT_CODES = {
   webhookSubscriptionDeleteDenied: "webhook.subscription_delete_denied",
   webhookDeliverySucceeded: "webhook.delivery_succeeded",
   webhookDeliveryFailed: "webhook.delivery_failed",
+  approvalNotificationSent: "approval_notification.sent",
+  approvalNotificationFailed: "approval_notification.failed",
 } as const;

@@ -120,6 +120,7 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.webhookSubscriptionUpdateDenied,
   PRODUCTION_AUDIT_EVENT_CODES.webhookSubscriptionDeleteDenied,
   PRODUCTION_AUDIT_EVENT_CODES.webhookDeliveryFailed,
+  PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed,
   PRODUCTION_AUDIT_EVENT_CODES.protectedChangeTransitionDenied,
 ]);
 

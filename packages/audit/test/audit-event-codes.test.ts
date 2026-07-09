@@ -26,8 +26,10 @@ import {
 } from "../src/codes/index.js";
 import {
   AUDIT_EVENT_CODES,
+  DENIED_AUDIT_EVENT_CODES,
   FIRST_VALUE_AUDIT_EVENT_CODES,
   PRODUCTION_AUDIT_EVENT_CODES,
+  SUCCESS_AUDIT_EVENT_CODES,
 } from "../src/audit-event-codes.js";
 
 const DOMAIN_AUDIT_EVENT_CODE_MODULES = [
@@ -75,6 +77,18 @@ describe("audit event code registry assembly", () => {
   it("matches the pre-decomposition dotted code snapshot", () => {
     const snapshot = JSON.parse(readFileSync(SNAPSHOT_PATH, "utf8")) as string[];
     expect(sortedCodeValues(AUDIT_EVENT_CODES)).toEqual(snapshot);
+  });
+
+  it("classifies the approval notification codes by outcome", () => {
+    expect(
+      SUCCESS_AUDIT_EVENT_CODES.has(PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationSent),
+    ).toBe(true);
+    expect(
+      DENIED_AUDIT_EVENT_CODES.has(PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationSent),
+    ).toBe(false);
+    expect(
+      DENIED_AUDIT_EVENT_CODES.has(PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed),
+    ).toBe(true);
   });
 
   it("merges every per-domain module into the assembled registry", () => {
