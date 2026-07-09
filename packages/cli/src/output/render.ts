@@ -5,6 +5,7 @@ import {
   type SuccessEnvelope,
 } from "@insecur/domain";
 import { formatRemediationProse } from "./cli-remediation.js";
+import { getStyle } from "./style.js";
 
 export interface RenderOptions {
   readonly json: boolean;
@@ -33,7 +34,8 @@ function renderError(envelope: ErrorEnvelope, options: RenderOptions): void {
     return;
   }
   if (!options.quiet) {
-    process.stderr.write(`${envelope.error.message}\n`);
+    const s = getStyle();
+    process.stderr.write(`${s.danger(s.glyph("fail"))} ${s.danger(envelope.error.message)}\n`);
     if (envelope.remediation !== undefined) {
       process.stderr.write(`${formatRemediationProse(envelope.remediation)}\n`);
     }

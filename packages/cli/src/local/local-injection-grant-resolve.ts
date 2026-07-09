@@ -33,15 +33,7 @@ export function mapConsumeFailure(
 
 function valueMissingRemediation(variableKey: VariableKey) {
   return {
-    secretsSet: [
-      "insecur",
-      "secrets",
-      "set",
-      "--variable-key",
-      variableKey,
-      "--generate",
-      "random",
-    ],
+    secretsSet: ["insecur", "secrets", "set", variableKey],
   };
 }
 

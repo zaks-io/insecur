@@ -102,9 +102,7 @@ describe("insecur scan --machine", () => {
     );
     expect(shellFinding).toBeDefined();
     expect(shellFinding?.migratable).toBe(true);
-    expect(shellFinding?.remediation).toBe(
-      "insecur secrets set --variable-key API_TOKEN --value-stdin",
-    );
+    expect(shellFinding?.remediation).toBe("insecur secrets set API_TOKEN --value-stdin");
   });
 
   it("marks AWS credentials and SSH keys as not migratable", async () => {

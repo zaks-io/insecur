@@ -25,7 +25,7 @@ export async function runSecretsPromoteCommand(
   const projectScope = requireProjectScope(context.scope);
   const environmentId = parseEnvironmentId(commandOptions.envId, "--env-id");
   const draftVersionIds = commandOptions.draftVersionIds.map((id) =>
-    parseSecretVersionId(id, "--draft-version-id"),
+    parseSecretVersionId(id, "draft-version-id"),
   );
   const operationId =
     commandOptions.operationId === undefined

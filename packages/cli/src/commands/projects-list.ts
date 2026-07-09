@@ -5,7 +5,9 @@ import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { requireOrgScope } from "./navigation-scope.js";
 import { cliErrorFromEnvelope } from "../output/cli-error.js";
+import { emptyState } from "../output/format.js";
 import { renderSuccess } from "../output/render.js";
+import { renderTable } from "../output/table.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 
 export async function runProjectsListCommand(
@@ -28,10 +30,21 @@ export async function runProjectsListCommand(
     { projects: result.envelope.data.projects },
     buildEnvelopeMeta({ requestId: result.envelope.meta?.requestId }),
   );
-  renderSuccess(
-    output,
-    flags,
-    () => `Listed ${String(result.envelope.data.projects.length)} project(s).`,
-  );
+  renderSuccess(output, flags, (data) => {
+    if (data.projects.length === 0) {
+      return emptyState("No projects here yet. Create one with", "insecur projects create");
+    }
+    return renderTable(
+      [
+        {
+          header: "Project",
+          get: (project) => ({ kind: "plain", text: project.displayName, untrusted: true }),
+        },
+        { header: "Project ID", get: (project) => ({ kind: "id", text: project.projectId }) },
+        { header: "Created", get: (project) => ({ kind: "time", iso: project.createdAt }) },
+      ],
+      data.projects,
+    );
+  });
   return 0;
 }

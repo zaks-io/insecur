@@ -25,7 +25,14 @@ export interface ErrorBody {
   retryable: boolean;
 }
 
-/** Metadata-only next-step instructions for actionable CLI/API errors. */
+/**
+ * Metadata-only next-step instructions for actionable CLI/API errors.
+ *
+ * The command fields (`login`, `init`, `usage`, …) are argv token arrays so a
+ * caller — human or agent — can run the recovery directly without parsing prose.
+ * `type` and `suggestedFix` follow RFC 9457 Problem Details: a stable per-code
+ * error-type URI for machine dispatch, and a one-line plain-language fix.
+ */
 export interface ErrorRemediation {
   readonly approvalUrl?: string;
   readonly login?: readonly string[];
@@ -35,6 +42,9 @@ export interface ErrorRemediation {
   readonly resume?: readonly string[];
   readonly hosted?: readonly string[];
   readonly secretsSet?: readonly string[];
+  readonly type?: string;
+  readonly suggestedFix?: string;
+  readonly usage?: readonly string[];
 }
 
 export interface SuccessEnvelope<TData> {

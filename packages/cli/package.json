@@ -16,7 +16,9 @@
     "test:local-features": "pnpm build && node scripts/local-feature-suite.mjs",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "picocolors": "^1.1.1"
+  },
   "devDependencies": {
     "@insecur/agent-attribution": "workspace:*",
     "@insecur/audit": "workspace:*",

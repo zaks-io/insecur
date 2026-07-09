@@ -1,5 +1,6 @@
 import { SECRET_ERROR_CODES } from "@insecur/domain";
 import { CliError } from "../output/cli-error.js";
+import { actionableRemediation } from "../output/cli-remediation.js";
 import {
   parseGeneratedSecretRequest,
   type GeneratedSecretRequest,
@@ -15,6 +16,8 @@ export interface CollectSecretValueInput {
   readonly generateLength: string | undefined;
   readonly valueStdin: boolean;
   readonly allowEmpty: boolean;
+  /** Exact argv the caller should retry with when no input mode was provided. */
+  readonly inputRequiredUsage?: readonly string[];
 }
 
 export type CollectedSecretValue =
@@ -74,10 +77,25 @@ export async function collectSecretValue(
     );
   }
 
-  throw new CliError({
-    code: SECRET_ERROR_CODES.inputRequired,
-    message:
-      "Secret input is required. Use --generate, --value-stdin, or run from an interactive terminal.",
-    retryable: false,
-  });
+  throw new CliError(
+    {
+      code: SECRET_ERROR_CODES.inputRequired,
+      message:
+        "Secret input is required. Use --generate, --value-stdin, or run from an interactive terminal.",
+      retryable: false,
+    },
+    {
+      remediation: actionableRemediation(SECRET_ERROR_CODES.inputRequired, {
+        suggestedFix:
+          "Pipe the existing value with --value-stdin, or run interactively for a masked prompt. Only use --generate random to mint a brand-new random secret.",
+        usage: input.inputRequiredUsage ?? [
+          "insecur",
+          "secrets",
+          "set",
+          "<VARIABLE_KEY>",
+          "--value-stdin",
+        ],
+      }),
+    },
+  );
 }

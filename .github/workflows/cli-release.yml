@@ -212,6 +212,29 @@ jobs:
             --metafile=compile-metafile.json
           chmod +x "$ASSET"
 
+      - name: Bun sqlite driver seam probe
+        shell: bash
+        run: bun scripts/ci/bun-sqlite-seam-probe.mjs
+
+      - name: Smoke compiled binary
+        working-directory: packages/cli
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+          SMOKE_DIR="$(mktemp -d)"
+          trap 'rm -rf "$SMOKE_DIR"' EXIT
+          mkdir -p "$SMOKE_DIR/project"
+          export INSECUR_CONFIG_HOME="$SMOKE_DIR/home"
+          BINARY="$PWD/$ASSET"
+          cd "$SMOKE_DIR/project"
+          "$BINARY" --version
+          "$BINARY" --help >/dev/null
+          "$BINARY" --host local init
+          "$BINARY" secrets set RELEASE_SMOKE --generate random
+          "$BINARY" secrets list --json | grep -q RELEASE_SMOKE
+
       - name: Generate SBOM from bundle (CycloneDX)
         if: matrix.name == 'linux-x64'
         working-directory: packages/cli

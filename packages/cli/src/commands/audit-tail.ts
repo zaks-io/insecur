@@ -5,8 +5,12 @@ import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
+import { statusTone, truncateId } from "../output/cell-format.js";
 import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
+import { emptyState } from "../output/format.js";
 import { renderSuccess } from "../output/render.js";
+import { getStyle } from "../output/style.js";
+import { renderTable } from "../output/table.js";
 import { requireOrganizationScope } from "./audit-org-scope.js";
 import { buildAuditTailFilters, type AuditTailCommandOptions } from "./audit-tail-options.js";
 
@@ -28,25 +32,44 @@ function parseLimit(raw: string | undefined): number | undefined {
 }
 
 function formatAuditEventActor(event: AuditEventRead): string {
+  const s = getStyle();
   if (event.actor.actorType === "user") {
-    return event.actor.userId ?? "user";
+    return event.actor.userId === undefined
+      ? "user"
+      : `user:${truncateId(event.actor.userId, s.ascii)}`;
   }
   if (event.actor.actorType === "machine") {
-    return event.actor.machineIdentityId ?? "machine";
+    const id = event.actor.machineIdentityId;
+    return id === undefined ? "machine" : `machine:${truncateId(id, s.ascii)}`;
   }
-  return "ci_exchange";
+  return "ci";
+}
+
+function formatAuditResource(event: AuditEventRead): string {
+  if (event.resource === null) {
+    return "—";
+  }
+  return `${event.resource.type} ${truncateId(event.resource.id, getStyle().ascii)}`;
 }
 
 function formatAuditTailHuman(data: AuditEventsPage): string {
   if (data.events.length === 0) {
-    return "No recent audit events.";
+    return emptyState("No audit events match your filters.");
   }
-  return data.events
-    .map(
-      (event) =>
-        `${event.createdAt} ${event.eventCode} ${event.outcome} actor=${formatAuditEventActor(event)} id=${event.auditEventId}`,
-    )
-    .join("\n");
+  return renderTable(
+    [
+      { header: "Time", get: (event) => ({ kind: "time", iso: event.createdAt }) },
+      { header: "Event", get: (event) => ({ kind: "plain", text: event.eventCode }) },
+      {
+        header: "Outcome",
+        get: (event) => ({ kind: "status", text: event.outcome, tone: statusTone(event.outcome) }),
+      },
+      { header: "Actor", get: (event) => ({ kind: "plain", text: formatAuditEventActor(event) }) },
+      { header: "Resource", get: (event) => ({ kind: "plain", text: formatAuditResource(event) }) },
+      { header: "Event ID", get: (event) => ({ kind: "id", text: event.auditEventId }) },
+    ],
+    data.events,
+  );
 }
 
 export async function runAuditTailCommand(

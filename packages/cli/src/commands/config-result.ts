@@ -9,6 +9,7 @@ import type {
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { projectConfigPath, resolveProjectRoot } from "../config/paths.js";
 import type { CliUserProfile } from "../config/user-config.js";
+import { formatConfigShowHuman as formatConfigDetail } from "../output/config-detail.js";
 
 interface ConfigShowProfile {
   readonly profileId: CliProfileId;
@@ -76,32 +77,6 @@ export function buildConfigShowData(
   };
 }
 
-function formatOptionalLine(label: string, value: string | undefined): string[] {
-  return value === undefined ? [] : [`${label}: ${value}`];
-}
-
 export function formatConfigShowHuman(data: ConfigShowData): string {
-  const lines = [
-    `host: ${data.host}`,
-    ...formatOptionalLine("orgId", data.orgId),
-    ...formatOptionalLine("projectId", data.projectId),
-    ...formatOptionalLine("envId", data.envId),
-    ...formatOptionalLine("profileId", data.profileId),
-    ...formatOptionalLine("profileSlug", data.profileSlug),
-    ...formatOptionalLine("projectConfigPath", data.projectConfigPath),
-  ];
-  const branchEntries = Object.entries(data.branchEnv);
-  if (branchEntries.length > 0) {
-    lines.push("branchEnv:");
-    for (const [branch, envId] of branchEntries) {
-      lines.push(`  ${branch}: ${envId}`);
-    }
-  }
-  if (data.profiles.length > 0) {
-    lines.push(`profiles: ${String(data.profiles.length)}`);
-    for (const profile of data.profiles) {
-      lines.push(`  ${profile.slug} (${profile.profileId})`);
-    }
-  }
-  return lines.join("\n");
+  return formatConfigDetail(data);
 }

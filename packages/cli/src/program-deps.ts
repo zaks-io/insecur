@@ -21,11 +21,43 @@ export function attachGlobalOptions(command: Command): Command {
     .option("--agent <name>", "agent attribution tag (Tier 3)")
     .option("--json", "metadata-only JSON output")
     .option("--quiet", "suppress non-essential human output")
-    .option("--verbose", "verbose logging");
+    .option("--verbose", "verbose logging")
+    .option("--color", "force colored human output")
+    .option("--no-color", "disable colored human output")
+    .option("--full", "show full opaque ids in tables instead of truncating");
 }
 
 export function globalFlags(command: CommanderCommand): GlobalCliFlags {
   return parseGlobalOptions(command.optsWithGlobals()).flags;
+}
+
+/**
+ * The output-shaping flags (`--json`/`--quiet`/`--verbose`/`--color`) read
+ * directly, skipping the resource-id parses that can throw. The failure renderer
+ * must select its output mode even when the very flag that failed parsing (a
+ * malformed `--env-id`, say) is what raised the error — otherwise the renderer
+ * would throw again inside the catch and the CliError would escape unrendered.
+ */
+export function renderFlags(command: CommanderCommand): RenderFlags {
+  const options = command.optsWithGlobals<{
+    json?: boolean;
+    quiet?: boolean;
+    verbose?: boolean;
+    color?: boolean;
+  }>();
+  return {
+    json: options.json === true,
+    quiet: options.quiet === true,
+    verbose: options.verbose === true,
+    color: options.color === undefined ? undefined : options.color ? "always" : "never",
+  };
+}
+
+export interface RenderFlags {
+  readonly json: boolean;
+  readonly quiet: boolean;
+  readonly verbose: boolean;
+  readonly color: "always" | "never" | undefined;
 }
 
 interface ResolvedApi {

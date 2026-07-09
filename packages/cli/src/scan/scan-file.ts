@@ -119,7 +119,7 @@ export function shellRcFinding(
     kind: "dotenv-entry",
     confidence,
     migratable: true,
-    remediation: `insecur secrets set --variable-key ${key} --value-stdin`,
+    remediation: `insecur secrets set ${key} --value-stdin`,
   };
 }
 

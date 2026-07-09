@@ -1,5 +1,6 @@
 import { successEnvelope } from "@insecur/domain";
 import { cliErrorFromEnvelope } from "../output/cli-error.js";
+import { formatSecretListHuman } from "../output/secret-list-table.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import {
@@ -29,12 +30,7 @@ export async function runSecretsListCommand({
       }),
     );
 
-    renderSuccess(
-      output,
-      flags,
-      () =>
-        `Listed ${String(result.envelope.data.secrets.length)} secret(s) in environment ${readScope.envId}.`,
-    );
+    renderSuccess(output, flags, (data) => formatSecretListHuman(data.secrets, readScope.envId));
     return 0;
   });
 }

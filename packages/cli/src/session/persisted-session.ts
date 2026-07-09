@@ -138,7 +138,16 @@ export function createSessionStore(options: CreateSessionStoreOptions = {}): Ses
       }
       const keyHex = await keyStore().getOrCreateMachineRootKey();
       const session = unsealSession(keyHex, sealed);
-      if (session === undefined || isExpired(session.expiresAt, now())) {
+      if (session === undefined) {
+        // An unreadable record is abnormal (key changed, file corrupted);
+        // deleting it silently would masquerade as "never logged in".
+        await removeSessionFile(sessionFilePath);
+        process.stderr.write(
+          "Warning: the stored session could not be unsealed with this machine's key and was removed. Run insecur login again.\n",
+        );
+        return undefined;
+      }
+      if (isExpired(session.expiresAt, now())) {
         await removeSessionFile(sessionFilePath);
         return undefined;
       }

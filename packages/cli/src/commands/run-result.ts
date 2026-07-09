@@ -14,7 +14,9 @@ import type {
 import type { GlobalCliFlags } from "../cli-options.js";
 import { buildCliProfileResolvedTarget } from "../display-name-resolution/profile-echo.js";
 import type { CliUserProfile } from "../config/user-config.js";
+import { facets, openId, successLine } from "../output/format.js";
 import { renderSuccess } from "../output/render.js";
+import { getStyle } from "../output/style.js";
 import { buildSecretWriteResolvedTargets } from "../output/secret-write-target-echo.js";
 import { buildEnvelopeMeta, asEchoId } from "../output/target-echo.js";
 import type { ResolvedProfileRunInput } from "./resolve-run-profile.js";
@@ -100,8 +102,34 @@ export function renderVariableKeyRunSuccess(input: {
       }),
     ),
     input.flags,
-    (data) =>
-      `Injected ${data.variableKey} via grant ${data.grantId}; child exited with code ${String(data.childExitCode)}.`,
+    (data) => {
+      const s = getStyle();
+      return successLine(
+        facets([
+          `Injected ${s.label(data.variableKey)}`,
+          `grant ${openId(data.grantId)}`,
+          `exit ${String(data.childExitCode)}`,
+        ]),
+      );
+    },
+  );
+}
+
+function formatProfileRunHuman(data: {
+  readonly injectedVariableKeys: readonly string[];
+  readonly profileSlug: string;
+  readonly policyId: string;
+  readonly childExitCode: number;
+}): string {
+  const s = getStyle();
+  const keys = data.injectedVariableKeys.map((key) => s.label(key)).join(", ");
+  return successLine(
+    facets([
+      `Injected ${keys}`,
+      `profile ${s.id(data.profileSlug)}`,
+      `policy ${openId(data.policyId)}`,
+      `exit ${String(data.childExitCode)}`,
+    ]),
   );
 }
 
@@ -145,7 +173,6 @@ export function renderProfileRunSuccess(input: {
       }),
     ),
     input.flags,
-    (data) =>
-      `Injected ${data.injectedVariableKeys.join(", ")} via profile ${data.profileSlug} and policy ${data.policyId}; child exited with code ${String(data.childExitCode)}.`,
+    formatProfileRunHuman,
   );
 }

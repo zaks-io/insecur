@@ -351,6 +351,10 @@ describe("runSecretsSetCommand", () => {
     ).rejects.toMatchObject({
       code: SECRET_ERROR_CODES.inputRequired,
       exitCode: EXIT_VALIDATION,
+      remediation: {
+        type: "https://insecur.dev/errors/secret-input-required",
+        usage: ["insecur", "secrets", "set", "API_KEY", "--value-stdin"],
+      },
     } satisfies Partial<CliError>);
     expect(api.writeSecretByVariableKey).not.toHaveBeenCalled();
 

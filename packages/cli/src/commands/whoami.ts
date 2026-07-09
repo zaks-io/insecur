@@ -19,7 +19,13 @@ import {
 } from "../output/auth-remediation.js";
 import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
+import { isLocalModeHost, LOCAL_MODE_HOST } from "../config/local-mode.js";
 import { renderSuccess } from "../output/render.js";
+import {
+  formatLocalWhoamiHuman,
+  formatWhoamiHuman,
+  type LocalWhoamiData,
+} from "../output/whoami-detail.js";
 import { getMemorySession, resolveSessionCredential } from "../session/memory-session.js";
 import { defaultSessionStore } from "../session/persisted-session.js";
 import { resolveAgentCredentialFromEnv } from "../auth/agent-credential-store.js";
@@ -36,45 +42,6 @@ function resolveAgentTag(flags: GlobalCliFlags): string | undefined {
   }
   const fromEnv = process.env.INSECUR_AGENT_TAG?.trim();
   return fromEnv === undefined || fromEnv === "" ? undefined : fromEnv;
-}
-
-function formatContextLine(data: SessionWhoamiData): string {
-  const contextParts: string[] = [];
-  if (data.resolvedContext.organizationId !== undefined) {
-    contextParts.push(`org=${data.resolvedContext.organizationId}`);
-  }
-  if (data.resolvedContext.projectId !== undefined) {
-    contextParts.push(`project=${data.resolvedContext.projectId}`);
-  }
-  if (data.resolvedContext.environmentId !== undefined) {
-    contextParts.push(`env=${data.resolvedContext.environmentId}`);
-  }
-  return contextParts.length === 0
-    ? "context=(none resolved)"
-    : `context=${contextParts.join(" ")}`;
-}
-
-function formatAttributionLine(data: SessionWhoamiData): string {
-  const attributionParts = [`tier=${data.attribution.tier}`];
-  if (data.attribution.harnessName !== undefined) {
-    attributionParts.push(`harness=${data.attribution.harnessName}`);
-  }
-  if (data.attribution.agentSessionId !== undefined) {
-    attributionParts.push(`agentSession=${data.attribution.agentSessionId}`);
-  }
-  if (data.attribution.tag !== undefined) {
-    attributionParts.push(`tag=${data.attribution.tag}`);
-  }
-  return `attribution=${attributionParts.join(" ")}`;
-}
-
-function formatWhoamiHuman(data: SessionWhoamiData): string {
-  return [
-    `actor=${data.userId} session=${data.sessionId}`,
-    `sessionValid=${String(data.sessionValid)} expiresAt=${data.sessionExpiresAt}`,
-    formatContextLine(data),
-    formatAttributionLine(data),
-  ].join("\n");
 }
 
 function assertMetadataOnlyWhoamiOutput(data: SessionWhoamiData): void {
@@ -156,12 +123,28 @@ function buildWhoamiRequest(
   };
 }
 
+function renderLocalWhoami(flags: GlobalCliFlags, context: ResolvedCliContext): number {
+  const data: LocalWhoamiData = {
+    mode: "local",
+    host: LOCAL_MODE_HOST,
+    ...(context.scope.projectId === undefined ? {} : { projectId: context.scope.projectId }),
+    ...(context.scope.envId === undefined ? {} : { environmentId: context.scope.envId }),
+    ...(context.scope.profileId === undefined ? {} : { profileId: context.scope.profileId }),
+  };
+  renderSuccess(successEnvelope(data), flags, formatLocalWhoamiHuman);
+  return 0;
+}
+
 export async function runWhoamiCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
   context: ResolvedCliContext,
   options: { readonly agentSessionStateStore?: AgentSessionStateStore } = {},
 ): Promise<number> {
+  if (isLocalModeHost(context.scope.host)) {
+    return renderLocalWhoami(flags, context);
+  }
+
   const session = await resolveSession(context.scope.host);
   if (session === undefined) {
     renderAuthRemediationEnvelope(authRequiredWhoamiEnvelope(), flags);
@@ -174,18 +157,34 @@ export async function runWhoamiCommand(
     sessionId: session.sessionId,
     parentProcessId: process.ppid,
   });
-  const persisted = await agentSessionStateStore.load(stateKey);
-  const result = await api.sessionWhoami(
-    buildWhoamiRequest(flags, context, session, persisted?.agentSessionId),
-  );
-
-  if (!result.ok) {
-    throw cliErrorFromEnvelope(result.envelope);
-  }
-
-  const data = result.envelope.data;
-  assertMetadataOnlyWhoamiOutput(data);
+  const data = await fetchWhoamiData({
+    flags,
+    api,
+    context,
+    session,
+    agentSessionStateStore,
+    stateKey,
+  });
   await persistRegisteredAgentSession(agentSessionStateStore, stateKey, data);
   renderSuccess(successEnvelope(data), flags, formatWhoamiHuman);
   return 0;
+}
+
+async function fetchWhoamiData(input: {
+  readonly flags: GlobalCliFlags;
+  readonly api: ApiClient;
+  readonly context: ResolvedCliContext;
+  readonly session: ResolvedSession;
+  readonly agentSessionStateStore: AgentSessionStateStore;
+  readonly stateKey: string;
+}): Promise<SessionWhoamiData> {
+  const persisted = await input.agentSessionStateStore.load(input.stateKey);
+  const result = await input.api.sessionWhoami(
+    buildWhoamiRequest(input.flags, input.context, input.session, persisted?.agentSessionId),
+  );
+  if (!result.ok) {
+    throw cliErrorFromEnvelope(result.envelope);
+  }
+  assertMetadataOnlyWhoamiOutput(result.envelope.data);
+  return result.envelope.data;
 }

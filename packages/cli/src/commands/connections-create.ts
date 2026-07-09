@@ -57,6 +57,15 @@ async function readCloudflareCreateToken(
     generateLength: undefined,
     valueStdin: options.valueStdin,
     allowEmpty: false,
+    inputRequiredUsage: [
+      "insecur",
+      "connections",
+      "create",
+      options.provider,
+      "--method",
+      options.method,
+      "--value-stdin",
+    ],
   });
   if (collected.inputMode === "generated") {
     throw new CliError({

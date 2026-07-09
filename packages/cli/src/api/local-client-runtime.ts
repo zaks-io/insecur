@@ -46,8 +46,8 @@ export function createLocalRuntimeInjectionApi(input: {
   RuntimeInjectionApiClient,
   "issueInjectionGrant" | "consumeInjectionGrant" | "recordInjectionRunCompleted"
 > {
-  const projectId = requireLocalProjectId(input.context);
-  const environmentId = requireLocalEnvironmentId(input.context);
+  // Scope resolves per call, not at construction: the client is built for every
+  // local-mode command, including init before any project scope exists.
   return {
     issueInjectionGrant: async (request) => {
       if ("policyId" in request) {
@@ -63,16 +63,16 @@ export function createLocalRuntimeInjectionApi(input: {
     consumeInjectionGrant: async (request) =>
       consumeLocalVariableKeyInjectionGrant({
         store: input.store,
-        projectId,
-        environmentId,
+        projectId: requireLocalProjectId(input.context),
+        environmentId: requireLocalEnvironmentId(input.context),
         grantId: request.grantId,
         variableKey: request.variableKey,
       }),
     recordInjectionRunCompleted: async (request) =>
       recordLocalInjectionRunCompleted({
         store: input.store,
-        projectId,
-        environmentId,
+        projectId: requireLocalProjectId(input.context),
+        environmentId: requireLocalEnvironmentId(input.context),
         grantId: request.grantId,
         childExitCode: request.childExitCode,
       }),

@@ -1,5 +1,8 @@
 import { Command } from "commander";
-import { applyCommanderUsageSeam } from "./output/commander-usage-error.js";
+import {
+  applyCommanderUsageSeam,
+  resetCommanderUsageCapture,
+} from "./output/commander-usage-error.js";
 import { renderCliRunFailure } from "./output/render-cli-run-failure.js";
 import { registerAgentCommands } from "./register-agent-commands.js";
 import { registerApiBackedCommands } from "./register-api-backed-commands.js";
@@ -11,12 +14,24 @@ import { registerLogoutCommand } from "./register-logout-command.js";
 import { registerRunCommand } from "./register-run-command.js";
 import { registerScanCommand } from "./register-scan-command.js";
 import { registerShellCommand } from "./register-shell-command.js";
-import { attachGlobalOptions, createProgramDeps, globalFlags } from "./program-deps.js";
+import { configureIdTruncation } from "./output/cell-format.js";
+import { configureColor } from "./output/style.js";
+import {
+  attachGlobalOptions,
+  createProgramDeps,
+  globalFlags,
+  renderFlags,
+} from "./program-deps.js";
 import { cliVersion } from "./version.js";
 
 function createInsecurRootProgram(): Command {
   const program = attachGlobalOptions(new Command());
   applyCommanderUsageSeam(program);
+  program.hook("preAction", (thisCommand) => {
+    const flags = globalFlags(thisCommand);
+    configureColor(flags);
+    configureIdTruncation(flags.full);
+  });
   return program
     .name("insecur")
     .description("insecur CLI — metadata-only output, sealed local session auth")
@@ -42,12 +57,13 @@ function buildProgram(): Command {
 }
 
 export async function runCli(argv: readonly string[]): Promise<number> {
+  resetCommanderUsageCapture();
   const program = buildProgram();
   try {
     await program.parseAsync(argv);
     const code = process.exitCode;
     return typeof code === "number" ? code : 0;
   } catch (error) {
-    return renderCliRunFailure(error, globalFlags(program));
+    return renderCliRunFailure(error, renderFlags(program));
   }
 }

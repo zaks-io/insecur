@@ -15,14 +15,21 @@ import {
   writeScanFixtureTree,
 } from "./fixtures/scan-fixture.js";
 
-function secretsSetRegisteredOptionLongs(program: Command): readonly string[] {
+function secretsSetCommand(program: Command): Command | undefined {
   const secrets = program.commands.find((command) => command.name() === "secrets");
-  const set = secrets?.commands.find((command) => command.name() === "set");
+  return secrets?.commands.find((command) => command.name() === "set");
+}
+
+function secretsSetRegisteredOptionLongs(program: Command): readonly string[] {
   return (
-    set?.options
-      .map((option) => option.long)
+    secretsSetCommand(program)
+      ?.options.map((option) => option.long)
       .filter((long): long is string => long !== undefined) ?? []
   );
+}
+
+function secretsSetRegisteredArgumentNames(program: Command): readonly string[] {
+  return secretsSetCommand(program)?.registeredArguments.map((argument) => argument.name()) ?? [];
 }
 
 describe("insecur scan", () => {
@@ -352,9 +359,10 @@ describe("insecur scan no-reveal", () => {
       }),
     });
     const registeredLongs = secretsSetRegisteredOptionLongs(program);
-    const variableKeyFlag = registeredLongs.find((long) => long === "--variable-key");
+    const registeredArguments = secretsSetRegisteredArgumentNames(program);
     const valueStdinFlag = registeredLongs.find((long) => long === "--value-stdin");
-    expect(variableKeyFlag).toBe("--variable-key");
+    expect(registeredArguments).toContain("variable-key");
+    expect(registeredLongs).not.toContain("--variable-key");
     expect(valueStdinFlag).toBe("--value-stdin");
 
     const root = await mkdtemp(join(tmpdir(), "insecur-scan-remediation-"));
@@ -363,9 +371,7 @@ describe("insecur scan no-reveal", () => {
     const migratable = report.findings.filter((finding) => finding.migratable);
     expect(migratable.length).toBeGreaterThan(0);
     for (const finding of migratable) {
-      expect(finding.remediation).toBe(
-        `insecur secrets set ${variableKeyFlag} ${finding.key} ${valueStdinFlag}`,
-      );
+      expect(finding.remediation).toBe(`insecur secrets set ${finding.key} ${valueStdinFlag}`);
       expect(finding.remediation).not.toContain("=");
     }
   });

@@ -25,3 +25,8 @@ sbom.cyclonedx.json
 .gitleaksignore
 .local/
 .bin/
+
+# Local CLI project config written when running the CLI from inside this repo.
+# .insecur.json is a committed project config in a *user's* project (ADR-0007),
+# but inside our own monorepo it is only ever a dev-run artifact.
+.insecur.json
