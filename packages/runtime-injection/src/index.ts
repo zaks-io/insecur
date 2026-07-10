@@ -44,6 +44,17 @@ export {
 } from "./gate-production-runtime-injection.js";
 export { loadRuntimeInjectionEnvironmentContext } from "./load-runtime-injection-environment-context.js";
 export {
+  buildDeployRuntimeInjectionOutput,
+  buildDeployRuntimeInjectionOutputFromGateContext,
+  type BuildDeployRuntimeInjectionOutputInput,
+  type DeployRuntimeInjectionGateContextLike,
+  type DeployRuntimeInjectionGateSummary,
+  type DeployRuntimeInjectionOutcome,
+  type DeployRuntimeInjectionOutput,
+  type DeployRuntimeInjectionTarget,
+  type DeployRuntimeInjectionWarning,
+} from "./deploy-runtime-injection-output.js";
+export {
   resolveRuntimeInjectionDeliveryPath,
   type RuntimeInjectionEnvironmentPosture,
 } from "./resolve-runtime-injection-delivery-path.js";
