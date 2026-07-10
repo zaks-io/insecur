@@ -225,7 +225,7 @@ test("preview CLI agent attribution @preview @happy-path @custody", async ({ pre
         configDir: workspace.configDir,
         configHomeDir: workspace.configHomeDir,
         redactor: tagOnlyRedactor,
-        args: [...buildCliWhoamiArgs(), "--agent", tag],
+        args: buildCliWhoamiArgs(tag),
         label: "CLI whoami (tag-only)",
       });
       assertCliOutputSafe({

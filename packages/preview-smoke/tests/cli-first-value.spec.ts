@@ -10,6 +10,7 @@ import {
   assertCliSmokeSuccess,
   assertStatus,
   authHeaders,
+  buildCliRuntimeInvariantRunArgs,
   buildCliSecretsSetGenerateArgs,
   buildCliSecretsSetValueStdinArgs,
   createCliSmokeWorkspace,
@@ -278,7 +279,12 @@ async function runRuntimeInvariantProbe(input: {
   const stderrMarker = `INSECUR_RUNTIME_RUN_STDERR_${suffix}`;
   const { stderr, stdout } = await runCliSmokeCommand({
     apiBaseUrl: input.apiBaseUrl,
-    args: buildRuntimeInvariantRunArgs(stdoutMarker, stderrMarker),
+    args: buildCliRuntimeInvariantRunArgs({
+      absentVariableKey: GENERATED_SECRET_VARIABLE_KEY,
+      childScript: RUNTIME_RUN_CHILD_SCRIPT,
+      stderrMarker,
+      stdoutMarker,
+    }),
     bearer: input.bearer,
     configDir: input.configDir,
     configHomeDir: input.configHomeDir,
@@ -313,25 +319,6 @@ async function runRuntimeInvariantProbe(input: {
   const childProof = parseCliRunChildProof(stderr, input.label);
   assertRuntimeInvariantProof(childProof, input.label);
   return { grantId, stderrMarker, stdoutMarker };
-}
-
-function buildRuntimeInvariantRunArgs(
-  stdoutMarker: string,
-  stderrMarker: string,
-): readonly string[] {
-  return [
-    "run",
-    "--variable-key",
-    PROOF_VARIABLE_KEY,
-    "--",
-    process.execPath,
-    "--input-type=module",
-    "--eval",
-    RUNTIME_RUN_CHILD_SCRIPT,
-    stdoutMarker,
-    stderrMarker,
-    GENERATED_SECRET_VARIABLE_KEY,
-  ];
 }
 
 function assertRuntimeInvariantProof(proof: Record<string, unknown>, label: string): void {
