@@ -7,6 +7,7 @@ import {
   mintScopedAccessToken,
   parseRequestCredentials,
   resolveUserActor,
+  WORKOS_SESSION_COOKIE,
 } from "./index.js";
 import { testSessionSigningSecret } from "./testing/test-session-signing-secret.js";
 
@@ -30,7 +31,7 @@ describe("resolveUserActor", () => {
   it("does not accept a WorkOS sealed session as a user actor credential", async () => {
     const credentials = parseRequestCredentials({
       authorizationHeader: null,
-      cookieHeader: "wos-session=sealed_session_valid",
+      cookieHeader: `${WORKOS_SESSION_COOKIE}=sealed_session_valid`,
       csrfHeader: null,
     });
     const result = await resolveUserActor({

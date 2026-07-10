@@ -1,3 +1,4 @@
+import { INSECUR_CSRF_COOKIE } from "@insecur/auth";
 import { createFakeWorkOSSessionPort, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -36,7 +37,7 @@ describe("hasWorkosSessionCookie", () => {
   it("detects the WorkOS sealed session cookie", () => {
     const request = ssrRequest("/whoami", {
       sessionCookie: "sealed",
-      headers: { Cookie: "insecur_csrf=abc" },
+      headers: { Cookie: `${INSECUR_CSRF_COOKIE}=abc` },
     });
     expect(hasWorkosSessionCookie(request)).toBe(true);
   });

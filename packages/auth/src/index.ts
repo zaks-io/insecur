@@ -20,6 +20,7 @@ export {
   SCOPED_ACCESS_TOKEN_TTL_SECONDS,
   WORKOS_SESSION_COOKIE,
 } from "./constants.js";
+export { readSingleCookieValue } from "./cookie-header.js";
 export {
   type ParseRequestCredentialsInput,
   type ParsedRequestCredentials,
