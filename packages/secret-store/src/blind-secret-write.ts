@@ -24,7 +24,7 @@ import type { SecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contr
 import { SecretWriteError } from "./secret-write-error.js";
 import {
   recordDeniedSecretStorageWriteAudit,
-  recordSecretStorageWriteAudit,
+  recordSecretStorageWriteAuditInTenantScope,
   type SecretStorageWriteAuditKind,
 } from "./record-secret-storage-write-audit.js";
 import { validateTextSecretValue } from "./validate-text-secret-value.js";
@@ -109,6 +109,15 @@ async function resolveWritableSecretForWrite(
   );
 }
 
+type PersistedSecretVersionWithAudit = AppendSecretVersionResult & {
+  auditEventId: BlindSecretWriteResult["auditEventId"];
+};
+
+/**
+ * Appends the wrapped version and records the success audit on the same
+ * tenant-scoped transaction, so the secret mutation and its success audit
+ * commit or roll back as one durable outcome.
+ */
 async function appendWrappedVersionForWrite({
   validatedInput,
   newVersionId,
@@ -116,10 +125,10 @@ async function appendWrappedVersionForWrite({
   resolved,
   wrapped,
   descriptiveVerdicts,
-}: AppendWrappedVersionForWriteInput): Promise<AppendSecretVersionResult> {
+}: AppendWrappedVersionForWriteInput): Promise<PersistedSecretVersionWithAudit> {
   return withTenantScope(
     { kind: "organization", organizationId: validatedInput.organizationId },
-    async ({ db }) => {
+    async ({ db, sql }) => {
       const store = new TenantSecretVersionStore(db);
       const appendInput = {
         organizationId: validatedInput.organizationId,
@@ -131,9 +140,24 @@ async function appendWrappedVersionForWrite({
         createdByActor: toSecretVersionCreatorActor(validatedInput.actor),
       };
 
-      return mode === "protected_draft"
-        ? store.appendVersionAsDraft(appendInput)
-        : store.appendVersionAndMakeLive(appendInput);
+      const persisted =
+        mode === "protected_draft"
+          ? await store.appendVersionAsDraft(appendInput)
+          : await store.appendVersionAndMakeLive(appendInput);
+
+      const audit = await recordSecretStorageWriteAuditInTenantScope(sql, auditKindForMode(mode), {
+        outcome: "success",
+        actor: validatedInput.actor,
+        organizationId: validatedInput.organizationId,
+        projectId: validatedInput.projectId,
+        environmentId: validatedInput.environmentId,
+        secretId: persisted.secretId,
+        secretVersionId: persisted.secretVersionId,
+        ...(validatedInput.request !== undefined ? { request: validatedInput.request } : {}),
+        ...(validatedInput.operation !== undefined ? { operation: validatedInput.operation } : {}),
+      });
+
+      return { ...persisted, auditEventId: audit.auditEventId };
     },
   );
 }
@@ -143,7 +167,7 @@ async function appendEncryptedVersionForWrite(
   newVersionId: SecretVersionId,
   mode: BlindSecretWriteMode,
   assertEnvironment: (environment: EnvironmentLifecycleRow | null) => void,
-): Promise<AppendSecretVersionResult> {
+): Promise<PersistedSecretVersionWithAudit> {
   const resolved = await resolveWritableSecretForWrite(validatedInput, assertEnvironment);
   assertCreateOnlySecretWrite({
     ...(validatedInput.createOnly !== undefined ? { createOnly: validatedInput.createOnly } : {}),
@@ -194,18 +218,6 @@ async function executeBlindSecretWrite(
     assertEnvironment,
   );
 
-  const audit = await recordSecretStorageWriteAudit(auditKindForMode(mode), {
-    outcome: "success",
-    actor: validatedInput.actor,
-    organizationId: validatedInput.organizationId,
-    projectId: validatedInput.projectId,
-    environmentId: validatedInput.environmentId,
-    secretId: persisted.secretId,
-    secretVersionId: persisted.secretVersionId,
-    ...(validatedInput.request !== undefined ? { request: validatedInput.request } : {}),
-    ...(validatedInput.operation !== undefined ? { operation: validatedInput.operation } : {}),
-  });
-
   return {
     secretId: persisted.secretId,
     secretVersionId: persisted.secretVersionId,
@@ -213,7 +225,7 @@ async function executeBlindSecretWrite(
     lifecycleState: persisted.lifecycleState,
     createdSecretShape: persisted.createdSecretShape,
     descriptiveVerdicts: persisted.descriptiveVerdicts,
-    auditEventId: audit.auditEventId,
+    ...(persisted.auditEventId !== undefined ? { auditEventId: persisted.auditEventId } : {}),
   };
 }
 

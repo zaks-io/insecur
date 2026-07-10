@@ -3,7 +3,9 @@ import {
   FIRST_VALUE_AUDIT_EVENT_CODES,
   PRODUCTION_AUDIT_EVENT_CODES,
   recordStorageAudit,
+  recordStorageAuditInTenantScope,
 } from "@insecur/audit";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 import type {
   EnvironmentId,
   KnownErrorCode,
@@ -47,15 +49,34 @@ function storageAuditEventCodes(kind: SecretStorageWriteAuditKind) {
   };
 }
 
+function withStorageAuditEventCode(
+  kind: SecretStorageWriteAuditKind,
+  input: Parameters<typeof recordStorageAudit>[0],
+): Parameters<typeof recordStorageAudit>[0] {
+  const eventCodes = storageAuditEventCodes(kind);
+  return {
+    ...input,
+    eventCode: input.outcome === "success" ? eventCodes.success : eventCodes.denied,
+  };
+}
+
 export async function recordSecretStorageWriteAudit(
   kind: SecretStorageWriteAuditKind,
   input: Parameters<typeof recordStorageAudit>[0],
 ): Promise<Awaited<ReturnType<typeof recordStorageAudit>>> {
-  const eventCodes = storageAuditEventCodes(kind);
-  return recordStorageAudit({
-    ...input,
-    eventCode: input.outcome === "success" ? eventCodes.success : eventCodes.denied,
-  });
+  return recordStorageAudit(withStorageAuditEventCode(kind, input));
+}
+
+/**
+ * Records the secret storage write audit on the caller's tenant-scoped
+ * transaction so the audit row commits atomically with the secret mutation.
+ */
+export async function recordSecretStorageWriteAuditInTenantScope(
+  sql: TenantScopedSql,
+  kind: SecretStorageWriteAuditKind,
+  input: Parameters<typeof recordStorageAudit>[0],
+): Promise<Awaited<ReturnType<typeof recordStorageAudit>>> {
+  return recordStorageAuditInTenantScope(sql, withStorageAuditEventCode(kind, input));
 }
 
 export async function recordDeniedSecretStorageWriteAudit(

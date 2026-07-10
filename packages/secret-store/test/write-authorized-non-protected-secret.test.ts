@@ -38,7 +38,9 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
 });
 
 vi.mock("../src/record-secret-storage-write-audit.js", () => ({
-  recordSecretStorageWriteAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+  recordSecretStorageWriteAuditInTenantScope: vi
+    .fn()
+    .mockResolvedValue({ auditEventId: "aud_test" }),
   recordDeniedSecretStorageWriteAudit: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -48,13 +50,13 @@ vi.mock("../src/validate-text-secret-value.js", () => ({
 
 import {
   recordDeniedSecretStorageWriteAudit,
-  recordSecretStorageWriteAudit,
+  recordSecretStorageWriteAuditInTenantScope,
 } from "../src/record-secret-storage-write-audit.js";
 import { validateTextSecretValue } from "../src/validate-text-secret-value.js";
 
 const encryptMock = vi.mocked(encryptSecretValue);
 const withTenantScopeMock = vi.mocked(withTenantScope);
-const auditMock = vi.mocked(recordSecretStorageWriteAudit);
+const auditMock = vi.mocked(recordSecretStorageWriteAuditInTenantScope);
 const deniedAuditMock = vi.mocked(recordDeniedSecretStorageWriteAudit);
 const validateValueMock = vi.mocked(validateTextSecretValue);
 

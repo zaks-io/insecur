@@ -290,6 +290,21 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
   });
 });
 
+test.describe("preview logout CSRF gate @preview", () => {
+  test("POST /logout without a CSRF token fails closed with 403", async ({ page, preview }) => {
+    const response = await page.request.post(`${preview.webBaseUrl}/logout`, {
+      failOnStatusCode: false,
+      maxRedirects: 0,
+      form: {},
+    });
+    if (response.status() !== 403) {
+      throw new Error(
+        `Web /logout without CSRF returned ${String(response.status())}, expected 403`,
+      );
+    }
+  });
+});
+
 test.describe("preview onboarding entry for org-less smoke actor @preview @happy-path", () => {
   test.beforeEach(async ({ page, noScopeBearer }) => {
     await useSmokeBearer(page, noScopeBearer);

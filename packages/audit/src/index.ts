@@ -122,7 +122,11 @@ export {
   queryFirstValueUsageEvidence,
   queryFirstValueUsageEvidenceInTenantScope,
 } from "./query-first-value-usage.js";
-export { type RecordStorageAuditInput, recordStorageAudit } from "./record-storage-audit.js";
+export {
+  type RecordStorageAuditInput,
+  recordStorageAudit,
+  recordStorageAuditInTenantScope,
+} from "./record-storage-audit.js";
 export { generateAuditEventId } from "./generate-audit-event-id.js";
 export { insertAuditEventRow } from "./insert-audit-event-row.js";
 export {
