@@ -66,7 +66,7 @@ export interface DeployRuntimeInjectionOutput {
   readonly auditEventIds: readonly AuditEventId[];
 }
 
-const OUTCOME_BY_TERMINAL_STATE: Partial<Record<OperationState, DeployRuntimeInjectionOutcome>> = {
+const OUTCOME_BY_STATE: Partial<Record<OperationState, DeployRuntimeInjectionOutcome>> = {
   succeeded: "succeeded",
   completed_with_warnings: "succeeded",
   blocked: "denied",
@@ -79,11 +79,11 @@ function outcomeForState(
   state: OperationState,
   reasonCode: KnownErrorCode | undefined,
 ): DeployRuntimeInjectionOutcome {
-  const mapped = OUTCOME_BY_TERMINAL_STATE[state];
+  const mapped = OUTCOME_BY_STATE[state];
   if (mapped !== undefined) {
     return mapped;
   }
-  // Non-terminal states with a fail-closed reason report as denied, otherwise failed.
+  // States with no explicit mapping and a fail-closed reason report as denied, otherwise failed.
   return reasonCode === undefined ? "failed" : "denied";
 }
 
@@ -129,10 +129,34 @@ function assertOutputControlIdsMetadataSafe(input: BuildDeployRuntimeInjectionOu
   }
 }
 
+/** A gate that is not affirmatively passed must never render as delivery success. */
+function gateBlocksDelivery(gate: DeployRuntimeInjectionGateSummary): boolean {
+  return gate.deliveryBlocking || gate.status === "blocked" || gate.status === "unknown";
+}
+
+/**
+ * Fail-loud consistency guard: a blocking Storage Security Gate can never coexist
+ * with a `succeeded` outcome. Without this, a `succeeded` operation state would win
+ * over a blocking gate verdict and fail OPEN in the exact seam that must report
+ * fail-closed. Matches the fail-loud posture of {@link assertControlIdsMetadataSafe}.
+ */
+function assertGateConsistentWithOutcome(
+  outcome: DeployRuntimeInjectionOutcome,
+  gate: DeployRuntimeInjectionGateSummary | undefined,
+): void {
+  if (outcome === "succeeded" && gate !== undefined && gateBlocksDelivery(gate)) {
+    throw new Error(
+      "deploy runtime injection output is inconsistent: a blocking Storage Security Gate cannot report a succeeded outcome",
+    );
+  }
+}
+
 export function buildDeployRuntimeInjectionOutput(
   input: BuildDeployRuntimeInjectionOutputInput,
 ): DeployRuntimeInjectionOutput {
   assertOutputControlIdsMetadataSafe(input);
+  const outcome = outcomeForState(input.operationState, input.reasonCode);
+  assertGateConsistentWithOutcome(outcome, input.gate);
   const optional: Pick<DeployRuntimeInjectionOutput, "gate" | "reasonCode"> = {
     ...(input.gate !== undefined ? { gate: input.gate } : {}),
     ...(input.reasonCode !== undefined ? { reasonCode: input.reasonCode } : {}),
@@ -140,7 +164,7 @@ export function buildDeployRuntimeInjectionOutput(
   const output: DeployRuntimeInjectionOutput = {
     operationId: input.operationId,
     operationState: input.operationState,
-    outcome: outcomeForState(input.operationState, input.reasonCode),
+    outcome,
     target: input.target,
     ...optional,
     warnings: input.warnings ?? [],

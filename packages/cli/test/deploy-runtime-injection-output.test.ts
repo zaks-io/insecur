@@ -99,6 +99,23 @@ describe("formatDeployRuntimeInjectionHuman", () => {
     expect(text).toContain("Storage Security Gate");
     expect(text).toContain("Audit events");
     expect(text).toContain(AUDIT_ID);
+    expect(text).toContain("production");
+    expect(text).toContain("runtime_injection");
+  });
+
+  it("renders lifecycle stage and delivery path sanitized, without terminal escapes", () => {
+    const esc = String.fromCharCode(27);
+    const text = formatDeployRuntimeInjectionHuman({
+      ...succeeded,
+      target: {
+        ...succeeded.target,
+        lifecycleStage: `production${esc}[31m`,
+        deliveryPath: `runtime_injection${esc}[0m`,
+      },
+    });
+    expect(text).not.toContain(esc);
+    expect(text).toContain("production");
+    expect(text).toContain("runtime_injection");
   });
 
   it("renders a denied-gate outcome with the blocking reason and blocked controls", () => {

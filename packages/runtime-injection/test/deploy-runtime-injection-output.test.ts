@@ -159,6 +159,38 @@ describe("buildDeployRuntimeInjectionOutput", () => {
       }),
     ).toThrow(/metadata-safe/u);
   });
+
+  it("fails loud when a blocking gate would render a succeeded outcome (no fail-open)", () => {
+    expect(() =>
+      buildDeployRuntimeInjectionOutput({
+        operationId: OPERATION_ID,
+        operationState: "succeeded",
+        target: productionTarget,
+        gate: {
+          status: "blocked",
+          deliveryBlocking: true,
+          checkedAt: "2026-07-09T00:00:00.000Z",
+          blockedControlIds: ["storage.root_key"],
+        },
+      }),
+    ).toThrow(/inconsistent/u);
+  });
+
+  it("fails loud when an unknown gate status would render a succeeded outcome", () => {
+    expect(() =>
+      buildDeployRuntimeInjectionOutput({
+        operationId: OPERATION_ID,
+        operationState: "completed_with_warnings",
+        target: productionTarget,
+        gate: {
+          status: "unknown",
+          deliveryBlocking: false,
+          checkedAt: "2026-07-09T00:00:00.000Z",
+          blockedControlIds: ["storage.key_versions"],
+        },
+      }),
+    ).toThrow(/inconsistent/u);
+  });
 });
 
 describe("buildDeployRuntimeInjectionOutputFromGateContext", () => {
@@ -214,5 +246,26 @@ describe("buildDeployRuntimeInjectionOutputFromGateContext", () => {
     expect(output.outcome).toBe("succeeded");
     expect(output.gate).toBeUndefined();
     expect(output.reasonCode).toBeUndefined();
+  });
+
+  it("fails loud on a blocking verdict paired with a succeeded operation state", () => {
+    expect(() =>
+      buildDeployRuntimeInjectionOutputFromGateContext({
+        operationId: OPERATION_ID,
+        operationState: "succeeded",
+        projectId: PROJECT_ID,
+        environmentId: ENVIRONMENT_ID,
+        context: {
+          deliveryPath: PRODUCTION_DELIVERY_PATHS.runtimeInjection,
+          environment: { isProtected: true, lifecycleStage: "production" },
+          gateVerdict: {
+            status: "blocked",
+            delivery_blocking: true,
+            checked_at: "2026-07-09T00:00:00.000Z",
+            controls: [{ id: "storage.root_key", status: "blocked" }],
+          },
+        },
+      }),
+    ).toThrow(/inconsistent/u);
   });
 });

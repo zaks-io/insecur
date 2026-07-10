@@ -9,6 +9,7 @@ import { absoluteLocal, relativeTime } from "./cell-format.js";
 import { emptyValue, renderDetail, type DetailSection, type DetailValue } from "./detail.js";
 import { statusText } from "./format.js";
 import { renderSuccess } from "./render.js";
+import { sanitizeDisplayText } from "./sanitize-display.js";
 import { getStyle } from "./style.js";
 import { asEchoId, buildEnvelopeMeta } from "./target-echo.js";
 
@@ -82,7 +83,8 @@ export function formatDeployRuntimeInjectionHuman(data: DeployRuntimeInjectionOu
     { label: "State", value: statusText(data.operationState) },
     { label: "Environment", value: s.id(data.target.environmentId) },
     { label: "Protected", value: data.target.isProtected ? "Yes" : "No" },
-    { label: "Delivery", value: data.target.deliveryPath },
+    { label: "Stage", value: sanitizeDisplayText(data.target.lifecycleStage) },
+    { label: "Delivery", value: sanitizeDisplayText(data.target.deliveryPath) },
     {
       label: "Reason",
       value: data.reasonCode === undefined ? emptyValue() : s.danger(data.reasonCode),
