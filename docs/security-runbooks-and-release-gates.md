@@ -130,6 +130,7 @@ Stable control ID prefixes:
 - `audit.*`
 - `backup_restore.*`
 - `supply_chain.*`
+- `no_plaintext.*`
 - `runbook.*`
 
 The local check may combine automated tests with required manual evidence placeholders. Placeholders are `blocked` until filled by a runbook drill, review, or explicit accepted decision.
@@ -167,6 +168,11 @@ The repository registers these non-enumerable surfaces and fails the
 `small_group_production` profile closed when their metadata-only zero-finding evidence is absent.
 The external query/download implementations are not in this repository yet. Registry entries are
 evidence requirements, not claims that executable adapters exist.
+
+During the prelaunch build-out, `.github/workflows/deploy-production.yml` runs this profile with
+`--warn-only` so incomplete launch evidence is visible without preventing environment validation.
+The command remains strict by default. Remove the workflow opt-in before relying on insecur for
+valuable production secrets.
 
 The assembled bundle records `schema_version`, `profile`, per-control
 `status` (`passed`, `blocked`, `missing_evidence`), artifact references, and an

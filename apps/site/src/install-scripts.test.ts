@@ -27,7 +27,7 @@ describe("INSTALL_SH", () => {
     expect(INSTALL_SH).toContain("GitHub CLI (gh) is required");
     expect(INSTALL_SH).toContain('download "${base}/${asset}.intoto.jsonl"');
     expect(INSTALL_SH).toContain(
-      '>/dev/null 2>&1 || err "GitHub build provenance verification failed; refusing to install"',
+      '>/dev/null || err "GitHub build provenance verification failed; refusing to install"',
     );
   });
 
@@ -67,6 +67,8 @@ describe("INSTALL_PS1", () => {
     expect(INSTALL_PS1).toContain("gh attestation verify");
     expect(INSTALL_PS1).toContain('--signer-workflow "$Repo/.github/workflows/cli-release.yml"');
     expect(INSTALL_PS1).toContain("GitHub CLI (gh) is required");
+    expect(INSTALL_PS1).toContain("gh attestation --help");
+    expect(INSTALL_PS1).toContain("with attestation support is required");
     expect(INSTALL_PS1).toContain('Invoke-WebRequest -Uri "$base/$asset.intoto.jsonl"');
     expect(INSTALL_PS1).toContain(
       'Fail "GitHub build provenance verification failed; refusing to install"',

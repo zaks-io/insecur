@@ -28,6 +28,10 @@ function Fail($msg) { Write-Error "insecur: $msg"; exit 1 }
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
   Fail "GitHub CLI (gh) is required to verify build provenance; refusing to install"
 }
+& gh attestation --help *> $null
+if ($LASTEXITCODE -ne 0) {
+  Fail "GitHub CLI (gh) with attestation support is required to verify build provenance; update gh before installing"
+}
 
 # 32-bit PowerShell on 64-bit Windows reports x86; PROCESSOR_ARCHITEW6432 carries
 # the native architecture under WOW64, and the x64 binary runs fine there.

@@ -179,7 +179,13 @@ describe("local init", () => {
       { ...flags, configDir: projectDir },
       noopApi,
       mockContext,
-      { profileSlug: "local-dev" },
+      {
+        ...localInitOptions,
+        provision: {
+          ...localInitOptions.provision,
+          configHome: path.join(isolatedHome.homeDir, ".insecur"),
+        },
+      },
     );
 
     expect(exitCode).toBe(0);

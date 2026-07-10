@@ -10,6 +10,7 @@ interface ParsedArgs {
   evidenceDir: string;
   outputPath?: string;
   profile?: ReleaseGateProfile;
+  warnOnly: boolean;
 }
 
 function readFlagValue(argv: string[], index: number, flag: string): [string, number] {
@@ -49,11 +50,16 @@ function applyArg(arg: string, argv: string[], index: number, parsed: ParsedArgs
 function parseArgs(argv: string[]): ParsedArgs {
   const parsed: ParsedArgs = {
     evidenceDir: resolve(process.cwd(), "evidence"),
+    warnOnly: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === undefined) {
+      continue;
+    }
+    if (arg === "--warn-only") {
+      parsed.warnOnly = true;
       continue;
     }
 
@@ -64,7 +70,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function main(): void {
-  const { evidenceDir, outputPath, profile } = parseArgs(process.argv.slice(2));
+  const { evidenceDir, outputPath, profile, warnOnly } = parseArgs(process.argv.slice(2));
   const bundle = assembleSecurityEvidenceBundle({
     evidenceDir,
     ...(profile ? { profile } : {}),
@@ -82,7 +88,13 @@ function main(): void {
   }
 
   if (!bundle.ok) {
-    process.exitCode = 1;
+    if (warnOnly) {
+      console.error(
+        "WARNING: security release evidence is incomplete; continuing because --warn-only was explicitly selected.",
+      );
+    } else {
+      process.exitCode = 1;
+    }
   }
 }
 

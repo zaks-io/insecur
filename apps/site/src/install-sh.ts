@@ -126,7 +126,7 @@ verify_provenance() {
     --bundle "$bundle" \
     --repo "$REPO" \
     --signer-workflow "$REPO/.github/workflows/cli-release.yml" \
-    >/dev/null 2>&1 || err "GitHub build provenance verification failed; refusing to install"
+    >/dev/null || err "GitHub build provenance verification failed; refusing to install"
 }
 
 add_to_path_hint() {

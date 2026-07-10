@@ -143,6 +143,10 @@ describe("parseRestoreDrillEvidence", () => {
   });
 
   it("rejects invalid or missing restore_target_ref values", () => {
+    const { restore_target_ref: restoreTargetRef, ...withoutRestoreTargetRef } =
+      validRestoreEvidence();
+    expect(restoreTargetRef).toBeTruthy();
+    expect(parseRestoreDrillEvidence(withoutRestoreTargetRef)).toBeNull();
     expect(
       parseRestoreDrillEvidence({ ...validRestoreEvidence(), restore_target_ref: "" }),
     ).toBeNull();

@@ -16,6 +16,7 @@ async function runFixtureSelfTest(argv: string[]): Promise<void> {
 
   const summary = {
     ok: result.evidence.status === "passed",
+    status: result.evidence.status,
     fixture_only: true,
     launch_grade_evidence: false,
     canary_verified: result.evidence.canary_verified,

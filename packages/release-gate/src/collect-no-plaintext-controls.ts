@@ -5,6 +5,14 @@ import { NO_PLAINTEXT_EXTERNAL_SURFACES } from "./no-plaintext-surface-registry.
 import { evidencePath, readJsonFile } from "./read-evidence.js";
 import type { ReleaseGateControl, ReleaseGateProfile } from "./types.js";
 
+type NoPlaintextRegistryEntry = (typeof NO_PLAINTEXT_EXTERNAL_SURFACES)[number];
+
+interface PassedSweepEvidence extends Record<string, unknown> {
+  checked_at: string;
+  sentinel_run_id: string;
+  target_ref: string;
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
@@ -21,7 +29,10 @@ function matchesRequiredEvidence(
   );
 }
 
-function parsePassedSweepEvidence(value: unknown, expected: NoPlaintextRegistryEntry) {
+function parsePassedSweepEvidence(
+  value: unknown,
+  expected: NoPlaintextRegistryEntry,
+): PassedSweepEvidence | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -31,10 +42,8 @@ function parsePassedSweepEvidence(value: unknown, expected: NoPlaintextRegistryE
   if (!stringsAreValid || !matchesRequiredEvidence(record, expected)) {
     return null;
   }
-  return record;
+  return record as PassedSweepEvidence;
 }
-
-type NoPlaintextRegistryEntry = (typeof NO_PLAINTEXT_EXTERNAL_SURFACES)[number];
 
 export function collectNoPlaintextExternalControls(
   evidenceDir: string,
@@ -77,7 +86,7 @@ export function collectNoPlaintextExternalControls(
       summary: `${entry.surface} no-plaintext sweep passed with zero findings.`,
       docs,
       evidence: [{ kind: "file", path: entry.evidencePath }],
-      checkedAt: parsed.checked_at as string,
+      checkedAt: parsed.checked_at,
     });
   });
 }

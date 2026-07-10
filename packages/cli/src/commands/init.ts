@@ -13,7 +13,7 @@ import { tryResolveSessionCredential } from "../auth/try-session.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { persistInitConfig } from "./init-persist.js";
-import { runLocalInitCommand } from "./init-local.js";
+import { runLocalInitCommand, type LocalInitCommandOptions } from "./init-local.js";
 import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { CliError } from "../output/cli-error.js";
 import { LOGIN_REMEDIATION } from "../output/cli-remediation.js";
@@ -37,10 +37,7 @@ const INIT_LABELS = {
   profile: displayNameOrThrow("profile", "Local development"),
 };
 
-export interface InitCommandOptions {
-  readonly profileSlug: string;
-  readonly profileSlugWasExplicit?: boolean;
-}
+export type InitCommandOptions = LocalInitCommandOptions;
 
 function requestedHostedInit(flags: GlobalCliFlags): boolean {
   return flags.host !== undefined && !isLocalModeHost(flags.host);
