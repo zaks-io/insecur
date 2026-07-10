@@ -43,12 +43,17 @@ export interface CliInitEnvelopeIdentity extends CliFirstValueConfigIdentity {
   readonly configPath: string;
 }
 
-/** `insecur init --json` data is the config path plus opaque ids and a slug; nothing else. */
+/**
+ * `insecur init --json` data is the config path plus opaque ids and a slug;
+ * nothing else. `allowedTokens` covers the workspace temp-dir path segments in
+ * `configPath`, which read as dense runs to the secret-shaped-token scan.
+ */
 export function assertCliInitEnvelopeMetadataOnly(
   body: JsonRecord,
   label: string,
+  allowedTokens: readonly string[] = [],
 ): CliInitEnvelopeIdentity {
-  const data = assertCliSuccessEnvelopeMetadataOnly(body, label);
+  const data = assertCliSuccessEnvelopeMetadataOnly(body, label, allowedTokens);
   assertExactKeys(
     data,
     {
@@ -202,12 +207,14 @@ export interface RecordedCliOutputSurface {
  * Re-scans every captured CLI output surface once all sensitive material is
  * known (the file-fallback machine root key may only exist after the first
  * CLI call), then returns the checked surface names for the smoke artifact
- * report.
+ * report. `allowedTokens` applies to every surface (for example workspace
+ * temp-dir path segments); per-surface `allowedTokens` are merged on top.
  */
 export function assertRecordedCliOutputsMetadataOnly(input: {
   readonly surfaces: readonly RecordedCliOutputSurface[];
   readonly redactor: (value: unknown) => string;
   readonly forbiddenMaterials: readonly SensitiveMaterial[];
+  readonly allowedTokens?: readonly string[];
 }): readonly string[] {
   for (const surface of input.surfaces) {
     assertSurfaceTextMetadataOnly({
@@ -215,7 +222,7 @@ export function assertRecordedCliOutputsMetadataOnly(input: {
       text: surface.text,
       redactor: input.redactor,
       forbiddenMaterials: input.forbiddenMaterials,
-      ...(surface.allowedTokens === undefined ? {} : { allowedTokens: surface.allowedTokens }),
+      allowedTokens: [...(input.allowedTokens ?? []), ...(surface.allowedTokens ?? [])],
     });
   }
   return input.surfaces.map((surface) => surface.name);

@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
+import { basename } from "node:path";
 
 import { INJECTION_ERROR_CODES } from "@insecur/domain";
 import {
@@ -99,6 +100,16 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
   // proven absent in base64/base64url/hex encodings (INS-368).
   const bearerMaterial: SensitiveMaterial = { name: "smoke bearer credential", value: ownerBearer };
   const workspace = await createCliSmokeWorkspace();
+  // The isolated workspace temp dirs are hyphenated `insecur-preview-cli-*`
+  // names that read as dense `[A-Za-z0-9_-]` runs; they legitimately appear in
+  // `configPath` and human output. Allowlist them so the (deliberately low,
+  // 16-byte-floor) secret-shaped-token scan does not flag known-safe paths.
+  const workspacePathTokens = [
+    basename(workspace.configDir),
+    basename(workspace.configHomeDir),
+    workspace.configDir,
+    workspace.configHomeDir,
+  ];
   // Every CLI stdout/stderr surface is captured here and re-scanned at the end
   // once ALL sensitive material is known (the file-fallback machine root key
   // may only exist after the first CLI call).
@@ -131,7 +142,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
       });
       recordOutputs("CLI init", { stderr, stdout });
       const body = parseCliSmokeJson(stdout, "CLI init");
-      const initIdentity = assertCliInitEnvelopeMetadataOnly(body, "CLI init");
+      const initIdentity = assertCliInitEnvelopeMetadataOnly(body, "CLI init", workspacePathTokens);
 
       // The files `insecur init` just wrote are metadata-only: host/profile
       // metadata plus opaque ids, and provably free of the smoke bearer, the
@@ -209,13 +220,14 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         label: "CLI secrets set human",
         redactor,
       });
-      recordOutputs("CLI secrets set human", { stderr, stdout });
+      recordOutputs("CLI secrets set human", { stderr, stdout }, workspacePathTokens);
       assertCliHumanOutputMetadataOnly({
         label: "CLI secrets set",
         stdout,
         stderr,
         redactor,
         forbiddenMaterials: [bearerMaterial],
+        allowedTokens: workspacePathTokens,
         requiredStdoutSubstrings: [`Wrote secret ${HUMAN_GENERATED_SECRET_VARIABLE_KEY}`],
       });
     });
@@ -300,7 +312,11 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         label: "CLI run human",
         redactor,
       });
-      const allowedTokens = [humanRunMarkers.stdoutMarker, humanRunMarkers.stderrMarker];
+      const allowedTokens = [
+        humanRunMarkers.stdoutMarker,
+        humanRunMarkers.stderrMarker,
+        ...workspacePathTokens,
+      ];
       recordOutputs("CLI run human", { stderr, stdout }, allowedTokens);
       assertCliHumanOutputMetadataOnly({
         label: "CLI run",
@@ -399,6 +415,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         surfaces: outputSurfaces,
         redactor,
         forbiddenMaterials: outputMaterials,
+        allowedTokens: workspacePathTokens,
       });
       const report = {
         checkedConfigSurfaces: [

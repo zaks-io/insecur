@@ -36,19 +36,66 @@ const FORBIDDEN_SURFACE_KEYS = new Set(
 );
 
 /**
+ * Smallest generated-secret length the smoke may ever write or print. The
+ * shape thresholds below are DERIVED from this so detector confidence does not
+ * silently depend on the current `--length 32`: `secrets set --generate`
+ * defaults to 32 random bytes today, but a future step or a regression to a
+ * shorter length must still be caught. `bytesToBase64Url` of N random bytes is
+ * `ceil(N*4/3)` unpadded base64url chars; hex is `2*N`. At 16 bytes that is 22
+ * base64url chars and 32 hex chars — the floors used here. Lower this only if
+ * the smoke ever legitimately generates a shorter secret (and add coverage).
+ */
+export const MIN_GENERATED_SECRET_BYTES = 16;
+
+const SECRET_SHAPED_HEX_MIN = MIN_GENERATED_SECRET_BYTES * 2; // 32
+const SECRET_SHAPED_BASE64URL_MIN = Math.ceil((MIN_GENERATED_SECRET_BYTES * 4) / 3); // 22
+
+/**
  * Secret-material-shaped token detectors. These catch values the harness
  * cannot register in a redactor because it never learns them (for example a
- * `secrets set --generate` value leaking into config or output): 32 random
- * bytes serialize to >= 64 hex chars or >= 43 base64url chars. `+` and `/`
- * stay out of the charset so filesystem paths inside metadata (for example
- * `configPath`) cannot false-positive; generated secrets are base64url
- * (`bytesToBase64Url`) and the machine root key is hex, so both covered
- * shapes keep matching.
+ * `secrets set --generate` value leaking into config or output). Generated
+ * secrets are base64url (`bytesToBase64Url`, charset `[A-Za-z0-9_-]`) and the
+ * machine root key is hex; `+` and `/` stay out of the base64url charset so
+ * path separators already segment filesystem paths. The thresholds are the
+ * 16-byte floors (`MIN_GENERATED_SECRET_BYTES`), well below the current
+ * `--length 32` (43 base64url / 64 hex), so a shorter generated secret still
+ * trips the detector.
+ *
+ * At the lowered base64url floor two BENIGN long runs would otherwise match:
+ * opaque resource ids (`prefix_` + 26-char uppercase body) and env-var-shaped
+ * keys (`INSECUR_...`). Both are structurally distinct from a base64url secret
+ * body, so `isBenignDenseToken` excuses those exact shapes. A random 16-byte
+ * secret matches neither shape (all-uppercase base64url is ~1-in-1e5 and stays
+ * covered by the redactor / named-material checks), so this keeps zero
+ * false-negatives on real secrets while dropping the false positives. Callers
+ * pass workspace temp-dir path segments and child-output markers as
+ * `allowedTokens` for the remaining hyphenated-slug runs.
  */
 const SECRET_SHAPED_TOKEN_PATTERNS: readonly { reason: string; pattern: RegExp }[] = [
-  { reason: "hex blob of 64+ chars", pattern: /[0-9a-fA-F]{64,}/g },
-  { reason: "base64url blob of 43+ chars", pattern: /[A-Za-z0-9_-]{43,}/g },
+  {
+    reason: `hex blob of ${String(SECRET_SHAPED_HEX_MIN)}+ chars`,
+    pattern: new RegExp(`[0-9a-fA-F]{${String(SECRET_SHAPED_HEX_MIN)},}`, "g"),
+  },
+  {
+    reason: `base64url blob of ${String(SECRET_SHAPED_BASE64URL_MIN)}+ chars`,
+    pattern: new RegExp(`[A-Za-z0-9_-]{${String(SECRET_SHAPED_BASE64URL_MIN)},}`, "g"),
+  },
 ];
+
+/** Exact opaque resource id shape: lowercase type prefix + underscore + 26-char uppercase body. */
+const OPAQUE_ID_TOKEN_PATTERN = /^[a-z]{2,5}_[0-9A-Z]{26}$/;
+/** Env-var-shaped key (for example `INSECUR_SMOKE_GENERATED_SECRET`): all-uppercase with underscores. */
+const ENV_VAR_KEY_TOKEN_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+
+/**
+ * True when a long dense token is one of the two structurally-distinct benign
+ * shapes (opaque id or env-var key) rather than a base64url secret body. See
+ * SECRET_SHAPED_TOKEN_PATTERNS for why these are the only shapes that must be
+ * excused at the lowered threshold.
+ */
+function isBenignDenseToken(token: string): boolean {
+  return OPAQUE_ID_TOKEN_PATTERN.test(token) || ENV_VAR_KEY_TOKEN_PATTERN.test(token);
+}
 
 /** Values shorter than this cannot be secret material; skip to avoid trivial substring hits. */
 const MIN_MATERIAL_LENGTH = 8;
@@ -59,10 +106,11 @@ export interface SecretShapedTokenHit {
 }
 
 /**
- * Finds the first secret-material-shaped token in `text` that is not covered
- * by `allowedTokens` (for example harness-minted child output markers, which
- * are long `[A-Z0-9_]` runs by construction). The hit reports shape and
- * length only, never the token itself.
+ * Finds the first secret-material-shaped token in `text` that is neither an
+ * explicitly allowlisted token (for example harness-minted child output
+ * markers or workspace temp-dir path segments) nor a benign dense shape
+ * (opaque id / env-var key). The hit reports shape and length only, never the
+ * token itself.
  */
 export function findSecretShapedToken(
   text: string,
@@ -72,6 +120,9 @@ export function findSecretShapedToken(
     for (const match of text.matchAll(pattern)) {
       const token = match[0];
       if (allowedTokens.some((allowed) => allowed.includes(token))) {
+        continue;
+      }
+      if (isBenignDenseToken(token)) {
         continue;
       }
       return { reason, length: token.length };
@@ -84,16 +135,52 @@ export interface SurfaceTextScanInput {
   readonly label: string;
   readonly text: string;
   readonly redactor: (value: unknown) => string;
-  /** Proven absent in raw, base64, base64url, and hex encodings. */
+  /** Proven absent in every encoding from `materialEncodingVariants`. */
   readonly forbiddenMaterials?: readonly SensitiveMaterial[];
   /** Expected long tokens (for example child output markers) the shape scan must not flag. */
   readonly allowedTokens?: readonly string[];
 }
 
+interface MaterialEncodingVariant {
+  readonly encoding: string;
+  readonly pattern: string;
+}
+
+/**
+ * All encodings a named forbidden material is proven absent in: the shared
+ * raw/base64/base64url/hex set (`sentinelForValue`) plus url-percent-encoded
+ * and JSON `\uXXXX`-escaped forms so a value smuggled through a URL query or a
+ * JSON string escape is still caught.
+ *
+ * Known limitation: this is an enumerated encoding list, not exhaustive. Forms
+ * not modeled here (for example HTML entity escapes, double-url-encoding, or
+ * gzip/other binary transforms) would slip past named-material absence — the
+ * same coverage model as the redactor. Today's First Value CLI flow emits none
+ * of those, and the secret-shaped-token scan is an independent backstop for
+ * base64url/hex blobs regardless of naming; extend this set if a future
+ * surface introduces another reversible encoding.
+ */
+function materialEncodingVariants(value: string): readonly MaterialEncodingVariant[] {
+  return [
+    ...sentinelForValue(value).variants,
+    { encoding: "url", pattern: encodeURIComponent(value) },
+    { encoding: "json-unicode-escape", pattern: jsonUnicodeEscape(value) },
+  ];
+}
+
+/** JSON `\uXXXX` escape of every code unit — the form a value takes inside a JSON string body. */
+function jsonUnicodeEscape(value: string): string {
+  let escaped = "";
+  for (let index = 0; index < value.length; index += 1) {
+    escaped += `\\u${value.charCodeAt(index).toString(16).padStart(4, "0")}`;
+  }
+  return escaped;
+}
+
 /**
  * Proves a raw text surface (config file contents, CLI stdout/stderr) carries
- * no registered sensitive value, no named forbidden material in any common
- * encoding, and no secret-material-shaped token.
+ * no registered sensitive value, no named forbidden material in any modeled
+ * encoding (`materialEncodingVariants`), and no secret-material-shaped token.
  */
 export function assertSurfaceTextMetadataOnly(input: SurfaceTextScanInput): void {
   if (input.redactor(input.text) !== input.text) {
@@ -103,7 +190,7 @@ export function assertSurfaceTextMetadataOnly(input: SurfaceTextScanInput): void
     if (material.value.length < MIN_MATERIAL_LENGTH) {
       continue;
     }
-    for (const variant of sentinelForValue(material.value).variants) {
+    for (const variant of materialEncodingVariants(material.value)) {
       if (input.text.includes(variant.pattern)) {
         throw new Error(`${input.label} contains ${material.name} (${variant.encoding} encoding)`);
       }

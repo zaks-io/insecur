@@ -15,6 +15,7 @@ import {
   assertJsonTreeMetadataOnly,
   assertSurfaceTextMetadataOnly,
   findSecretShapedToken,
+  MIN_GENERATED_SECRET_BYTES,
 } from "../src/cli-metadata-only-scan";
 import {
   assertCliHumanOutputMetadataOnly,
@@ -36,10 +37,35 @@ const IGR_ID = `igr_${BODY}`;
 const AUD_ID = `aud_${BODY}`;
 const REQ_ID = `req_${BODY}`;
 
-// Obvious dummies standing in for material the smoke scans for.
+// Obvious dummies standing in for material the smoke scans for, built at
+// runtime from a deterministic fake pattern so no high-entropy secret literal
+// sits in source (gitleaks). The base64url dummies are mixed-case dense runs
+// like a real `bytesToBase64Url` secret; an all-uppercase run would read as an
+// env-var key and be excused by shape, so the pattern cycles case + digits.
 const DUMMY_BEARER = "dummy-smoke-bearer-credential-0001";
-const DUMMY_MACHINE_ROOT_KEY_HEX = "0f".repeat(32);
-const DUMMY_GENERATED_SECRET_BASE64URL = "A".repeat(43);
+
+/** N chars by cycling a fixed pattern (dense fake, no high-entropy source literal). */
+function repeatPattern(pattern: string, length: number): string {
+  return pattern.repeat(Math.ceil(length / pattern.length)).slice(0, length);
+}
+
+/** N base64url chars from a fixed mixed-case+digit cycle (dense, not a real secret). */
+function fakeBase64Url(length: number): string {
+  return repeatPattern("aB3dE7hK9mN2pQ5rT8vW1xZ4", length);
+}
+
+/** N hex chars from a fixed nibble cycle. */
+function fakeHex(length: number): string {
+  return repeatPattern("0a1b2c3d4e5f6789", length);
+}
+
+const DUMMY_MACHINE_ROOT_KEY_HEX = fakeHex(64); // 64 hex chars (32-byte key)
+// 32-byte generated secret: 43 base64url chars, mixed case + digits.
+const DUMMY_GENERATED_SECRET_BASE64URL = fakeBase64Url(43);
+// 16-byte generated secret: 22 base64url chars — the shape-threshold floor.
+const DUMMY_SHORT_GENERATED_SECRET_BASE64URL = fakeBase64Url(22);
+// 16-byte generated secret in hex: 32 chars — the hex-threshold floor.
+const DUMMY_SHORT_GENERATED_SECRET_HEX = fakeHex(32);
 
 const identityRedactor = (value: unknown): string => String(value);
 
@@ -95,12 +121,13 @@ function assertConfigSurfaces(
 }
 
 describe("secret-shaped token scan", () => {
-  it("passes ordinary CLI prose, ids, and paths", () => {
-    const text = `Wrote secret INSECUR_PROOF_SECRET (${SEC_ID}) in environment ${ENV_ID}.\nconfigPath /tmp/insecur-preview-cli-project-abc123/.insecur.json`;
-    expect(findSecretShapedToken(text)).toBeNull();
+  it("passes ordinary CLI prose, opaque ids, env-var keys, and workspace paths", () => {
+    const text = `Wrote secret INSECUR_SMOKE_GENERATED_SECRET (${SEC_ID}) in environment ${ENV_ID}.\nconfigPath /tmp/insecur-preview-cli-project-Cbo81x/.insecur.json\nprofile local-dev`;
+    // The temp-dir basename is a hyphenated dense run; the smoke allowlists it.
+    expect(findSecretShapedToken(text, ["insecur-preview-cli-project-Cbo81x"])).toBeNull();
   });
 
-  it("flags 64+ char hex blobs and 43+ char base64url blobs without echoing them", () => {
+  it("flags full 32-byte generated secrets (43 base64url / 64 hex) without echoing them", () => {
     for (const leak of [DUMMY_MACHINE_ROOT_KEY_HEX, DUMMY_GENERATED_SECRET_BASE64URL]) {
       const hit = findSecretShapedToken(`prefix ${leak} suffix`);
       expect(hit).not.toBeNull();
@@ -108,10 +135,43 @@ describe("secret-shaped token scan", () => {
     }
   });
 
-  it("permits allowlisted harness markers", () => {
-    const marker = `INSECUR_RUNTIME_RUN_STDOUT_${"a1b2c3d4".repeat(4)}`;
-    expect(findSecretShapedToken(`line ${marker} line`)).not.toBeNull();
-    expect(findSecretShapedToken(`line ${marker} line`, [marker])).toBeNull();
+  it("still catches SHORTER 16-byte generated secrets at the derived threshold floor", () => {
+    // Regression guard for the finding: confidence must not depend on --length 32.
+    // The floor is derived from MIN_GENERATED_SECRET_BYTES, not hardcoded to 32.
+    expect(MIN_GENERATED_SECRET_BYTES).toBe(16);
+    const base64FloorLength = Math.ceil((MIN_GENERATED_SECRET_BYTES * 4) / 3);
+    const hexFloorLength = MIN_GENERATED_SECRET_BYTES * 2;
+    expect(DUMMY_SHORT_GENERATED_SECRET_BASE64URL).toHaveLength(base64FloorLength);
+    expect(DUMMY_SHORT_GENERATED_SECRET_HEX).toHaveLength(hexFloorLength);
+    // A --length 16 secret is 22 base64url / 32 hex chars and must still trip.
+    const base64Hit = findSecretShapedToken(`leak ${DUMMY_SHORT_GENERATED_SECRET_BASE64URL}`);
+    expect(base64Hit?.reason).toMatch(/base64url/);
+    expect(base64Hit?.length).toBe(base64FloorLength);
+    const hexHit = findSecretShapedToken(`leak ${DUMMY_SHORT_GENERATED_SECRET_HEX}`);
+    expect(hexHit?.reason).toMatch(/hex/);
+    expect(hexHit?.length).toBe(hexFloorLength);
+    for (const leak of [DUMMY_SHORT_GENERATED_SECRET_BASE64URL, DUMMY_SHORT_GENERATED_SECRET_HEX]) {
+      expect(JSON.stringify(findSecretShapedToken(`x ${leak}`))).not.toContain(leak);
+    }
+  });
+
+  it("does not false-positive on opaque ids or env-var keys at the lowered threshold", () => {
+    for (const id of [ORG_ID, PRJ_ID, ENV_ID, PROF_ID, SEC_ID, SV_ID, IGR_ID]) {
+      expect(findSecretShapedToken(`id ${id}`)).toBeNull();
+    }
+    for (const key of [
+      "INSECUR_PROOF_SECRET",
+      "INSECUR_SMOKE_GENERATED_SECRET",
+      "INSECUR_RUNTIME_RUN_STDOUT_A1B2C3D4A1B2C3D4A1B2C3D4A1B2C3D4",
+    ]) {
+      expect(findSecretShapedToken(`key ${key}`)).toBeNull();
+    }
+  });
+
+  it("permits explicitly allowlisted dense tokens (workspace paths, mixed-case markers)", () => {
+    const pathSegment = "insecur-preview-cli-home-Zx9Q1p";
+    expect(findSecretShapedToken(`dir ${pathSegment}`)).not.toBeNull();
+    expect(findSecretShapedToken(`dir ${pathSegment}`, [pathSegment])).toBeNull();
   });
 });
 
@@ -155,6 +215,32 @@ describe("assertSurfaceTextMetadataOnly", () => {
     expect(() => {
       scan(`generated: ${DUMMY_GENERATED_SECRET_BASE64URL}`);
     }).toThrow(/secret-shaped/);
+  });
+
+  it("catches named material in url-percent-encoded and JSON-unicode-escaped forms", () => {
+    // A value with url/json-special chars so these encodings differ from raw.
+    const material = { name: "sensitive value", value: "s3cret value/with?special&chars" };
+    const check = (text: string): void => {
+      assertSurfaceTextMetadataOnly({
+        label: "fixture surface",
+        text,
+        redactor: identityRedactor,
+        forbiddenMaterials: [material],
+      });
+    };
+    const urlEncoded = encodeURIComponent(material.value);
+    let jsonEscaped = "";
+    for (let index = 0; index < material.value.length; index += 1) {
+      jsonEscaped += `\\u${material.value.charCodeAt(index).toString(16).padStart(4, "0")}`;
+    }
+    expect(() => {
+      check(`leak ${urlEncoded}`);
+    }).toThrow(/sensitive value \(url encoding\)/);
+    expect(() => {
+      check(`leak ${jsonEscaped}`);
+    }).toThrow(/sensitive value \(json-unicode-escape encoding\)/);
+    // Sanity: an unrelated surface with neither form passes.
+    check("nothing sensitive here");
   });
 });
 
@@ -362,17 +448,29 @@ function initEnvelope(): Record<string, unknown> {
 
 describe("CLI output envelope assertions", () => {
   it("accepts a realistic init envelope and returns its identity", () => {
-    const identity = assertCliInitEnvelopeMetadataOnly(initEnvelope(), "CLI init");
+    // configPath carries the workspace temp-dir segment, allowlisted as the
+    // spec does, so the lowered secret-shaped-token floor does not flag it.
+    const identity = assertCliInitEnvelopeMetadataOnly(initEnvelope(), "CLI init", [
+      "insecur-preview-cli-project-abc123",
+    ]);
     expect(identity.organizationId).toBe(ORG_ID);
     expect(identity.configPath.endsWith(".insecur.json")).toBe(true);
+  });
+
+  it("flags a temp-dir-shaped configPath segment when it is NOT allowlisted", () => {
+    // Guards that the lowered floor really scans configPath: an un-allowlisted
+    // dense path segment must trip rather than pass silently.
+    expect(() => assertCliInitEnvelopeMetadataOnly(initEnvelope(), "CLI init")).toThrow(
+      /secret-shaped/,
+    );
   });
 
   it("rejects init envelopes that widen the data surface", () => {
     const body = initEnvelope();
     (body.data as Record<string, unknown>).rawResponse = { anything: true };
-    expect(() => assertCliInitEnvelopeMetadataOnly(body, "CLI init")).toThrow(
-      /unexpected key: rawResponse/,
-    );
+    expect(() =>
+      assertCliInitEnvelopeMetadataOnly(body, "CLI init", ["insecur-preview-cli-project-abc123"]),
+    ).toThrow(/unexpected key: rawResponse/);
   });
 
   it("accepts a realistic secrets set envelope and rejects forbidden value keys", () => {
