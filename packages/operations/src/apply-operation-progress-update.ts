@@ -1,7 +1,7 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
-import { type OperationRecord, toOperationPollResult } from "./operation-row.js";
+import { type OperationRecord, toOperationRecord } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import { isTerminalOperationState } from "./operation-states.js";
 import type { OperationPollResult, OperationProgressPatch } from "./operation-types.js";
@@ -50,7 +50,7 @@ async function attemptOperationProgressUpdate(
   sql: TenantScopedSql,
   getById: GetOperationById,
   input: ApplyOperationProgressUpdateInput,
-): Promise<OperationPollResult | undefined> {
+): Promise<OperationRecord | undefined> {
   const existing = await readWritableOperation(getById, input.organizationId, input.operationId);
   input.assertWritable?.(existing);
 
@@ -67,14 +67,14 @@ async function attemptOperationProgressUpdate(
       ? {}
       : { highAssuranceClearCas: input.highAssuranceClearCas }),
   });
-  return row === undefined ? undefined : toOperationPollResult(row);
+  return row === undefined ? undefined : toOperationRecord(row);
 }
 
 export async function applyOperationProgressUpdate(
   sql: TenantScopedSql,
   getById: GetOperationById,
   input: ApplyOperationProgressUpdateInput,
-): Promise<OperationPollResult> {
+): Promise<OperationRecord> {
   for (let attempt = 0; attempt < MAX_PROGRESS_UPDATE_ATTEMPTS; attempt += 1) {
     const updated = await attemptOperationProgressUpdate(sql, getById, input);
     if (updated !== undefined) {

@@ -351,6 +351,43 @@ describeIntegration("operation store (tenant-scoped)", () => {
     expect(polled.progress.counters).toEqual({ kept: 1 });
   });
 
+  it("never exposes the internal revision through public poll or mutation results", async () => {
+    const created = await createOperation({
+      organizationId: org,
+      intentCode: "sync.run",
+    });
+    expect(created.operation).not.toHaveProperty("revision");
+
+    const running = await transitionOperation({
+      organizationId: org,
+      operationId: created.operation.operationId,
+      nextState: "running",
+    });
+    expect(running.operation).not.toHaveProperty("revision");
+
+    const progressed = await recordOperationProgress({
+      organizationId: org,
+      operationId: created.operation.operationId,
+      progress: { counters: { step: 1 } },
+    });
+    expect(progressed.operation).not.toHaveProperty("revision");
+
+    const polled = await getOperation({
+      organizationId: org,
+      operationId: created.operation.operationId,
+    });
+    expect(Object.keys(polled).sort()).toEqual([
+      "createdAt",
+      "executionDeadline",
+      "intentCode",
+      "operationId",
+      "organizationId",
+      "progress",
+      "state",
+      "updatedAt",
+    ]);
+  });
+
   it("records audit references and safe polling output", async () => {
     const created = await createOperation({
       organizationId: org,

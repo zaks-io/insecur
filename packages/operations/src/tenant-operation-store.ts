@@ -5,18 +5,14 @@ import {
   insertOperationStart as persistOperationStart,
 } from "./insert-operation-row.js";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
-import { type OperationRecord, type OperationRow, toOperationPollResult } from "./operation-row.js";
+import { type OperationRecord, type OperationRow, toOperationRecord } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import {
   casApplyOperationTransition,
   type ApplyTransitionInput,
 } from "./apply-operation-transition.js";
 import { applyOperationProgressUpdate } from "./apply-operation-progress-update.js";
-import type {
-  OperationPollResult,
-  OperationProgress,
-  OperationProgressPatch,
-} from "./operation-types.js";
+import type { OperationProgress, OperationProgressPatch } from "./operation-types.js";
 import { resolveOperationLiveness } from "./resolve-operation-liveness.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 
@@ -47,7 +43,7 @@ export class TenantOperationStore {
       LIMIT 1
     `;
     const row = rows[0];
-    return row === undefined ? null : toOperationPollResult(row);
+    return row === undefined ? null : toOperationRecord(row);
   }
 
   private async readByIdempotencyKey(
@@ -72,7 +68,7 @@ export class TenantOperationStore {
       LIMIT 1
     `;
     const row = rows[0];
-    return row === undefined ? null : toOperationPollResult(row);
+    return row === undefined ? null : toOperationRecord(row);
   }
 
   async findByIdempotencyKey(
@@ -103,7 +99,7 @@ export class TenantOperationStore {
     intentCode: string;
     idempotencyKey?: string;
     progress: OperationProgress;
-  }): Promise<OperationPollResult> {
+  }): Promise<OperationRecord> {
     return persistOperationRow(this.sql, input);
   }
 
@@ -113,7 +109,7 @@ export class TenantOperationStore {
     intentCode: string;
     idempotencyKey?: string;
     progress: OperationProgress;
-  }): Promise<{ operation: OperationPollResult; created: boolean }> {
+  }): Promise<{ operation: OperationRecord; created: boolean }> {
     return persistOperationStart(this.sql, input);
   }
 
@@ -135,7 +131,7 @@ export class TenantOperationStore {
     organizationId: OrganizationId;
     operationId: OperationId;
     progressPatch: OperationProgressPatch;
-  }): Promise<OperationPollResult> {
+  }): Promise<OperationRecord> {
     return await applyOperationProgressUpdate(
       this.sql,
       (organizationId, operationId) => this.getById(organizationId, operationId),
@@ -153,7 +149,7 @@ export class TenantOperationStore {
     operationId: OperationId;
     challengeId: string;
     progressPatch: OperationProgressPatch;
-  }): Promise<OperationPollResult> {
+  }): Promise<OperationRecord> {
     return await applyOperationProgressUpdate(
       this.sql,
       (organizationId, operationId) => this.getById(organizationId, operationId),
@@ -177,7 +173,7 @@ export class TenantOperationStore {
 
   async listPendingHighAssuranceChallenges(
     organizationId: OrganizationId,
-  ): Promise<OperationPollResult[]> {
+  ): Promise<OperationRecord[]> {
     const rows = await this.sql<OperationRow[]>`
       SELECT
         id,
@@ -199,7 +195,7 @@ export class TenantOperationStore {
       ORDER BY created_at ASC
     `;
 
-    const operations = rows.map((row) => toOperationPollResult(row));
+    const operations = rows.map((row) => toOperationRecord(row));
     return await Promise.all(
       operations.map((operation) => resolveOperationLiveness(this.sql, operation)),
     );

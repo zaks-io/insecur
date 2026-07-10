@@ -40,7 +40,7 @@ function parseRevision(value: number | string): number {
   return revision;
 }
 
-export function toOperationPollResult(row: OperationRow): OperationRecord {
+export function toOperationRecord(row: OperationRow): OperationRecord {
   const state = row.state;
   if (!isOperationState(state)) {
     throw new Error(`unknown operation state in database: ${state}`);
@@ -59,4 +59,14 @@ export function toOperationPollResult(row: OperationRow): OperationRecord {
     createdAt: toIsoTimestamp(row.created_at),
     updatedAt: toIsoTimestamp(row.updated_at),
   };
+}
+
+/**
+ * Public read boundary: strips the store-internal revision so it never reaches
+ * poll results, RPC payloads, or route responses.
+ */
+export function toOperationPollResult(record: OperationRecord): OperationPollResult {
+  const { revision, ...operation } = record;
+  void revision;
+  return operation;
 }

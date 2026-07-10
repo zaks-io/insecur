@@ -1,7 +1,7 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
-import { type OperationRecord, toOperationPollResult } from "./operation-row.js";
+import { type OperationRecord, toOperationRecord } from "./operation-row.js";
 import { computeNonLeaseExecutionDeadline } from "./operation-execution-deadline.js";
 import {
   OPERATION_ERROR_CODES,
@@ -162,5 +162,5 @@ export async function casApplyOperationTransition(
       true,
     );
   }
-  return toOperationPollResult(row);
+  return toOperationRecord(row);
 }

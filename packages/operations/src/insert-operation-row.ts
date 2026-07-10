@@ -4,9 +4,9 @@ import {
   isUniqueConstraintViolation,
   type TenantScopedSql,
 } from "@insecur/tenant-store";
-import { type OperationRecord, type OperationRow, toOperationPollResult } from "./operation-row.js";
+import { type OperationRecord, type OperationRow, toOperationRecord } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
-import type { OperationPollResult, OperationProgress } from "./operation-types.js";
+import type { OperationProgress } from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 import { resolveOperationLiveness } from "./resolve-operation-liveness.js";
 
@@ -45,7 +45,7 @@ async function selectByIdempotencyKey(
     LIMIT 1
   `;
   const row = rows[0];
-  return row === undefined ? null : toOperationPollResult(row);
+  return row === undefined ? null : toOperationRecord(row);
 }
 
 async function insertOperationRow(
@@ -103,7 +103,7 @@ function resolveIdempotentUpsertResult(
     assertIdempotentIntentMatch(row.intent_code, input.intentCode);
   }
   return {
-    operation: toOperationPollResult(row),
+    operation: toOperationRecord(row),
     created,
   };
 }
@@ -196,12 +196,12 @@ export async function insertOperationStart(
     idempotencyKey?: string;
     progress: OperationProgress;
   },
-): Promise<{ operation: OperationPollResult; created: boolean }> {
+): Promise<{ operation: OperationRecord; created: boolean }> {
   validateOperationProgress(input.progress);
 
   if (input.idempotencyKey === undefined) {
     const row = await insertOperationRow(sql, input);
-    return { operation: toOperationPollResult(row), created: true };
+    return { operation: toOperationRecord(row), created: true };
   }
 
   const result = await insertWithIdempotencyKey(sql, {
@@ -226,7 +226,7 @@ export async function insertOperation(
     idempotencyKey?: string;
     progress: OperationProgress;
   },
-): Promise<OperationPollResult> {
+): Promise<OperationRecord> {
   const { operation } = await insertOperationStart(sql, input);
   return operation;
 }

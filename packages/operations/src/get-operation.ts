@@ -1,5 +1,6 @@
 import { withTenantScope } from "@insecur/tenant-store";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
+import { toOperationPollResult } from "./operation-row.js";
 import type { GetOperationInput, OperationPollResult } from "./operation-types.js";
 import { TenantOperationStore } from "./tenant-operation-store.js";
 
@@ -20,5 +21,5 @@ export async function getOperation(input: GetOperationInput): Promise<OperationP
     throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
   }
 
-  return operation;
+  return toOperationPollResult(operation);
 }

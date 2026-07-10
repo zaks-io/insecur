@@ -2,6 +2,7 @@ import { withTenantScope } from "@insecur/tenant-store";
 import { RETRYABLE_OPERATION_STATES } from "./operation-states.js";
 import { OPERATION_ERROR_CODES } from "./operation-errors.js";
 import type { OperationMutationResult, RetryOperationInput } from "./operation-types.js";
+import { toOperationPollResult } from "./operation-row.js";
 import { TenantOperationStore } from "./tenant-operation-store.js";
 
 /**
@@ -36,7 +37,7 @@ export async function retryOperation(input: RetryOperationInput): Promise<Operat
             }),
       });
 
-      return { operation, created: false };
+      return { operation: toOperationPollResult(operation), created: false };
     },
   );
 }
