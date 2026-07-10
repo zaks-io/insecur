@@ -1,4 +1,8 @@
-import { runBackupExport, type BackupExportStorage } from "@insecur/backup-restore";
+import {
+  BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY,
+  runBackupExport,
+  type BackupExportStorage,
+} from "@insecur/backup-restore";
 import { SecretsStoreRootKeyProvider } from "@insecur/crypto";
 import * as Sentry from "@sentry/cloudflare";
 import { runWithRuntimeConnection } from "@insecur/tenant-store";
@@ -10,10 +14,19 @@ import { instrumentRuntimeSql } from "../sentry-postgres.js";
 function createR2BackupExportStorage(bucket: R2Bucket): BackupExportStorage {
   return {
     async putArtifact(key, body) {
-      await bucket.put(key, body);
+      const written = await bucket.put(key, body, { onlyIf: { etagDoesNotMatch: "*" } });
+      if (written === null) {
+        throw new Error(`immutable backup artifact already exists at ${key}`);
+      }
     },
     async putEvidence(key, body) {
-      await bucket.put(key, body);
+      const written = await bucket.put(key, body, { onlyIf: { etagDoesNotMatch: "*" } });
+      if (written === null) {
+        throw new Error(`immutable backup evidence already exists at ${key}`);
+      }
+    },
+    async putLatestEvidence(body) {
+      await bucket.put(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, body);
     },
   };
 }

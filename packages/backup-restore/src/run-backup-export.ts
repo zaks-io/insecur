@@ -13,20 +13,24 @@ import {
   type OperationMutationResult,
 } from "@insecur/operations";
 
-import { openBackupArtifact, sealBackupArtifact } from "./backup-envelope.js";
-import { validateBackupEncryptionConfig } from "./backup-encryption-config.js";
-import { writeBackupExportArtifacts, type BackupExportStorage } from "./backup-export-storage.js";
+import { publishLatestBackupExport, type BackupExportStorage } from "./backup-export-storage.js";
 import { buildBackupExportIdempotencyKey } from "./build-backup-idempotency-key.js";
 import {
   buildInstanceScopeJsonlLines,
   buildOrganizationScopeJsonlLines,
   concatJsonlLines,
 } from "./build-backup-jsonl-payload.js";
-import { buildExportSuccessEvidence } from "./build-export-success-evidence.js";
 import { RECOVERY_CANARY_ORGANIZATION_ID } from "./constants.js";
 import { enumerateOrganizationIds } from "./enumerate-organization-ids.js";
 import { resolveExportInstanceId } from "./resolve-export-instance-id.js";
+import {
+  sealAndStoreBackupArtifact,
+  type BackupExportStep,
+  type OnBackupExportStepCompleted,
+} from "./seal-and-store-backup-artifact.js";
 import type { BackupExportOrganizationSnapshot, BackupExportSuccessEvidence } from "./types.js";
+
+export type { BackupExportStep };
 
 export interface RunBackupExportInput {
   scheduledAt: Date;
@@ -36,6 +40,7 @@ export interface RunBackupExportInput {
   instanceId?: string;
   rootKeyVersion?: number;
   onExportFailureAlert?: () => void;
+  onStepCompleted?: OnBackupExportStepCompleted;
 }
 
 export interface RunBackupExportResult {
@@ -88,46 +93,6 @@ async function recordBackupExportAuditEvent(input: {
   });
 }
 
-async function sealAndStoreBackupArtifact(input: {
-  instanceId: string;
-  exportTimestamp: string;
-  instanceSnapshotAt: string;
-  rootKeyBytes: Uint8Array;
-  rootKeyVersion: number;
-  organizationSnapshots: BackupExportOrganizationSnapshot[];
-  jsonlPayload: Uint8Array;
-  storage: BackupExportStorage;
-  operationId: OperationId;
-}): Promise<BackupExportSuccessEvidence> {
-  const sealedArtifact = await sealBackupArtifact({
-    instanceId: input.instanceId,
-    exportTimestamp: input.exportTimestamp,
-    instanceSnapshotAt: input.instanceSnapshotAt,
-    rootKeyBytes: input.rootKeyBytes,
-    rootKeyVersion: input.rootKeyVersion,
-    jsonlPayload: input.jsonlPayload,
-    organizationSnapshots: input.organizationSnapshots,
-  });
-
-  const opened = await openBackupArtifact({
-    instanceId: input.instanceId,
-    rootKeyBytes: input.rootKeyBytes,
-    sealedBytes: sealedArtifact,
-  });
-  const encryptionCheck = validateBackupEncryptionConfig(opened.header, input.exportTimestamp);
-  const exportEvidence = buildExportSuccessEvidence({
-    instanceId: input.instanceId,
-    exportTimestamp: input.exportTimestamp,
-    rootKeyVersion: input.rootKeyVersion,
-    organizationCount: input.organizationSnapshots.length,
-    operationId: input.operationId,
-    encryptionVerified: encryptionCheck.status === "passed",
-  });
-
-  await writeBackupExportArtifacts(input.storage, { sealedArtifact, exportEvidence });
-  return exportEvidence;
-}
-
 async function markBackupExportFailed(input: {
   organizationId: OrganizationId;
   operationId?: OperationId;
@@ -164,6 +129,7 @@ async function executeBackupExport(input: {
   rootKeyVersion: number;
   storage: BackupExportStorage;
   instanceId?: string;
+  onStepCompleted?: OnBackupExportStepCompleted;
 }): Promise<RunBackupExportResult> {
   await transitionOperation({
     organizationId: input.organizationId,
@@ -179,6 +145,7 @@ async function executeBackupExport(input: {
     await buildBackupJsonlPayload(organizationIds);
 
   const exportEvidence = await sealAndStoreBackupArtifact({
+    exportIdentity: input.idempotencyKey,
     instanceId,
     exportTimestamp,
     instanceSnapshotAt,
@@ -188,6 +155,7 @@ async function executeBackupExport(input: {
     jsonlPayload,
     storage: input.storage,
     operationId: input.operationId,
+    ...(input.onStepCompleted ? { onStepCompleted: input.onStepCompleted } : {}),
   });
 
   const audit = await recordBackupExportAuditEvent({
@@ -195,6 +163,7 @@ async function executeBackupExport(input: {
     operationId: input.operationId,
     succeeded: true,
   });
+  await input.onStepCompleted?.("audit_recorded");
 
   const succeeded = await transitionOperation({
     organizationId: input.organizationId,
@@ -203,6 +172,7 @@ async function executeBackupExport(input: {
     idempotencyKey: input.idempotencyKey,
     progress: { auditEventIds: [audit.auditEventId] },
   });
+  await publishLatestBackupExport(input.storage, exportEvidence);
 
   return {
     created: true,
@@ -242,6 +212,7 @@ export async function runBackupExport(input: RunBackupExportInput): Promise<RunB
       rootKeyVersion,
       storage: input.storage,
       ...(input.instanceId ? { instanceId: input.instanceId } : {}),
+      ...(input.onStepCompleted ? { onStepCompleted: input.onStepCompleted } : {}),
     });
   } catch (error) {
     await markBackupExportFailed({
