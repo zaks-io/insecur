@@ -112,6 +112,9 @@ export function parseDerivedAgentSessionPolicy(body: unknown): DerivedAgentSessi
   if (environmentIdValue !== undefined && projectIdValue === undefined) {
     return invalid("environmentId requires projectId.");
   }
+  if (projectIdValue !== undefined && organizationIdValue === undefined) {
+    return invalid("projectId requires organizationId.");
+  }
   return buildPolicy({
     credentialScopes,
     organizationId: organizationIdValue,

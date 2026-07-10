@@ -1,4 +1,12 @@
-import { INJECTION_ERROR_CODES, userId } from "@insecur/domain";
+import { AUTHORIZATION_SCOPES, resolveEffectiveAccess } from "@insecur/access";
+import {
+  environmentId,
+  INJECTION_ERROR_CODES,
+  membershipId,
+  organizationId,
+  projectId,
+  userId,
+} from "@insecur/domain";
 import {
   INSECUR_RUNTIME_TOKEN_AUDIENCE,
   mintScopedAccessToken,
@@ -22,9 +30,9 @@ const actor: UserActor = {
   sessionId: "session_01test",
 };
 
-async function mintRuntimeToken(): Promise<string> {
+async function mintRuntimeToken(tokenActor: UserActor = actor): Promise<string> {
   const minted = await mintScopedAccessToken({
-    actor,
+    actor: tokenActor,
     audience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
     signingSecret: RUNTIME_TOKEN_SIGNING_SECRET,
   });
@@ -45,6 +53,51 @@ describe("withRuntimeRpcEntry", () => {
     expect(result).toEqual({
       ok: true,
       value: { echoedUserId: actor.userId },
+    });
+  });
+
+  it("enforces task-scoped user bounds after the Runtime hop", async () => {
+    const organization = organizationId.brand("org_00000000000000000000000001");
+    const project = projectId.brand("prj_00000000000000000000000001");
+    const environment = environmentId.brand("env_00000000000000000000000001");
+    const otherEnvironment = environmentId.brand("env_00000000000000000000000002");
+    const scopedActor: UserActor = {
+      ...actor,
+      credentialScopes: [AUTHORIZATION_SCOPES.secretRead],
+      tokenScope: { organizationId: organization, projectId: project, environmentId: environment },
+    };
+    const loadMemberships = async () => [
+      {
+        membershipId: membershipId.brand("mem_00000000000000000000000001"),
+        organizationId: organization,
+        projectId: null,
+        userId: actor.userId,
+        rolePreset: "owner",
+      },
+    ];
+
+    const result = await withRuntimeRpcEntry(
+      { env, actorToken: await mintRuntimeToken(scopedActor) },
+      async ({ accessActor }) => ({
+        inScope: await resolveEffectiveAccess(
+          accessActor,
+          { organizationId: organization, projectId: project, environmentId: environment },
+          { loadMemberships },
+        ),
+        outsideEnvironment: await resolveEffectiveAccess(
+          accessActor,
+          { organizationId: organization, projectId: project, environmentId: otherEnvironment },
+          { loadMemberships },
+        ),
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        inScope: { organizationId: organization, scopes: [AUTHORIZATION_SCOPES.secretRead] },
+        outsideEnvironment: { organizationId: organization, scopes: [] },
+      },
     });
   });
 

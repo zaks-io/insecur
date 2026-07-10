@@ -28,6 +28,9 @@ describe("parseDerivedAgentSessionPolicy", () => {
       "Invalid projectId",
     );
     expect(() =>
+      parseDerivedAgentSessionPolicy({ projectId: "prj_00000000000000000000000001" }),
+    ).toThrow("projectId requires organizationId");
+    expect(() =>
       parseDerivedAgentSessionPolicy({ environmentId: "env_00000000000000000000000001" }),
     ).toThrow("environmentId requires projectId");
   });
