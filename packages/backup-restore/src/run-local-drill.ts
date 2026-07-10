@@ -56,6 +56,7 @@ async function executeBackupFixtureSelfTest(
   const sealed = await sealBackupArtifact({
     instanceId,
     exportTimestamp,
+    instanceSnapshotAt: exportTimestamp,
     rootKeyBytes,
     jsonlPayload,
     organizationSnapshots: [

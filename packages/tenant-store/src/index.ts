@@ -5,6 +5,7 @@ export {
   type ServiceTenantScope,
   type TenantScopedCallback,
   type TenantScopedHandles,
+  type TenantScopeTransactionOptions,
   withTenantScope,
 } from "./with-tenant-scope.js";
 export type { TenantScopedSql } from "./tenant-scoped-sql.js";
