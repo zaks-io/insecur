@@ -6,10 +6,10 @@ import { SecurityPage } from "./security.js";
 import { TermsPage } from "./terms.js";
 
 // These guard that the three long-form public pages render without throwing (catches broken
-// imports/JSX/route wiring) and that the two load-bearing claims survive edits: Terms warns this is
-// pre-alpha and will change, and the security page states the honest boundary rather than a
-// zero-knowledge overclaim. They deliberately do not police individual copy words — the prose is
-// expected to churn.
+// imports/JSX/route wiring) and that the load-bearing claims survive edits: Terms warns this is
+// pre-alpha and will change, Privacy names the Turnstile subprocessor disclosure, and Security
+// states the honest boundary rather than a zero-knowledge overclaim. They deliberately do not
+// police other individual copy words — the prose is expected to churn.
 
 describe("public legal + posture pages", () => {
   it("renders the terms page with its pre-alpha warning", () => {
@@ -19,9 +19,11 @@ describe("public legal + posture pages", () => {
     expect(markup).toContain("will change");
   });
 
-  it("renders the privacy page", () => {
+  it("renders the privacy page with the Turnstile disclosure", () => {
     const markup = renderToStaticMarkup(<PrivacyPage />);
     expect(markup).toContain("Privacy policy");
+    expect(markup).toContain("Cloudflare Turnstile");
+    expect(markup).toContain('href="https://www.cloudflare.com/en-gb/turnstile-privacy-policy/"');
   });
 
   it("renders the security page stating the honest claim boundary", () => {
