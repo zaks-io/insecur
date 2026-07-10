@@ -55,6 +55,11 @@ jobs:
           workflow_config=false
           security_docs=false
 
+          # Capture the diff before iterating so errexit fails the job if git errors
+          # (process substitution would swallow the failure and short-circuit as
+          # docs-only). --no-renames keeps both endpoints of a rename classified.
+          changed_files="$(git diff --no-renames --name-only "${BASE_SHA}...HEAD")"
+
           while IFS= read -r file_path; do
             [ -z "$file_path" ] && continue
             case "$file_path" in
@@ -102,7 +107,7 @@ jobs:
                 db_backed=true
                 ;;
             esac
-          done < <(git diff --name-only "${BASE_SHA}...HEAD")
+          done <<< "$changed_files"
 
           {
             echo "db_backed=$db_backed"
@@ -178,6 +183,10 @@ jobs:
           if [ "${{ needs.changes.outputs.product_code }}" != "true" ]; then
             pnpm exec prettier --check ".github/workflows/*.{yml,yaml}" ".github/actions/**/*.{yml,yaml}" ".github/actionlint.yaml"
             pnpm conformance:actions-pin
+            # Workflow-only PRs skip Product checks (verify:policy), so run the script
+            # suite here: it holds the path-classifier and workflow regression tests
+            # that guard against exactly this class of change (INS-587).
+            pnpm test:scripts
           fi
           bash scripts/ci/install-actionlint.sh
           actionlint -color
