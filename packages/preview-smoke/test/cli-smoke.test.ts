@@ -16,10 +16,11 @@ const CLI_RUN_ENVELOPE = {
   meta: { requestId: "req_1" },
 };
 
-// The `run` command inherits the child's stdio, so real preview stdout is the
-// child proof JSON followed by the CLI `--json` success envelope.
-function fixtureStdout(childProof: Record<string, unknown>): string {
-  return `${JSON.stringify(childProof)}\n${JSON.stringify(CLI_RUN_ENVELOPE)}\n`;
+// With `--json`, `insecur run` keeps stdout a pure control channel and routes
+// child stdout to the CLI's stderr (docs/cli-and-sync.md, INS-590). Real
+// preview stderr is the child's marker lines interleaved with its proof JSON.
+function fixtureRunStderr(childProof: Record<string, unknown>): string {
+  return `child stdout marker line\nchild stderr marker line\n${JSON.stringify(childProof)}\n`;
 }
 
 const OBSERVED_PROOF = { ok: true, checked: PROOF_VARIABLE_KEY, proof: "hmac-challenge" };
@@ -29,9 +30,12 @@ const NOT_OBSERVED_PROOF = {
   reason: "missing_or_too_short",
 };
 
-describe("run-step stdout parsing", () => {
-  it("parses the CLI envelope as the LAST JSON object on stdout", () => {
-    const body = parseLastCliSmokeJson(fixtureStdout(OBSERVED_PROOF), "CLI run");
+describe("run-step output parsing", () => {
+  it("parses the CLI envelope as the LAST JSON object in mixed output", () => {
+    const body = parseLastCliSmokeJson(
+      `remediation prose line\n${JSON.stringify(CLI_RUN_ENVELOPE)}\n`,
+      "CLI run",
+    );
     expect(body).toEqual(CLI_RUN_ENVELOPE);
     assertCliSmokeSuccess(body, "CLI run");
     assertCliRunChildExitCode(body, "CLI run");
@@ -58,18 +62,22 @@ describe("run-step stdout parsing", () => {
 
 describe("child sentinel-observation assertion is LIVE", () => {
   it("PASSES when the fixture shows the sentinel was observed", () => {
-    const stdout = fixtureStdout(OBSERVED_PROOF);
-    const childProof = parseCliRunChildProof(stdout, "CLI run");
+    const childProof = parseCliRunChildProof(fixtureRunStderr(OBSERVED_PROOF), "CLI run");
     expect(childProof).toEqual(OBSERVED_PROOF);
     assertCliRunChildObservedSentinel(childProof, "CLI run");
   });
 
   it("FAILS when the fixture shows the sentinel was NOT observed", () => {
-    const stdout = fixtureStdout(NOT_OBSERVED_PROOF);
-    const childProof = parseCliRunChildProof(stdout, "CLI run");
+    const childProof = parseCliRunChildProof(fixtureRunStderr(NOT_OBSERVED_PROOF), "CLI run");
     expect(() => {
       assertCliRunChildObservedSentinel(childProof, "CLI run");
     }).toThrow(/child proof ok/);
+  });
+
+  it("throws when the routed child output carries no proof JSON", () => {
+    expect(() => parseCliRunChildProof("marker only\n", "CLI run")).toThrow(
+      /emitted no JSON proof in routed child output/,
+    );
   });
 });
 
