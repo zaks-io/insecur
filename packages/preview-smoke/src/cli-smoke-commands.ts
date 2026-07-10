@@ -132,6 +132,27 @@ export function buildCliAgentRegisterArgs(): readonly string[] {
   return ["agent", "register"];
 }
 
-export function buildCliWhoamiArgs(): readonly string[] {
-  return ["whoami"];
+export function buildCliWhoamiArgs(agentTag?: string): readonly string[] {
+  return agentTag === undefined ? ["whoami"] : ["whoami", "--agent", agentTag];
+}
+
+export function buildCliRuntimeInvariantRunArgs(input: {
+  readonly childScript: string;
+  readonly stdoutMarker: string;
+  readonly stderrMarker: string;
+  readonly absentVariableKey: string;
+}): readonly string[] {
+  return [
+    "run",
+    "--variable-key",
+    PROOF_VARIABLE_KEY,
+    "--",
+    process.execPath,
+    "--input-type=module",
+    "--eval",
+    input.childScript,
+    input.stdoutMarker,
+    input.stderrMarker,
+    input.absentVariableKey,
+  ];
 }

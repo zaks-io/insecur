@@ -1,4 +1,4 @@
-import type { Command } from "commander";
+import type { Command, Option } from "commander";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,6 +13,7 @@ import {
   buildCliRunPoliciesCreateArgs,
   buildCliRunPoliciesDisableArgs,
   buildCliRunPoliciesShowArgs,
+  buildCliRuntimeInvariantRunArgs,
   buildCliSecretsSetGenerateArgs,
   buildCliSecretsSetValueStdinArgs,
   buildCliSecretsVersionsArgs,
@@ -67,33 +68,55 @@ function allowsExcessArguments(command: Command): boolean {
 }
 
 /**
- * Splits the tokens after the resolved command into positional operands, validating
- * every `--flag` against the command's registered options and consuming option
- * values the way commander does.
+ * Looks a `--flag` token up on the resolved command and then up its parent chain,
+ * because commander (with positional options off, this CLI's mode) also recognizes
+ * program-level globals such as `--agent` after a subcommand name.
  */
-function collectOperands(resolved: ResolvedCommand): string[] {
+function findOption(command: Command, token: string): Option | undefined {
+  for (let current: Command | null = command; current !== null; current = current.parent) {
+    const option = current.options.find(
+      (candidate) => candidate.long === token || candidate.short === token,
+    );
+    if (option !== undefined) {
+      return option;
+    }
+  }
+  return undefined;
+}
+
+interface ParsedTokens {
+  readonly operands: readonly string[];
+  readonly seenOptions: ReadonlySet<Option>;
+}
+
+/**
+ * Splits the tokens after the resolved command into positional operands, validating
+ * every `--flag` against the command's registered options (and its ancestors'
+ * globals) and consuming option values the way commander does.
+ */
+function collectOperands(resolved: ResolvedCommand): ParsedTokens {
   const operands: string[] = [];
+  const seenOptions = new Set<Option>();
   const tokens = [...resolved.rest];
   while (tokens.length > 0) {
     const token = tokens.shift();
     if (token === undefined || token === "--") {
       // Everything after the separator is the child command; commander does not
       // parse it against this command's grammar.
-      return operands;
+      return { operands, seenOptions };
     }
     if (!token.startsWith("-")) {
       operands.push(token);
       continue;
     }
-    const option = resolved.command.options.find(
-      (candidate) => candidate.long === token || candidate.short === token,
-    );
+    const option = findOption(resolved.command, token);
     if (option === undefined) {
       if (allowsUnknownTokens(resolved.command)) {
         continue;
       }
       throw new Error(`unknown option ${token} for \`${resolved.command.name()}\``);
     }
+    seenOptions.add(option);
     if (option.required && (tokens.length === 0 || tokens[0] === "--")) {
       throw new Error(`option ${token} is missing its required value`);
     }
@@ -102,12 +125,12 @@ function collectOperands(resolved: ResolvedCommand): string[] {
       tokens.shift();
     }
   }
-  return operands;
+  return { operands, seenOptions };
 }
 
 function assertParses(program: Command, args: readonly string[]): void {
   const resolved = resolveCommand(program, args);
-  const operands = collectOperands(resolved);
+  const { operands, seenOptions } = collectOperands(resolved);
   const registered = resolved.command.registeredArguments;
   const required = registered.filter((argument) => argument.required).length;
   const variadic = registered.some((argument) => argument.variadic);
@@ -121,11 +144,22 @@ function assertParses(program: Command, args: readonly string[]): void {
   ) {
     throw new Error(`\`${args.join(" ")}\` has excess arguments`);
   }
+  // A mandatory option with a default is satisfied even when absent; every other
+  // `requiredOption` must appear in the argv or the live CLI would exit with
+  // "required option ... not specified".
+  const missing = resolved.command.options.filter(
+    (option) => option.mandatory && option.defaultValue === undefined && !seenOptions.has(option),
+  );
+  if (missing.length > 0) {
+    const flags = missing.map((option) => option.long ?? option.short ?? option.name());
+    throw new Error(`\`${args.join(" ")}\` is missing required option(s) ${flags.join(", ")}`);
+  }
 }
 
 const SMOKE_ARGVS: readonly (readonly [string, readonly string[]])[] = [
   ["init", ["init"]],
   ["whoami", buildCliWhoamiArgs()],
+  ["whoami --agent (tag-only attribution)", buildCliWhoamiArgs("smoke-tag")],
   ["orgs list", ["orgs", "list"]],
   ["projects list", ["projects", "list"]],
   ["envs list", ["envs", "list"]],
@@ -140,6 +174,15 @@ const SMOKE_ARGVS: readonly (readonly [string, readonly string[]])[] = [
   ["secrets set --generate", buildCliSecretsSetGenerateArgs({ variableKey: "GENERATED_KEY" })],
   ["secrets versions", buildCliSecretsVersionsArgs("sec_0000000000000000")],
   ["run (first value)", buildCliFirstValueRunArgs("/tmp/verify.mjs")],
+  [
+    "run (runtime invariants)",
+    buildCliRuntimeInvariantRunArgs({
+      absentVariableKey: "INSECUR_SMOKE_GENERATED_SECRET",
+      childScript: "process.exit(0);",
+      stderrMarker: "STDERR_MARKER",
+      stdoutMarker: "STDOUT_MARKER",
+    }),
+  ],
   ["audit tail", buildCliAuditTailArgs()],
   ["audit export", buildCliAuditExportArgs("2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z")],
   [
@@ -190,5 +233,24 @@ describe("preview-smoke CLI argv builders match the registered CLI surface", () 
     expect(() => {
       assertParses(program, ["secrets", "versions"]);
     }).toThrow(/missing required arguments/);
+  });
+
+  it("the validator itself rejects an argv that drops a requiredOption", () => {
+    expect(() => {
+      assertParses(program, [
+        "run-policies",
+        "create",
+        "--policy-id",
+        "rp_0000000000000000",
+        "--command",
+        "node app.js",
+      ]);
+    }).toThrow(/missing required option\(s\) --secret-ids/);
+  });
+
+  it("global-option awareness is not a blanket allow for unknown flags", () => {
+    expect(() => {
+      assertParses(program, ["whoami", "--not-a-real-flag"]);
+    }).toThrow(/unknown option --not-a-real-flag/);
   });
 });

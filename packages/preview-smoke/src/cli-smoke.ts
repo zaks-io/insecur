@@ -16,6 +16,7 @@ export {
   buildCliRunPoliciesCreateArgs,
   buildCliRunPoliciesDisableArgs,
   buildCliRunPoliciesShowArgs,
+  buildCliRuntimeInvariantRunArgs,
   buildCliSecretsSetGenerateArgs,
   buildCliSecretsSetValueStdinArgs,
   buildCliSecretsVersionsArgs,
