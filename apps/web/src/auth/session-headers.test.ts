@@ -1,4 +1,4 @@
-import { authFailureForReason, WORKOS_SESSION_COOKIE } from "@insecur/auth";
+import { authFailureForReason, INSECUR_CSRF_COOKIE, WORKOS_SESSION_COOKIE } from "@insecur/auth";
 import { userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import type { ResolveBrowserActorResult } from "./resolve-browser-actor.js";
@@ -18,7 +18,7 @@ describe("browserSessionCookieHeadersFromResolveResult", () => {
 
     expect(headers).toHaveLength(2);
     expect(headers.some((header) => header.includes(`${WORKOS_SESSION_COOKIE}=`))).toBe(true);
-    expect(headers.some((header) => header.includes("insecur_csrf="))).toBe(true);
+    expect(headers.some((header) => header.includes(`${INSECUR_CSRF_COOKIE}=`))).toBe(true);
   });
 
   it("returns no headers for failures that must keep the cookie", () => {

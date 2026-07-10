@@ -31,10 +31,22 @@ function formatSameSite(value: SessionCookieAttributes["sameSite"]): string {
 }
 
 /**
+ * `__Host-` names are only honored by browsers when the cookie is Secure with Path=/ and no
+ * Domain attribute. The formatters never emit Domain; this guard fails fast on the other two
+ * so a miswired attribute set cannot silently downgrade the host-only protection (INS-583).
+ */
+function assertHostOnlyAttributes(attributes: SessionCookieAttributes): void {
+  if (attributes.name.startsWith("__Host-") && (!attributes.secure || attributes.path !== "/")) {
+    throw new Error(`__Host- cookie "${attributes.name}" requires Secure and Path=/`);
+  }
+}
+
+/**
  * Formats a Set-Cookie header value without embedding secrets in logs.
  * Callers must not log the returned string when it carries session material.
  */
 export function formatSessionSetCookie(attributes: SessionCookieAttributes, value: string): string {
+  assertHostOnlyAttributes(attributes);
   const parts = [
     `${attributes.name}=${value}`,
     `Path=${attributes.path}`,
@@ -51,6 +63,7 @@ export function formatSessionSetCookie(attributes: SessionCookieAttributes, valu
 
 /** Clears a session cookie without logging prior values. */
 export function formatSessionClearCookie(attributes: SessionCookieAttributes): string {
+  assertHostOnlyAttributes(attributes);
   const parts = [
     `${attributes.name}=`,
     `Path=${attributes.path}`,
