@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "drill": "tsx src/cli.ts drill",
+    "fixture-self-test": "tsx src/cli.ts fixture-self-test",
     "verify-evidence": "tsx src/cli.ts verify-evidence",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run",

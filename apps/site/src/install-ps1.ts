@@ -2,7 +2,8 @@
 // Run with: irm https://insecur.cloud/install.ps1 | iex
 //
 // Parallel to install-sh.ts for the Windows .exe asset: downloads the binary,
-// verifies it against SHA256SUMS, installs to %LOCALAPPDATA%\\insecur\\bin,
+// verifies its checksum and GitHub build provenance, installs to
+// %LOCALAPPDATA%\\insecur\\bin,
 // and adds that dir to the user PATH if missing. Resolves "latest" via the
 // releases/latest/download/ redirect (no GitHub API). Honors
 // $env:INSECUR_CLI_VERSION (a cli-v* release tag), $env:INSECUR_INSTALL_DIR,
@@ -23,6 +24,14 @@ $Version = if ($env:INSECUR_CLI_VERSION) { $env:INSECUR_CLI_VERSION } else { 'la
 $InstallDir = if ($env:INSECUR_INSTALL_DIR) { $env:INSECUR_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'insecur\\bin' }
 
 function Fail($msg) { Write-Error "insecur: $msg"; exit 1 }
+
+if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+  Fail "GitHub CLI (gh) is required to verify build provenance; refusing to install"
+}
+& gh attestation --help *> $null
+if ($LASTEXITCODE -ne 0) {
+  Fail "GitHub CLI (gh) with attestation support is required to verify build provenance; update gh before installing"
+}
 
 # 32-bit PowerShell on 64-bit Windows reports x86; PROCESSOR_ARCHITEW6432 carries
 # the native architecture under WOW64, and the x64 binary runs fine there.
@@ -48,10 +57,12 @@ New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 try {
   $exePath = Join-Path $tmp $asset
   $sumsPath = Join-Path $tmp 'SHA256SUMS'
+  $bundlePath = Join-Path $tmp "$asset.intoto.jsonl"
 
   Write-Host "Downloading $asset ($Version)..."
   Invoke-WebRequest -Uri "$base/$asset" -OutFile $exePath -UseBasicParsing
   Invoke-WebRequest -Uri "$base/SHA256SUMS" -OutFile $sumsPath -UseBasicParsing
+  Invoke-WebRequest -Uri "$base/$asset.intoto.jsonl" -OutFile $bundlePath -UseBasicParsing
 
   Write-Host "Verifying checksum..."
   $want = $null
@@ -66,6 +77,12 @@ try {
   $got = (Get-FileHash -Algorithm SHA256 -Path $exePath).Hash.ToLowerInvariant()
   if ($want.ToLowerInvariant() -ne $got) {
     Fail "checksum mismatch for $asset\`n  expected $want\`n  got      $got"
+  }
+
+  Write-Host "Verifying GitHub build provenance..."
+  & gh attestation verify $exePath --bundle $bundlePath --repo $Repo --signer-workflow "$Repo/.github/workflows/cli-release.yml" | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    Fail "GitHub build provenance verification failed; refusing to install"
   }
 
   New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null

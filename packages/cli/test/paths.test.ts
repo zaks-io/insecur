@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveUserConfigHome } from "../src/config/paths.js";
+import { resolveUserConfigDir, resolveUserConfigHome } from "../src/config/paths.js";
 
 describe("resolveUserConfigHome", () => {
   const previous = {
@@ -37,5 +37,6 @@ describe("resolveUserConfigHome", () => {
     process.env.HOME = "/tmp/home-only";
     delete process.env.USERPROFILE;
     expect(resolveUserConfigHome()).toBe("/tmp/home-only");
+    expect(resolveUserConfigDir()).toBe("/tmp/home-only/.insecur");
   });
 });

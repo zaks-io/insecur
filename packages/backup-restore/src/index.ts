@@ -37,7 +37,9 @@ export {
 export {
   BACKUP_INSTANCE_EXPORT_TABLES,
   BACKUP_ORGANIZATION_EXPORT_TABLES,
+  BACKUP_EXPORT_EXCLUDED_TABLES,
   assertBackupExportTableName,
+  collectBackupExportCoverageViolations,
   type BackupExportTable,
 } from "./export-tables.js";
 export { enumerateOrganizationIds } from "./enumerate-organization-ids.js";
@@ -82,10 +84,10 @@ export {
   parseMetadataSafeBackupRestoreEvidence,
 } from "./assert-metadata-safe.js";
 export {
-  runLocalRestoreDrill,
+  runBackupFixtureSelfTest,
   backupRestoreEvidenceDocs,
-  type RunLocalRestoreDrillInput,
-  type RunLocalRestoreDrillResult,
+  type RunBackupFixtureSelfTestInput,
+  type RunBackupFixtureSelfTestResult,
 } from "./run-local-drill.js";
 export {
   verifyBackupRestoreEvidence,
@@ -94,6 +96,7 @@ export {
 } from "./verify-evidence.js";
 export type {
   BackupEncryptionConfigCheck,
+  BackupFixtureSelfTestEvidence,
   BackupExportHeader,
   BackupExportOrganizationSnapshot,
   BackupExportSuccessEvidence,

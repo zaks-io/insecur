@@ -3,6 +3,7 @@ import {
   createKeyring,
   decryptSecretValueForRuntime,
   encryptSecretValue,
+  type PlaintextHandle,
   type SecretCiphertextIdentity,
 } from "@insecur/crypto";
 
@@ -115,8 +116,9 @@ export async function verifyRecoveryCanaryFromCiphertext(input: {
     };
   }
 
+  let decrypted: PlaintextHandle | undefined;
   try {
-    const decrypted = await decryptSecretValueForRuntime(keyring, identity, {
+    decrypted = await decryptSecretValueForRuntime(keyring, identity, {
       ciphertext,
       organizationDataKeyVersion: 1,
       projectDataKeyVersion: 1,
@@ -135,6 +137,8 @@ export async function verifyRecoveryCanaryFromCiphertext(input: {
       scope,
       variable_key: RECOVERY_CANARY_VARIABLE_KEY,
     };
+  } finally {
+    decrypted?.unwrapUtf8().fill(0);
   }
 }
 
@@ -153,7 +157,10 @@ export async function buildRecoveryCanaryExportRow(
 ): Promise<RecoveryCanaryExportRow> {
   const keyring = createKeyring(rootKeyBytes);
   const identity = recoveryCanaryCiphertextIdentity();
-  const wrapped = await encryptSecretValue(keyring, identity, recoveryCanaryPlaintextBytes());
+  const plaintext = recoveryCanaryPlaintextBytes();
+  const wrapped = await encryptSecretValue(keyring, identity, plaintext).finally(() => {
+    plaintext.fill(0);
+  });
 
   return {
     table: "secret_versions",

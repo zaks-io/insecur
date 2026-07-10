@@ -43,18 +43,20 @@ export function verifyBackupRestoreEvidence(
 
   const exportRaw = readJsonFile(resolve(evidenceDir, "backup/export-success.json"));
   const drillRaw = readJsonFile(resolve(evidenceDir, "backup/restore-drill.json"));
+  const parsedExport = parseMetadataSafeBackupRestoreEvidence(
+    exportRaw,
+    parseExportSuccessEvidence,
+  );
 
   const exportFresh = hasMetadataSafetyViolations(exportRaw)
     ? evaluateBlockedBackupRestoreMetadataEvidence("backup_restore.export_fresh", now)
-    : evaluateExportFreshnessEvidence(
-        parseMetadataSafeBackupRestoreEvidence(exportRaw, parseExportSuccessEvidence),
-        now,
-      );
+    : evaluateExportFreshnessEvidence(parsedExport, now);
   const restoreDrill = hasMetadataSafetyViolations(drillRaw)
     ? evaluateBlockedBackupRestoreMetadataEvidence("backup_restore.drill", now)
     : evaluateRestoreDrillEvidence(
         parseMetadataSafeBackupRestoreEvidence(drillRaw, parseRestoreDrillEvidence),
         now,
+        hasMetadataSafetyViolations(exportRaw) ? null : parsedExport,
       );
   const ok = exportFresh.status === "passed" && restoreDrill.status === "passed";
 

@@ -46,3 +46,4 @@ export * from "./runtime-injection-policies/index.js";
 export * from "./webhooks/index.js";
 export * from "./secret-syncs/index.js";
 export * from "./approvals/index.js";
+export { SCHEMA_SHAPE_REGISTRY } from "./db/schema/schema-shape-registry.js";

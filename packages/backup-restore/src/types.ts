@@ -61,7 +61,22 @@ export interface RestoreDrillEvidence {
   canary_verification: RestoreDrillCanaryVerification;
   encryption_verified: boolean;
   artifact_ref: string;
-  restore_target_ref?: string;
+  source_artifact_kind: "scheduled_r2_export";
+  source_export_operation_id: string;
+  source_export_timestamp: string;
+  restore_target_ref: string;
+  restore_target_kind: "fresh_neon_project";
+  import_completed_at: string;
+  runtime_canary_verified_at: string;
+}
+
+export interface BackupFixtureSelfTestEvidence {
+  status: "passed" | "failed";
+  checked_at: string;
+  fixture_only: true;
+  encryption_verified: boolean;
+  canary_verified: boolean;
+  artifact_ref: string;
 }
 
 export interface BackupEncryptionConfigCheck {

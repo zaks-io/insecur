@@ -193,6 +193,31 @@ async function assertDeployedRuntimeConfig(
     name: "RUNTIME_TOKEN_SIGNING_SECRET",
     type: "secret_text",
   });
+
+  const desiredBackupBucket = only(config.r2_buckets, "r2_buckets");
+  assertBinding(bindings, {
+    name: desiredBackupBucket.binding,
+    type: "r2_bucket",
+    bucket_name: desiredBackupBucket.bucket_name,
+  });
+
+  const schedules = await cloudflareJson(
+    "GET",
+    `/accounts/${accountId}/workers/scripts/${scriptName}/schedules`,
+  );
+  assertDeployedCronSchedules(schedules, config.triggers?.crons);
+}
+
+export function assertDeployedCronSchedules(schedules, desiredCrons) {
+  if (!Array.isArray(desiredCrons) || desiredCrons.length === 0) {
+    throw new Error(
+      "Refusing content-only deploy: deploy config must declare backup cron triggers.",
+    );
+  }
+  const deployedCrons = Array.isArray(schedules)
+    ? schedules.map((schedule) => schedule.cron).filter(Boolean)
+    : [];
+  assertSetEqual(deployedCrons, desiredCrons, "cron schedules");
 }
 
 async function putScriptContent(cloudflareJson, accountId, scriptName, readFileFn) {

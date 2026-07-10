@@ -170,13 +170,16 @@ one.
 **Local Mode** (account-less local development custody; term owned by
 `docs/context/glossary/instance-onboarding.md`) is explicitly **not** no-reveal custody.
 Plaintext-at-rest never exists — values are encrypted — but the machine root key and ciphertext
-both live on the developer's machine (key in the OS keychain or a documented `0600` fallback
-file, ciphertext in the local store). The cooperative-agent path is the same diskless Runtime
+both live on the developer's machine (key in the OS credential store, ciphertext in the local
+store). Local Mode fails closed if that credential store is unavailable. An explicit
+`INSECUR_ALLOW_INSECURE_FILE_KEYSTORE=1` development opt-in stores a `0600` key beside the local
+ciphertext; a backup then contains both and has no key/ciphertext separation. The cooperative-agent path is the same diskless Runtime
 Injection surface: secrets load into a child process and never land in repo files, shell
 history, or agent transcripts. An adversarial process running as the **same OS user can read the
-local store** (key and ciphertext together) and is **not** claimed to be stopped. What Local
-Mode protects against is casual reach plus key/ciphertext separation so a synced or backed-up
-home directory exposes ciphertext only, not the key. Local Mode has no off-box audit trail and
+local store and access the user's credential store** and is **not** claimed to be stopped. Default
+Local Mode protects against casual reach plus key/ciphertext separation so a synced or backed-up
+config directory exposes ciphertext only, not the key. The insecure file opt-in does not make that
+claim. Local Mode has no off-box audit trail and
 no revocable injection grants. Its feature ceiling is fixed: **Protected Environments, Secret
 Sync, machine access, and Teams never exist in Local Mode** (nor Organizations, Users, or
 production delivery). Upgrade to a Hosted Instance when custody must live somewhere the agent

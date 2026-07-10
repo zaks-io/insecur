@@ -375,7 +375,6 @@ jobs:
           rm -f "$ASSET.zip"
 
       - name: Attest build provenance
-        if: github.event.repository.private == false
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-path: packages/cli/${{ matrix.asset }}
@@ -447,7 +446,6 @@ jobs:
         run: tar -czf dist-binaries/repo-security-attestation.tgz -C artifacts/security .
 
       - name: Export provenance sidecars
-        if: github.event.repository.private == false
         working-directory: dist-binaries
         shell: bash
         env:
@@ -552,11 +550,7 @@ jobs:
             "dist-binaries/insecur-darwin-arm64.intoto.jsonl"
             "dist-binaries/insecur-windows-x64.exe.intoto.jsonl"
           )
-          for provenance_asset in "${provenance_assets[@]}"; do
-            if [ -s "$provenance_asset" ]; then
-              release_assets+=("$provenance_asset")
-            fi
-          done
+          release_assets+=("${provenance_assets[@]}")
           for asset in "${release_assets[@]}"; do
             if [ ! -s "$asset" ]; then
               echo "::error::Expected release asset is missing or empty: $asset"

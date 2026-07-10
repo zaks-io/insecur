@@ -75,7 +75,10 @@ import {
   disableRuntimeInjectionPolicyRpc,
   getRuntimeInjectionPolicyRpc,
 } from "./runtime-run-policies-rpc-delegates.js";
-import type { RuntimePostAuthRpcHost } from "./runtime-service-delegated-post-auth-rpc-host.js";
+import {
+  RUNTIME_POST_AUTH_RPC,
+  type RuntimePostAuthRpcHost,
+} from "./runtime-service-delegated-post-auth-rpc-host.js";
 import { RuntimeServiceProtectedChangePostAuthRpc } from "./runtime-service-protected-change-post-auth-rpc.js";
 import {
   createWebhookSubscriptionRpc,
@@ -91,150 +94,150 @@ export type { RuntimePostAuthRpcHost } from "./runtime-service-delegated-post-au
 export const RuntimeServiceDelegatedPostAuthRpc = {
   ...RuntimeServiceProtectedChangePostAuthRpc,
   listProjects(this: RuntimePostAuthRpcHost, input: ListProjectsRpcInput) {
-    return listProjectsRpc(this.postAuthRpc(), input);
+    return listProjectsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   createProject(this: RuntimePostAuthRpcHost, input: CreateProjectRpcInput) {
-    return createProjectRpc(this.postAuthRpc(), input);
+    return createProjectRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listEnvironments(this: RuntimePostAuthRpcHost, input: ListEnvironmentsRpcInput) {
-    return listEnvironmentsRpc(this.postAuthRpc(), input);
+    return listEnvironmentsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   createEnvironment(this: RuntimePostAuthRpcHost, input: CreateEnvironmentRpcInput) {
-    return createEnvironmentRpc(this.postAuthRpc(), input);
+    return createEnvironmentRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listProjectSecrets(this: RuntimePostAuthRpcHost, input: ListProjectSecretsRpcInput) {
-    return listProjectSecretsRpc(this.postAuthRpc(), input);
+    return listProjectSecretsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listProjectMachineIdentities(
     this: RuntimePostAuthRpcHost,
     input: ListProjectMachineIdentitiesRpcInput,
   ) {
-    return listProjectMachineIdentitiesRpc(this.postAuthRpc(), input);
+    return listProjectMachineIdentitiesRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listProjectInjectionGrants(
     this: RuntimePostAuthRpcHost,
     input: ListProjectInjectionGrantsRpcInput,
   ) {
-    return listProjectInjectionGrantsRpc(this.postAuthRpc(), input);
+    return listProjectInjectionGrantsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listEnvironmentSecrets(this: RuntimePostAuthRpcHost, input: ListEnvironmentSecretsRpcInput) {
-    return listEnvironmentSecretsRpc(this.postAuthRpc(), input);
+    return listEnvironmentSecretsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listSecretVersions(this: RuntimePostAuthRpcHost, input: ListSecretVersionsRpcInput) {
-    return listSecretVersionsRpc(this.postAuthRpc(), input);
+    return listSecretVersionsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listSessionOrganizations(this: RuntimePostAuthRpcHost, input: ListSessionOrganizationsRpcInput) {
-    return listSessionOrganizationsRpc(this.postAuthRpc(), input);
+    return listSessionOrganizationsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   revokeCliSession(this: RuntimePostAuthRpcHost, input: RevokeCliSessionRpcInput) {
-    return revokeCliSessionRpc(this.postAuthRpc(), input);
+    return revokeCliSessionRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listOrganizationMembers(this: RuntimePostAuthRpcHost, input: ListOrganizationMembersRpcInput) {
-    return listOrganizationMembersRpc(this.postAuthRpc(), input);
+    return listOrganizationMembersRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listOrganizationInvitations(
     this: RuntimePostAuthRpcHost,
     input: ListOrganizationInvitationsRpcInput,
   ) {
-    return listOrganizationInvitationsRpc(this.postAuthRpc(), input);
+    return listOrganizationInvitationsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listAuditEvents(this: RuntimePostAuthRpcHost, input: ListAuditEventsRpcInput) {
-    return listAuditEventsRpc(this.postAuthRpc(), input);
+    return listAuditEventsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   exportTenantAudit(this: RuntimePostAuthRpcHost, input: ExportTenantAuditRpcInput) {
-    return exportTenantAuditRpc(this.postAuthRpc(), this.env, input);
+    return exportTenantAuditRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   listPendingHighAssuranceChallenges(
     this: RuntimePostAuthRpcHost,
     input: ListPendingHighAssuranceChallengesRpcInput,
   ) {
-    return listPendingHighAssuranceChallengesRpc(this.postAuthRpc(), input);
+    return listPendingHighAssuranceChallengesRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   getHighAssuranceChallenge(
     this: RuntimePostAuthRpcHost,
     input: GetHighAssuranceChallengeRpcInput,
   ) {
-    return getHighAssuranceChallengeRpc(this.postAuthRpc(), input);
+    return getHighAssuranceChallengeRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   clearHighAssuranceChallenge(
     this: RuntimePostAuthRpcHost,
     input: ClearHighAssuranceChallengeRpcInput,
   ) {
-    return clearHighAssuranceChallengeRpc(this.postAuthRpc(), input);
+    return clearHighAssuranceChallengeRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   denyHighAssuranceChallenge(
     this: RuntimePostAuthRpcHost,
     input: DenyHighAssuranceChallengeRpcInput,
   ) {
-    return denyHighAssuranceChallengeRpc(this.postAuthRpc(), input);
+    return denyHighAssuranceChallengeRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   createRuntimeInjectionPolicy(
     this: RuntimePostAuthRpcHost,
     input: CreateRuntimeInjectionPolicyRpcInput,
   ) {
-    return createRuntimeInjectionPolicyRpc(this.postAuthRpc(), input);
+    return createRuntimeInjectionPolicyRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   getRuntimeInjectionPolicy(
     this: RuntimePostAuthRpcHost,
     input: GetRuntimeInjectionPolicyRpcInput,
   ) {
-    return getRuntimeInjectionPolicyRpc(this.postAuthRpc(), input);
+    return getRuntimeInjectionPolicyRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   disableRuntimeInjectionPolicy(
     this: RuntimePostAuthRpcHost,
     input: DisableRuntimeInjectionPolicyRpcInput,
   ) {
-    return disableRuntimeInjectionPolicyRpc(this.postAuthRpc(), input);
+    return disableRuntimeInjectionPolicyRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   createWebhookSubscription(
     this: RuntimePostAuthRpcHost,
     input: CreateWebhookSubscriptionRpcInput,
   ) {
-    return createWebhookSubscriptionRpc(this.postAuthRpc(), this.env, input);
+    return createWebhookSubscriptionRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   listWebhookSubscriptions(this: RuntimePostAuthRpcHost, input: ListWebhookSubscriptionsRpcInput) {
-    return listWebhookSubscriptionsRpc(this.postAuthRpc(), this.env, input);
+    return listWebhookSubscriptionsRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   updateWebhookSubscription(
     this: RuntimePostAuthRpcHost,
     input: UpdateWebhookSubscriptionRpcInput,
   ) {
-    return updateWebhookSubscriptionRpc(this.postAuthRpc(), this.env, input);
+    return updateWebhookSubscriptionRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   deleteWebhookSubscription(
     this: RuntimePostAuthRpcHost,
     input: DeleteWebhookSubscriptionRpcInput,
   ) {
-    return deleteWebhookSubscriptionRpc(this.postAuthRpc(), this.env, input);
+    return deleteWebhookSubscriptionRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   rotateWebhookSigningSecret(
     this: RuntimePostAuthRpcHost,
     input: RotateWebhookSigningSecretRpcInput,
   ) {
-    return rotateWebhookSigningSecretRpc(this.postAuthRpc(), this.env, input);
+    return rotateWebhookSigningSecretRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   listWebhookEventCodes(this: RuntimePostAuthRpcHost, input: ListWebhookEventCodesRpcInput) {
-    return listWebhookEventCodesRpc(this.postAuthRpc(), this.env, input);
+    return listWebhookEventCodesRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   listAppConnections(this: RuntimePostAuthRpcHost, input: ListAppConnectionsRpcInput) {
-    return listAppConnectionsRpc(this.postAuthRpc(), this.env, input);
+    return listAppConnectionsRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   getAppConnectionStatus(this: RuntimePostAuthRpcHost, input: GetAppConnectionStatusRpcInput) {
-    return getAppConnectionStatusRpc(this.postAuthRpc(), this.env, input);
+    return getAppConnectionStatusRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   createAppConnection(this: RuntimePostAuthRpcHost, input: CreateAppConnectionRpcInput) {
-    return createAppConnectionRpc(this.postAuthRpc(), this.env, input);
+    return createAppConnectionRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   rotateAppConnectionCredential(
     this: RuntimePostAuthRpcHost,
     input: RotateAppConnectionCredentialRpcInput,
   ) {
-    return rotateAppConnectionCredentialRpc(this.postAuthRpc(), this.env, input);
+    return rotateAppConnectionCredentialRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   reauthAppConnection(this: RuntimePostAuthRpcHost, input: ReauthAppConnectionRpcInput) {
-    return reauthAppConnectionRpc(this.postAuthRpc(), this.env, input);
+    return reauthAppConnectionRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   disconnectAppConnection(this: RuntimePostAuthRpcHost, input: DisconnectAppConnectionRpcInput) {
-    return disconnectAppConnectionRpc(this.postAuthRpc(), this.env, input);
+    return disconnectAppConnectionRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
 } as const;

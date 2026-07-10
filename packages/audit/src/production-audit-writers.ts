@@ -6,9 +6,10 @@ import type {
   ProjectId,
   RequestId,
 } from "@insecur/domain";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 import { PRODUCTION_AUDIT_EVENT_CODES } from "./audit-event-codes.js";
 import { omitUndefinedFields } from "./optional-audit-fields.js";
-import { recordScopedAudit } from "./record-scoped-audit.js";
+import { recordScopedAudit, recordScopedAuditInTenantScope } from "./record-scoped-audit.js";
 import type { AuditActorRef, AuditResourceRef } from "./audit-types.js";
 import type { AuditEventResult } from "./write-audit-event.js";
 
@@ -101,6 +102,22 @@ function approvalEventCode(input: RecordApprovalAuditInput) {
   return APPROVAL_SUCCESS_EVENT_CODES[input.action];
 }
 
+function toApprovalScopedAuditInput(input: RecordApprovalAuditInput) {
+  return {
+    eventCode: approvalEventCode(input),
+    outcome: input.outcome,
+    actor: input.actor,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    ...omitUndefinedFields({
+      resource: input.resource,
+      requestId: input.requestId,
+      reasonCode: input.reasonCode,
+    }),
+  };
+}
+
 /**
  * Records metadata-only Secret Sync execution or revalidation audit events.
  *
@@ -152,17 +169,12 @@ export async function recordKeyCustodyAudit(
 export async function recordApprovalAudit(
   input: RecordApprovalAuditInput,
 ): Promise<AuditEventResult | undefined> {
-  return recordScopedAudit({
-    eventCode: approvalEventCode(input),
-    outcome: input.outcome,
-    actor: input.actor,
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    environmentId: input.environmentId,
-    ...omitUndefinedFields({
-      resource: input.resource,
-      requestId: input.requestId,
-      reasonCode: input.reasonCode,
-    }),
-  });
+  return recordScopedAudit(toApprovalScopedAuditInput(input));
+}
+
+export async function recordApprovalAuditInTenantScope(
+  sql: TenantScopedSql,
+  input: RecordApprovalAuditInput,
+): Promise<AuditEventResult> {
+  return recordScopedAuditInTenantScope(sql, toApprovalScopedAuditInput(input));
 }

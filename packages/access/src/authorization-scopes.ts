@@ -10,6 +10,7 @@ export const AUTHORIZATION_SCOPES = {
   runtimeInjectionGrantIssueProtected: "runtime_injection:grant_issue_protected",
   runtimeInjectionGrantConsume: "runtime_injection:grant_consume",
   runtimeInjectionRun: "runtime_injection:run",
+  operationCancel: "operation:cancel",
   organizationRead: "organization:read",
   projectRead: "project:read",
   environmentRead: "environment:read",

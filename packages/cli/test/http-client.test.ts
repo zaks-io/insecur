@@ -2,10 +2,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { INSECUR_SESSION_CREDENTIAL_HEADER } from "@insecur/auth";
 import { bytesToBase64Url } from "@insecur/domain";
 import { createHttpApiClientForHost } from "../src/api/http-client.js";
+import { postJson } from "../src/api/http-client-envelope.js";
 
 describe("createHttpApiClientForHost", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("rejects plaintext remote hosts at the HTTP boundary", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    expect(() => createHttpApiClientForHost("http://api.example.test")).toThrow(/must use HTTPS/);
+    await expect(
+      postJson(new URL("http://api.example.test/v1/session"), { method: "GET" }),
+    ).rejects.toThrow(/must use HTTPS/);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("builds the CLI PKCE authorization URL without fetching", () => {
@@ -82,6 +92,31 @@ describe("createHttpApiClientForHost", () => {
     }
   });
 
+  it("routes credentialed requests to the validated input host, not the factory host", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: { actor: { type: "user", userId: "user_123" } },
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createHttpApiClientForHost("https://default.test");
+
+    await client.sessionWhoami({
+      host: "https://profile.test",
+      bearerCredential: "credential_for_profile_host",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/v1/session/whoami", "https://profile.test"),
+      expect.objectContaining({ method: "GET" }),
+    );
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer credential_for_profile_host");
+  });
+
   it("adds Sentry distributed-trace headers to HTTP API requests", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -99,7 +134,10 @@ describe("createHttpApiClientForHost", () => {
       }),
     });
 
-    const result = await client.sessionWhoami({ bearerCredential: "credential_test" });
+    const result = await client.sessionWhoami({
+      host: "https://insecur.test",
+      bearerCredential: "credential_test",
+    });
 
     expect(result.ok).toBe(true);
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;

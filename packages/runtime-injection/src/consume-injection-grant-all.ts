@@ -1,7 +1,5 @@
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
-import type { AuditOperationRef, AuditRequestRef } from "@insecur/audit";
-import type { ActorRef } from "@insecur/access";
-import { recordRuntimeInjectionAudit } from "@insecur/audit";
+import { recordRuntimeInjectionAuditInTenantScope } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
   INJECTION_ERROR_CODES,
@@ -138,52 +136,42 @@ function requireLoadedPolicyGrant(
   return loaded;
 }
 
-async function recordConsumeAllSuccessAudit(input: {
-  readonly actor: ActorRef;
-  readonly organizationId: OrganizationId;
-  readonly grantId: InjectionGrantId;
-  readonly loaded: LoadedPolicyGrantBindings;
-  readonly request?: AuditRequestRef;
-  readonly operation?: AuditOperationRef;
-}): Promise<{ auditEventId?: string } | undefined> {
-  return recordRuntimeInjectionAudit({
-    phase: "consume",
-    outcome: "success",
-    actor: auditActorForConsume(input.actor),
-    organizationId: input.organizationId,
-    projectId: input.loaded.projectId,
-    environmentId: input.loaded.environmentId,
-    grantId: input.grantId,
-    ...(input.loaded.bindings[0]?.secretVersionId !== undefined
-      ? { deliveredSecretVersionId: input.loaded.bindings[0].secretVersionId }
-      : {}),
-    ...(input.request !== undefined ? { request: input.request } : {}),
-    ...(input.operation !== undefined ? { operation: input.operation } : {}),
-  });
-}
-
-async function consumeGrantAllOrClear(
+async function consumeGrantAllAndAudit(
   input: ConsumeInjectionGrantAllCoreInput,
-  entries: readonly ConsumedInjectionGrantEntry[],
-): Promise<void> {
-  const result = await withTenantScope(
+  loaded: LoadedPolicyGrantBindings,
+) {
+  return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    ({ db }) =>
-      new TenantInjectionGrantStore(db).tryConsumeGrantAll(input.organizationId, input.grantId),
-  );
-  if (result.ok) {
-    return;
-  }
-  for (const entry of entries) {
-    entry.valueUtf8.unwrapUtf8().fill(0);
-  }
-  throw new InjectionGrantError(
-    reasonCodeForConsumeFailure(result.reason),
-    "injection grant consume denied",
+    async ({ db, sql }) => {
+      const result = await new TenantInjectionGrantStore(db).tryConsumeGrantAll(
+        input.organizationId,
+        input.grantId,
+      );
+      if (!result.ok) {
+        throw new InjectionGrantError(
+          reasonCodeForConsumeFailure(result.reason),
+          "injection grant consume denied",
+        );
+      }
+      return recordRuntimeInjectionAuditInTenantScope(sql, {
+        phase: "consume",
+        outcome: "success",
+        actor: auditActorForConsume(input.actor),
+        organizationId: input.organizationId,
+        projectId: loaded.projectId,
+        environmentId: loaded.environmentId,
+        grantId: input.grantId,
+        ...(loaded.bindings[0]?.secretVersionId !== undefined
+          ? { deliveredSecretVersionId: loaded.bindings[0].secretVersionId }
+          : {}),
+        ...(input.request !== undefined ? { request: input.request } : {}),
+        ...(input.operation !== undefined ? { operation: input.operation } : {}),
+      });
+    },
   );
 }
 
-async function executeConsumeInjectionGrantAll(
+export async function executeConsumeInjectionGrantAll(
   input: ConsumeInjectionGrantAllCoreInput,
   loaded: LoadedPolicyGrantBindings | undefined,
 ): Promise<ConsumeInjectionGrantAllCoreResult> {
@@ -211,21 +199,15 @@ async function executeConsumeInjectionGrantAll(
     grants: policyGrant.bindings,
   });
 
-  await consumeGrantAllOrClear(input, entries);
-
-  const audit = await recordConsumeAllSuccessAudit({
-    actor: input.actor,
-    organizationId: input.organizationId,
-    grantId: input.grantId,
-    loaded: policyGrant,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-    ...(input.operation !== undefined ? { operation: input.operation } : {}),
-  });
-
-  return {
-    entries,
-    ...(audit?.auditEventId !== undefined ? { auditEventId: audit.auditEventId } : {}),
-  };
+  try {
+    const audit = await consumeGrantAllAndAudit(input, policyGrant);
+    return { entries, auditEventId: audit.auditEventId };
+  } catch (error) {
+    for (const entry of entries) {
+      entry.valueUtf8.unwrapUtf8().fill(0);
+    }
+    throw error;
+  }
 }
 
 export async function consumeInjectionGrantAllWithAudit(

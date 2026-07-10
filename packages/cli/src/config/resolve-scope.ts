@@ -10,6 +10,7 @@ import {
 import { resolveProfile } from "./profiles/resolve-profile.js";
 import type { InsecurProjectConfig } from "./project-config.js";
 import type { CliUserConfig, CliUserProfile } from "./user-config.js";
+import { parseApiHost } from "./api-host.js";
 
 export interface ResolvedCliScope {
   readonly host: string;
@@ -53,9 +54,10 @@ export function resolveCliScope(
       : {}),
   });
   const profile = resolvedProfile?.profile;
-  const host =
+  const host = parseApiHost(
     firstDefined(flags.host, readEnv("INSECUR_HOST"), projectConfig?.host, profile?.host) ??
-    DEFAULT_HOST;
+      DEFAULT_HOST,
+  );
   const orgId =
     flags.orgId ??
     parseOptionalOrganizationId(readEnv("INSECUR_ORG"), "INSECUR_ORG") ??

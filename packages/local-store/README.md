@@ -9,7 +9,7 @@ for insecur CLI workflows.
 - macOS Keychain adapter via `/usr/bin/security`.
 - Windows DPAPI adapter via built-in `powershell.exe`.
 - Linux `secret-tool` adapter when the binary is on `PATH`.
-- Documented `0600` file fallback under the insecur user config directory.
+- Explicit development-only `0600` file key-store opt-in under the insecur user config directory; never selected automatically.
 - Metadata-only file-fallback notice (`local_store.file_fallback_active`).
 - SQLite local store (`local-store.sqlite`) for Projects, Environments, Secret Shapes, and wrapped Current Versions only.
 - Local contract seams (`LocalSecretVersionStore`, `LocalInjectionGrantStore`, `LocalProjectMetadataStore`, `LocalAuditWriter`).

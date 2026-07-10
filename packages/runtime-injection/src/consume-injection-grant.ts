@@ -1,5 +1,9 @@
 import type { Keyring, PlaintextHandle } from "@insecur/crypto";
-import type { AuditOperationRef, AuditRequestRef } from "@insecur/audit";
+import {
+  recordRuntimeInjectionAuditInTenantScope,
+  type AuditOperationRef,
+  type AuditRequestRef,
+} from "@insecur/audit";
 import type { ActorRef } from "@insecur/access";
 import {
   AUTH_ERROR_CODES,
@@ -29,7 +33,6 @@ import { decryptBoundGrantSecretVersion } from "./decrypt-grant-secret.js";
 import { InjectionGrantError } from "./injection-grant-error.js";
 import type { InjectionGrantConsumeSelector } from "./injection-grant-selectors.js";
 import { matchConsumeSelectorToBinding } from "./match-consume-selector.js";
-import { recordRuntimeInjectionAudit } from "@insecur/audit";
 import type { GrantCoordinate } from "./resolve-injection-grant-bindings.js";
 import {
   actorMatchesGrantOwner,
@@ -67,6 +70,42 @@ export interface LoadedGrantBinding {
     secretVersionId: SecretVersionId;
     variableKey: VariableKey;
   };
+}
+
+async function consumeGrantAndRecordSuccess(
+  input: ConsumeInjectionGrantCoreInput,
+  loaded: LoadedGrantBinding,
+  identity: { readonly secretId: SecretId; readonly variableKey: VariableKey },
+) {
+  return withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    async ({ db, sql }) => {
+      const consumeResult = await new TenantInjectionGrantStore(db).tryConsumeGrant(
+        input.organizationId,
+        input.grantId,
+        identity.secretId,
+        identity.variableKey,
+      );
+      if (!consumeResult.ok) {
+        throw new InjectionGrantError(
+          reasonCodeForConsumeFailure(consumeResult.reason),
+          "injection grant consume denied",
+        );
+      }
+      return recordRuntimeInjectionAuditInTenantScope(sql, {
+        phase: "consume",
+        outcome: "success",
+        actor: auditActorForConsume(input.actor),
+        organizationId: input.organizationId,
+        projectId: loaded.projectId,
+        environmentId: loaded.environmentId,
+        grantId: input.grantId,
+        deliveredSecretVersionId: loaded.binding.secretVersionId,
+        ...(input.request !== undefined ? { request: input.request } : {}),
+        ...(input.operation !== undefined ? { operation: input.operation } : {}),
+      });
+    },
+  );
 }
 
 async function loadGrantBinding(
@@ -144,60 +183,20 @@ export async function executeConsumeInjectionGrant(
     secretVersionId: loaded.binding.secretVersionId,
   });
 
-  const consumeResult = await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    ({ db }) =>
-      new TenantInjectionGrantStore(db).tryConsumeGrant(
-        input.organizationId,
-        input.grantId,
-        identity.secretId,
-        identity.variableKey,
-      ),
-  );
-  if (!consumeResult.ok) {
-    plaintext.unwrapUtf8().fill(0);
-    throw new InjectionGrantError(
-      reasonCodeForConsumeFailure(consumeResult.reason),
-      "injection grant consume denied",
-    );
-  }
+  try {
+    const audit = await consumeGrantAndRecordSuccess(input, loaded, identity);
 
-  return buildConsumeSuccessResult(input, loaded, plaintext);
-}
-
-async function buildConsumeSuccessResult(
-  input: ConsumeInjectionGrantCoreInput,
-  loaded: {
-    projectId: ProjectId;
-    environmentId: EnvironmentId;
-    binding: {
-      secretId: SecretId;
-      secretVersionId: SecretVersionId;
-      variableKey: VariableKey;
+    return {
+      secretId: loaded.binding.secretId,
+      secretVersionId: loaded.binding.secretVersionId,
+      variableKey: loaded.binding.variableKey,
+      valueUtf8: plaintext,
+      auditEventId: audit.auditEventId,
     };
-  },
-  plaintext: PlaintextHandle,
-): Promise<ConsumeInjectionGrantCoreResult> {
-  const audit = await recordRuntimeInjectionAudit({
-    phase: "consume",
-    outcome: "success",
-    actor: auditActorForConsume(input.actor),
-    organizationId: input.organizationId,
-    projectId: loaded.projectId,
-    environmentId: loaded.environmentId,
-    grantId: input.grantId,
-    deliveredSecretVersionId: loaded.binding.secretVersionId,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-    ...(input.operation !== undefined ? { operation: input.operation } : {}),
-  });
-
-  return {
-    secretId: loaded.binding.secretId,
-    secretVersionId: loaded.binding.secretVersionId,
-    variableKey: loaded.binding.variableKey,
-    valueUtf8: plaintext,
-    ...(audit?.auditEventId !== undefined ? { auditEventId: audit.auditEventId } : {}),
-  };
+  } catch (error) {
+    plaintext.unwrapUtf8().fill(0);
+    throw error;
+  }
 }
 
 export async function recordDeniedConsume(

@@ -3,7 +3,10 @@ import {
   auditAccessDenialOnFailure,
   resolveEffectiveAccess,
 } from "@insecur/access";
-import { recordRuntimeInjectionAudit } from "@insecur/audit";
+import {
+  recordRuntimeInjectionAudit,
+  recordRuntimeInjectionAuditInTenantScope,
+} from "@insecur/audit";
 import { PlaintextHandle } from "@insecur/crypto";
 import {
   AUTH_ERROR_CODES,
@@ -67,8 +70,9 @@ const { tryConsumeGrant, getGrant, getBoundGrant, withTenantScope } = vi.hoisted
   tryConsumeGrant: vi.fn(),
   getGrant: vi.fn(),
   getBoundGrant: vi.fn(),
-  withTenantScope: vi.fn(async (_scope: unknown, fn: (ctx: { db: unknown }) => Promise<unknown>) =>
-    fn({ db: {} }),
+  withTenantScope: vi.fn(
+    async (_scope: unknown, fn: (ctx: { db: unknown; sql: unknown }) => Promise<unknown>) =>
+      fn({ db: {}, sql: {} }),
   ),
 }));
 
@@ -102,6 +106,7 @@ vi.mock("@insecur/access", async (importOriginal) => {
 
 vi.mock("@insecur/audit", () => ({
   recordRuntimeInjectionAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+  recordRuntimeInjectionAuditInTenantScope: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));
 
 vi.mock("../src/decrypt-grant-secret.js", () => ({
@@ -144,12 +149,17 @@ beforeEach(() => {
   plaintextHandle = new PlaintextHandle(new TextEncoder().encode("runtime-secret"));
   vi.mocked(resolveEffectiveAccess).mockReset();
   vi.mocked(recordRuntimeInjectionAudit).mockClear();
+  vi.mocked(recordRuntimeInjectionAuditInTenantScope).mockReset();
+  vi.mocked(recordRuntimeInjectionAuditInTenantScope).mockResolvedValue({
+    auditEventId: "aud_test",
+  });
   vi.mocked(auditAccessDenialOnFailure).mockClear();
   vi.mocked(decryptBoundGrantSecretVersion).mockReset();
   tryConsumeGrant.mockReset();
   getGrant.mockReset();
   getBoundGrant.mockReset();
-  withTenantScope.mockClear();
+  withTenantScope.mockReset();
+  withTenantScope.mockImplementation(async (_scope, callback) => callback({ db: {}, sql: {} }));
 
   vi.mocked(resolveEffectiveAccess).mockResolvedValue({
     scopes: [AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume],
@@ -362,7 +372,8 @@ describe("executeConsumeInjectionGrant", () => {
       loadedBinding,
     );
 
-    expect(recordRuntimeInjectionAudit).toHaveBeenCalledWith(
+    expect(recordRuntimeInjectionAuditInTenantScope).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         phase: "consume",
         outcome: "success",
@@ -374,13 +385,35 @@ describe("executeConsumeInjectionGrant", () => {
     );
   });
 
-  it("omits auditEventId when consume success audit returns no id", async () => {
-    vi.mocked(recordRuntimeInjectionAudit).mockResolvedValueOnce(undefined);
+  it("rolls back consume and clears plaintext when success audit insertion fails", async () => {
+    let staged = false;
+    let committed = false;
+    tryConsumeGrant.mockImplementation(async () => {
+      staged = true;
+      return { ok: true, grant: boundGrantFromRow() };
+    });
+    withTenantScope.mockImplementation(async (_scope, callback) => {
+      try {
+        const result = await callback({ db: {}, sql: {} });
+        committed = staged;
+        return result;
+      } catch (error) {
+        staged = false;
+        throw error;
+      }
+    });
+    vi.mocked(recordRuntimeInjectionAuditInTenantScope).mockRejectedValueOnce(
+      new Error("audit insert failed"),
+    );
 
-    const result = await executeConsumeInjectionGrant(baseInput, loadedBinding);
+    await expect(executeConsumeInjectionGrant(baseInput, loadedBinding)).rejects.toThrow(
+      "audit insert failed",
+    );
 
-    expect(result.auditEventId).toBeUndefined();
-    expect(result.valueUtf8).toBe(plaintextHandle);
+    expect(tryConsumeGrant).toHaveBeenCalledOnce();
+    expect(recordRuntimeInjectionAuditInTenantScope).toHaveBeenCalledOnce();
+    expect(committed).toBe(false);
+    expect(plaintextHandle.unwrapUtf8()).toEqual(new Uint8Array("runtime-secret".length));
   });
 
   it("returns bound metadata with a plaintext handle only (no rendered secret value field)", async () => {

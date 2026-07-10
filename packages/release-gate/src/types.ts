@@ -99,4 +99,11 @@ export const SMALL_GROUP_BACKUP_RESTORE_CONTROL_IDS = [
   "backup_restore.drill",
 ] as const;
 
+export const SMALL_GROUP_NO_PLAINTEXT_EXTERNAL_CONTROL_IDS = [
+  "no_plaintext.r2_backup",
+  "no_plaintext.worker_logs",
+  "no_plaintext.worker_traces",
+  "no_plaintext.api_analytics",
+] as const;
+
 export type SecurityCheckControlId = (typeof SECURITY_CHECK_CONTROL_IDS)[number];

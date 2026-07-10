@@ -19,7 +19,8 @@ canary verification path for production readiness gates.
 - Backup export envelope validation (instance-scoped, root-key wrapped DEK).
 - Recovery canary scope constants and metadata-only verification.
 - Restore drill and export freshness evidence shapes.
-- Local/CI restore drill command (`pnpm backup-restore:drill`).
+- Local/CI backup-envelope fixture self-test (`pnpm backup-restore:fixture-self-test`), which does
+  not produce release-gate evidence.
 
 ## Does Not Own
 

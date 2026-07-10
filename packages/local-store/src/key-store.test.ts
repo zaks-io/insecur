@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createFakeKeyStore } from "./fake-key-store.js";
+import { KEY_STORE_ERROR_CODES } from "./errors.js";
 import { createKeyStore, createKeyStoreFromAdapter } from "./key-store.js";
 import { FILE_FALLBACK_NOTICE } from "./notices.js";
 
@@ -38,11 +39,20 @@ describe("createKeyStore", () => {
     expect(keyStore.notice).toBeNull();
   });
 
-  it("uses file fallback with a notice when linux has no secret-tool", async () => {
+  it("fails closed when linux has no secret-tool", () => {
+    expect(() =>
+      createKeyStore({
+        platform: "linux",
+        env: { PATH: "/empty" },
+      }),
+    ).toThrow(expect.objectContaining({ code: KEY_STORE_ERROR_CODES.unavailable }));
+  });
+
+  it("uses file fallback with a notice after explicit insecure opt-in", async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-keystore-"));
     const keyStore = createKeyStore({
       platform: "linux",
-      env: { PATH: "/empty" },
+      env: { PATH: "/empty", INSECUR_ALLOW_INSECURE_FILE_KEYSTORE: "1" },
       configHome: tempDir,
       randomBytes: () => new Uint8Array(32).fill(0xab),
     });
@@ -96,7 +106,7 @@ describe("cross-instance key creation", () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-keystore-"));
     return {
       platform: "linux" as const,
-      env: { PATH: "/empty" },
+      env: { PATH: "/empty", INSECUR_ALLOW_INSECURE_FILE_KEYSTORE: "1" },
       configHome: tempDir,
       randomBytes,
     };

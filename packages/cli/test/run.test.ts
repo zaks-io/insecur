@@ -345,6 +345,45 @@ describe("runRunCommand", () => {
     ).rejects.toThrow("spawn ENOENT");
   });
 
+  it("rejects a NUL-bearing delivery before spawn without echoing the value", async () => {
+    const sentinel = "before-nul-sentinel\0after-nul-sentinel";
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi({
+      consumeInjectionGrant: vi.fn(async () => ({
+        ok: true as const,
+        envelope: {
+          ok: true as const,
+          delivery: {
+            grantId: GRANT_ID,
+            variableKey: "API_KEY" as never,
+            secretId: SECRET_ID,
+            secretVersionId: VERSION_ID,
+            encodedValueUtf8: bytesToBase64Url(new TextEncoder().encode(sentinel)),
+          },
+        },
+      })),
+    });
+
+    let thrown: unknown;
+    try {
+      await runRunCommand(flags, api, mockContext, {
+        variableKey: "API_KEY",
+        command: ["node", "-e", "0"],
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toMatchObject({ code: INJECTION_ERROR_CODES.decryptFailed });
+    expect(String(thrown)).not.toContain("before-nul-sentinel");
+    expect(String(thrown)).not.toContain("after-nul-sentinel");
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
   it("maps grant replay failures through exitCodeForErrorCode", async () => {
     setMemorySession({
       credential: "credential_test",

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { RUNTIME_POST_AUTH_RPC } from "./runtime-service-delegated-post-auth-rpc-host.js";
 
 const wrapRequestHandler = vi.hoisted(() =>
   vi.fn(
@@ -38,12 +39,13 @@ function makeHost(env: Record<string, string>) {
       return "not-an-rpc-method";
     }
 
-    postAuthRpc(): (input: { key: string }) => Promise<{ ok: true; key: string }> {
-      return async (input) => ({ ok: true, key: input.key });
-    }
+    [RUNTIME_POST_AUTH_RPC] = () => async (input: { key: string }) => ({
+      ok: true as const,
+      key: input.key,
+    });
 
     async delegatedViaPostAuth(input: { key: string }): Promise<{ ok: true; key: string }> {
-      const post = this.postAuthRpc();
+      const post = this[RUNTIME_POST_AUTH_RPC]();
       return post(input);
     }
   }
@@ -118,12 +120,10 @@ describe("runtime rpc tracing", () => {
     expect(result).toEqual({ ok: true, key: "k" });
   });
 
-  it("leaves the synchronous postAuthRpc seam unwrapped so delegated methods get a callable runner", async () => {
+  it("leaves the symbol-only post-auth seam unwrapped so delegates get a callable runner", async () => {
     const host = makeHost({ SENTRY_DSN: "https://public@example.ingest.sentry.io/1" });
 
-    // postAuthRpc must synchronously return the runner function even with Sentry enabled;
-    // wrapping it would hand every delegated post-auth RPC a Promise instead of a function.
-    const runner = host.postAuthRpc();
+    const runner = host[RUNTIME_POST_AUTH_RPC]();
     expect(typeof runner).toBe("function");
     expect(wrapRequestHandler).not.toHaveBeenCalled();
 

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -8,7 +8,7 @@ import {
   type EnvironmentId,
   type ProjectId,
 } from "@insecur/domain";
-import { createFakeKeyStore } from "@insecur/local-store";
+import { createFakeKeyStore, LOCAL_STORE_DB_FILE_NAME } from "@insecur/local-store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runInitCommand } from "../src/commands/init.js";
 import { runLocalInitCommand } from "../src/commands/init-local.js";
@@ -179,7 +179,13 @@ describe("local init", () => {
       { ...flags, configDir: projectDir },
       noopApi,
       mockContext,
-      { profileSlug: "local-dev" },
+      {
+        ...localInitOptions,
+        provision: {
+          ...localInitOptions.provision,
+          configHome: path.join(isolatedHome.homeDir, ".insecur"),
+        },
+      },
     );
 
     expect(exitCode).toBe(0);
@@ -188,5 +194,11 @@ describe("local init", () => {
     expect(configRaw).toContain('"host": "local"');
     expect(configRaw).toContain('"secretShapes"');
     expect(configRaw).not.toContain('"orgId"');
+    await expect(
+      stat(path.join(isolatedHome.homeDir, ".insecur", LOCAL_STORE_DB_FILE_NAME)),
+    ).resolves.toBeDefined();
+    await expect(
+      stat(path.join(isolatedHome.homeDir, LOCAL_STORE_DB_FILE_NAME)),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   });
 });

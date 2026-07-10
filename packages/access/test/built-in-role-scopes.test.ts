@@ -16,6 +16,7 @@ const APPROVAL_SCOPES = [
 const MUTATION_SCOPES = [
   AUTHORIZATION_SCOPES.onboardingGuidedProvision,
   AUTHORIZATION_SCOPES.secretNonProtectedWrite,
+  AUTHORIZATION_SCOPES.operationCancel,
 ] as const;
 
 const CONFIGURATION_SCOPES = [
@@ -69,6 +70,7 @@ describe("expandBuiltInRolePresetToScopes", () => {
         AUTHORIZATION_SCOPES.approvalApprove,
         AUTHORIZATION_SCOPES.approvalReject,
         AUTHORIZATION_SCOPES.organizationRead,
+        AUTHORIZATION_SCOPES.operationCancel,
         AUTHORIZATION_SCOPES.metadataDetailRead,
       ]),
     );
@@ -80,6 +82,7 @@ describe("expandBuiltInRolePresetToScopes", () => {
     expect(scopes).not.toContain(AUTHORIZATION_SCOPES.approvalApprove);
     expect(scopes).not.toContain(AUTHORIZATION_SCOPES.approvalReject);
     expect(scopes).not.toContain(AUTHORIZATION_SCOPES.onboardingGuidedProvision);
+    expect(scopes).toContain(AUTHORIZATION_SCOPES.operationCancel);
   });
 
   it("expands developer with project secret and runtime injection scopes only", () => {
@@ -95,6 +98,7 @@ describe("expandBuiltInRolePresetToScopes", () => {
     expect(scopes).not.toContain(AUTHORIZATION_SCOPES.organizationRead);
     expect(scopes).not.toContain(AUTHORIZATION_SCOPES.approvalApprove);
     expect(scopes).not.toContain(AUTHORIZATION_SCOPES.approvalReject);
+    expect(scopes).not.toContain(AUTHORIZATION_SCOPES.operationCancel);
   });
 
   it("expands metadata-viewer with scoped metadata detail read only", () => {
@@ -121,6 +125,7 @@ describe("expandBuiltInRolePresetToScopes", () => {
       AUTHORIZATION_SCOPES.webhookRead,
       AUTHORIZATION_SCOPES.syncRead,
     ]);
+    expect(scopes).not.toContain(AUTHORIZATION_SCOPES.operationCancel);
   });
 });
 
