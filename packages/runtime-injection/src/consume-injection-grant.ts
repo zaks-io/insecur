@@ -100,7 +100,7 @@ async function consumeGrantAndRecordSuccess(
         projectId: loaded.projectId,
         environmentId: loaded.environmentId,
         grantId: input.grantId,
-        deliveredSecretVersionId: loaded.binding.secretVersionId,
+        deliveredSecretVersionIds: [loaded.binding.secretVersionId],
         ...(input.request !== undefined ? { request: input.request } : {}),
         ...(input.operation !== undefined ? { operation: input.operation } : {}),
       });

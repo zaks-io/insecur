@@ -161,8 +161,10 @@ async function consumeGrantAllAndAudit(
         projectId: loaded.projectId,
         environmentId: loaded.environmentId,
         grantId: input.grantId,
-        ...(loaded.bindings[0]?.secretVersionId !== undefined
-          ? { deliveredSecretVersionId: loaded.bindings[0].secretVersionId }
+        ...(loaded.bindings.length > 0
+          ? {
+              deliveredSecretVersionIds: loaded.bindings.map((binding) => binding.secretVersionId),
+            }
           : {}),
         ...(input.request !== undefined ? { request: input.request } : {}),
         ...(input.operation !== undefined ? { operation: input.operation } : {}),

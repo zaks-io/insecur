@@ -380,7 +380,7 @@ describe("executeConsumeInjectionGrant", () => {
         request,
         operation,
         grantId: GRANT,
-        deliveredSecretVersionId: SECRET_VERSION,
+        deliveredSecretVersionIds: [SECRET_VERSION],
       }),
     );
   });
