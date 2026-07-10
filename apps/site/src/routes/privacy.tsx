@@ -83,6 +83,17 @@ const clauses: LegalClause[] = [
           Zaks.io is a California company and processes data in the United States. We do not serve
           customers who need non-US data residency.
         </p>
+        <p>
+          We use Cloudflare Turnstile to protect sign-in from automated abuse. Cloudflare's handling
+          of data for Turnstile is described in its{" "}
+          <a
+            href="https://www.cloudflare.com/en-gb/turnstile-privacy-policy/"
+            className="font-semibold text-foreground underline underline-offset-4"
+          >
+            Turnstile Privacy Addendum
+          </a>
+          .
+        </p>
         <p>We disclose data to authorities only when the law requires it.</p>
       </>
     ),

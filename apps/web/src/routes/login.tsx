@@ -16,6 +16,7 @@ import {
   verifyTurnstileToken,
   TURNSTILE_RESPONSE_FIELD,
 } from "../auth/turnstile.js";
+import { LoginPrivacyNotice } from "../components/login-privacy-notice.js";
 import { SiteFrame } from "../components/site-frame.js";
 import { TurnstileWidget } from "../components/turnstile-widget.js";
 import { asWebEnv } from "../env.js";
@@ -100,6 +101,7 @@ function LoginForm({ siteKey, errorCode }: LoginChallenge) {
         onTokenChange={login.handleTurnstileToken}
       />
       <LoginVerificationStatus state={login.verificationState} />
+      <LoginPrivacyNotice />
       {login.verificationState === "failed" ? (
         <Button type="button" variant="outline" onClick={reloadPage}>
           Retry
