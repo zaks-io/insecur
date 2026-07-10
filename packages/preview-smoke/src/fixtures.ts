@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { invitationId, membershipId, runtimePolicyId } from "@insecur/domain";
+import { appConnectionId, invitationId, membershipId, runtimePolicyId } from "@insecur/domain";
 import { expect, test as base } from "@playwright/test";
 
 import { mintBearer } from "./auth";
@@ -62,7 +62,7 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
   ],
 });
 
-export { expect, invitationId, membershipId, randomUUID, runtimePolicyId };
+export { appConnectionId, expect, invitationId, membershipId, randomUUID, runtimePolicyId };
 export * from "./audit-export-artifact";
 export * from "./audit-verification";
 export * from "./auth";
@@ -70,6 +70,7 @@ export * from "./cli-agent-attribution-assertions";
 export * from "./cli-audit-metadata-assertions";
 export * from "./cli-auth-assertions";
 export * from "./cli-config-metadata-assertions";
+export * from "./cli-connections-metadata-assertions";
 export * from "./cli-metadata-only-scan";
 export * from "./cli-output-metadata-assertions";
 export * from "./cli-operations-run-policies-assertions";
