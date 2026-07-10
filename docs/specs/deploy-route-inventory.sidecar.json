@@ -45,7 +45,7 @@
     {
       "deploy": "insecur-runtime",
       "heading": "Runtime Worker — `apps/runtime` (`insecur-runtime`)",
-      "intro": "Sole holder of `INSTANCE_ROOT_KEY_V1`. Decrypt-egress deploy. Reached only via the private Service Binding. Zero public `/v1/*` routes; the default `fetch` handler returns 404 for any direct hit.",
+      "intro": "Sole holder of `INSTANCE_ROOT_KEY_V1`. Decrypt-egress deploy. Reached only via the private Service Binding. Zero public `/v1/*` routes; the default `fetch` handler returns 404 for any direct hit. Sole root-key holder for backup and restore: scheduled backup export runs here (ADR-0072), and restore import runs here behind the dedicated restore-only `RuntimeRestoreService` entrypoint (ADR-0084), separate from `RuntimeService`; the API/Web Service Bindings target only `RuntimeService` and cannot invoke it. Neither entrypoint adds a public route.",
       "staticRows": [
         {
           "method": "(default fetch)",

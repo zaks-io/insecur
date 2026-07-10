@@ -3,8 +3,11 @@
 Concrete Security Runbook following the interface in
 [../security-runbooks-and-release-gates.md](../security-runbooks-and-release-gates.md).
 Implements the tested restore gate in
-[ADR-0058](../adr/0058-minimal-backup-and-tested-restore.md) and the export envelope in
-[ADR-0072](../adr/0072-backup-export-pipeline-and-freshness.md).
+[ADR-0058](../adr/0058-minimal-backup-and-tested-restore.md), the export envelope in
+[ADR-0072](../adr/0072-backup-export-pipeline-and-freshness.md), and the Runtime-only restore
+import boundary in [ADR-0084](../adr/0084-runtime-only-restore-import-boundary.md): the importer
+runs inside the Runtime deploy behind the restore-only `RuntimeRestoreService` entrypoint, armed by
+a temporary `RESTORE_DB` Hyperdrive binding. No other deploy holds the root key or imports.
 
 This runbook handles real custody material and tenant metadata. Output and evidence
 must stay metadata-only: no Sensitive Values, decrypted canary plaintext, backup
@@ -96,12 +99,22 @@ Production-equivalent drill (summary — operator executes manually):
 2. Provision a fresh Neon project and apply schema migrations with the migration role.
 3. Load the escrowed root key version from the export header into the fresh Runtime
    Worker Secrets Store binding.
-4. Download the sealed artifact and import its JSONL rows using an operator-controlled importer
-   (per-organization transactions, no decrypt of Sensitive Values during import). No importer is
-   implemented in this repository yet, so the gate remains blocked until this step is performed
-   and evidenced outside the fixture self-test.
-5. Decrypt only the recovery canary secret through the normal runtime decrypt path.
-6. Record wall-clock RTO from download start through successful canary verification.
+4. Arm the restore window: add the temporary `RESTORE_DB` Hyperdrive binding (targeting the fresh
+   Neon project) to the Runtime deploy, and deploy the window-scoped operator coordinator Worker
+   whose single Service Binding targets `insecur-runtime` with
+   `entrypoint: RuntimeRestoreService` ([ADR-0084](../adr/0084-runtime-only-restore-import-boundary.md)).
+   Neither binding is ever committed to the checked-in fleet config.
+5. Trigger the import through the coordinator with the `artifact_ref`, expected `instance_id`, and
+   expected `root_key_version`. The Runtime importer verifies artifact authenticity, proves the
+   target fresh, and imports per-organization transactions itself — no decrypt of Sensitive Values
+   during import, and no artifact bytes on operator hardware paths beyond the R2 fetch the Runtime
+   performs. (The importer implementation is INS-565; the gate remains blocked until this step is
+   performed and evidenced outside the fixture self-test.)
+6. Decrypt only the recovery canary secret through the normal runtime decrypt path
+   (`RuntimeService`), not the restore entrypoint.
+7. Record wall-clock RTO from download start through successful canary verification.
+8. Disarm: remove the `RESTORE_DB` binding from the Runtime deploy and tear down the coordinator
+   Worker. The drill is not complete until both are gone.
 
 ## verify
 
@@ -129,6 +142,10 @@ Pass requires:
 Under the recovery canary organization scope:
 
 - `backup.restore_drill_succeeded` or `backup.restore_drill_failed`
+- Operation intent `backup.restore_import` for the import run, with
+  `backup.restore_import_succeeded` written in the restore target on success; a failed import
+  emits `backup.restore_import_failed` through the allowlisted telemetry sink and into evidence
+  (the discarded target keeps no rows) — [ADR-0084](../adr/0084-runtime-only-restore-import-boundary.md)
 - Operation intent `backup.export` rows for scheduled exports
 - `backup.export_succeeded` / `backup.export_failed` on export runs
 
@@ -137,7 +154,10 @@ Audit and evidence records include scope IDs, operation IDs, timestamps, and sta
 ## recovery
 
 - Failed canary verification: do not mark the drill passed; keep production gate blocked.
-- Importer failure: discard the fresh Neon target and retry from step 2 with a new project.
+- Importer failure (authenticity, fresh-target, journal conflict, or mid-run error): the run fails
+  closed and the target is never repaired in place. Discard the entire fresh Neon target and retry
+  from step 2 with a new project; if abandoning the window, remove the `RESTORE_DB` binding and
+  the coordinator first.
 - Wrong root key version: select the header `root_key_version` and reload escrowed material.
 
 ## customer_communication
