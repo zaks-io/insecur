@@ -13,6 +13,7 @@ import {
 import {
   assertDeployedCronSchedules,
   assertDeployedSecretsStoreSecrets,
+  reconcileDeployedCronSchedules,
   reconcileDeployedObservability,
   runContentOnlyDeploy,
   updatePublicDeployVars,
@@ -403,7 +404,83 @@ test("assertDeployedSecretsStoreSecrets rejects empty deploy config", () => {
 
 test("assertDeployedCronSchedules requires the configured backup cron", () => {
   assert.doesNotThrow(() => assertDeployedCronSchedules([{ cron: "0 3 * * *" }], ["0 3 * * *"]));
+  assert.doesNotThrow(() =>
+    assertDeployedCronSchedules({ schedules: [{ cron: "0 3 * * *" }] }, ["0 3 * * *"]),
+  );
   assert.throws(() => assertDeployedCronSchedules([], ["0 3 * * *"]), /cron schedules drifted/);
+  assert.throws(
+    () => assertDeployedCronSchedules({ schedules: [] }, ["0 3 * * *"]),
+    /cron schedules drifted/,
+  );
+});
+
+test("reconcileDeployedCronSchedules writes the code-owned cron set and converges", async () => {
+  const calls = [];
+
+  await reconcileDeployedCronSchedules(
+    createSettingsCloudflareJson({ calls, schedules: [] }),
+    "account-id",
+    "insecur-runtime",
+    ["0 3 * * *"],
+  );
+
+  const putCall = calls.find(
+    (call) => call.method === "PUT" && call.apiPath.endsWith("/schedules"),
+  );
+  assert.ok(putCall);
+  assert.deepEqual(putCall.schedules, [{ cron: "0 3 * * *" }]);
+  assert.equal(
+    calls.filter((call) => call.method === "GET" && call.apiPath.endsWith("/schedules")).length,
+    2,
+  );
+});
+
+test("reconcileDeployedCronSchedules fails closed when the write does not converge", async () => {
+  const calls = [];
+
+  await assert.rejects(
+    reconcileDeployedCronSchedules(
+      createSettingsCloudflareJson({ calls, schedules: [], dropScheduleWrites: true }),
+      "account-id",
+      "insecur-runtime",
+      ["0 3 * * *"],
+    ),
+    /cron schedules drifted/,
+  );
+
+  assert.ok(calls.some((call) => call.method === "PUT" && call.apiPath.endsWith("/schedules")));
+});
+
+test("reconcileDeployedCronSchedules refuses when deploy config declares no crons", async () => {
+  const calls = [];
+
+  await assert.rejects(
+    reconcileDeployedCronSchedules(
+      createSettingsCloudflareJson({ calls, schedules: [] }),
+      "account-id",
+      "insecur-runtime",
+      [],
+    ),
+    /must declare backup cron triggers/,
+  );
+
+  assert.equal(calls.length, 0);
+});
+
+test("reconcileDeployedCronSchedules skips the write when schedules already match", async () => {
+  const calls = [];
+
+  await reconcileDeployedCronSchedules(
+    createSettingsCloudflareJson({ calls, schedules: [{ cron: "0 3 * * *" }] }),
+    "account-id",
+    "insecur-runtime",
+    ["0 3 * * *"],
+  );
+
+  assert.equal(
+    calls.some((call) => call.method === "PUT" && call.apiPath.endsWith("/schedules")),
+    false,
+  );
 });
 
 test("runContentOnlyDeploy patches public deploy vars after uploading content", async () => {
@@ -509,7 +586,32 @@ test("runContentOnlyDeploy refuses a missing BACKUPS R2 binding", async () => {
   );
 });
 
-test("runContentOnlyDeploy refuses a missing backup cron", async () => {
+test("runContentOnlyDeploy reconciles a missing backup cron before uploading content", async () => {
+  const calls = [];
+
+  await runContentOnlyDeploy({
+    env: CONTENT_ONLY_DEPLOY_ENV,
+    readFileFn: createReadFileStub(),
+    fetchFn: createContentOnlyDeployFetchHandler({
+      calls,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+      schedules: [],
+    }),
+  });
+
+  const schedulesPutIndex = calls.findIndex(
+    (call) => call.method === "PUT" && call.url.endsWith("/schedules"),
+  );
+  const contentUploadIndex = calls.findIndex(
+    (call) => call.method === "PUT" && call.url.endsWith("/content"),
+  );
+
+  assert.ok(schedulesPutIndex >= 0);
+  assert.deepEqual(calls[schedulesPutIndex].schedules, [{ cron: "0 3 * * *" }]);
+  assert.ok(contentUploadIndex > schedulesPutIndex);
+});
+
+test("runContentOnlyDeploy fails closed when cron reconciliation does not converge", async () => {
   const calls = [];
   await assert.rejects(
     runContentOnlyDeploy({
@@ -519,12 +621,13 @@ test("runContentOnlyDeploy refuses a missing backup cron", async () => {
         calls,
         settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
         schedules: [],
+        dropScheduleWrites: true,
       }),
     }),
     /cron schedules drifted/,
   );
   assert.equal(
-    calls.some((call) => call.method === "PUT"),
+    calls.some((call) => call.method === "PUT" && call.url.endsWith("/content")),
     false,
   );
 });
@@ -556,6 +659,15 @@ async function routeContentOnlyDeployFetch(url, init, options) {
     return respondToSettingsPatch(settings);
   }
 
+  if (url.endsWith("/schedules") && method === "PUT") {
+    const schedules = JSON.parse(init.body);
+    calls.push({ url, method, schedules });
+    if (!options.dropScheduleWrites) {
+      options.schedules = schedules;
+    }
+    return jsonResponse({ success: true, result: { schedules: options.schedules ?? [] } });
+  }
+
   calls.push({ url, method });
 
   if (url.endsWith("/content") && method === "PUT") {
@@ -567,7 +679,10 @@ async function routeContentOnlyDeployFetch(url, init, options) {
   }
 
   if (url.endsWith("/schedules") && method === "GET") {
-    return jsonResponse({ success: true, result: options.schedules ?? [{ cron: "0 3 * * *" }] });
+    return jsonResponse({
+      success: true,
+      result: { schedules: options.schedules ?? [{ cron: "0 3 * * *" }] },
+    });
   }
 
   throw new Error(`Unexpected fetch: ${method} ${url}`);
@@ -625,8 +740,11 @@ function createSettingsCloudflareJson({
   calls,
   observability = PRODUCTION_SETTINGS_RESULT.observability,
   settingsBindings,
+  schedules = [{ cron: "0 3 * * *" }],
+  dropScheduleWrites = false,
 }) {
   let deployedObservability = observability;
+  let deployedSchedules = schedules;
 
   return async (method, apiPath, init = {}) => {
     if (apiPath.endsWith("/settings") && method === "GET") {
@@ -649,7 +767,16 @@ function createSettingsCloudflareJson({
 
     if (apiPath.endsWith("/schedules") && method === "GET") {
       calls.push({ method, apiPath });
-      return [{ cron: "0 3 * * *" }];
+      return { schedules: deployedSchedules };
+    }
+
+    if (apiPath.endsWith("/schedules") && method === "PUT") {
+      const requestedSchedules = JSON.parse(init.body);
+      calls.push({ method, apiPath, schedules: requestedSchedules });
+      if (!dropScheduleWrites) {
+        deployedSchedules = requestedSchedules;
+      }
+      return { schedules: deployedSchedules };
     }
 
     throw new Error(`Unexpected Cloudflare request: ${method} ${apiPath}`);
