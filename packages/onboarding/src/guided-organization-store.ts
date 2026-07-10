@@ -1,4 +1,4 @@
 export {
-  persistGuidedOrganization,
+  persistGuidedOrganizationInTenantScope,
   type GuidedOrganizationResourceIds,
 } from "@insecur/tenant-store";

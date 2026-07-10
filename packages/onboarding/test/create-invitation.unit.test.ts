@@ -22,9 +22,17 @@ const membershipExistsForGrantMock = vi.hoisted(() => vi.fn().mockResolvedValue(
 const loadDefaultTeamIdMock = vi.hoisted(() =>
   vi.fn().mockResolvedValue("team_00000000000000000000000001"),
 );
-const insertPendingInvitationMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const insertPendingInvitationInTransactionMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
 const recordInvitationCreateDeniedMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const recordInvitationCreatedMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const recordInvitationCreatedInTenantScopeMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
+const scopedSql = vi.hoisted(() => ({ tag: "scoped-sql" }));
+const withTenantScopeMock = vi.hoisted(() =>
+  vi.fn().mockImplementation(async (_scope, callback) => callback({ sql: scopedSql })),
+);
 const auditAccessDenialOnFailureMock = vi.hoisted(() =>
   vi.fn().mockImplementation(async (error, handlers) => {
     if (handlers.isAccessDenied(error)) {
@@ -46,13 +54,21 @@ vi.mock("../src/assert-membership-manage-scope.js", () => ({
 vi.mock("../src/invitation-store.js", () => ({
   membershipExistsForGrant: membershipExistsForGrantMock,
   loadDefaultTeamId: loadDefaultTeamIdMock,
-  insertPendingInvitation: insertPendingInvitationMock,
+  insertPendingInvitationInTransaction: insertPendingInvitationInTransactionMock,
 }));
 
 vi.mock("../src/membership-management-audit.js", () => ({
   recordInvitationCreateDenied: recordInvitationCreateDeniedMock,
-  recordInvitationCreated: recordInvitationCreatedMock,
+  recordInvitationCreatedInTenantScope: recordInvitationCreatedInTenantScopeMock,
 }));
+
+vi.mock("@insecur/tenant-store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
+  return {
+    ...actual,
+    withTenantScope: withTenantScopeMock,
+  };
+});
 
 vi.mock("@insecur/access", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/access")>();
@@ -99,10 +115,11 @@ describe("createInvitation (unit)", () => {
     membershipExistsForGrantMock.mockReset();
     membershipExistsForGrantMock.mockResolvedValue(false);
     loadDefaultTeamIdMock.mockClear();
-    insertPendingInvitationMock.mockReset();
-    insertPendingInvitationMock.mockResolvedValue(undefined);
+    insertPendingInvitationInTransactionMock.mockReset();
+    insertPendingInvitationInTransactionMock.mockResolvedValue(undefined);
     recordInvitationCreateDeniedMock.mockClear();
-    recordInvitationCreatedMock.mockClear();
+    recordInvitationCreatedInTenantScopeMock.mockReset();
+    recordInvitationCreatedInTenantScopeMock.mockResolvedValue(undefined);
     auditAccessDenialOnFailureMock.mockClear();
   });
 
@@ -117,12 +134,19 @@ describe("createInvitation (unit)", () => {
       rolePreset: BUILT_IN_ROLE_PRESETS.developer,
       projectId: PROJECT,
     });
-    expect(insertPendingInvitationMock).toHaveBeenCalledOnce();
-    expect(recordInvitationCreatedMock).toHaveBeenCalledWith({
+    expect(insertPendingInvitationInTransactionMock).toHaveBeenCalledOnce();
+    expect(recordInvitationCreatedInTenantScopeMock).toHaveBeenCalledWith(scopedSql, {
       actorUserId: OWNER,
       organizationId: ORG,
       invitationId: INV,
     });
+  });
+
+  it("fails creation when the success audit cannot be recorded in the same scope", async () => {
+    const auditFailure = new Error("audit write failed");
+    recordInvitationCreatedInTenantScopeMock.mockRejectedValue(auditFailure);
+
+    await expect(createInvitation(baseInput())).rejects.toBe(auditFailure);
   });
 
   it("denies when invitee already has membership for the scope", async () => {
@@ -137,11 +161,11 @@ describe("createInvitation (unit)", () => {
       organizationId: ORG,
       reasonCode: ONBOARDING_ERROR_CODES.membershipAlreadyExists,
     });
-    expect(insertPendingInvitationMock).not.toHaveBeenCalled();
+    expect(insertPendingInvitationInTransactionMock).not.toHaveBeenCalled();
   });
 
   it("maps unique constraint violations to resource conflict", async () => {
-    insertPendingInvitationMock.mockRejectedValue({ code: "23505" });
+    insertPendingInvitationInTransactionMock.mockRejectedValue({ code: "23505" });
 
     await expect(createInvitation(baseInput())).rejects.toMatchObject({
       code: ONBOARDING_ERROR_CODES.resourceConflict,
@@ -149,7 +173,7 @@ describe("createInvitation (unit)", () => {
       invitationId: INV,
     });
     expect(recordInvitationCreateDeniedMock).toHaveBeenCalled();
-    expect(recordInvitationCreatedMock).not.toHaveBeenCalled();
+    expect(recordInvitationCreatedInTenantScopeMock).not.toHaveBeenCalled();
   });
 
   it("records access denial audit when membership manage scope is missing", async () => {
@@ -172,9 +196,9 @@ describe("createInvitation (unit)", () => {
 
   it("rethrows non-unique persistence failures", async () => {
     const persistenceError = new Error("database unavailable");
-    insertPendingInvitationMock.mockRejectedValue(persistenceError);
+    insertPendingInvitationInTransactionMock.mockRejectedValue(persistenceError);
 
     await expect(createInvitation(baseInput())).rejects.toBe(persistenceError);
-    expect(recordInvitationCreatedMock).not.toHaveBeenCalled();
+    expect(recordInvitationCreatedInTenantScopeMock).not.toHaveBeenCalled();
   });
 });

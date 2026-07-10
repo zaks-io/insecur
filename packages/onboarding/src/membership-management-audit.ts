@@ -1,6 +1,7 @@
 import {
   FIRST_VALUE_AUDIT_EVENT_CODES,
   recordActionAudit,
+  recordActionAuditInTenantScope,
   type AuditRequestRef,
 } from "@insecur/audit";
 import {
@@ -12,6 +13,7 @@ import {
   type TeamId,
   type UserId,
 } from "@insecur/domain";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 
 interface InvitationSuccessAuditInput {
   actorUserId: UserId;
@@ -48,13 +50,21 @@ export async function recordOperatorOrganizationDenied(input: {
   });
 }
 
-export async function recordOperatorOrganizationCreated(input: {
-  operatorUserId: UserId;
-  organizationId: OrganizationId;
-  defaultTeamId: TeamId;
-  request?: AuditRequestRef;
-}): Promise<void> {
-  await recordActionAudit({
+/**
+ * Records the operator organization created success audit on the caller's
+ * tenant-scoped transaction, so the audit commits atomically with the
+ * organization and default team it evidences.
+ */
+export async function recordOperatorOrganizationCreatedInTenantScope(
+  sql: TenantScopedSql,
+  input: {
+    operatorUserId: UserId;
+    organizationId: OrganizationId;
+    defaultTeamId: TeamId;
+    request?: AuditRequestRef;
+  },
+): Promise<void> {
+  await recordActionAuditInTenantScope(sql, {
     outcome: "success",
     eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationCreated,
     actor: { type: "user", userId: input.operatorUserId },
@@ -67,8 +77,15 @@ export async function recordOperatorOrganizationCreated(input: {
   });
 }
 
-export async function recordInvitationCreated(input: InvitationSuccessAuditInput): Promise<void> {
-  await recordActionAudit({
+/**
+ * Records the invitation created success audit on the caller's tenant-scoped
+ * transaction, so the audit commits atomically with the pending invitation.
+ */
+export async function recordInvitationCreatedInTenantScope(
+  sql: TenantScopedSql,
+  input: InvitationSuccessAuditInput,
+): Promise<void> {
+  await recordActionAuditInTenantScope(sql, {
     outcome: "success",
     eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
     ...invitationSuccessAuditFields(input),
@@ -91,10 +108,15 @@ export async function recordInvitationCreateDenied(input: {
   });
 }
 
-export async function recordInvitationAccepted(
+/**
+ * Records the invitation accepted success audit on the caller's tenant-scoped
+ * transaction, so the audit commits atomically with the membership grant.
+ */
+export async function recordInvitationAcceptedInTenantScope(
+  sql: TenantScopedSql,
   input: InvitationSuccessAuditInput & { membershipId: MembershipId },
 ): Promise<void> {
-  await recordActionAudit({
+  await recordActionAuditInTenantScope(sql, {
     outcome: "success",
     eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
     ...invitationSuccessAuditFields(input),
