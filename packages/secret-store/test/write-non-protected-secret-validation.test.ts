@@ -42,18 +42,20 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
 });
 
 vi.mock("../src/record-secret-storage-write-audit.js", () => ({
-  recordSecretStorageWriteAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+  recordSecretStorageWriteAuditInTenantScope: vi
+    .fn()
+    .mockResolvedValue({ auditEventId: "aud_test" }),
   recordDeniedSecretStorageWriteAudit: vi.fn().mockResolvedValue(undefined),
 }));
 
 import {
   recordDeniedSecretStorageWriteAudit,
-  recordSecretStorageWriteAudit,
+  recordSecretStorageWriteAuditInTenantScope,
 } from "../src/record-secret-storage-write-audit.js";
 
 const encryptMock = vi.mocked(encryptSecretValue);
 const withTenantScopeMock = vi.mocked(withTenantScope);
-const auditMock = vi.mocked(recordSecretStorageWriteAudit);
+const auditMock = vi.mocked(recordSecretStorageWriteAuditInTenantScope);
 const deniedAuditMock = vi.mocked(recordDeniedSecretStorageWriteAudit);
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -244,6 +246,57 @@ describe("writeNonProtectedSecret validation and ingress guards", () => {
     await writeNonProtectedSecret(baseWriteInput(new TextEncoder().encode("secret-value")));
 
     expect(events).toEqual(["scope:start", "scope:end", "encrypt", "scope:start", "scope:end"]);
+  });
+
+  it("records the success audit on the same tenant-scoped transaction as the append", async () => {
+    const events: string[] = [];
+    const scopeSql = { tag: "scoped-sql" };
+    withTenantScopeMock.mockImplementation(async (_scope, callback) => {
+      events.push("scope:start");
+      try {
+        return await callback({ db: {}, sql: scopeSql } as never);
+      } finally {
+        events.push("scope:end");
+      }
+    });
+    auditMock.mockImplementation(async () => {
+      events.push("audit:success");
+      return { auditEventId: "aud_test" as never };
+    });
+
+    const result = await writeNonProtectedSecret(
+      baseWriteInput(new TextEncoder().encode("secret-value")),
+    );
+
+    expect(result.auditEventId).toBe("aud_test");
+    expect(events).toEqual([
+      "scope:start",
+      "scope:end",
+      "scope:start",
+      "audit:success",
+      "scope:end",
+    ]);
+    expect(auditMock).toHaveBeenCalledOnce();
+    expect(auditMock).toHaveBeenCalledWith(
+      scopeSql,
+      "non_protected",
+      expect.objectContaining({
+        outcome: "success",
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        secretId: "sec_00000000000000000000000001",
+        secretVersionId: "sv_00000000000000000000000001",
+      }),
+    );
+  });
+
+  it("reports failure when the success audit cannot be recorded in the write transaction", async () => {
+    auditMock.mockRejectedValueOnce(new Error("injected audit failure"));
+
+    await expect(
+      writeNonProtectedSecret(baseWriteInput(new TextEncoder().encode("secret-value"))),
+    ).rejects.toThrow("injected audit failure");
   });
 
   it("records denied audit for protected environment failures without leaking value bytes", async () => {
