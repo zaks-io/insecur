@@ -13,7 +13,8 @@ import {
 
 export type { ChallengeClearStepUpContext, PkceRoundTrip };
 
-export const INSECUR_OAUTH_PKCE_COOKIE = "insecur_oauth_pkce";
+/** `__Host-` host-only: sibling subdomains cannot toss an overriding PKCE cookie (INS-583). */
+export const INSECUR_OAUTH_PKCE_COOKIE = "__Host-insecur_oauth_pkce";
 const OAUTH_PKCE_TTL_SECONDS = 600;
 
 export async function createPkcePair(): Promise<{

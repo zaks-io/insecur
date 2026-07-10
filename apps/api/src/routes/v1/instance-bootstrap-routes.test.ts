@@ -1,4 +1,9 @@
-import { generateCsrfToken, mintEphemeralSessionCredential } from "@insecur/auth";
+import {
+  generateCsrfToken,
+  INSECUR_CSRF_COOKIE,
+  mintEphemeralSessionCredential,
+  WORKOS_SESSION_COOKIE,
+} from "@insecur/auth";
 import { testSessionSigningSecret } from "@insecur/auth/testing";
 import {
   AUTH_ERROR_CODES,
@@ -174,7 +179,7 @@ describe("instance bootstrap worker routes", () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Cookie: `wos-session=sealed_bootstrap_cookie_auth_test; insecur_csrf=${csrf}`,
+            Cookie: `${WORKOS_SESSION_COOKIE}=sealed_bootstrap_cookie_auth_test; ${INSECUR_CSRF_COOKIE}=${csrf}`,
             "x-insecur-csrf": csrf,
           },
           body: claimBody("bootstrap-secret-material"),

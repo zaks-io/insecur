@@ -70,6 +70,17 @@ describe("beginBrowserLogin", () => {
     expect(started.setCookieHeaders).toHaveLength(1);
     expect(started.setCookieHeaders[0]).toContain(`${INSECUR_OAUTH_PKCE_COOKIE}=`);
   });
+
+  it("sets the PKCE cookie host-only: __Host-, Secure, Path=/, no Domain (INS-583)", async () => {
+    const request = new Request("https://insecur.test/login");
+    const started = await beginBrowserLogin(request, createFakeWebEnv());
+
+    expect(INSECUR_OAUTH_PKCE_COOKIE.startsWith("__Host-")).toBe(true);
+    const header = started.setCookieHeaders[0] ?? "";
+    expect(header).toContain("Secure");
+    expect(header).toContain("Path=/");
+    expect(header).not.toContain("Domain=");
+  });
 });
 
 describe("completeBrowserLogin", () => {
@@ -133,6 +144,42 @@ describe("completeBrowserLogin", () => {
         "/login?error=mfa_enrollment",
       );
     }
+  });
+
+  it("rejects callbacks carrying duplicate PKCE cookies regardless of order (INS-583)", async () => {
+    const victim = encodePkceCookie({ state: oauthState, codeVerifier, returnTo: "/whoami" });
+    const attacker = encodePkceCookie({
+      state: oauthState,
+      codeVerifier: "verifier_attacker",
+      returnTo: "/whoami",
+    });
+    for (const cookieHeader of [
+      `${INSECUR_OAUTH_PKCE_COOKIE}=${victim}; ${INSECUR_OAUTH_PKCE_COOKIE}=${attacker}`,
+      `${INSECUR_OAUTH_PKCE_COOKIE}=${attacker}; ${INSECUR_OAUTH_PKCE_COOKIE}=${victim}`,
+    ]) {
+      const request = new Request(
+        `https://insecur.test/auth/callback?code=${authorizationCode}&state=${oauthState}`,
+        { headers: { Cookie: cookieHeader } },
+      );
+      const completed = await completeBrowserLogin(request, createFakeWebEnv());
+      expect(completed.ok).toBe(false);
+    }
+  });
+
+  it("ignores an unprefixed sibling-domain PKCE lookalike cookie", async () => {
+    const roundTrip = { state: oauthState, codeVerifier, returnTo: "/whoami" };
+    const request = new Request(
+      `https://insecur.test/auth/callback?code=${authorizationCode}&state=${oauthState}`,
+      {
+        headers: {
+          Cookie: `insecur_oauth_pkce=tossed; ${INSECUR_OAUTH_PKCE_COOKIE}=${encodePkceCookie(roundTrip)}`,
+        },
+      },
+    );
+
+    const completed = await completeBrowserLogin(request, createFakeWebEnv());
+
+    expect(completed.ok).toBe(true);
   });
 
   it("rejects callbacks with a mismatched OAuth state", async () => {
@@ -272,6 +319,21 @@ describe("logoutBrowserSession", () => {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({ [LOGOUT_CSRF_FIELD]: generateCsrfToken() }),
+    });
+
+    const result = await logoutBrowserSession(request, createFakeWebEnv());
+
+    expect(result).toEqual({ ok: false, status: 403 });
+  });
+
+  it("rejects logout when the CSRF cookie is duplicated, even with a matching token (INS-583)", async () => {
+    const token = generateCsrfToken();
+    const request = new Request("https://insecur.test/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `${INSECUR_CSRF_COOKIE}=${token}; ${INSECUR_CSRF_COOKIE}=${token}; ${WORKOS_SESSION_COOKIE}=sealed-browser-login`,
+        [INSECUR_CSRF_HEADER]: token,
+      },
     });
 
     const result = await logoutBrowserSession(request, createFakeWebEnv());

@@ -4,7 +4,7 @@ export const SSR_TEST_ORIGIN = "https://insecur.test";
 
 export interface SsrRequestOptions {
   readonly method?: string;
-  /** Sealed WorkOS session value; sent as the `wos-session` cookie. */
+  /** Sealed WorkOS session value; sent as the WorkOS session cookie. */
   readonly sessionCookie?: string;
   /** Bearer credential (preview smoke path); sent as the `Authorization` header. */
   readonly bearer?: string;

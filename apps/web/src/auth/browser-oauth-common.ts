@@ -3,6 +3,7 @@ import {
   formatSessionSetCookie,
   generateCsrfToken,
   insecurCsrfCookieAttributes,
+  readSingleCookieValue,
   workosSessionCookieAttributes,
 } from "@insecur/auth";
 import {
@@ -10,22 +11,6 @@ import {
   INSECUR_OAUTH_PKCE_COOKIE,
   type PkceRoundTrip,
 } from "./browser-oauth-pkce.js";
-
-function parseCookieHeader(cookieHeader: string | null): Map<string, string> {
-  const cookies = new Map<string, string>();
-  if (cookieHeader === null || cookieHeader === "") {
-    return cookies;
-  }
-  for (const part of cookieHeader.split(";")) {
-    const trimmed = part.trim();
-    const separator = trimmed.indexOf("=");
-    if (separator <= 0) {
-      continue;
-    }
-    cookies.set(trimmed.slice(0, separator), trimmed.slice(separator + 1));
-  }
-  return cookies;
-}
 
 export function oauthCallbackUrl(request: Request, pathname: string): string {
   const url = new URL(request.url);
@@ -64,8 +49,10 @@ export function readPkceOAuthCallback(
   if (!code || !state) {
     return null;
   }
-  const cookies = parseCookieHeader(request.headers.get("Cookie"));
-  const roundTrip = decodePkceRoundTrip(cookies.get(INSECUR_OAUTH_PKCE_COOKIE));
+  // Duplicate PKCE cookies fail closed: header order must not pick attacker state (INS-583).
+  const roundTrip = decodePkceRoundTrip(
+    readSingleCookieValue(request.headers.get("Cookie"), INSECUR_OAUTH_PKCE_COOKIE),
+  );
   if (roundTrip?.state !== state || !acceptRoundTrip(roundTrip)) {
     return null;
   }

@@ -1,8 +1,12 @@
-/** WorkOS AuthKit sealed session cookie (browser). */
-export const WORKOS_SESSION_COOKIE = "wos-session";
+/**
+ * WorkOS AuthKit sealed session cookie (browser). The `__Host-` prefix makes the cookie
+ * host-only: browsers reject it unless it is Secure, Path=/, and carries no Domain attribute,
+ * so a compromised sibling subdomain cannot toss an overriding parent-domain variant (INS-583).
+ */
+export const WORKOS_SESSION_COOKIE = "__Host-wos-session";
 
-/** Double-submit CSRF cookie for browser session mutations. */
-export const INSECUR_CSRF_COOKIE = "insecur_csrf";
+/** Double-submit CSRF cookie for browser session mutations (`__Host-` host-only, INS-583). */
+export const INSECUR_CSRF_COOKIE = "__Host-insecur_csrf";
 
 /** Header carrying the CSRF token for browser-originating mutations. */
 export const INSECUR_CSRF_HEADER = "x-insecur-csrf";
