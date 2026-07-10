@@ -2,7 +2,7 @@ import { membershipId, ONBOARDING_ERROR_CODES, type KnownErrorCode } from "@inse
 import { withTenantScope } from "@insecur/tenant-store";
 import {
   recordInvitationAcceptDenied,
-  recordInvitationAccepted,
+  recordInvitationAcceptedInTenantScope,
 } from "./membership-management-audit.js";
 import { MembershipManagementError } from "./membership-management-error.js";
 import {
@@ -78,13 +78,25 @@ async function grantMembershipFromInvitation(
   const grantedMembershipId = input.membershipId ?? membershipId.generate();
   const accepted = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async ({ sql }) =>
-      await acceptInvitationInTransaction(sql, {
+    async ({ sql }) => {
+      const consumed = await acceptInvitationInTransaction(sql, {
         invitationId: input.invitationId,
         organizationId: input.organizationId,
         acceptingUserId: input.acceptingUserId,
         grantedMembershipId,
-      }),
+      });
+      if (consumed === null) {
+        return null;
+      }
+      await recordInvitationAcceptedInTenantScope(sql, {
+        actorUserId: input.acceptingUserId,
+        organizationId: input.organizationId,
+        invitationId: input.invitationId,
+        membershipId: grantedMembershipId,
+        ...(input.request !== undefined ? { request: input.request } : {}),
+      });
+      return consumed;
+    },
   );
 
   if (accepted === null) {
@@ -115,14 +127,6 @@ export async function acceptInvitation(
 
   await assertInvitationInvitee(input, pending);
   const grantedMembershipId = await grantMembershipFromInvitation(input, pending);
-
-  await recordInvitationAccepted({
-    actorUserId: input.acceptingUserId,
-    organizationId: input.organizationId,
-    invitationId: input.invitationId,
-    membershipId: grantedMembershipId,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-  });
 
   return {
     invitationId: input.invitationId,

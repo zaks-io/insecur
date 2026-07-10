@@ -80,7 +80,11 @@ export {
   recordKeyCustodyAudit,
   recordSyncAudit,
 } from "./production-audit-writers.js";
-export { type RecordActionAuditInput, recordActionAudit } from "./record-action-audit.js";
+export {
+  type RecordActionAuditInput,
+  recordActionAudit,
+  recordActionAuditInTenantScope,
+} from "./record-action-audit.js";
 export {
   recordOperationCanceled,
   recordOperationCanceledInTenantScope,

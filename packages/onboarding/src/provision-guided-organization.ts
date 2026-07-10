@@ -1,11 +1,11 @@
 import { AUTH_ERROR_CODES, ONBOARDING_ERROR_CODES } from "@insecur/domain";
-import { isUniqueConstraintViolation } from "@insecur/tenant-store";
+import { isUniqueConstraintViolation, withTenantScope } from "@insecur/tenant-store";
 import {
-  persistGuidedOrganization,
+  persistGuidedOrganizationInTenantScope,
   type GuidedOrganizationResourceIds,
 } from "./guided-organization-store.js";
 import { mintGuidedOrganizationIds } from "./mint-guided-organization-ids.js";
-import { recordProvisionSuccess } from "./provision-guided-organization-audit.js";
+import { recordProvisionSuccessInTenantScope } from "./provision-guided-organization-audit.js";
 import { GuidedOrganizationProvisionError } from "./provision-guided-organization-error.js";
 import type {
   ProvisionGuidedOrganizationInput,
@@ -44,12 +44,18 @@ export async function provisionGuidedOrganization(
   const displayNames = resolveProvisionDisplayNames(input);
 
   try {
-    await persistGuidedOrganization({
-      ...ids,
-      instanceId: input.instanceId,
-      userId: input.userId,
-      ...displayNames,
-    });
+    await withTenantScope(
+      { kind: "organization", organizationId: ids.organizationId },
+      async (handles) => {
+        await persistGuidedOrganizationInTenantScope(handles, {
+          ...ids,
+          instanceId: input.instanceId,
+          userId: input.userId,
+          ...displayNames,
+        });
+        await recordProvisionSuccessInTenantScope(handles.sql, input, ids);
+      },
+    );
   } catch (error) {
     if (!isUniqueConstraintViolation(error)) {
       throw error;
@@ -61,6 +67,5 @@ export async function provisionGuidedOrganization(
     );
   }
 
-  await recordProvisionSuccess(input, ids);
   return toProvisionResult(ids);
 }

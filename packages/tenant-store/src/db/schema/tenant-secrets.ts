@@ -276,6 +276,8 @@ export const operations = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     executionDeadline: timestamp("execution_deadline", { withTimezone: true }),
+    // Optimistic-concurrency token: every UPDATE must CAS on the revision it read and bump it.
+    revision: integer("revision").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

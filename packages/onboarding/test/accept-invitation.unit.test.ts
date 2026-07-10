@@ -15,7 +15,9 @@ const membershipExistsForGrantMock = vi.hoisted(() => vi.fn().mockResolvedValue(
 const withTenantScopeMock = vi.hoisted(() => vi.fn());
 const acceptInvitationInTransactionMock = vi.hoisted(() => vi.fn());
 const recordInvitationAcceptDeniedMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const recordInvitationAcceptedMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const recordInvitationAcceptedInTenantScopeMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
 
 vi.mock("../src/invitation-store.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/invitation-store.js")>();
@@ -33,7 +35,7 @@ vi.mock("@insecur/tenant-store", () => ({
 
 vi.mock("../src/membership-management-audit.js", () => ({
   recordInvitationAcceptDenied: recordInvitationAcceptDeniedMock,
-  recordInvitationAccepted: recordInvitationAcceptedMock,
+  recordInvitationAcceptedInTenantScope: recordInvitationAcceptedInTenantScopeMock,
 }));
 
 import { acceptInvitation } from "../src/accept-invitation.js";
@@ -79,14 +81,16 @@ describe("acceptInvitation (unit)", () => {
     withTenantScopeMock.mockReset();
     acceptInvitationInTransactionMock.mockReset();
     recordInvitationAcceptDeniedMock.mockClear();
-    recordInvitationAcceptedMock.mockClear();
+    recordInvitationAcceptedInTenantScopeMock.mockReset();
+    recordInvitationAcceptedInTenantScopeMock.mockResolvedValue(undefined);
   });
 
-  it("accepts a pending invitation and records success audit", async () => {
+  it("accepts a pending invitation and records the success audit inside the tenant scope", async () => {
+    const scopedSql = { tag: "scoped-sql" };
     loadPendingInvitationMock.mockResolvedValue(pendingInvitation);
-    acceptInvitationInTransactionMock.mockResolvedValue(true);
+    acceptInvitationInTransactionMock.mockResolvedValue(pendingInvitation);
     withTenantScopeMock.mockImplementation(async (_scope, callback) =>
-      callback({ sql: async () => true }),
+      callback({ sql: scopedSql }),
     );
 
     const result = await acceptInvitation(baseInput());
@@ -96,12 +100,24 @@ describe("acceptInvitation (unit)", () => {
       membershipId: MEM,
       organizationId: ORG,
     });
-    expect(recordInvitationAcceptedMock).toHaveBeenCalledWith({
+    expect(recordInvitationAcceptedInTenantScopeMock).toHaveBeenCalledWith(scopedSql, {
       actorUserId: INVITEE,
       organizationId: ORG,
       invitationId: INV,
       membershipId: MEM,
     });
+  });
+
+  it("fails acceptance when the success audit cannot be recorded in the same scope", async () => {
+    loadPendingInvitationMock.mockResolvedValue(pendingInvitation);
+    acceptInvitationInTransactionMock.mockResolvedValue(pendingInvitation);
+    withTenantScopeMock.mockImplementation(async (_scope, callback) =>
+      callback({ sql: { tag: "scoped-sql" } }),
+    );
+    const auditFailure = new Error("audit write failed");
+    recordInvitationAcceptedInTenantScopeMock.mockRejectedValue(auditFailure);
+
+    await expect(acceptInvitation(baseInput())).rejects.toBe(auditFailure);
   });
 
   it("denies when the invitation is not pending", async () => {
@@ -117,7 +133,7 @@ describe("acceptInvitation (unit)", () => {
       reasonCode: ONBOARDING_ERROR_CODES.invitationNotPending,
       invitationId: INV,
     });
-    expect(recordInvitationAcceptedMock).not.toHaveBeenCalled();
+    expect(recordInvitationAcceptedInTenantScopeMock).not.toHaveBeenCalled();
   });
 
   it("denies when the accepting user is not the invitee", async () => {
@@ -166,11 +182,12 @@ describe("acceptInvitation (unit)", () => {
     loadPendingInvitationMock.mockResolvedValue(pendingInvitation);
     acceptInvitationInTransactionMock.mockResolvedValue(null);
     withTenantScopeMock.mockImplementation(async (_scope, callback) =>
-      callback({ sql: async () => null }),
+      callback({ sql: { tag: "scoped-sql" } }),
     );
 
     await expect(acceptInvitation(baseInput())).rejects.toMatchObject({
       code: ONBOARDING_ERROR_CODES.invitationNotPending,
     });
+    expect(recordInvitationAcceptedInTenantScopeMock).not.toHaveBeenCalled();
   });
 });

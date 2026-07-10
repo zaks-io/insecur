@@ -12,7 +12,7 @@ import { resolveAuthenticatedApiClient } from "./bff-api.js";
  * The wizard's only mutation: Guided Organization Provisioning over the BFF scoped-token hop
  * (ADR-0051). The decision path (CSRF double-submit, authenticated client, Display Name
  * validation, envelope parsing) lives in `provisionWorkspaceForRequest`; the provisioning itself
- * is audited by the Runtime Worker (`recordProvisionSuccess`). The browser sends metadata only
+ * is audited by the Runtime Worker (`recordProvisionSuccessInTenantScope`). The browser sends metadata only
  * and receives metadata only.
  */
 export const provisionOnboardingWorkspace = createServerFn({ method: "POST" })

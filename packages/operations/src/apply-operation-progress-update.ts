@@ -1,12 +1,18 @@
 import type { OperationId, OrganizationId } from "@insecur/domain";
 import type { TenantScopedSql } from "@insecur/tenant-store";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
-import { toOperationPollResult } from "./operation-row.js";
+import { type OperationRecord, toOperationRecord } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import { isTerminalOperationState } from "./operation-states.js";
 import type { OperationPollResult, OperationProgressPatch } from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
 import { updateOperationProgressRow } from "./update-operation-progress-row.js";
+
+/**
+ * Progress patches are merge-patches, so a revision conflict is safe to re-read and re-merge.
+ * Bounded so pathological contention still surfaces a retryable stale conflict.
+ */
+const MAX_PROGRESS_UPDATE_ATTEMPTS = 3;
 
 export interface ApplyOperationProgressUpdateInput {
   organizationId: OrganizationId;
@@ -17,14 +23,16 @@ export interface ApplyOperationProgressUpdateInput {
   assertWritable?: (current: OperationPollResult) => void;
 }
 
-async function readWritableOperation(
-  getById: (
-    organizationId: OrganizationId,
-    operationId: OperationId,
-  ) => Promise<OperationPollResult | null>,
+type GetOperationById = (
   organizationId: OrganizationId,
   operationId: OperationId,
-): Promise<OperationPollResult> {
+) => Promise<OperationRecord | null>;
+
+async function readWritableOperation(
+  getById: GetOperationById,
+  organizationId: OrganizationId,
+  operationId: OperationId,
+): Promise<OperationRecord> {
   const existing = await getById(organizationId, operationId);
   if (existing === null) {
     throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
@@ -38,14 +46,11 @@ async function readWritableOperation(
   return existing;
 }
 
-export async function applyOperationProgressUpdate(
+async function attemptOperationProgressUpdate(
   sql: TenantScopedSql,
-  getById: (
-    organizationId: OrganizationId,
-    operationId: OperationId,
-  ) => Promise<OperationPollResult | null>,
+  getById: GetOperationById,
   input: ApplyOperationProgressUpdateInput,
-): Promise<OperationPollResult> {
+): Promise<OperationRecord | undefined> {
   const existing = await readWritableOperation(getById, input.organizationId, input.operationId);
   input.assertWritable?.(existing);
 
@@ -57,16 +62,28 @@ export async function applyOperationProgressUpdate(
     operationId: input.operationId,
     mergedProgress,
     state: existing.state,
+    expectedRevision: existing.revision,
     ...(input.highAssuranceClearCas === undefined
       ? {}
       : { highAssuranceClearCas: input.highAssuranceClearCas }),
   });
-  if (row === undefined) {
-    throw new OperationStoreError(
-      OPERATION_ERROR_CODES.staleTransition,
-      input.staleTransitionMessage,
-      true,
-    );
+  return row === undefined ? undefined : toOperationRecord(row);
+}
+
+export async function applyOperationProgressUpdate(
+  sql: TenantScopedSql,
+  getById: GetOperationById,
+  input: ApplyOperationProgressUpdateInput,
+): Promise<OperationRecord> {
+  for (let attempt = 0; attempt < MAX_PROGRESS_UPDATE_ATTEMPTS; attempt += 1) {
+    const updated = await attemptOperationProgressUpdate(sql, getById, input);
+    if (updated !== undefined) {
+      return updated;
+    }
   }
-  return toOperationPollResult(row);
+  throw new OperationStoreError(
+    OPERATION_ERROR_CODES.staleTransition,
+    input.staleTransitionMessage,
+    true,
+  );
 }

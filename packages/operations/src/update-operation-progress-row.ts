@@ -7,6 +7,8 @@ interface ProgressRowUpdateInput {
   operationId: OperationPollResult["operationId"];
   mergedProgress: OperationPollResult["progress"];
   state: OperationPollResult["state"];
+  /** Revision the merge was computed from; the UPDATE compare-and-sets on it. */
+  expectedRevision: number;
 }
 
 async function updateStandardOperationProgressRow(
@@ -17,10 +19,12 @@ async function updateStandardOperationProgressRow(
     UPDATE operations
     SET
       progress = ${bindJsonb(sql, input.mergedProgress)},
+      revision = revision + 1,
       updated_at = now()
     WHERE id = ${input.operationId}
       AND org_id = ${input.organizationId}
       AND state = ${input.state}
+      AND revision = ${input.expectedRevision}
     RETURNING
       id,
       org_id,
@@ -29,6 +33,7 @@ async function updateStandardOperationProgressRow(
       idempotency_key,
       progress,
       execution_deadline,
+      revision,
       created_at,
       updated_at
   `;
@@ -44,10 +49,12 @@ async function updateHighAssuranceClearOperationProgressRow(
     UPDATE operations
     SET
       progress = ${bindJsonb(sql, input.mergedProgress)},
+      revision = revision + 1,
       updated_at = now()
     WHERE id = ${input.operationId}
       AND org_id = ${input.organizationId}
       AND state = ${input.state}
+      AND revision = ${input.expectedRevision}
       AND state = 'waiting_for_human'
       AND (progress->'highAssuranceChallenge'->>'clearedAt') IS NULL
       AND (progress->'highAssuranceChallenge'->>'challengeId') = ${highAssuranceClearCas.challengeId}
@@ -59,6 +66,7 @@ async function updateHighAssuranceClearOperationProgressRow(
       idempotency_key,
       progress,
       execution_deadline,
+      revision,
       created_at,
       updated_at
   `;

@@ -1,6 +1,7 @@
 import type { OrganizationId, OperationId } from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
-import type { OperationMutationResult, OperationPollResult } from "./operation-types.js";
+import { type OperationRecord, toOperationPollResult } from "./operation-row.js";
+import type { OperationMutationResult } from "./operation-types.js";
 import { enforceSyncTargetLease } from "./enforce-sync-target-lease.js";
 import { TenantOperationStore } from "./tenant-operation-store.js";
 import type { SyncTargetLeaseContext } from "./sync-target-types.js";
@@ -11,7 +12,7 @@ export async function withOperationProgressMutation(
     readonly operationId: OperationId;
     readonly lease?: SyncTargetLeaseContext;
   },
-  run: (store: TenantOperationStore) => Promise<OperationPollResult>,
+  run: (store: TenantOperationStore) => Promise<OperationRecord>,
 ): Promise<OperationMutationResult> {
   const operation = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
@@ -26,5 +27,5 @@ export async function withOperationProgressMutation(
     },
   );
 
-  return { operation, created: false };
+  return { operation: toOperationPollResult(operation), created: false };
 }
