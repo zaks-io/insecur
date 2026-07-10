@@ -31,6 +31,7 @@ import {
   recordPossessionCheckedAudit,
 } from "./record-possession-check-audit.js";
 import { SecretWriteError } from "./secret-write-error.js";
+import { validateTextSecretValue } from "./validate-text-secret-value.js";
 
 export interface CheckSecretPossessionInput {
   keyring: Keyring;
@@ -133,6 +134,11 @@ export async function checkSecretPossession(
 ): Promise<CheckSecretPossessionResult> {
   let resolved: ResolvedCurrentVersion;
   try {
+    // The candidate is bounded by the same value contract the write path enforces up front in
+    // blind-secret-write, so an oversized probe fails with the same stable `value_too_large` code
+    // before any storage read or decrypt. Empty candidates stay comparable because an empty stored
+    // value (an allowEmpty write) must remain checkable.
+    validateTextSecretValue(input.candidateUtf8, { allowEmpty: true });
     resolved = await loadCurrentVersionForPossession(input);
   } catch (error) {
     if (error instanceof SecretWriteError) {
