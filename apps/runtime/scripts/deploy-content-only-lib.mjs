@@ -82,6 +82,30 @@ export async function reconcileDeployedObservability(
   console.log(`Reconciled ${scriptName} observability settings without changing Worker bindings.`);
 }
 
+export async function reconcileDeployedCronSchedules(
+  cloudflareJson,
+  accountId,
+  scriptName,
+  desiredCrons,
+) {
+  assertDesiredCronConfig(desiredCrons);
+
+  const schedulesPath = `/accounts/${accountId}/workers/scripts/${scriptName}/schedules`;
+  const schedules = await cloudflareJson("GET", schedulesPath);
+  if (setsEqual(readDeployedCrons(schedules), desiredCrons)) {
+    return;
+  }
+
+  await cloudflareJson("PUT", schedulesPath, {
+    body: JSON.stringify(desiredCrons.map((cron) => ({ cron }))),
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const reconciledSchedules = await cloudflareJson("GET", schedulesPath);
+  assertDeployedCronSchedules(reconciledSchedules, desiredCrons);
+  console.log(`Reconciled ${scriptName} cron schedules without changing Worker bindings.`);
+}
+
 export async function runContentOnlyDeploy(options = {}) {
   const context = await createContentOnlyDeployContext(options);
 
@@ -90,13 +114,19 @@ export async function runContentOnlyDeploy(options = {}) {
     context.accountId,
     context.scriptName,
     context.config,
-    { skipObservability: true },
+    { skipObservability: true, skipCronSchedules: true },
   );
   await reconcileDeployedObservability(
     context.cloudflareJson,
     context.accountId,
     context.scriptName,
     context.config.observability,
+  );
+  await reconcileDeployedCronSchedules(
+    context.cloudflareJson,
+    context.accountId,
+    context.scriptName,
+    context.config.triggers?.crons,
   );
   await assertDeployedRuntimeConfig(
     context.cloudflareJson,
@@ -157,7 +187,7 @@ async function assertDeployedRuntimeConfig(
   accountId,
   scriptName,
   config,
-  { skipObservability = false } = {},
+  { skipObservability = false, skipCronSchedules = false } = {},
 ) {
   const settings = await cloudflareJson(
     "GET",
@@ -201,23 +231,33 @@ async function assertDeployedRuntimeConfig(
     bucket_name: desiredBackupBucket.bucket_name,
   });
 
-  const schedules = await cloudflareJson(
-    "GET",
-    `/accounts/${accountId}/workers/scripts/${scriptName}/schedules`,
-  );
-  assertDeployedCronSchedules(schedules, config.triggers?.crons);
+  if (!skipCronSchedules) {
+    const schedules = await cloudflareJson(
+      "GET",
+      `/accounts/${accountId}/workers/scripts/${scriptName}/schedules`,
+    );
+    assertDeployedCronSchedules(schedules, config.triggers?.crons);
+  }
 }
 
 export function assertDeployedCronSchedules(schedules, desiredCrons) {
+  assertDesiredCronConfig(desiredCrons);
+  assertSetEqual(readDeployedCrons(schedules), desiredCrons, "cron schedules");
+}
+
+function assertDesiredCronConfig(desiredCrons) {
   if (!Array.isArray(desiredCrons) || desiredCrons.length === 0) {
     throw new Error(
       "Refusing content-only deploy: deploy config must declare backup cron triggers.",
     );
   }
-  const deployedCrons = Array.isArray(schedules)
-    ? schedules.map((schedule) => schedule.cron).filter(Boolean)
-    : [];
-  assertSetEqual(deployedCrons, desiredCrons, "cron schedules");
+}
+
+function readDeployedCrons(schedules) {
+  // The live schedules endpoint wraps the list as { schedules: [...] }; accept a
+  // bare array too so drift detection never misreads a deployed cron set as empty.
+  const entries = Array.isArray(schedules) ? schedules : (schedules?.schedules ?? []);
+  return entries.map((schedule) => schedule.cron).filter(Boolean);
 }
 
 async function putScriptContent(cloudflareJson, accountId, scriptName, readFileFn) {
