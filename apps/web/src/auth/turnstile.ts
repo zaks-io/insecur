@@ -16,6 +16,7 @@ export type TurnstileVerificationResult =
 interface TurnstileSiteverifyResponse {
   readonly success?: unknown;
   readonly action?: unknown;
+  readonly hostname?: unknown;
 }
 
 function normalizeConfigValue(value: string | undefined): string | null {
@@ -90,6 +91,7 @@ async function postSiteverify(
 function evaluateSiteverifyResponse(
   payload: TurnstileSiteverifyResponse | null,
   expectedAction: string,
+  expectedHostname: string,
 ): TurnstileVerificationResult {
   if (payload === null) {
     return { ok: false, reason: "unavailable" };
@@ -98,6 +100,9 @@ function evaluateSiteverifyResponse(
     return { ok: false, reason: "rejected" };
   }
   if (payload.action !== expectedAction) {
+    return { ok: false, reason: "invalid_token" };
+  }
+  if (payload.hostname !== expectedHostname) {
     return { ok: false, reason: "invalid_token" };
   }
   return { ok: true };
@@ -119,7 +124,7 @@ export async function verifyTurnstileToken(
 
   try {
     const payload = await postSiteverify(siteverifyRequestBody(request, secret, token));
-    return evaluateSiteverifyResponse(payload, expectedAction);
+    return evaluateSiteverifyResponse(payload, expectedAction, new URL(request.url).hostname);
   } catch {
     return { ok: false, reason: "unavailable" };
   }

@@ -12,8 +12,8 @@ const env = {
   TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
 } as WebEnv;
 
-function request() {
-  return new Request("https://app.insecur.test/login", {
+function request(host = "app.insecur.cloud") {
+  return new Request(`https://${host}/login`, {
     headers: { "CF-Connecting-IP": "203.0.113.10" },
   });
 }
@@ -53,9 +53,14 @@ describe("verifyTurnstileToken", () => {
     vi.restoreAllMocks();
   });
 
-  it("posts the token to Cloudflare Siteverify", async () => {
+  it("accepts a token minted for the production hostname and posts it to Siteverify", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () =>
-      Response.json({ success: true, action: "web-login", "error-codes": [] }),
+      Response.json({
+        success: true,
+        action: "web-login",
+        hostname: "app.insecur.cloud",
+        "error-codes": [],
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -82,6 +87,36 @@ describe("verifyTurnstileToken", () => {
     expect(body.idempotency_key).toHaveLength(36);
   });
 
+  it("accepts a token minted for the preview hostname", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          success: true,
+          action: "web-login",
+          hostname: "app.preview.insecur.cloud",
+        }),
+      ),
+    );
+
+    await expect(
+      verifyTurnstileToken(request("app.preview.insecur.cloud"), env, "token"),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  it("accepts a token minted for a local development request", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ success: true, action: "web-login", hostname: "localhost" }),
+      ),
+    );
+
+    await expect(verifyTurnstileToken(request("localhost:8788"), env, "token")).resolves.toEqual({
+      ok: true,
+    });
+  });
+
   it("fails closed when Siteverify rejects or the action mismatches", async () => {
     vi.stubGlobal(
       "fetch",
@@ -94,8 +129,26 @@ describe("verifyTurnstileToken", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json({ success: true, action: "other" })),
+      vi.fn(async () =>
+        Response.json({ success: true, action: "other", hostname: "app.insecur.cloud" }),
+      ),
     );
+    await expect(verifyTurnstileToken(request(), env, "token")).resolves.toEqual({
+      ok: false,
+      reason: "invalid_token",
+    });
+  });
+
+  it.each([
+    ["does not match the request", "app.preview.insecur.cloud"],
+    ["is missing", undefined],
+    ["is malformed", 42],
+  ])("fails closed when the Siteverify hostname %s", async (_description, hostname) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ success: true, action: "web-login", hostname })),
+    );
+
     await expect(verifyTurnstileToken(request(), env, "token")).resolves.toEqual({
       ok: false,
       reason: "invalid_token",
