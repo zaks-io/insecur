@@ -1,11 +1,12 @@
 import {
+  STORE_ERROR_CODES,
   VALIDATION_ERROR_CODES,
   resolveKnownErrorCode,
   type KnownErrorCode,
 } from "@insecur/domain";
 import { InjectionGrantError, RuntimeInjectionPolicyError } from "@insecur/runtime-injection";
 import { SecretWriteError } from "@insecur/secret-store";
-import { RuntimeConfigMissingError } from "@insecur/tenant-store";
+import { RuntimeConfigMissingError, isTransientConnectionError } from "@insecur/tenant-store";
 import { RootKeyNotConfiguredError } from "@insecur/crypto";
 import { GuidedOrganizationProvisionError, MembershipManagementError } from "@insecur/onboarding";
 import { OperationStoreError } from "@insecur/operations";
@@ -74,24 +75,8 @@ function isDomainError(error: unknown): error is DomainError {
   return DOMAIN_ERROR_TYPES.some((ErrorType) => error instanceof ErrorType);
 }
 
-export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
-  if (error instanceof HighAssuranceHandoffError) {
-    return {
-      code: error.code,
-      message: runtimeRpcMessage(error, error.code),
-      retryable: error.retryable,
-      operationId: error.operationId,
-    };
-  }
-  if (isDomainError(error)) {
-    // Not every domain error class carries `retryable`; those without it are non-retryable.
-    const retryable = "retryable" in error && typeof error.retryable === "boolean";
-    return {
-      code: error.code,
-      message: runtimeRpcMessage(error, error.code),
-      retryable: retryable ? error.retryable : false,
-    };
-  }
+/** Runtime misconfiguration classes that hide behind fixed non-retryable messages. */
+function misconfigurationRpcError(error: unknown): RuntimeRpcError | undefined {
   if (error instanceof RootKeyNotConfiguredError) {
     return {
       code: VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
@@ -111,6 +96,42 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
       code: error.code,
       message: error.message,
       retryable: false,
+    };
+  }
+  return undefined;
+}
+
+export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
+  if (error instanceof HighAssuranceHandoffError) {
+    return {
+      code: error.code,
+      message: runtimeRpcMessage(error, error.code),
+      retryable: error.retryable,
+      operationId: error.operationId,
+    };
+  }
+  if (isDomainError(error)) {
+    // Not every domain error class carries `retryable`; those without it are non-retryable.
+    const retryable = "retryable" in error && typeof error.retryable === "boolean";
+    return {
+      code: error.code,
+      message: runtimeRpcMessage(error, error.code),
+      retryable: retryable ? error.retryable : false,
+    };
+  }
+  const misconfiguration = misconfigurationRpcError(error);
+  if (misconfiguration !== undefined) {
+    return misconfiguration;
+  }
+  // A transient connection-layer failure (Hyperdrive pool exhaustion surfaces SQLSTATE 58000,
+  // server shutdown, connection loss) is retryable and must not leak the raw SQLSTATE as the
+  // public error code (INS-603). This must run before the structural `{ code }` fallback, which
+  // would otherwise forward the SQLSTATE verbatim as a non-retryable code.
+  if (isTransientConnectionError(error)) {
+    return {
+      code: STORE_ERROR_CODES.unavailable,
+      message: runtimeRpcMessage(error, STORE_ERROR_CODES.unavailable),
+      retryable: true,
     };
   }
   // resolveKnownErrorCode preserves a structural `{ code }` (e.g. the insufficient-scope denial

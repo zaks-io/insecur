@@ -79,6 +79,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [BOOTSTRAP_ERROR_CODES.invalidSecret, 401],
   [BOOTSTRAP_ERROR_CODES.authenticatedActorRequired, 401],
   [STORE_ERROR_CODES.runtimeConfigMissing, 503],
+  [STORE_ERROR_CODES.unavailable, 503],
   [STORAGE_GATE_ERROR_CODES.gateBlocked, 503],
   [STORAGE_GATE_ERROR_CODES.gateUnknown, 503],
   [CRYPTO_ERROR_CODES.decryptFailed, 500],

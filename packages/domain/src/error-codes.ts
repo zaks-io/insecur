@@ -139,6 +139,8 @@ export type CryptoErrorCode = (typeof CRYPTO_ERROR_CODES)[keyof typeof CRYPTO_ER
 /** Tenant-scoped store configuration and runtime failures. */
 export const STORE_ERROR_CODES = {
   runtimeConfigMissing: "store.runtime_config_missing",
+  /** Transient database connection-layer failure (pool exhaustion, shutdown, connection loss). */
+  unavailable: "store.unavailable",
 } as const;
 
 export type StoreErrorCode = (typeof STORE_ERROR_CODES)[keyof typeof STORE_ERROR_CODES];
