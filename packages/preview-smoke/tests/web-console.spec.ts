@@ -154,9 +154,13 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
         ],
       },
       {
+        // The secrets sub-view marker renders in every state (matrix, empty Secret Shape, no
+        // environments); whether the workspace has secret rows is preview-data-dependent, so the
+        // old table-header fragment ">Secret<" was flaky (INS-600). Pinned by the SSR unit test in
+        // apps/web/test/secrets-matrix-read.test.tsx.
         label: "Web project secrets",
         path: `${projectBase}/secrets`,
-        expectedText: ["Secrets", ">Secret<"],
+        expectedText: ["Secrets", 'data-slot="project-secrets"'],
       },
       {
         label: "Web project access",
