@@ -105,6 +105,7 @@ test.describe("preview public surfaces @preview", () => {
     // apps/site/src/install-scripts.test.ts; change both together.
     assertHeaderEquals(response, "content-type", "text/plain; charset=utf-8", "Site install.sh");
     assertHeaderEquals(response, "x-frame-options", "DENY", "Site install.sh");
+    assertHeaderEquals(response, "x-content-type-options", "nosniff", "Site install.sh");
     assertTextIncludes(text, "#!/bin/sh", "Site install.sh");
     assertTextIncludes(text, 'REPO="zaks-io/insecur"', "Site install.sh");
     assertTextIncludes(text, "insecur CLI installer", "Site install.sh");
@@ -117,6 +118,7 @@ test.describe("preview public surfaces @preview", () => {
     assertStatus(response, 200, "Site install.ps1", { bodyText: text.slice(0, 200) });
     assertHeaderEquals(response, "content-type", "text/plain; charset=utf-8", "Site install.ps1");
     assertHeaderEquals(response, "x-frame-options", "DENY", "Site install.ps1");
+    assertHeaderEquals(response, "x-content-type-options", "nosniff", "Site install.ps1");
     assertTextIncludes(text, "insecur CLI installer", "Site install.ps1");
     assertTextIncludes(text, "zaks-io/insecur", "Site install.ps1");
     assertTextIncludes(text, "Set-StrictMode", "Site install.ps1");
