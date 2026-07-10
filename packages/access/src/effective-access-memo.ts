@@ -2,11 +2,30 @@ import { coordinateCacheKey } from "./coordinate-cache-key.js";
 import type { EffectiveAccessResult } from "./resolve-effective-access.js";
 import type { ActorRef, ResourceCoordinate } from "./resolve-effective-access.js";
 
+function sortedScopes(scopes: readonly string[] = []): string {
+  return [...scopes].sort().join(",");
+}
+
 function actorCacheKey(actor: ActorRef): string {
   if (actor.type === "user") {
-    return `user:${actor.userId}`;
+    return [
+      "user",
+      actor.userId,
+      actor.tokenScope?.organizationId,
+      actor.tokenScope?.projectId,
+      actor.tokenScope?.environmentId,
+      sortedScopes(actor.credentialScopes),
+    ].join(":");
   }
-  return `machine:${actor.machineIdentityId}:${actor.tokenScope.organizationId}:${actor.tokenScope.projectId}:${actor.tokenScope.environmentId ?? ""}:${actor.tokenScope.runtimePolicyKeyId ?? ""}:${[...actor.credentialScopes].sort().join(",")}`;
+  return [
+    "machine",
+    actor.machineIdentityId,
+    actor.tokenScope.organizationId,
+    actor.tokenScope.projectId,
+    actor.tokenScope.environmentId,
+    actor.tokenScope.runtimePolicyKeyId,
+    sortedScopes(actor.credentialScopes),
+  ].join(":");
 }
 
 /** Request-scoped Effective Access cache (never shared across requests). */

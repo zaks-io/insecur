@@ -7,6 +7,10 @@ import { CLI_AGENT_CREDENTIAL_FILE_ENV } from "../src/auth/agent-env-keys.js";
 import { runAgentEnvCommand } from "../src/commands/agent-env.js";
 import { buildAgentMarkedChildEnv } from "../src/commands/agent-shared.js";
 import { runAgentShellCommand } from "../src/commands/agent-shell.js";
+import {
+  credentialScopesForCapabilities,
+  parseAgentAllow,
+} from "../src/commands/agent-session-policy.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { setMemorySession, clearMemorySession } from "../src/session/memory-session.js";
 
@@ -41,6 +45,22 @@ const context: ResolvedCliContext = {
     profile: undefined,
   },
 };
+
+describe("agent task policy", () => {
+  it("rejects an empty explicit capability list", () => {
+    expect(() => parseAgentAllow("")).toThrow("--allow requires at least one capability");
+  });
+
+  it("includes metadata read access required by command planning", () => {
+    expect(credentialScopesForCapabilities(["secrets:set", "run"])).toEqual([
+      "secret:read",
+      "secret:non_protected_write",
+      "runtime_injection:grant_issue",
+      "runtime_injection:grant_consume",
+      "runtime_injection:run",
+    ]);
+  });
+});
 
 const deriveData: DeriveAgentSessionData = {
   sessionId: "session_human",
@@ -161,11 +181,12 @@ describe("agent shell", () => {
     const spawn = vi.spyOn(await import("../src/commands/run-child.js"), "spawnCommand");
     spawn.mockResolvedValue(0);
 
-    const exitCode = await runAgentShellCommand(flags, api, context, [
-      "node",
-      "-e",
-      "process.exit(0)",
-    ]);
+    const exitCode = await runAgentShellCommand({
+      flags,
+      api,
+      context,
+      command: ["node", "-e", "process.exit(0)"],
+    });
     expect(exitCode).toBe(0);
     expect(api.deriveAgentSession).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -178,6 +199,52 @@ describe("agent shell", () => {
       expect.objectContaining({
         [CLI_SESSION_TOKEN_ENV]: AGENT_CREDENTIAL,
         INSECUR_HOST: HOST,
+      }),
+    );
+  });
+
+  it("derives a task-scoped agent session from ergonomic capability names", async () => {
+    setMemorySession({
+      credential: HUMAN_CREDENTIAL,
+      sessionId: "session_human",
+      expiresAt: deriveData.expiresAt,
+    });
+    const api = createApi();
+    const spawn = vi.spyOn(await import("../src/commands/run-child.js"), "spawnCommand");
+    spawn.mockResolvedValue(0);
+    const scopedContext: ResolvedCliContext = {
+      ...context,
+      scope: {
+        ...context.scope,
+        orgId: "org_00000000000000000000000001" as never,
+        projectId: "prj_00000000000000000000000001" as never,
+        envId: "env_00000000000000000000000001" as never,
+      },
+    };
+
+    await runAgentShellCommand({
+      flags,
+      api,
+      context: scopedContext,
+      command: ["codex"],
+      policy: {
+        allow: ["secrets:list", "run"],
+        ttlSeconds: 600,
+      },
+    });
+
+    expect(api.deriveAgentSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credentialScopes: [
+          "secret:read",
+          "runtime_injection:grant_issue",
+          "runtime_injection:grant_consume",
+          "runtime_injection:run",
+        ],
+        organizationId: "org_00000000000000000000000001",
+        projectId: "prj_00000000000000000000000001",
+        environmentId: "env_00000000000000000000000001",
+        ttlSeconds: 600,
       }),
     );
   });

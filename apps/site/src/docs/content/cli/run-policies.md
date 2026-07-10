@@ -2,7 +2,7 @@
 title: insecur run-policies
 description: Manage Runtime Injection Policies (metadata only)
 section: CLI reference
-order: 17
+order: 18
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->
@@ -31,7 +31,7 @@ insecur run-policies create [options]
 | `--command <cmd>`              | approved command shape (required)                  |
 | `--command-fingerprint <hash>` | command fingerprint (sha256:...)                   |
 | `--secret-ids <ids>`           | comma-separated exact secret opaque ids (required) |
-| `--operation-id <id>`          | resume after High-Assurance Challenge clearance    |
+| `--operation <id>`             | resume after High-Assurance Challenge clearance    |
 
 ## `insecur run-policies show`
 
@@ -57,11 +57,11 @@ insecur run-policies disable [options] <policy-id>
 | ----------- | ------------------------ |
 | `policy-id` | runtime policy opaque id |
 
-| Option                | Description                                     |
-| --------------------- | ----------------------------------------------- |
-| `--env-id <id>`       | environment opaque id                           |
-| `--comment <text>`    | audit comment (required)                        |
-| `--operation-id <id>` | resume after High-Assurance Challenge clearance |
+| Option             | Description                                     |
+| ------------------ | ----------------------------------------------- |
+| `--env-id <id>`    | environment opaque id                           |
+| `--comment <text>` | audit comment (required)                        |
+| `--operation <id>` | resume after High-Assurance Challenge clearance |
 
 ## Related
 

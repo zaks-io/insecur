@@ -95,6 +95,7 @@ export async function runVariableKeyWatchPath(input: {
   return runWatchLoop({
     command: input.command,
     watchRoot: resolveProjectRoot(input.flags.configDir),
+    ...(input.flags.json ? { controlOutput: "stdout-json" as const } : {}),
     executeIteration: async () => {
       const grant = await issueAndConsumeVariableKeyGrant({
         api: input.api,
@@ -141,6 +142,7 @@ export async function runProfilePolicyWatchPath(input: {
   return runWatchLoop({
     command: input.command,
     watchRoot: resolveProjectRoot(input.flags.configDir),
+    ...(input.flags.json ? { controlOutput: "stdout-json" as const } : {}),
     executeIteration: () => executeProfilePolicyWatchIteration(input),
   });
 }

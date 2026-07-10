@@ -93,3 +93,24 @@ authority remains exactly the acting credential. Agent-marked sessions create a 
 hook — an Organization Configuration could narrow what agent-marked sessions may do, enforced by
 token scope rather than by trusting a label — but any such narrowing is a separate future
 decision, not part of this amendment.
+
+## Amendment (2026-07-09): Task-scoped derived agent sessions
+
+The future policy hook above is now part of V1 at credential derivation time. `insecur agent shell`
+and `insecur agent env` may request an explicit task policy made of an allowlisted capability set,
+a TTL, and the currently resolved Organization, Project, and Environment. The CLI translates its
+capability vocabulary into canonical Authorization Scopes; the API validates those scopes and
+signs them with the resource bounds into the derived credential. The requested TTL cannot outlive
+the parent session.
+
+Effective Access for a derived credential is the intersection of the parent User's live
+Membership-derived scopes, the credential's signed scope set, and its signed resource boundary.
+The derived credential can therefore narrow authority but can never add authority. The same bounds
+survive the API-to-Runtime private scoped-token hop and participate in request-memo cache keys.
+Malformed signed resource IDs fail authentication rather than becoming branded identifiers.
+
+Omitting an explicit task policy preserves the July 4 behavior for compatibility: the child is
+agent-marked and bounded by the parent session, but receives no additional scope intersection.
+`whoami` and `agent status` expose the effective session policy as metadata so an agent can verify
+its boundary before acting. Agent marking remains attribution, not authorization. The signed task
+policy is the authorization input.

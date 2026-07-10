@@ -4,6 +4,7 @@ import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import type { ApiClient, OperationPollData } from "../src/api/types.js";
 import { runOperationsGetCommand } from "../src/commands/operations-get.js";
 import { runOperationsWaitCommand } from "../src/commands/operations-wait.js";
+import { runOperationsWatchCommand } from "../src/commands/operations-watch.js";
 import { runOperationsCancelCommand } from "../src/commands/operations-cancel.js";
 import { EXIT_CONFLICT, EXIT_WAIT_TIMEOUT } from "../src/output/exit-codes.js";
 import { setMemorySession, clearMemorySession } from "../src/session/memory-session.js";
@@ -167,6 +168,49 @@ describe("operations wait", () => {
     expect(parsed).toMatchObject({ ok: true, data: { state: "succeeded" } });
   });
 
+  it("stops when cleared challenge evidence is ready to resume", async () => {
+    setTestSession();
+    const resumeArgv = [
+      "insecur",
+      "secrets",
+      "promote",
+      "sv_01TEST00000000000000000001",
+      "--operation",
+      OPERATION_ID,
+      "--json",
+    ];
+    const getOperation = vi.fn(async () => ({
+      ok: true as const,
+      envelope: {
+        ok: true as const,
+        data: {
+          ...runningOperation,
+          state: "waiting_for_human",
+          progress: {
+            highAssuranceChallenge: { clearedAt: "2026-07-01T00:02:00.000Z" },
+            resumeArgv,
+          },
+        },
+      },
+    }));
+    const api = createMockApi({ getOperation });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runOperationsWaitCommand(flags, api, mockContext, {
+      operationId: OPERATION_ID,
+      timeoutSeconds: 60,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(getOperation).toHaveBeenCalledTimes(1);
+    const parsed = JSON.parse(String(stdout.mock.calls[0]?.[0])) as {
+      data: { readyToResume: boolean };
+      next: { argv: string[] }[];
+    };
+    expect(parsed.data.readyToResume).toBe(true);
+    expect(parsed.next[0]?.argv).toEqual(resumeArgv);
+  });
+
   it("resolves promptly at exit 9 when the operation is incomplete", async () => {
     setTestSession();
     const getOperation = vi.fn(async () => ({
@@ -220,9 +264,77 @@ describe("operations wait", () => {
       ok: false,
       error: { code: OPERATION_ERROR_CODES.waitTimeout },
       data: { operationId: OPERATION_ID, state: "running" },
+      remediation: {
+        poll: ["insecur", "operations", "wait", OPERATION_ID, "--timeout", "1", "--json"],
+      },
+      next: [expect.objectContaining({ actor: "agent", kind: "wait" })],
     });
-    expect(JSON.stringify(parsed)).toContain("insecur operations wait");
     vi.useRealTimers();
+  });
+});
+
+describe("operations watch", () => {
+  afterEach(() => {
+    clearMemorySession();
+    vi.restoreAllMocks();
+  });
+
+  it("emits versioned JSON Lines only when operation state changes", async () => {
+    setTestSession();
+    const getOperation = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true as const,
+        envelope: { ok: true as const, data: runningOperation },
+      })
+      .mockResolvedValueOnce({
+        ok: true as const,
+        envelope: { ok: true as const, data: succeededOperation },
+      });
+    const api = createMockApi({ getOperation });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const exitCode = await runOperationsWatchCommand(flags, api, mockContext, {
+      operationId: OPERATION_ID,
+      jsonl: true,
+      pollIntervalMs: 0,
+    });
+
+    expect(exitCode).toBe(0);
+    const events = stdout.mock.calls.map(
+      (call) =>
+        JSON.parse(String(call[0])) as {
+          schemaVersion: string;
+          event: string;
+          data: { state: string };
+        },
+    );
+    expect(events.map((event) => event.data.state)).toEqual(["running", "succeeded"]);
+    expect(events.every((event) => event.schemaVersion === "1")).toBe(true);
+    expect(events.every((event) => event.event === "operation.state")).toBe(true);
+  });
+
+  it("treats global --json as the JSON Lines watch protocol", async () => {
+    setTestSession();
+    const api = createMockApi({
+      getOperation: vi.fn(async () => ({
+        ok: true as const,
+        envelope: { ok: true as const, data: succeededOperation },
+      })),
+    });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await runOperationsWatchCommand(flags, api, mockContext, {
+      operationId: OPERATION_ID,
+      jsonl: false,
+      pollIntervalMs: 0,
+    });
+
+    expect(JSON.parse(String(stdout.mock.calls[0]?.[0]))).toMatchObject({
+      schemaVersion: "1",
+      event: "operation.state",
+      data: { state: "succeeded" },
+    });
   });
 });
 

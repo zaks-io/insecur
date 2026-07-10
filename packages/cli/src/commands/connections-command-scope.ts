@@ -9,8 +9,7 @@ import { requireSessionCredential } from "../auth/require-session.js";
 import { parseAppConnectionId } from "../config/parse-resource-id.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { requireOrgScope } from "./navigation-scope.js";
-import { handleApiFailure } from "./api-failure.js";
-import { renderSuccess } from "../output/render.js";
+import { finishApiCommand } from "./finish-api-command.js";
 
 export interface OrgScopedConnectionTarget {
   readonly host: string;
@@ -40,10 +39,10 @@ export function finishConnectionCommand<T>(
     | { ok: true; envelope: SuccessEnvelope<T> }
     | { ok: false; envelope: ErrorEnvelope; httpStatus: number },
   formatHuman: (data: T) => string,
+  options: {
+    readonly resumeArgv?: (operationId: string) => readonly string[];
+    readonly resumeActor?: "agent" | "human";
+  } = {},
 ): number {
-  if (!result.ok) {
-    return handleApiFailure(result.envelope, flags);
-  }
-  renderSuccess(result.envelope, flags, formatHuman);
-  return 0;
+  return finishApiCommand(result, flags, formatHuman, options);
 }

@@ -1,7 +1,20 @@
-import type { CliProfileId, DisplayName, ResolvedTargetEcho } from "@insecur/domain";
+import {
+  parseDisplayName,
+  type CliProfileId,
+  type DisplayName,
+  type ResolvedTargetEcho,
+} from "@insecur/domain";
 import type { GuidedOrganizationProvisionData } from "../api/types.js";
 import type { LocalInitProvisionData } from "../local/provision-local-project.js";
 import { asEchoId } from "../output/target-echo.js";
+
+export function initDisplayNameOrThrow(label: string, raw: string): DisplayName {
+  const parsed = parseDisplayName(raw);
+  if (!parsed.ok) {
+    throw new Error(`${label} display name is invalid: ${raw}`);
+  }
+  return parsed.value;
+}
 
 function projectEcho(
   projectId: string,

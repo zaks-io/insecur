@@ -34,7 +34,7 @@ function registerRunPoliciesCreateCommand(runPolicies: Command, deps: RunPolicie
     .requiredOption("--command <cmd>", "approved command shape")
     .option("--command-fingerprint <hash>", "command fingerprint (sha256:...)")
     .requiredOption("--secret-ids <ids>", "comma-separated exact secret opaque ids")
-    .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
+    .option("--operation <id>", "resume after High-Assurance Challenge clearance")
     .action(async function runPoliciesCreateAction(this: CommanderCommand) {
       const flags = deps.globalFlags(this);
       const options = this.opts<{
@@ -44,7 +44,7 @@ function registerRunPoliciesCreateCommand(runPolicies: Command, deps: RunPolicie
         command: string;
         commandFingerprint?: string;
         secretIds: string;
-        operationId?: string;
+        operation?: string;
       }>();
       const envId = resolveRunPolicyEnvironmentId(options, flags);
       const { api, context } = await deps.resolveApi(flags);
@@ -55,7 +55,7 @@ function registerRunPoliciesCreateCommand(runPolicies: Command, deps: RunPolicie
         command: options.command,
         commandFingerprint: options.commandFingerprint,
         secretIds: options.secretIds,
-        operationId: options.operationId,
+        operationId: options.operation,
       });
     });
 }
@@ -79,13 +79,13 @@ function registerRunPoliciesDisableCommand(runPolicies: Command, deps: RunPolici
     .argument("<policy-id>", "runtime policy opaque id")
     .option("--env-id <id>", "environment opaque id")
     .requiredOption("--comment <text>", "audit comment")
-    .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
+    .option("--operation <id>", "resume after High-Assurance Challenge clearance")
     .action(async function runPoliciesDisableAction(this: CommanderCommand, policyId: string) {
       const flags = deps.globalFlags(this);
       const options = this.opts<{
         envId?: string;
         comment: string;
-        operationId?: string;
+        operation?: string;
       }>();
       const envId = resolveRunPolicyEnvironmentId(options, flags);
       const { api, context } = await deps.resolveApi(flags);
@@ -93,7 +93,7 @@ function registerRunPoliciesDisableCommand(runPolicies: Command, deps: RunPolici
         policyId,
         envId,
         comment: options.comment,
-        operationId: options.operationId,
+        operationId: options.operation,
       });
     });
 }

@@ -1,9 +1,4 @@
-import {
-  AUTH_ERROR_CODES,
-  parseDisplayName,
-  successEnvelope,
-  type DisplayName,
-} from "@insecur/domain";
+import { AUTH_ERROR_CODES, successEnvelope } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { parseCliProfileSlug } from "../config/profiles/profile-slug.js";
@@ -20,21 +15,14 @@ import { LOGIN_REMEDIATION } from "../output/cli-remediation.js";
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { EXIT_AUTH_REQUIRED } from "../output/exit-codes.js";
-import { buildInitResolvedTargets } from "./init-result.js";
-
-function displayNameOrThrow(label: string, raw: string): DisplayName {
-  const parsed = parseDisplayName(raw);
-  if (!parsed.ok) {
-    throw new Error(`${label} display name is invalid: ${raw}`);
-  }
-  return parsed.value;
-}
+import { buildInitResolvedTargets, initDisplayNameOrThrow } from "./init-result.js";
+import { INIT_NEXT_ACTIONS } from "./init-next-actions.js";
 
 const INIT_LABELS = {
-  organization: displayNameOrThrow("organization", "My workspace"),
-  project: displayNameOrThrow("project", "First project"),
-  environment: displayNameOrThrow("environment", "Development"),
-  profile: displayNameOrThrow("profile", "Local development"),
+  organization: initDisplayNameOrThrow("organization", "My workspace"),
+  project: initDisplayNameOrThrow("project", "First project"),
+  environment: initDisplayNameOrThrow("environment", "Development"),
+  profile: initDisplayNameOrThrow("profile", "Local development"),
 };
 
 export type InitCommandOptions = LocalInitCommandOptions;
@@ -150,6 +138,7 @@ function renderInitSuccess(
         INIT_LABELS,
       ),
     }),
+    INIT_NEXT_ACTIONS,
   );
   renderSuccess(
     output,

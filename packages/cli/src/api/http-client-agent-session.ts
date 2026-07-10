@@ -7,11 +7,29 @@ import {
   type HttpClientOptions,
 } from "./http-client-envelope.js";
 
+type DeriveAgentSessionHttpInput = Parameters<typeof deriveAgentSession>[1];
+
+function deriveAgentSessionBody(input: DeriveAgentSessionHttpInput): Record<string, unknown> {
+  return {
+    ...(input.harnessName === undefined ? {} : { harnessName: input.harnessName }),
+    ...(input.credentialScopes === undefined ? {} : { credentialScopes: input.credentialScopes }),
+    ...(input.organizationId === undefined ? {} : { organizationId: input.organizationId }),
+    ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
+    ...(input.environmentId === undefined ? {} : { environmentId: input.environmentId }),
+    ...(input.ttlSeconds === undefined ? {} : { ttlSeconds: input.ttlSeconds }),
+  };
+}
+
 export async function deriveAgentSession(
   base: string,
   input: {
     readonly bearerCredential: string;
     readonly harnessName?: string;
+    readonly credentialScopes?: readonly string[];
+    readonly organizationId?: string;
+    readonly projectId?: string;
+    readonly environmentId?: string;
+    readonly ttlSeconds?: number;
   },
   options?: HttpClientOptions,
 ): Promise<
@@ -23,7 +41,7 @@ export async function deriveAgentSession(
     "/v1/session/agent/derive",
     input.bearerCredential,
     {
-      body: input.harnessName === undefined ? {} : { harnessName: input.harnessName },
+      body: deriveAgentSessionBody(input),
       options,
     },
   );

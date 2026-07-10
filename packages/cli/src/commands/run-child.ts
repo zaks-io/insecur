@@ -89,6 +89,7 @@ function forceCleanupExitedChildProcessTree(child: ChildProcess): void {
 export function spawnCommandManaged(
   command: readonly string[],
   childEnv: NodeJS.ProcessEnv,
+  options: { readonly controlOutput?: "stdout-json" } = {},
 ): { readonly child: ChildProcess; readonly exitCode: Promise<number> } {
   const executable = command[0];
   if (executable === undefined) {
@@ -99,9 +100,12 @@ export function spawnCommandManaged(
   const child = spawn(executable, args, {
     detached: true,
     env: childEnv,
-    stdio: "inherit",
+    stdio: options.controlOutput === "stdout-json" ? ["inherit", "pipe", "inherit"] : "inherit",
     shell: false,
   });
+  if (options.controlOutput === "stdout-json") {
+    child.stdout?.pipe(process.stderr);
+  }
   const exitCode = new Promise<number>((resolve, reject) => {
     child.on("error", reject);
     child.on("close", (code, signal) => {
@@ -140,6 +144,7 @@ export function terminateChildProcessTree(child: ChildProcess, signal: NodeJS.Si
 export function spawnCommand(
   command: readonly string[],
   childEnv: NodeJS.ProcessEnv,
+  options: { readonly controlOutput?: "stdout-json" } = {},
 ): Promise<number> {
-  return spawnCommandManaged(command, childEnv).exitCode;
+  return spawnCommandManaged(command, childEnv, options).exitCode;
 }

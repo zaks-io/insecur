@@ -8,6 +8,7 @@ import {
   withSecretReadSession,
   type SecretReadCommandDeps,
 } from "./secrets-read-shared.js";
+import { describeCreationNext } from "./empty-list-next.js";
 
 export async function runSecretsListCommand({
   flags,
@@ -28,6 +29,9 @@ export async function runSecretsListCommand({
       buildEnvelopeMeta({
         requestId: result.envelope.meta?.requestId,
       }),
+      result.envelope.data.secrets.length === 0
+        ? describeCreationNext(["secrets", "set"])
+        : undefined,
     );
 
     renderSuccess(output, flags, (data) => formatSecretListHuman(data.secrets, readScope.envId));

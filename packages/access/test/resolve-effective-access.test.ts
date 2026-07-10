@@ -88,6 +88,24 @@ describe("resolveEffectiveAccess", () => {
     expect(result.scopes).toEqual([]);
   });
 
+  it("intersects a derived agent credential boundary with human membership access", async () => {
+    const loadMemberships: LoadMembershipsFn = vi.fn(async () => [
+      membership({ rolePreset: "owner" }),
+    ]);
+
+    const result = await resolveEffectiveAccess(
+      {
+        ...ACTOR,
+        credentialScopes: [AUTHORIZATION_SCOPES.secretRead],
+        tokenScope: { projectId: PROJECT_A },
+      },
+      { organizationId: ORG_A, projectId: PROJECT_A },
+      { loadMemberships },
+    );
+
+    expect(result.scopes).toEqual([AUTHORIZATION_SCOPES.secretRead]);
+  });
+
   it("unions organization-tier and project-tier grants inside one organization", () => {
     const scopes = unionEffectiveAccessScopes([
       membership({ rolePreset: "owner", projectId: null }),
@@ -114,6 +132,25 @@ describe("resolveEffectiveAccess", () => {
     await resolveEffectiveAccess(ACTOR, coordinate, { loadMemberships, memo });
 
     expect(loadMemberships).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps unrestricted and task-scoped user results separate in the request memo", async () => {
+    const loadMemberships: LoadMembershipsFn = vi.fn(async () => [
+      membership({ rolePreset: "owner" }),
+    ]);
+    const memo = new EffectiveAccessMemo();
+    const coordinate = { organizationId: ORG_A, projectId: PROJECT_A };
+
+    const unrestricted = await resolveEffectiveAccess(ACTOR, coordinate, { loadMemberships, memo });
+    const scoped = await resolveEffectiveAccess(
+      { ...ACTOR, credentialScopes: [AUTHORIZATION_SCOPES.secretRead] },
+      coordinate,
+      { loadMemberships, memo },
+    );
+
+    expect(unrestricted.scopes).toContain(AUTHORIZATION_SCOPES.secretNonProtectedWrite);
+    expect(scoped.scopes).toEqual([AUTHORIZATION_SCOPES.secretRead]);
+    expect(loadMemberships).toHaveBeenCalledTimes(2);
   });
 
   it("does not treat unknown role presets as authorization shortcuts", () => {

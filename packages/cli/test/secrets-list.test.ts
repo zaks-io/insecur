@@ -132,6 +132,33 @@ describe("runSecretsListCommand", () => {
     expect(JSON.stringify(output)).not.toMatch(/valueUtf8|plaintext|password|wrapped|ciphertext/i);
   });
 
+  it("gives an agent an exact discovery action when the list is empty", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const api = createMockApi({
+      listEnvironmentSecrets: vi.fn(async () => ({
+        ok: true as const,
+        envelope: { ok: true as const, data: { secrets: [] } },
+      })),
+    });
+
+    await runSecretsListCommand({ flags, api, context: mockContext });
+
+    const output = JSON.parse(String(stdout.mock.calls[0]?.[0])) as { next: unknown[] };
+    expect(output.next).toEqual([
+      {
+        id: "describe-create",
+        kind: "execute",
+        actor: "agent",
+        argv: ["insecur", "describe", "secrets", "set", "--json"],
+      },
+    ]);
+  });
+
   it("requires org, project, and environment scope", async () => {
     setMemorySession({
       credential: "credential_test",

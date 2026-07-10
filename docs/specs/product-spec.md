@@ -618,6 +618,16 @@ Trace: [ADR-0006](../adr/0006-app-connections-and-secret-syncs.md),
 The product surface is CLI plus a tenant web console. Service Access is a separate surface and is
 deferred past V1.
 
+The CLI is the primary API surface for developers, agents, and CI. Its machine protocol uses a
+versioned metadata-only JSON envelope, stable error and exit codes, ordered typed next actions,
+command-contract introspection, side-effect-free planning, and JSONL for long-running watches.
+Child output is separated from control output in JSON mode. Agents can inspect local readiness,
+install idempotent repository guidance and scan hooks, and derive short-lived task sessions whose
+signed scopes and resource bounds can only narrow the parent User's Effective Access. High-risk
+actions return an exact human handoff, polling command, and original-command resume invocation.
+The web console remains the place that clears High-Assurance Challenges and performs future
+high-assurance production changes.
+
 The tenant console is server-rendered with TanStack Start on Cloudflare Workers. The browser talks
 only to the web Worker. The web Worker is a BFF that owns HttpOnly SameSite session cookies, CSRF
 protection, and session rotation, then calls the API Worker through a private Cloudflare Service

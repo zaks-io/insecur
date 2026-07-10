@@ -2,14 +2,40 @@ import { buildAncestryKey, detectHarnessFromEnv } from "@insecur/agent-attributi
 import type { DeriveAgentSessionData } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
+import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { CLI_AGENT_CREDENTIAL_FILE_ENV, CLI_AGENT_TAG_ENV } from "../auth/agent-env-keys.js";
 import { CLI_SESSION_TOKEN_ENV, buildCliChildEnv } from "../auth/child-env.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import { CliError } from "../output/cli-error.js";
+import {
+  credentialScopesForCapabilities,
+  type AgentSessionPolicyOptions,
+} from "./agent-session-policy.js";
 
 export interface DerivedAgentSession {
   readonly credential: string;
   readonly data: DeriveAgentSessionData;
+}
+
+type ScopedAgentSessionOptions = AgentSessionPolicyOptions & {
+  readonly organizationId?: ResolvedCliContext["scope"]["orgId"];
+  readonly projectId?: ResolvedCliContext["scope"]["projectId"];
+  readonly environmentId?: ResolvedCliContext["scope"]["envId"];
+};
+
+export function bindAgentSessionPolicyToContext(
+  policy: AgentSessionPolicyOptions,
+  context: ResolvedCliContext,
+): ScopedAgentSessionOptions {
+  if (policy.allow === undefined) {
+    return policy;
+  }
+  return {
+    ...policy,
+    ...(context.scope.orgId === undefined ? {} : { organizationId: context.scope.orgId }),
+    ...(context.scope.projectId === undefined ? {} : { projectId: context.scope.projectId }),
+    ...(context.scope.envId === undefined ? {} : { environmentId: context.scope.envId }),
+  };
 }
 
 export function resolveAgentTag(flags: GlobalCliFlags): string | undefined {
@@ -25,17 +51,34 @@ function resolveHarnessName(): string | undefined {
   return detectHarnessFromEnv(process.env);
 }
 
+function buildDerivedSessionRequest(
+  host: string,
+  humanCredential: string,
+  options: ScopedAgentSessionOptions,
+) {
+  const harnessName = resolveHarnessName();
+  const credentialScopes = credentialScopesForCapabilities(options.allow);
+  return {
+    host,
+    bearerCredential: humanCredential,
+    ...(harnessName === undefined ? {} : { harnessName }),
+    ...(credentialScopes === undefined ? {} : { credentialScopes }),
+    ...(options.organizationId === undefined ? {} : { organizationId: options.organizationId }),
+    ...(options.projectId === undefined ? {} : { projectId: options.projectId }),
+    ...(options.environmentId === undefined ? {} : { environmentId: options.environmentId }),
+    ...(options.ttlSeconds === undefined ? {} : { ttlSeconds: options.ttlSeconds }),
+  };
+}
+
 export async function deriveAgentSessionFromHuman(
   api: ApiClient,
   host: string,
   humanCredential: string,
+  options: ScopedAgentSessionOptions = {},
 ): Promise<DerivedAgentSession> {
-  const harnessName = resolveHarnessName();
-  const result = await api.deriveAgentSession({
-    host,
-    bearerCredential: humanCredential,
-    ...(harnessName === undefined ? {} : { harnessName }),
-  });
+  const result = await api.deriveAgentSession(
+    buildDerivedSessionRequest(host, humanCredential, options),
+  );
   if (!result.ok) {
     throw new CliError(result.envelope.error);
   }

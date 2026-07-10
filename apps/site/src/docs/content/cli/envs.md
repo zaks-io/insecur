@@ -2,7 +2,7 @@
 title: insecur envs
 description: Environment navigation and creation
 section: CLI reference
-order: 6
+order: 7
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

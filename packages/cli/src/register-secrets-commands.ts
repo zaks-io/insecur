@@ -21,6 +21,7 @@ export function registerSecretsCommands(program: Command, deps: ProgramDeps): vo
     .option("--length <bytes>", "random byte length for --generate random", "32")
     .option("--value-stdin", "read the secret value from stdin")
     .option("--allow-empty", "allow an intentionally empty secret value")
+    .option("--dry-run", "plan the metadata-only write without collecting or sending a value")
     .action(async function secretsSetAction(
       variableKey: string,
       _options: unknown,
@@ -32,6 +33,7 @@ export function registerSecretsCommands(program: Command, deps: ProgramDeps): vo
         length?: string;
         valueStdin?: boolean;
         allowEmpty?: boolean;
+        dryRun?: boolean;
       }>();
       const { api, context, dispose } = await deps.resolveApi(flags);
       try {
@@ -41,6 +43,7 @@ export function registerSecretsCommands(program: Command, deps: ProgramDeps): vo
           generateLength: options.length,
           valueStdin: options.valueStdin === true,
           allowEmpty: options.allowEmpty === true,
+          dryRun: options.dryRun === true,
         });
       } finally {
         dispose?.();
@@ -60,7 +63,7 @@ function registerSecretsPromoteCommand(secrets: Command, deps: ProgramDeps): voi
     .option("--env-id <id>", "target environment opaque id")
     .option("--comment <text>", "audit comment")
     .option("--impact-review-fingerprint <hash>", "resume fingerprint from prior review")
-    .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
+    .option("--operation <id>", "resume after High-Assurance Challenge clearance")
     .action(async function secretsPromoteAction(
       draftVersionIds: string[],
       _options: unknown,
@@ -71,7 +74,7 @@ function registerSecretsPromoteCommand(secrets: Command, deps: ProgramDeps): voi
         envId?: string;
         comment?: string;
         impactReviewFingerprint?: string;
-        operationId?: string;
+        operation?: string;
       }>();
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runSecretsPromoteCommand(flags, api, context, {
@@ -79,7 +82,7 @@ function registerSecretsPromoteCommand(secrets: Command, deps: ProgramDeps): voi
         draftVersionIds,
         comment: options.comment,
         impactReviewFingerprint: options.impactReviewFingerprint,
-        operationId: options.operationId,
+        operationId: options.operation,
       });
     });
 }
@@ -92,7 +95,7 @@ function registerSecretsRollbackCommand(secrets: Command, deps: ProgramDeps): vo
     .requiredOption("--to-version-id <id>", "retained published secret version opaque id")
     .option("--promote", "create draft and request promotion approval")
     .option("--comment <text>", "audit comment")
-    .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
+    .option("--operation <id>", "resume after High-Assurance Challenge clearance")
     .action(async function secretsRollbackAction(
       secretId: string,
       _args,
@@ -104,7 +107,7 @@ function registerSecretsRollbackCommand(secrets: Command, deps: ProgramDeps): vo
         toVersionId: string;
         promote?: boolean;
         comment?: string;
-        operationId?: string;
+        operation?: string;
       }>();
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runSecretsRollbackCommand(flags, api, context, {
@@ -113,7 +116,7 @@ function registerSecretsRollbackCommand(secrets: Command, deps: ProgramDeps): vo
         toVersionId: options.toVersionId,
         promote: options.promote === true,
         comment: options.comment,
-        operationId: options.operationId,
+        operationId: options.operation,
       });
     });
 }

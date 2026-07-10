@@ -83,6 +83,19 @@ describe("ephemeral session credentials", () => {
     }
   });
 
+  it("rejects signed credentials with malformed resource boundaries", async () => {
+    const minted = await mintEphemeralSessionCredential({ actor, signingSecret });
+    const claims = await decodeHmacToken(minted.credential, signingSecret);
+    if (claims === null) {
+      throw new Error("expected decoded credential claims");
+    }
+    const resigned = await encodeHmacToken({ ...claims, prj: "not-a-project-id" }, signingSecret);
+
+    const verified = await verifyEphemeralSessionCredential(resigned, signingSecret);
+
+    expect(verified).toEqual({ ok: false, reason: "invalid" });
+  });
+
   it("accepts derived agent-marked CLI session credentials", async () => {
     const minted = await mintDerivedAgentSessionCredential({
       actor,

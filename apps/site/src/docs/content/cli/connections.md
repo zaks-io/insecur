@@ -47,7 +47,7 @@ insecur connections create [options] <provider>
 | `--installation-id <id>`         | GitHub App installation id (boundary)                            |
 | `--owner <name>`                 | GitHub owner login (boundary)                                    |
 | `--allowed-repositories <repos>` | comma-separated GitHub repository names (boundary)               |
-| `--operation-id <id>`            | resume after High-Assurance Challenge clearance                  |
+| `--operation <id>`               | resume after High-Assurance Challenge clearance                  |
 
 ## `insecur connections status`
 
@@ -73,12 +73,12 @@ insecur connections rotate [options] <connection-id>
 | --------------- | ------------------------ |
 | `connection-id` | app connection opaque id |
 
-| Option                | Description                                          |
-| --------------------- | ---------------------------------------------------- |
-| `--dry-run`           | validate the active credential without replacing it  |
-| `--value-stdin`       | read replacement provider token from stdin           |
-| `--token <value>`     | REJECTED: provider tokens must not be passed on argv |
-| `--operation-id <id>` | resume after High-Assurance Challenge clearance      |
+| Option             | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| `--dry-run`        | validate the active credential without replacing it  |
+| `--value-stdin`    | read replacement provider token from stdin           |
+| `--token <value>`  | REJECTED: provider tokens must not be passed on argv |
+| `--operation <id>` | resume after High-Assurance Challenge clearance      |
 
 ## `insecur connections reauth`
 
@@ -97,7 +97,7 @@ insecur connections reauth [options] <connection-id>
 | `--installation-id <id>`         | GitHub App installation id (boundary override)     |
 | `--owner <name>`                 | GitHub owner login (boundary override)             |
 | `--allowed-repositories <repos>` | comma-separated GitHub repository names (boundary) |
-| `--operation-id <id>`            | resume after High-Assurance Challenge clearance    |
+| `--operation <id>`               | resume after High-Assurance Challenge clearance    |
 
 ## `insecur connections disconnect`
 

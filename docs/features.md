@@ -79,11 +79,17 @@ commands include:
 - `scan` for offline secret exposure discovery
 - `audit tail`, `audit export`, and `audit verify`
 - `approvals`, `operations`, `run-policies`, and `connections`
+- `describe` for unauthenticated command-contract introspection
 - `guide` for offline CLI playbooks
 
 The CLI owns command parsing, safe secret input, JSON/human output rendering, local config/profile
 resolution, child-process spawning, and HTTP/local API clients. Server-side authorization,
 encryption, and persistence stay in their owning packages and Workers.
+
+Agent-facing ergonomics include versioned JSON envelopes, ordered typed next actions, pure control
+output for injected child processes, JSONL operation/watch streams, metadata-only run planning,
+secret-write dry runs, exact step-up resume invocations, `agent status`, and idempotent Codex or
+Claude repository setup with advisory or strict no-reveal scan hooks.
 
 ## Secret Exposure Discovery
 
@@ -110,6 +116,7 @@ Human and CLI session primitives are implemented:
 - `GET /v1/session/whoami` for actor, session, resolved context, and attribution tier
 - self-revocation for CLI sessions
 - derived agent child sessions from a live human session
+- optional task scope, resource bounds, and TTL on derived agent child sessions
 - structural agent registration for detected harnesses
 - test-only fake session composition that is rejected by deployable env-backed auth composition
 

@@ -53,5 +53,21 @@ export async function runConnectionsReauthCommand(
     flags,
     result,
     () => `Reauthorized connection ${target.appConnectionId}.`,
+    {
+      resumeArgv: (nextOperationId) => {
+        const argv = ["insecur", "connections", "reauth", options.connectionId];
+        if (options.installationId !== undefined) {
+          argv.push("--installation-id", options.installationId);
+        }
+        if (options.owner !== undefined) {
+          argv.push("--owner", options.owner);
+        }
+        if (options.allowedRepositories !== undefined) {
+          argv.push("--allowed-repositories", options.allowedRepositories);
+        }
+        argv.push("--operation", nextOperationId, "--json");
+        return argv;
+      },
+    },
   );
 }

@@ -9,6 +9,7 @@ import { emptyState } from "../output/format.js";
 import { renderSuccess } from "../output/render.js";
 import { renderTable } from "../output/table.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
+import { describeCreationNext } from "./empty-list-next.js";
 
 export async function runOrgsListCommand(
   flags: GlobalCliFlags,
@@ -31,6 +32,7 @@ export async function runOrgsListCommand(
   const output = successEnvelope(
     { organizations: result.envelope.data.organizations },
     buildEnvelopeMeta({ requestId: result.envelope.meta?.requestId }),
+    result.envelope.data.organizations.length === 0 ? describeCreationNext(["init"]) : undefined,
   );
   renderSuccess(output, flags, (data) => {
     if (data.organizations.length === 0) {

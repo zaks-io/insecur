@@ -47,35 +47,51 @@ export interface MintScopedAccessTokenResult {
   readonly expiresAt: string;
 }
 
+function runtimeHopMachineClaims(actor: RuntimeHopMachineActor) {
+  return {
+    act: "machine",
+    sub: actor.machineIdentityId,
+    org: actor.tokenScope.organizationId,
+    prj: actor.tokenScope.projectId,
+    ...(actor.tokenScope.environmentId === undefined
+      ? {}
+      : { env: actor.tokenScope.environmentId }),
+    ...(actor.tokenScope.runtimePolicyKeyId === undefined
+      ? {}
+      : { rp: actor.tokenScope.runtimePolicyKeyId }),
+    scp: [...actor.credentialScopes],
+  };
+}
+
+function runtimeHopUserClaims(actor: UserActor) {
+  return {
+    act: "user",
+    sub: actor.userId,
+    wid: actor.workosUserId,
+    sid: actor.sessionId,
+    ...(actor.credentialScopes === undefined ? {} : { scp: [...actor.credentialScopes] }),
+    ...(actor.tokenScope?.organizationId === undefined
+      ? {}
+      : { org: actor.tokenScope.organizationId }),
+    ...(actor.tokenScope?.projectId === undefined ? {} : { prj: actor.tokenScope.projectId }),
+    ...(actor.tokenScope?.environmentId === undefined
+      ? {}
+      : { env: actor.tokenScope.environmentId }),
+  };
+}
+
+function runtimeHopActorClaims(actor: RuntimeHopActor) {
+  return actor.type === "machine" ? runtimeHopMachineClaims(actor) : runtimeHopUserClaims(actor);
+}
+
 export async function mintScopedAccessToken(
   input: MintScopedAccessTokenInput,
 ): Promise<MintScopedAccessTokenResult> {
   const ttlSeconds = input.ttlSeconds ?? SCOPED_ACCESS_TOKEN_TTL_SECONDS;
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAtEpoch = issuedAt + ttlSeconds;
-  const actorClaims =
-    input.actor.type === "machine"
-      ? {
-          act: "machine",
-          sub: input.actor.machineIdentityId,
-          org: input.actor.tokenScope.organizationId,
-          prj: input.actor.tokenScope.projectId,
-          ...(input.actor.tokenScope.environmentId !== undefined
-            ? { env: input.actor.tokenScope.environmentId }
-            : {}),
-          ...(input.actor.tokenScope.runtimePolicyKeyId !== undefined
-            ? { rp: input.actor.tokenScope.runtimePolicyKeyId }
-            : {}),
-          scp: [...input.actor.credentialScopes],
-        }
-      : {
-          act: "user",
-          sub: input.actor.userId,
-          wid: input.actor.workosUserId,
-          sid: input.actor.sessionId,
-        };
   const payload = {
-    ...actorClaims,
+    ...runtimeHopActorClaims(input.actor),
     aud: input.audience,
     exp: expiresAtEpoch,
     iat: issuedAt,

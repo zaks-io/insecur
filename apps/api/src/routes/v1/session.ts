@@ -31,7 +31,9 @@ import {
   parseOptionalDeriveHarnessName,
   readHumanSessionMetadata,
   readRequestSessionMetadata,
+  sessionPolicyFromMetadata,
 } from "./session-route-helpers.js";
+import { parseDerivedAgentSessionPolicy } from "./parse-derived-agent-session-policy.js";
 
 const sessionRoutes = new Hono<{ Bindings: ApiEnv; Variables: AuthVariables }>();
 
@@ -136,6 +138,7 @@ sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
   handleRoute(context, async (reqId) => {
     const userActor = context.get("userActor");
     const sessionMetadata = await readRequestSessionMetadata(context);
+    const sessionPolicy = sessionPolicyFromMetadata(sessionMetadata);
     const queryParams = parseWhoamiQueryParams(context);
     const attributionParams = mergeWhoamiAttributionQueryParams(sessionMetadata, queryParams);
 
@@ -153,6 +156,7 @@ sessionRoutes.get("/whoami", requireUserActorForWhoami, async (context) =>
       actorType: userActor.type,
       userId: userActor.userId,
       sessionId: userActor.sessionId,
+      ...(sessionPolicy === undefined ? {} : { sessionPolicy }),
       ...runtimePayload,
     };
   }),
@@ -165,11 +169,13 @@ sessionRoutes.post("/agent/derive", requireUserActor, async (context) => {
     const parentSession = await readHumanSessionMetadata(context);
     const body: unknown = await context.req.json().catch(() => ({}));
     const harnessName = parseOptionalDeriveHarnessName(body);
+    const policy = parseDerivedAgentSessionPolicy(body);
     const minted = await mintDerivedAgentSessionCredential({
       actor: userActor,
       signingSecret: context.env.SESSION_SIGNING_SECRET,
       parentExpiresAt: parentSession.expiresAt,
       ...(harnessName === undefined ? {} : { harnessName }),
+      ...policy,
     });
     return context.json(
       successEnvelope(
@@ -177,6 +183,7 @@ sessionRoutes.post("/agent/derive", requireUserActor, async (context) => {
           sessionId: userActor.sessionId,
           expiresAt: minted.expiresAt,
           agentSessionId: minted.agentSessionId,
+          ...policy,
         },
         { requestId: reqId },
       ),

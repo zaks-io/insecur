@@ -23,6 +23,10 @@ export function registerRunCommand(program: Command, deps: ProgramDeps): void {
     .option("--variable-key <key>", "application variable key to inject (First Value path)")
     .option("--policy-id <id>", "runtime injection policy id (overrides profile default)")
     .option("--watch", "restart the child on file changes (development environment only)")
+    .option(
+      "--plan",
+      "resolve targets and prerequisites without issuing a grant or starting the child",
+    )
     .allowUnknownOption()
     .allowExcessArguments()
     .action(async (profileArg: string | undefined, _options: unknown, command: CommanderCommand) =>
@@ -36,7 +40,12 @@ async function runAction(
   deps: ProgramDeps,
 ): Promise<void> {
   const flags = deps.globalFlags(command);
-  const options = command.opts<{ variableKey?: string; policyId?: string; watch?: boolean }>();
+  const options = command.opts<{
+    variableKey?: string;
+    policyId?: string;
+    watch?: boolean;
+    plan?: boolean;
+  }>();
   const { api, context, dispose } = await deps.resolveApi(flags);
   try {
     const parsed = reconcileProfileRunCommand({
@@ -47,14 +56,22 @@ async function runAction(
       ...(profileArg === undefined ? {} : { positionalProfile: profileArg }),
       args: command.args,
     });
-    process.exitCode = await runRunCommand(flags, api, context, {
-      ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
-      ...(options.policyId === undefined ? {} : { policyIdOverride: options.policyId }),
-      ...(options.watch === true ? { watch: true } : {}),
-      ...(parsed.profileSelector === undefined ? {} : { profileSelector: parsed.profileSelector }),
-      command: parsed.command,
-    });
+    process.exitCode = await runRunCommand(flags, api, context, buildRunOptions(options, parsed));
   } finally {
     dispose?.();
   }
+}
+
+function buildRunOptions(
+  options: { variableKey?: string; policyId?: string; watch?: boolean; plan?: boolean },
+  parsed: ReturnType<typeof reconcileProfileRunCommand>,
+) {
+  return {
+    ...(options.variableKey === undefined ? {} : { variableKey: options.variableKey }),
+    ...(options.policyId === undefined ? {} : { policyIdOverride: options.policyId }),
+    ...(options.watch === true ? { watch: true } : {}),
+    ...(options.plan === true ? { plan: true } : {}),
+    ...(parsed.profileSelector === undefined ? {} : { profileSelector: parsed.profileSelector }),
+    command: parsed.command,
+  };
 }

@@ -15,6 +15,7 @@ import {
   type RunCommandOptions,
 } from "./run-shared.js";
 import { requireSecretWriteScope } from "./secrets-set-scope.js";
+import { runRunPlanCommand } from "./run-plan.js";
 
 async function executeVariableKeyRun(input: {
   readonly flags: GlobalCliFlags;
@@ -35,6 +36,7 @@ async function executeVariableKeyRun(input: {
   const childExitCode = await spawnCommand(
     input.command,
     buildRunChildEnv(input.variableKey, decodeDeliveryValue(grant.delivery.encodedValueUtf8)),
+    input.flags.json ? { controlOutput: "stdout-json" } : {},
   );
   await recordRunCompletedBestEffort({
     api: input.api,
@@ -105,6 +107,9 @@ export async function runRunCommand(
       ? {}
       : { profileSelector: commandOptions.profileSelector }),
   });
+  if (commandOptions.plan === true) {
+    return runRunPlanCommand(flags, api, context, commandOptions);
+  }
   if (commandOptions.variableKey !== undefined && commandOptions.variableKey !== "") {
     return runVariableKeyPath(flags, api, context, commandOptions);
   }

@@ -9,6 +9,7 @@ import { emptyState } from "../output/format.js";
 import { renderSuccess } from "../output/render.js";
 import { renderTable } from "../output/table.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
+import { describeCreationNext } from "./empty-list-next.js";
 
 export async function runProjectsListCommand(
   flags: GlobalCliFlags,
@@ -29,6 +30,9 @@ export async function runProjectsListCommand(
   const output = successEnvelope(
     { projects: result.envelope.data.projects },
     buildEnvelopeMeta({ requestId: result.envelope.meta?.requestId }),
+    result.envelope.data.projects.length === 0
+      ? describeCreationNext(["projects", "create"])
+      : undefined,
   );
   renderSuccess(output, flags, (data) => {
     if (data.projects.length === 0) {

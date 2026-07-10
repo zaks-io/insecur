@@ -26,6 +26,7 @@ values are never accepted as command-line arguments and never appear in any outp
 | [`insecur audit`](/docs/cli/audit)               | Audit event feed and export verification                                                                       |
 | [`insecur config`](/docs/cli/config)             | Local CLI configuration                                                                                        |
 | [`insecur connections`](/docs/cli/connections)   | Manage org-scoped App Connections (metadata only)                                                              |
+| [`insecur describe`](/docs/cli/describe)         | Describe the CLI command contract as metadata                                                                  |
 | [`insecur envs`](/docs/cli/envs)                 | Environment navigation and creation                                                                            |
 | [`insecur guide`](/docs/cli/guide)               | Offline CLI guides (markdown playbooks, no auth required)                                                      |
 | [`insecur import`](/docs/cli/import)             | Import secrets from a local dotenv file into a development environment (create-only; all-or-nothing preflight) |

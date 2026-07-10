@@ -85,7 +85,7 @@ Create a policy:
 insecur run-policies create --policy-id pol_example --command "node server.js" --secret-ids sec_a,sec_b
 ```
 
-Additional creation flags: `--env-id`, `--display-name-stdin`, `--command-fingerprint sha256:...`, `--operation-id`.
+Additional creation flags: `--env-id`, `--display-name-stdin`, `--command-fingerprint sha256:...`, `--operation`.
 
 Inspect and retire policies:
 

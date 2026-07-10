@@ -59,7 +59,11 @@ async function runProfilePolicySingleShot(input: {
     policyId: input.profileRun.policyId,
   });
 
-  const childExitCode = await spawnCommand(input.command, buildPolicyRunChildEnv(delivery.entries));
+  const childExitCode = await spawnCommand(
+    input.command,
+    buildPolicyRunChildEnv(delivery.entries),
+    input.flags.json ? { controlOutput: "stdout-json" } : {},
+  );
 
   await recordRunCompletedBestEffort({
     api: input.api,

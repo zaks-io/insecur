@@ -2,7 +2,7 @@
 title: insecur scan
 description: Offline project-scoped secret exposure report (metadata only)
 section: CLI reference
-order: 18
+order: 19
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

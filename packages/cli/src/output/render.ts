@@ -7,10 +7,25 @@ import {
 import { formatRemediationProse } from "./cli-remediation.js";
 import { sanitizeDisplayText } from "./sanitize-display.js";
 import { getStyle } from "./style.js";
+import { nextActionsFromRemediation } from "./next-actions.js";
 
 export interface RenderOptions {
   readonly json: boolean;
   readonly quiet: boolean;
+}
+
+export const CLI_ENVELOPE_SCHEMA_VERSION = "1" as const;
+
+function serializeCliEnvelope(envelope: MetadataEnvelope<unknown>): string {
+  const projectedNext =
+    envelope.next === undefined && !envelope.ok && envelope.remediation !== undefined
+      ? nextActionsFromRemediation(envelope.remediation)
+      : envelope.next;
+  return JSON.stringify({
+    schemaVersion: CLI_ENVELOPE_SCHEMA_VERSION,
+    ...envelope,
+    ...(projectedNext === undefined || projectedNext.length === 0 ? {} : { next: projectedNext }),
+  });
 }
 
 export function renderSuccess<TData>(
@@ -20,7 +35,7 @@ export function renderSuccess<TData>(
 ): void {
   assertMetadataOnlyEnvelopeShape(envelope as unknown as Record<string, unknown>);
   if (options.json) {
-    process.stdout.write(`${JSON.stringify(envelope)}\n`);
+    process.stdout.write(`${serializeCliEnvelope(envelope)}\n`);
     return;
   }
   if (!options.quiet) {
@@ -31,7 +46,7 @@ export function renderSuccess<TData>(
 function renderError(envelope: ErrorEnvelope, options: RenderOptions): void {
   assertMetadataOnlyEnvelopeShape(envelope as unknown as Record<string, unknown>);
   if (options.json) {
-    process.stderr.write(`${JSON.stringify(envelope)}\n`);
+    process.stderr.write(`${serializeCliEnvelope(envelope)}\n`);
     return;
   }
   if (!options.quiet) {

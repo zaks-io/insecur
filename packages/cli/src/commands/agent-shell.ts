@@ -5,12 +5,14 @@ import type { ApiClient } from "../api/types.js";
 import { spawnCommand } from "./run-child.js";
 import {
   buildAgentMarkedChildEnv,
+  bindAgentSessionPolicyToContext,
   deriveAgentSessionFromHuman,
   requireHumanSessionCredential,
   resolveAgentTag,
 } from "./agent-shared.js";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_VALIDATION } from "../output/exit-codes.js";
+import type { AgentSessionPolicyOptions } from "./agent-session-policy.js";
 
 function assertAgentShellJsonCompatible(flags: GlobalCliFlags): void {
   if (flags.json) {
@@ -25,12 +27,15 @@ function assertAgentShellJsonCompatible(flags: GlobalCliFlags): void {
   }
 }
 
-export async function runAgentShellCommand(
-  flags: GlobalCliFlags,
-  api: ApiClient,
-  context: ResolvedCliContext,
-  command: readonly string[],
-): Promise<number> {
+export async function runAgentShellCommand(input: {
+  readonly flags: GlobalCliFlags;
+  readonly api: ApiClient;
+  readonly context: ResolvedCliContext;
+  readonly command: readonly string[];
+  readonly policy?: AgentSessionPolicyOptions;
+}): Promise<number> {
+  const { flags, api, context, command } = input;
+  const policy = input.policy ?? {};
   assertAgentShellJsonCompatible(flags);
   if (command.length === 0) {
     throw new CliError(
@@ -43,7 +48,13 @@ export async function runAgentShellCommand(
     );
   }
   const humanCredential = await requireHumanSessionCredential(context.scope.host);
-  const derived = await deriveAgentSessionFromHuman(api, context.scope.host, humanCredential);
+  const scopedPolicy = bindAgentSessionPolicyToContext(policy, context);
+  const derived = await deriveAgentSessionFromHuman(
+    api,
+    context.scope.host,
+    humanCredential,
+    scopedPolicy,
+  );
   const agentTag = resolveAgentTag(flags);
   const childEnv = buildAgentMarkedChildEnv({
     credential: derived.credential,
