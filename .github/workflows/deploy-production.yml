@@ -97,6 +97,7 @@ jobs:
           echo "Found $passing_runs completed successful CI workflow run(s) for $DEPLOY_SHA. Using $ci_run_url."
 
       - name: Require passing preview smoke for deployed commit
+        id: preview_smoke
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -119,6 +120,46 @@ jobs:
             echo "::error::No successful Preview Smoke run was found for exact deploy SHA $DEPLOY_SHA. Deploy that SHA to Preview and run Preview Smoke before production."
             exit 1
           fi
+
+          latest_run="$(
+            jq --arg sha "$DEPLOY_SHA" \
+              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | sort_by(.created_at) | last // {}' \
+              <<<"$runs_json"
+          )"
+          preview_smoke_run_id="$(jq -r '.id // empty' <<<"$latest_run")"
+          preview_smoke_run_url="$(jq -r '.html_url // empty' <<<"$latest_run")"
+          if [ -z "$preview_smoke_run_id" ]; then
+            echo "::error::Could not resolve the successful Preview Smoke run id for $DEPLOY_SHA."
+            exit 1
+          fi
+
+          echo "preview_smoke_run_id=$preview_smoke_run_id" >> "$GITHUB_OUTPUT"
+          echo "Found $passing_runs completed successful Preview Smoke run(s) for $DEPLOY_SHA. Using $preview_smoke_run_url."
+
+      - name: Require verified preview fleet identity
+        env:
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_SMOKE_RUN_ID: ${{ steps.preview_smoke.outputs.preview_smoke_run_id }}
+        run: |
+          set -euo pipefail
+
+          rm -rf preview-smoke-evidence
+          mkdir -p preview-smoke-evidence
+          if ! gh run download "$PREVIEW_SMOKE_RUN_ID" --name preview-smoke-artifacts --dir preview-smoke-evidence; then
+            echo "::error::Could not download Preview Smoke artifacts for run $PREVIEW_SMOKE_RUN_ID."
+            exit 1
+          fi
+
+          proof_path="$(find preview-smoke-evidence -type f -name deploy-identity.json -print -quit)"
+          if [ -z "$proof_path" ]; then
+            echo "::error::Preview Smoke run $PREVIEW_SMOKE_RUN_ID did not publish deploy identity proof."
+            exit 1
+          fi
+
+          pnpm --filter @insecur/release-gate verify-preview-smoke-identity \
+            --evidence "$proof_path" \
+            --expected-sha "$DEPLOY_SHA"
 
       - name: Download coverage badge evidence
         env:

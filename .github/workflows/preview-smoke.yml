@@ -1,5 +1,5 @@
-# Run the shared preview application smoke on demand. This is intentionally
-# separate from Deploy Preview while the suite is too slow to block deploys.
+# Run the shared preview application smoke on demand. It shares the Preview
+# fleet lock with deployment so the tested identity cannot change mid-suite.
 name: Preview Smoke
 
 on:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: preview-smoke
+  group: preview-fleet
   cancel-in-progress: false
 
 jobs:
