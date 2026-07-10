@@ -22,6 +22,7 @@ import {
   oauthRequestMetadata,
   readPkceOAuthCallback,
 } from "./browser-oauth-common.js";
+import { LOGOUT_CSRF_FIELD } from "./logout-contract.js";
 import type { WebEnv } from "../env.js";
 
 // Signed-in members land on the console; /orgs resolves the default organization (INS-367).
@@ -40,10 +41,18 @@ interface BrowserLoginCompleteSuccess {
 export type BrowserLoginCompleteResult =
   { ok: true; value: BrowserLoginCompleteSuccess } | { ok: false; failure: AuthFailure };
 
-export interface BrowserLogoutResult {
-  readonly status: number;
-  readonly clearCookieHeaders: readonly string[];
-}
+export type BrowserLogoutResult =
+  | { readonly ok: false; readonly status: 403 }
+  | {
+      readonly ok: true;
+      /**
+       * Where the 303 sends the browser: the WorkOS logout URL when the sealed session resolves
+       * (terminating the provider session so it cannot silently re-authenticate), otherwise
+       * `/login` for a local-only logout.
+       */
+      readonly redirectTo: string;
+      readonly clearCookieHeaders: readonly string[];
+    };
 
 export async function beginBrowserLogin(request: Request, env: WebEnv): Promise<BrowserLoginStart> {
   const url = new URL(request.url);
@@ -112,17 +121,57 @@ export async function completeBrowserLogin(
   return exchangeBrowserAuthorizationCode(env, request, callback.roundTrip, callback.code);
 }
 
-export function logoutBrowserSession(request: Request): BrowserLogoutResult {
+/** Read the double-submit CSRF token out of a form-encoded logout POST body, if present. */
+async function csrfTokenFromLogoutForm(request: Request): Promise<string | undefined> {
+  const contentType = request.headers.get("Content-Type") ?? "";
+  if (
+    !contentType.includes("application/x-www-form-urlencoded") &&
+    !contentType.includes("multipart/form-data")
+  ) {
+    return undefined;
+  }
+  try {
+    const value = (await request.formData()).get(LOGOUT_CSRF_FIELD);
+    return typeof value === "string" && value !== "" ? value : undefined;
+  } catch {
+    // A malformed body is treated as no token: CSRF validation then fails closed.
+    return undefined;
+  }
+}
+
+async function workosLogoutRedirect(
+  env: WebEnv,
+  sealedSession: string | undefined,
+): Promise<string | null> {
+  if (sealedSession === undefined) {
+    return null;
+  }
+  try {
+    return await createWorkOSSessionPortFromEnv(env).getSessionLogoutUrl(sealedSession);
+  } catch {
+    // If WorkOS is unreachable the provider session cannot be terminated either way; still honor
+    // the user's logout by clearing local cookies instead of leaving them signed in with a 500.
+    return null;
+  }
+}
+
+export async function logoutBrowserSession(
+  request: Request,
+  env: WebEnv,
+): Promise<BrowserLogoutResult> {
   const credentials = parseRequestCredentials({
     authorizationHeader: request.headers.get("Authorization"),
     cookieHeader: request.headers.get("Cookie"),
     csrfHeader: request.headers.get("x-insecur-csrf"),
   });
-  if (!validateCsrfToken(credentials.csrfCookie, credentials.csrfHeader)) {
-    return { status: 403, clearCookieHeaders: [] };
+  const presentedCsrf = credentials.csrfHeader ?? (await csrfTokenFromLogoutForm(request));
+  if (!validateCsrfToken(credentials.csrfCookie, presentedCsrf)) {
+    return { ok: false, status: 403 };
   }
+  const providerLogoutUrl = await workosLogoutRedirect(env, credentials.workosSealedSession);
   return {
-    status: 204,
+    ok: true,
+    redirectTo: providerLogoutUrl ?? "/login",
     clearCookieHeaders: [...clearBrowserSessionCookies(), formatPkceStateClearCookie()],
   };
 }

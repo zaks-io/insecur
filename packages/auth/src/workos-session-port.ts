@@ -93,6 +93,13 @@ export type WorkOSDeviceTokenResult =
 /** Port for WorkOS user-session operations (test doubles avoid network). */
 export interface WorkOSSessionPort {
   createAuthorizationUrl(input: WorkOSAuthorizationUrlInput): string;
+  /**
+   * Resolve the provider logout URL for a sealed session. Redirecting the browser there ends the
+   * WorkOS session server-side (not just local cookies), so a follow-up authorization request
+   * cannot silently re-authenticate. Returns null when the sealed session cannot be resolved to a
+   * live session; callers then fall back to local-only logout.
+   */
+  getSessionLogoutUrl(sessionData: string): Promise<string | null>;
   startDeviceAuthorization(): Promise<WorkOSDeviceAuthorizationResult>;
   authenticateDeviceCode(deviceCode: string): Promise<WorkOSDeviceTokenResult>;
   authenticateAuthorizationCode(
