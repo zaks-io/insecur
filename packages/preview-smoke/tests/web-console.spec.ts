@@ -27,7 +27,6 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const html = await page.content();
 
     await assertAuthedConsolePage({
-      page,
       response,
       pageUrl: page.url(),
       html,
@@ -51,7 +50,6 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const html = await page.content();
 
     await assertAuthedConsolePage({
-      page,
       response,
       pageUrl: page.url(),
       html,
@@ -75,7 +73,6 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const html = await page.content();
 
     await assertAuthedConsolePage({
-      page,
       response,
       pageUrl: page.url(),
       html,
@@ -115,7 +112,6 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     }
 
     await assertAuthedConsolePage({
-      page,
       response,
       pageUrl: page.url(),
       html,
@@ -178,7 +174,6 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
       const response = await gotoAuthedWebPage(page, preview.webBaseUrl, route.path);
       const html = await page.content();
       await assertAuthedConsolePage({
-        page,
         response,
         pageUrl: page.url(),
         html,
@@ -214,7 +209,6 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
       const response = await gotoAuthedWebPage(page, preview.webBaseUrl, route.path);
       const html = await page.content();
       await assertAuthedConsolePage({
-        page,
         response,
         pageUrl: page.url(),
         html,
@@ -235,7 +229,6 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const html = await page.content();
 
     await assertAuthedConsolePage({
-      page,
       response,
       pageUrl: page.url(),
       html,
@@ -275,7 +268,6 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     const html = await page.content();
 
     await assertAuthedConsolePage({
-      page,
       response,
       pageUrl: page.url(),
       html,
@@ -332,7 +324,6 @@ test.describe("preview onboarding entry for org-less smoke actor @preview @happy
     const html = await page.content();
 
     await assertAuthedConsolePage({
-      page,
       response,
       pageUrl: page.url(),
       html,

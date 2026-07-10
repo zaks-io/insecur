@@ -33,8 +33,13 @@ describe("useSmokeBearer", () => {
 const CF_CHALLENGE_IFRAME =
   '<iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; visibility: hidden;"></iframe>';
 
+// The inline script the challenge platform intermittently injects at the edge. It never carries
+// the app's CSP nonce and must not fail the nonce guard when absent from the SSR body (INS-602).
+const CF_CHALLENGE_SCRIPT = "<script>(function(){window._cf_chl_opt={};})();</script>";
+
 const CLEAN_SSR_HTML =
-  '<!DOCTYPE html><html lang="en"><head><script nonce="abc"></script></head>' +
+  '<!DOCTYPE html><html lang="en"><head><script nonce="abc"></script>' +
+  '<script src="/app.js"></script></head>' +
   '<body><div data-slot="console-shell" class="style" data-style="x">ok</div></body></html>';
 
 function stubResponse(ssrHtml: string): PageResponse {
@@ -47,12 +52,6 @@ function stubResponse(ssrHtml: string): PageResponse {
       vary: "Cookie",
     }),
   } as unknown as PageResponse;
-}
-
-function stubPage(): Page {
-  return {
-    evaluate: () => Promise.resolve({ count: 1, mismatched: 0 }),
-  } as unknown as Page;
 }
 
 describe("assertSsrHtmlHasNoInlineStyle", () => {
@@ -82,7 +81,6 @@ describe("assertAuthedConsolePage inline-style guard", () => {
     const hydratedDom = CLEAN_SSR_HTML.replace("</body>", `${CF_CHALLENGE_IFRAME}</body>`);
     await expect(
       assertAuthedConsolePage({
-        page: stubPage(),
         response: stubResponse(CLEAN_SSR_HTML),
         pageUrl: "https://app.example/orgs/org_x",
         html: hydratedDom,
@@ -96,7 +94,6 @@ describe("assertAuthedConsolePage inline-style guard", () => {
     const dirtySsr = CLEAN_SSR_HTML.replace("ok", '<p style="color:red">ok</p>');
     await expect(
       assertAuthedConsolePage({
-        page: stubPage(),
         response: stubResponse(dirtySsr),
         pageUrl: "https://app.example/orgs/org_x",
         html: dirtySsr,
@@ -104,5 +101,59 @@ describe("assertAuthedConsolePage inline-style guard", () => {
         expectation: { consoleShell: true },
       }),
     ).rejects.toThrow("server-rendered HTML carries an inline style attribute");
+  });
+});
+
+describe("assertAuthedConsolePage CSP nonce guard", () => {
+  it("checks the SSR response body, so an edge-injected non-nonce DOM script cannot fail it", async () => {
+    const hydratedDom = CLEAN_SSR_HTML.replace("</body>", `${CF_CHALLENGE_SCRIPT}</body>`);
+    await expect(
+      assertAuthedConsolePage({
+        response: stubResponse(CLEAN_SSR_HTML),
+        pageUrl: "https://app.example/orgs/org_x",
+        html: hydratedDom,
+        label: "stub page",
+        expectation: { consoleShell: true },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("still fails when the SSR body carries an inline script without the matching nonce", async () => {
+    const dirtySsr = CLEAN_SSR_HTML.replace("</body>", `${CF_CHALLENGE_SCRIPT}</body>`);
+    await expect(
+      assertAuthedConsolePage({
+        response: stubResponse(dirtySsr),
+        pageUrl: "https://app.example/orgs/org_x",
+        html: dirtySsr,
+        label: "stub page",
+        expectation: { consoleShell: true },
+      }),
+    ).rejects.toThrow("inline scripts missing matching nonce attribute");
+  });
+
+  it("fails when the SSR body carries an inline script with a wrong nonce", async () => {
+    const dirtySsr = CLEAN_SSR_HTML.replace('nonce="abc"', 'nonce="wrong"');
+    await expect(
+      assertAuthedConsolePage({
+        response: stubResponse(dirtySsr),
+        pageUrl: "https://app.example/orgs/org_x",
+        html: dirtySsr,
+        label: "stub page",
+        expectation: { consoleShell: true },
+      }),
+    ).rejects.toThrow("inline scripts missing matching nonce attribute");
+  });
+
+  it("fails when the SSR body renders no inline scripts to validate", async () => {
+    const scriptlessSsr = CLEAN_SSR_HTML.replace('<script nonce="abc"></script>', "");
+    await expect(
+      assertAuthedConsolePage({
+        response: stubResponse(scriptlessSsr),
+        pageUrl: "https://app.example/orgs/org_x",
+        html: scriptlessSsr,
+        label: "stub page",
+        expectation: { consoleShell: true },
+      }),
+    ).rejects.toThrow("rendered no inline scripts to validate against the CSP nonce");
   });
 });
