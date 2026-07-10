@@ -37,8 +37,9 @@ export type { RuntimeRpc } from "./runtime-rpc-interface.js";
 
 /**
  * Server-side possession check for a Secret's Current Version (INS-403). The candidate plaintext
- * crosses the seam base64url-encoded (`encodedCandidateUtf8`), decrypted-compared only inside the
- * Runtime keyring holder, and never logged. The API never sees the stored value.
+ * crosses the seam as raw UTF-8 bytes (`candidateUtf8`, structured-clone safe across the binding),
+ * is compared only inside the Runtime keyring holder, and is never logged. The API never sees the
+ * stored value.
  */
 export interface CheckSecretPossessionRpcInput {
   readonly organizationId: OrganizationId;
