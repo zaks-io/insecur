@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import { casApplyOperationTransition } from "../src/apply-operation-transition.js";
 import { OPERATION_INTENT_CODES } from "../src/operation-intent-codes.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "../src/operation-errors.js";
-import type { OperationRow } from "../src/operation-row.js";
-import type { OperationPollResult } from "../src/operation-types.js";
+import type { OperationRecord, OperationRow } from "../src/operation-row.js";
 import type { SyncTargetLeaseRow } from "../src/sync-target-lease-row.js";
 import { createFakeTenantSql, queryIncludes } from "./helpers/fake-tenant-sql.js";
 
@@ -12,13 +11,14 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 const PRJ = projectId.brand("prj_00000000000000000000000001");
 const OP = operationId.brand("op_00000000000000000000000001");
 
-function sampleOperation(overrides: Partial<OperationPollResult> = {}): OperationPollResult {
+function sampleOperation(overrides: Partial<OperationRecord> = {}): OperationRecord {
   return {
     operationId: OP,
     organizationId: ORG,
     state: "pending",
     intentCode: OPERATION_INTENT_CODES.syncRun,
     progress: {},
+    revision: 1,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -26,7 +26,7 @@ function sampleOperation(overrides: Partial<OperationPollResult> = {}): Operatio
 }
 
 function operationRowFromPoll(
-  operation: OperationPollResult,
+  operation: OperationRecord,
   overrides: Partial<OperationRow> = {},
 ): OperationRow {
   return {
@@ -37,6 +37,7 @@ function operationRowFromPoll(
     idempotency_key: null,
     progress: operation.progress,
     execution_deadline: operation.executionDeadline ?? null,
+    revision: operation.revision,
     created_at: operation.createdAt,
     updated_at: operation.updatedAt,
     ...overrides,
@@ -49,7 +50,7 @@ function findIsoDeadline(values: readonly unknown[]): string {
 }
 
 function createLegalTransitionSql(
-  current: OperationPollResult,
+  current: OperationRecord,
   rowOverrides: Partial<OperationRow> = {},
 ) {
   return createFakeTenantSql((query, values) => {
@@ -219,6 +220,39 @@ describe("casApplyOperationTransition", () => {
     ).rejects.toMatchObject({
       code: OPERATION_ERROR_CODES.idempotencyMismatch,
     });
+  });
+
+  it("compare-and-sets the transition on the snapshot revision and bumps it", async () => {
+    const current = sampleOperation({ state: "running", revision: 4 });
+    let updateQuery = "";
+    let updateValues: readonly unknown[] = [];
+    const sql = createFakeTenantSql((query, values) => {
+      if (queryIncludes(query, "from sync_target_leases")) {
+        return [];
+      }
+      if (queryIncludes(query, "update operations", "returning")) {
+        updateQuery = query;
+        updateValues = values;
+        return [operationRowFromPoll(current, { state: "succeeded", revision: 5 })];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+
+    await casApplyOperationTransition(sql, current, {
+      organizationId: ORG,
+      operationId: OP,
+      nextState: "succeeded",
+      progressPatch: {},
+      legalFromStates: "by-transition-table",
+      notAllowedError: {
+        code: OPERATION_ERROR_CODES.invalidTransition,
+        message: (state) => `not allowed from ${state}`,
+      },
+    });
+
+    expect(queryIncludes(updateQuery, "revision = revision + 1")).toBe(true);
+    expect(queryIncludes(updateQuery, "and revision =")).toBe(true);
+    expect(updateValues).toContain(4);
   });
 
   it("throws stale_transition when compare-and-set loses a concurrent write", async () => {

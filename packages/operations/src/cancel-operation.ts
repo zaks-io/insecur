@@ -2,6 +2,7 @@ import { withTenantScope, type TenantScopedSql } from "@insecur/tenant-store";
 import { CANCELABLE_OPERATION_STATES } from "./operation-states.js";
 import { OPERATION_ERROR_CODES } from "./operation-errors.js";
 import type { CancelOperationInput, OperationMutationResult } from "./operation-types.js";
+import { toOperationPollResult } from "./operation-row.js";
 import { TenantOperationStore } from "./tenant-operation-store.js";
 
 /**
@@ -34,5 +35,5 @@ export async function cancelOperationInTenantScope(
       message: (state) => `operation in state ${state} cannot be canceled`,
     },
   });
-  return { operation, created: false };
+  return { operation: toOperationPollResult(operation), created: false };
 }

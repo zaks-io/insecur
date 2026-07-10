@@ -4,6 +4,7 @@ import {
   validateOperationIntentCode,
   validateOperationProgressInput,
 } from "./validate-operation-metadata.js";
+import { toOperationPollResult } from "./operation-row.js";
 import { generateOperationId, TenantOperationStore } from "./tenant-operation-store.js";
 
 /**
@@ -20,13 +21,14 @@ export async function createOperation(
     { kind: "organization", organizationId: input.organizationId },
     async ({ sql }) => {
       const store = new TenantOperationStore(sql);
-      return await store.insertOperationStart({
+      const { operation, created } = await store.insertOperationStart({
         operationId: generateOperationId(),
         organizationId: input.organizationId,
         intentCode: input.intentCode,
         ...(input.idempotencyKey !== undefined ? { idempotencyKey: input.idempotencyKey } : {}),
         progress: initialProgress,
       });
+      return { operation: toOperationPollResult(operation), created };
     },
   );
 }

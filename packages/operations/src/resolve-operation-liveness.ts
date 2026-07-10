@@ -4,6 +4,7 @@ import { casApplyOperationTransition } from "./apply-operation-transition.js";
 import { isIsoTimestampExpired } from "./operation-execution-deadline.js";
 import { OPERATION_ERROR_CODES } from "./operation-errors.js";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
+import type { OperationRecord } from "./operation-row.js";
 import type { OperationPollResult } from "./operation-types.js";
 import { TenantSyncTargetLeaseStore } from "./tenant-sync-target-lease-store.js";
 import type { SyncTargetLeaseSnapshot } from "./sync-target-lease-row.js";
@@ -52,10 +53,10 @@ function buildAbandonedIncompleteProgress(
  */
 export async function parkAbandonedRunningOperation(
   sql: TenantScopedSql,
-  operation: OperationPollResult,
+  operation: OperationRecord,
   activeLease: SyncTargetLeaseSnapshot | null,
   now: Date = new Date(),
-): Promise<OperationPollResult> {
+): Promise<OperationRecord> {
   if (!isOperationExecutionClaimExpired(operation, activeLease, now)) {
     return operation;
   }
@@ -89,9 +90,9 @@ export async function findActiveLeaseForOperation(
  */
 export async function resolveOperationLiveness(
   sql: TenantScopedSql,
-  operation: OperationPollResult,
+  operation: OperationRecord,
   now: Date = new Date(),
-): Promise<OperationPollResult> {
+): Promise<OperationRecord> {
   const activeLease = await findActiveLeaseForOperation(
     sql,
     operation.organizationId,
