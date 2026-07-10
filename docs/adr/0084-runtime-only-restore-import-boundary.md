@@ -37,8 +37,10 @@ private Service Binding, so the trigger is an **operator-deployed coordinator Wo
 for the restore window: it declares a single Service Binding to `insecur-runtime` with
 `entrypoint: RuntimeRestoreService`, and the operator invokes it directly (manual dispatch or an
 operator-only endpoint gated by Cloudflare account access, which is operator surface, not product
-surface). The coordinator's authentication anchor is Cloudflare account deploy authority — the
-same accepted property ADR-0028 records for the root key itself. The coordinator holds **no root
+surface). The coordinator's authentication anchor is Cloudflare account deploy authority —
+deliberately the same trust root ADR-0028 accepts for the root key itself, and it tightens on the
+same future trigger ADR-0028 already names (external KMS for a Hosted Instance with multiple
+Service Access operators), so this is not a new trust decision to re-litigate. The coordinator holds **no root
 key, no Secrets Store binding, no Hyperdrive binding, and no decrypt API**, and serves **no public
 product route**; it may sequence steps and relay metadata only. A coordinator that acquires any of
 those capabilities is the second key holder this decision forbids. The coordinator is torn down
@@ -60,34 +62,56 @@ format, the header `instance_id` must equal the deploy's own `INSTANCE_ID`, the 
 `root_key_version` must resolve to a bound root-key version, and the export-DEK unwrap plus
 AES-256-GCM open must succeed under the ADR-0072 AAD (instance ID and export timestamp).
 Authenticity rests on the AEAD under the escrowed root key: a foreign, tampered, or re-enveloped
-artifact fails to open and the import fails closed with no rows written. Row writes follow the
-export's scope shape in reverse under the same forced-RLS posture
-([ADR-0037](0037-tenant-scoped-bound-store-over-rls.md)): instance-scope rows in an `app.service`
-transaction, and each organization's rows in that organization's own scoped transaction.
+artifact fails to open and the import fails closed with no rows written. The guarantee's edges are
+explicit so the implementer does not over-trust it. First, the header `instance_id` and
+`root_key_version` fields are advisory pre-checks that exist only to fail fast with a precise
+error; trust derives solely from the GCM open succeeding under the AAD-bound instance ID, and a
+passing header check before the open confers none. Second, the AAD binds only the instance ID and
+the export timestamp (ADR-0072), so the AEAD does **not** defend against replay of a genuine older
+same-instance artifact: selecting the correct (normally the latest) `artifact_ref` is an operator
+responsibility discharged through the runbook and evidence linkage, not a cryptographic guarantee.
+To keep a stale-artifact restore evidenced rather than silent, the implementation records the
+artifact's export timestamp and source export operation identity in the import journal and in the
+import audit event. Row writes follow the export's scope shape in reverse under the same
+forced-RLS posture ([ADR-0037](0037-tenant-scoped-bound-store-over-rls.md)): instance-scope rows
+in an `app.service` transaction, and each organization's rows in that organization's own scoped
+transaction.
 
 **Fresh-target proof.** Before the first row is written, the importer proves over `RESTORE_DB`
-that the target is a fresh, migrated, empty database: schema migrations are applied, the
-`instance_identity_configurations` table is empty, and zero organizations exist. A non-empty
-target — including the live database, a previously imported target, or a partially imported
-target — fails closed with `restore_target_not_fresh` and no writes. This is what makes restore
-import replay-safe by construction: an artifact may be imported any number of times, but each
-import lands in its own fresh target; the same target can never be imported into twice.
+that the target is a fresh, migrated, empty database: schema migrations are applied (including the
+import-journal table, expected present but empty), the `instance_identity_configurations` table is
+empty, and zero organizations exist. A non-empty target — including the live database, a
+previously imported target, or a partially imported target — fails closed with
+`restore_target_not_fresh` and no writes. This is what makes restore import replay-safe by
+construction: an artifact may be imported any number of times, but each import lands in its own
+fresh target; the same target can never be imported into twice.
 
-**Atomicity, concurrency, and failure cleanup.** The importer first writes an instance-scope
-import-journal marker recording `artifact_ref`, the source export operation ID, and the start
-time; a concurrent or repeated invocation observes the marker (or the advisory lock guarding it)
-and fails closed — at most one import per target, ever. Each organization then imports atomically
-in one transaction: an organization is fully present or fully absent, never torn. Any failure —
-authenticity, fresh-target, journal conflict, or a mid-run transaction error — fails the whole
-import: the run ends `failed`, the operator **discards the entire Neon target** and retries with a
-new fresh project (the existing runbook recovery step), and the `RESTORE_DB` binding is removed if
-the window is being abandoned. A partially imported target is never repaired in place and never
-serves traffic.
+**Atomicity, concurrency, and failure cleanup.** The exclusion construction is ordered, and the
+order is normative. The importer first acquires the exclusion primitive on the target — a
+session-scoped advisory lock, or equivalently a unique constraint on the journal table that makes
+a second insert fail — as the **primary** guard; a caller that cannot acquire it fails closed
+immediately. Only then does it run the fresh-target proof, then transactionally write the
+instance-scope import-journal marker recording `artifact_ref`, the source export operation ID, the
+artifact's export timestamp, and the start time, and only then import rows. Merely observing the
+marker's absence before writing it is insufficient — that is a read-then-write race two concurrent
+invocations both win — so the lock or unique constraint carries the exclusion and the journal
+marker is the durable record, giving at most one import per target, ever. Each organization then
+imports atomically in one transaction: an organization is fully present or fully absent, never
+torn. Any failure — authenticity, fresh-target, lock or journal conflict, or a mid-run transaction
+error — fails the whole import: the run ends `failed`, the operator **discards the entire Neon
+target** and retries with a new fresh project (the existing runbook recovery step), and the
+`RESTORE_DB` binding is removed if the window is being abandoned. A partially imported target is
+never repaired in place and never serves traffic.
 
 **Audit and observability.** Each import runs as an Operation with intent code
 `backup.restore_import` (registered in the `packages/operations` intent-code catalog per
-[ADR-0068](0068-stable-dotted-code-vocabularies-in-canonical-catalogs.md)), recorded in the restore target under the
-recovery-canary sentinel organization exactly as ADR-0072 records export Operations. As the final
+[ADR-0068](0068-stable-dotted-code-vocabularies-in-canonical-catalogs.md)), recorded in the
+restore target under the recovery-canary sentinel organization — the same venue ADR-0072 uses for
+export Operations, with one necessary difference in timing. The fresh-target proof requires zero
+organizations at import start, so a `pending`/`running` Operation row cannot exist in the target
+while the import is in flight: the instance-scope import journal **is** the in-flight record, and
+the importer writes the `backup.restore_import` Operation row retroactively in a terminal state
+once the canary sentinel organization's rows exist in the target. As the final
 step of a successful import — after the canary organization's rows exist in the target — the
 importer writes a `backup.restore_import_succeeded` audit event under that scope; a failed run
 emits `backup.restore_import_failed` through the [ADR-0030](0030-hybrid-allowlisted-telemetry.md)
