@@ -11,6 +11,8 @@ export const SECRET_SYNC_ERROR_CODES = {
   resourceConflict: "sync.resource_conflict",
   connectionNotEligible: "sync.connection_not_eligible",
   displayNameInUse: "sync.display_name_in_use",
+  stalePlan: "sync.stale_plan",
+  overwriteStatusUnknown: "sync.overwrite_status_unknown",
 } as const;
 
 export type SecretSyncErrorCode =

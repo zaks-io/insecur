@@ -3,6 +3,7 @@ import { SECRET_SYNC_ERROR_CODES, SECRET_SYNC_KINDS, type SecretSyncId } from "@
 import {
   TenantAppConnectionStore,
   TenantSecretSyncStore,
+  type AppConnectionRow,
   type SecretSyncBindingRow,
   type SecretSyncRow,
   type TenantScopedDb,
@@ -84,6 +85,7 @@ export async function loadExecutableSecretSyncContext(input: {
   readonly secretSyncId: SecretSyncId;
 }): Promise<{
   readonly sync: SecretSyncRow;
+  readonly connection: AppConnectionRow;
   readonly bindings: readonly SecretSyncBindingRow[];
 }> {
   const syncStore = new TenantSecretSyncStore(input.db);
@@ -93,7 +95,11 @@ export async function loadExecutableSecretSyncContext(input: {
   }
   assertSyncStatusExecutable(sync);
 
-  await loadEligibleConnection(input.db, sync.organizationId, sync.appConnectionId);
+  const connection = await loadEligibleConnection(
+    input.db,
+    sync.organizationId,
+    sync.appConnectionId,
+  );
 
   const bindings = await syncStore.listBindings(input.organizationId, sync.id);
   const sensitiveMetadata = await loadSecretSyncSensitiveMetadata({
@@ -111,5 +117,5 @@ export async function loadExecutableSecretSyncContext(input: {
     workerScriptName: sensitiveMetadata.workerScriptName,
   });
 
-  return { sync, bindings };
+  return { sync, connection, bindings };
 }
