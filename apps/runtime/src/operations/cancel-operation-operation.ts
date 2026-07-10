@@ -1,11 +1,12 @@
 import { AUTHORIZATION_SCOPES, authorizeScopeOrThrow, type ActorRef } from "@insecur/access";
 import type { AuditActorRef } from "@insecur/audit";
-import { recordOperationCancelDenied, recordOperationCanceled } from "@insecur/audit";
+import { recordOperationCancelDenied, recordOperationCanceledInTenantScope } from "@insecur/audit";
 import {
-  cancelOperation,
+  cancelOperationInTenantScope,
   OperationStoreError,
   type OperationPollResult,
 } from "@insecur/operations";
+import { withTenantScope } from "@insecur/tenant-store";
 import type { CancelOperationRpcInput, CancelOperationRpcPayload } from "@insecur/worker-kit";
 
 export interface CancelOperationOperationInput {
@@ -31,8 +32,8 @@ function toCancelPayload(
 }
 
 /**
- * Authorize-then-cancel, atomic behind the seam: org-read scope gates cancel, matching operation
- * poll reads, then cancelOperation closes cancelable operations with an audit trail.
+ * Authorize-then-cancel: the dedicated mutation scope is intentionally distinct from operation
+ * polling so read-only members cannot change operation state.
  */
 export async function cancelOperationOperation({
   input,
@@ -43,21 +44,27 @@ export async function cancelOperationOperation({
     actor: accessActor,
     auditActor,
     coordinate: { organizationId: input.organizationId },
-    requiredScope: AUTHORIZATION_SCOPES.organizationRead,
+    requiredScope: AUTHORIZATION_SCOPES.operationCancel,
     requestId: input.requestId,
   });
 
   try {
-    const mutation = await cancelOperation({
-      organizationId: input.organizationId,
-      operationId: input.operationId,
-    });
-    const audit = await recordOperationCanceled({
-      actor: auditActor,
-      organizationId: input.organizationId,
-      operationId: input.operationId,
-      request: { requestId: input.requestId },
-    });
+    const { mutation, audit } = await withTenantScope(
+      { kind: "organization", organizationId: input.organizationId },
+      async ({ sql }) => {
+        const mutation = await cancelOperationInTenantScope(sql, {
+          organizationId: input.organizationId,
+          operationId: input.operationId,
+        });
+        const audit = await recordOperationCanceledInTenantScope(sql, {
+          actor: auditActor,
+          organizationId: input.organizationId,
+          operationId: input.operationId,
+          request: { requestId: input.requestId },
+        });
+        return { mutation, audit };
+      },
+    );
     return toCancelPayload(mutation.operation, audit.auditEventId);
   } catch (error) {
     if (error instanceof OperationStoreError) {

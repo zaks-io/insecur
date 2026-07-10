@@ -1,5 +1,5 @@
-import type { ApprovalAuditAction, AuditActorRef } from "@insecur/audit";
-import { recordApprovalAudit } from "@insecur/audit";
+import type { ApprovalAuditAction, AuditActorRef, RecordApprovalAuditInput } from "@insecur/audit";
+import { recordApprovalAudit, recordApprovalAuditInTenantScope } from "@insecur/audit";
 import type {
   ApprovalRequestId,
   EnvironmentId,
@@ -8,10 +8,11 @@ import type {
   ProjectId,
   RequestId,
 } from "@insecur/domain";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 
 type ApprovalRequestSuccessAuditAction = Exclude<ApprovalAuditAction, "action_denied">;
 
-export async function recordApprovalRequestSuccessAudit(input: {
+interface ApprovalRequestSuccessAuditInput {
   readonly action: ApprovalRequestSuccessAuditAction;
   readonly auditActor: AuditActorRef;
   readonly organizationId: OrganizationId;
@@ -19,10 +20,12 @@ export async function recordApprovalRequestSuccessAudit(input: {
   readonly environmentId: EnvironmentId;
   readonly approvalRequestId: ApprovalRequestId;
   readonly requestId: RequestId;
-}): Promise<void> {
-  await recordApprovalAudit({
+}
+
+function toApprovalAuditInput(input: ApprovalRequestSuccessAuditInput): RecordApprovalAuditInput {
+  return {
     action: input.action,
-    outcome: "success",
+    outcome: "success" as const,
     actor: input.auditActor,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -32,5 +35,18 @@ export async function recordApprovalRequestSuccessAudit(input: {
       id: input.approvalRequestId as unknown as OpaqueResourceId,
     },
     requestId: input.requestId,
-  });
+  };
+}
+
+export async function recordApprovalRequestSuccessAudit(
+  input: ApprovalRequestSuccessAuditInput,
+): Promise<void> {
+  await recordApprovalAudit(toApprovalAuditInput(input));
+}
+
+export async function recordApprovalRequestSuccessAuditInTenantScope(
+  sql: TenantScopedSql,
+  input: ApprovalRequestSuccessAuditInput,
+): Promise<void> {
+  await recordApprovalAuditInTenantScope(sql, toApprovalAuditInput(input));
 }

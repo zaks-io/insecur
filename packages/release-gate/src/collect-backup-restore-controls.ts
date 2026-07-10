@@ -84,9 +84,18 @@ export function collectRestoreDrillControl(evidenceDir: string): ReleaseGateCont
   const relativePath = "backup/restore-drill.json";
   const docs = backupRestoreEvidenceDocs();
   const loaded = loadBackupRestoreEvidence(evidenceDir, relativePath, parseRestoreDrillEvidence);
+  const sourceExport = loadBackupRestoreEvidence(
+    evidenceDir,
+    "backup/export-success.json",
+    parseExportSuccessEvidence,
+  );
   const evaluation = loaded.metadataBlocked
     ? evaluateBlockedBackupRestoreMetadataEvidence("backup_restore.drill")
-    : evaluateRestoreDrillEvidence(loaded.evidence);
+    : evaluateRestoreDrillEvidence(
+        loaded.evidence,
+        new Date(),
+        sourceExport.metadataBlocked ? null : sourceExport.evidence,
+      );
   return evaluationToControl(evaluation, relativePath, docs);
 }
 

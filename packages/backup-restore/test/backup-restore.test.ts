@@ -14,12 +14,6 @@ import {
   findRecoveryCanaryRow,
   verifyRecoveryCanaryFromCiphertext,
 } from "../src/recovery-canary.js";
-import {
-  computeExportExpiresAt,
-  evaluateExportFreshnessEvidence,
-  evaluateRestoreDrillEvidence,
-} from "../src/evaluate-readiness.js";
-import { verifyBackupRestoreEvidence } from "../src/verify-evidence.js";
 
 function durableRootKey(): Uint8Array {
   const root = new Uint8Array(32);
@@ -176,65 +170,18 @@ describe("recovery canary scope", () => {
   });
 });
 
-describe("runLocalRestoreDrill", () => {
-  it("writes metadata-only evidence without secret material keys", async () => {
-    const { runLocalRestoreDrill } = await import("../src/run-local-drill.js");
+describe("runBackupFixtureSelfTest", () => {
+  it("writes fixture-only metadata without secret material keys", async () => {
+    const { runBackupFixtureSelfTest } = await import("../src/run-local-drill.js");
     const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-backup-restore-"));
-    const result = await runLocalRestoreDrill({ evidenceDir });
+    const result = await runBackupFixtureSelfTest({ evidenceDir });
 
-    expect(result.drillEvidence.status).toBe("passed");
-    expect(result.exportEvidence.encryption_verified).toBe(true);
-    expect(result.drillEvidence.canary_verification.status).toBe("passed");
+    expect(result.evidence.status).toBe("passed");
+    expect(result.evidence.fixture_only).toBe(true);
 
-    const drillJson = readFileSync(join(evidenceDir, "backup/restore-drill.json"), "utf8");
-    expect(drillJson).not.toMatch(/"secret"/i);
-    expect(drillJson).not.toMatch(/"plaintext"/i);
-    expect(drillJson).not.toMatch(/insecur-recovery-canary-v1-sentinel/);
-  });
-
-  it("keeps export freshness policy aligned when drill duration is non-zero", async () => {
-    const { runLocalRestoreDrill } = await import("../src/run-local-drill.js");
-    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-backup-restore-duration-"));
-    const startedAt = new Date("2026-07-04T00:00:00.000Z");
-    const completedAt = new Date("2026-07-04T00:00:10.000Z");
-
-    const result = await runLocalRestoreDrill({
-      evidenceDir,
-      startedAt,
-      completedAt,
-    });
-
-    expect(result.exportEvidence.expires_at).toBe(
-      computeExportExpiresAt(result.exportEvidence.export_timestamp),
-    );
-    expect(result.drillEvidence.rto.duration_seconds).toBe(10);
-
-    const exportFresh = evaluateExportFreshnessEvidence(result.exportEvidence, completedAt);
-    expect(exportFresh.status).toBe("passed");
-
-    const restoreDrill = evaluateRestoreDrillEvidence(result.drillEvidence, completedAt);
-    expect(restoreDrill.status).toBe("passed");
-
-    const verified = verifyBackupRestoreEvidence({ evidenceDir, now: completedAt });
-    expect(verified.ok).toBe(true);
-  });
-
-  it("aligns drill duration_seconds with floor-based RTO validation", async () => {
-    const { runLocalRestoreDrill } = await import("../src/run-local-drill.js");
-    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-backup-restore-rto-floor-"));
-    const startedAt = new Date("2026-07-04T00:00:00.000Z");
-    const completedAt = new Date("2026-07-04T00:00:05.600Z");
-
-    const result = await runLocalRestoreDrill({
-      evidenceDir,
-      startedAt,
-      completedAt,
-    });
-
-    expect(result.drillEvidence.rto.duration_seconds).toBe(5);
-    expect(evaluateRestoreDrillEvidence(result.drillEvidence, completedAt).status).toBe("passed");
-
-    const verified = verifyBackupRestoreEvidence({ evidenceDir, now: completedAt });
-    expect(verified.ok).toBe(true);
+    const fixtureJson = readFileSync(join(evidenceDir, "backup/fixture-self-test.json"), "utf8");
+    expect(fixtureJson).not.toMatch(/"secret"/i);
+    expect(fixtureJson).not.toMatch(/"plaintext"/i);
+    expect(fixtureJson).not.toMatch(/insecur-recovery-canary-v1-sentinel/);
   });
 });

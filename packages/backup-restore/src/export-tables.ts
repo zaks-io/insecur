@@ -44,7 +44,14 @@ export const BACKUP_ORGANIZATION_EXPORT_TABLES = [
   "secret_syncs",
   "secret_sync_bindings",
   "first_value_feedback",
+  "approval_requests",
+  "promotion_change_set_draft_versions",
+  "protected_changes",
+  "protected_change_approval_evidence",
 ] as const;
+
+/** Schema tables intentionally omitted from disaster-recovery exports. Every omission needs review. */
+export const BACKUP_EXPORT_EXCLUDED_TABLES = [] as const;
 
 type BackupInstanceExportTable = (typeof BACKUP_INSTANCE_EXPORT_TABLES)[number];
 type BackupOrganizationExportTable = (typeof BACKUP_ORGANIZATION_EXPORT_TABLES)[number];
@@ -60,4 +67,38 @@ export function assertBackupExportTableName(tableName: string): BackupExportTabl
     throw new Error(`unsupported backup export table: ${tableName}`);
   }
   return tableName as BackupExportTable;
+}
+
+export function collectBackupExportCoverageViolations(
+  schemaTableNames: readonly string[],
+  exportedTableNames: readonly string[] = [...EXPORT_TABLE_SET],
+  excludedTableNames: readonly string[] = BACKUP_EXPORT_EXCLUDED_TABLES,
+): string[] {
+  const schema = new Set(schemaTableNames);
+  const exported = new Set(exportedTableNames);
+  const excluded = new Set(excludedTableNames);
+  const violations: string[] = [];
+
+  for (const tableName of exported) {
+    if (!schema.has(tableName)) {
+      violations.push(`exported table ${tableName} is not present in the schema registry`);
+    }
+    if (excluded.has(tableName)) {
+      violations.push(`table ${tableName} is both exported and explicitly excluded`);
+    }
+  }
+
+  for (const tableName of excluded) {
+    if (!schema.has(tableName)) {
+      violations.push(`excluded table ${tableName} is not present in the schema registry`);
+    }
+  }
+
+  for (const tableName of schema) {
+    if (!exported.has(tableName) && !excluded.has(tableName)) {
+      violations.push(`schema table ${tableName} is neither exported nor explicitly excluded`);
+    }
+  }
+
+  return violations.sort();
 }

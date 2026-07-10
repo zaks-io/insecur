@@ -130,6 +130,7 @@ Stable control ID prefixes:
 - `audit.*`
 - `backup_restore.*`
 - `supply_chain.*`
+- `no_plaintext.*`
 - `runbook.*`
 
 The local check may combine automated tests with required manual evidence placeholders. Placeholders are `blocked` until filled by a runbook drill, review, or explicit accepted decision.
@@ -153,11 +154,25 @@ is not `passed`. Missing evidence is `missing_evidence` and blocks the gate.
 | `auth.api_top10_checklist`        | `security/api-top10-checklist.json`          | OWASP API Security Top 10 checklist status         |
 | `backup_restore.export_fresh`     | `backup/export-success.json`                 | Latest successful Worker export with `expires_at`  |
 | `backup_restore.drill`            | `backup/restore-drill.json`                  | Tested restore drill and canary verification       |
+| `no_plaintext.r2_backup`          | `no-plaintext/r2-backup.json`                | External scheduled R2 artifact sweep               |
+| `no_plaintext.worker_logs`        | `no-plaintext/worker-logs.json`              | External deployed Worker log query                 |
+| `no_plaintext.worker_traces`      | `no-plaintext/worker-traces.json`            | External deployed Worker trace query               |
+| `no_plaintext.api_analytics`      | `no-plaintext/api-analytics.json`            | External deployed API analytics query              |
 
 Evidence files are JSON metadata only. Secret-scan artifacts must record
 `finding_count` and optional `rule_ids`; they must not include Sensitive Values,
 matched secret substrings, line content, or other reveal-bearing fields. The
 bundle assembler rejects evidence that includes forbidden reveal keys.
+
+The repository registers these non-enumerable surfaces and fails the
+`small_group_production` profile closed when their metadata-only zero-finding evidence is absent.
+The external query/download implementations are not in this repository yet. Registry entries are
+evidence requirements, not claims that executable adapters exist.
+
+During the prelaunch build-out, `.github/workflows/deploy-production.yml` runs this profile with
+`--warn-only` so incomplete launch evidence is visible without preventing environment validation.
+The command remains strict by default. Remove the workflow opt-in before relying on insecur for
+valuable production secrets.
 
 The assembled bundle records `schema_version`, `profile`, per-control
 `status` (`passed`, `blocked`, `missing_evidence`), artifact references, and an

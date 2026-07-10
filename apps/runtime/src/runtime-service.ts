@@ -3,15 +3,8 @@ import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
 import type { IssueInjectionGrantResult } from "@insecur/runtime-injection-issue";
-import {
-  revokeInjectionGrantsForCompromiseVersion,
-  revokeInjectionGrantsForTenantSuspension,
-  type RevokeInjectionGrantsForCompromiseVersionResult,
-  type RevokeInjectionGrantsForTenantSuspensionResult,
-} from "@insecur/runtime-injection";
 import { getBootstrapStatus, type BootstrapStatus } from "@insecur/instance-bootstrap";
 import { resolveAdmissionForEdge, runWithRuntimeConnection } from "@insecur/tenant-store";
-import type { RequestId } from "@insecur/domain";
 import type {
   AcceptInvitationRpcInput,
   CheckSecretPossessionPayload,
@@ -68,6 +61,7 @@ import {
   recordInjectionRunCompletedRpc,
 } from "./rpc/runtime-metadata-rpc-delegates.js";
 import { RuntimeServiceDelegatedPostAuthRpc } from "./rpc/runtime-service-delegated-post-auth-rpc.js";
+import { RUNTIME_POST_AUTH_RPC } from "./rpc/runtime-service-delegated-post-auth-rpc-host.js";
 import {
   acceptInvitationRpc,
   createInvitationRpc,
@@ -141,9 +135,7 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
     return this.#withConnection(() => withRuntimeRpcEntry({ env: this.env, actorToken }, run));
   }
 
-  postAuthRpc() {
-    return this.#post.bind(this);
-  }
+  [RUNTIME_POST_AUTH_RPC] = () => this.#post.bind(this);
 
   /**
    * Pre-auth RPC pipeline: request-scoped connection and the same error envelope, but no hop-token
@@ -278,49 +270,6 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
   registerAgentSession(input: RegisterAgentSessionRpcInput) {
     return registerAgentSessionRpc(this.#post.bind(this), input);
-  }
-
-  /**
-   * Tenant Suspension containment: revoke all active Injection Grants for the Organization.
-   * Called from the suspension runbook path inside Runtime (no edge DB I/O).
-   */
-  revokeInjectionGrantsForTenantSuspension(input: {
-    organizationId: Parameters<
-      typeof revokeInjectionGrantsForTenantSuspension
-    >[0]["organizationId"];
-    auditActor: Parameters<typeof revokeInjectionGrantsForTenantSuspension>[0]["actor"];
-    requestId?: RequestId;
-  }): Promise<RevokeInjectionGrantsForTenantSuspensionResult> {
-    return this.#withConnection(() =>
-      revokeInjectionGrantsForTenantSuspension({
-        organizationId: input.organizationId,
-        actor: input.auditActor,
-        ...(input.requestId !== undefined ? { request: { requestId: input.requestId } } : {}),
-      }),
-    );
-  }
-
-  /**
-   * Compromise-response containment: revoke active grants pinned to the invalidated version.
-   */
-  revokeInjectionGrantsForCompromiseVersion(input: {
-    organizationId: Parameters<
-      typeof revokeInjectionGrantsForCompromiseVersion
-    >[0]["organizationId"];
-    secretVersionId: Parameters<
-      typeof revokeInjectionGrantsForCompromiseVersion
-    >[0]["secretVersionId"];
-    auditActor: Parameters<typeof revokeInjectionGrantsForCompromiseVersion>[0]["actor"];
-    requestId?: RequestId;
-  }): Promise<RevokeInjectionGrantsForCompromiseVersionResult> {
-    return this.#withConnection(() =>
-      revokeInjectionGrantsForCompromiseVersion({
-        organizationId: input.organizationId,
-        secretVersionId: input.secretVersionId,
-        actor: input.auditActor,
-        ...(input.requestId !== undefined ? { request: { requestId: input.requestId } } : {}),
-      }),
-    );
   }
 }
 

@@ -1485,6 +1485,15 @@
     "notes": "Hosted-only capability invoked in Local Mode; remediation carries exact upgrade commands."
   },
   {
+    "code": "local_store.unavailable",
+    "slug": "local-store-unavailable",
+    "typeUri": "https://insecur.dev/errors/local-store-unavailable",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": true,
+    "notes": "No supported OS credential store is available. Local Mode fails closed instead of silently storing its root key beside ciphertext; remediation explains Linux Secret Service setup and the explicit development-only opt-in."
+  },
+  {
     "code": "local.value_missing_on_machine",
     "slug": "local-value-missing-on-machine",
     "typeUri": "https://insecur.dev/errors/local-value-missing-on-machine",

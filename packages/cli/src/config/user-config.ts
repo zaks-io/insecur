@@ -140,7 +140,7 @@ export async function setCrashReportsPreference(preference: CrashReportsPreferen
   const existing = await loadUserConfig();
   const payload: Record<string, unknown> = { ...existing, crashReports: preference };
   assertNoForbiddenConfigKeys(payload, "user config");
-  await writeJsonFile(userConfigPath(), payload);
+  await writeJsonFile(userConfigPath(), payload, { mode: 0o600 });
 }
 
 export async function upsertUserProfile(
@@ -161,5 +161,5 @@ export async function upsertUserProfile(
   profiles[profileId] = profile;
   const payload: Record<string, unknown> = { ...existing, profiles };
   assertNoForbiddenConfigKeys(payload, "user config");
-  await writeJsonFile(userConfigPath(), payload);
+  await writeJsonFile(userConfigPath(), payload, { mode: 0o600 });
 }

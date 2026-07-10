@@ -76,12 +76,14 @@ export {
   type RecordSyncAuditInput,
   type SyncAuditPhase,
   recordApprovalAudit,
+  recordApprovalAuditInTenantScope,
   recordKeyCustodyAudit,
   recordSyncAudit,
 } from "./production-audit-writers.js";
 export { type RecordActionAuditInput, recordActionAudit } from "./record-action-audit.js";
 export {
   recordOperationCanceled,
+  recordOperationCanceledInTenantScope,
   recordOperationCancelDenied,
   type RecordOperationCanceledInput,
   type RecordOperationCancelDeniedInput,

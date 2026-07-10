@@ -258,6 +258,7 @@ export type CliErrorCode = (typeof CLI_ERROR_CODES)[keyof typeof CLI_ERROR_CODES
 /** Local Mode client-side capability ceiling failures. */
 export const LOCAL_ERROR_CODES = {
   cloudFeatureUnavailable: "local.cloud_feature_unavailable",
+  keyStoreUnavailable: "local_store.unavailable",
   valueMissingOnMachine: "local.value_missing_on_machine",
 } as const;
 

@@ -2,9 +2,13 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type {
   ExposesRuntimeRpc,
+  HasOnlyRuntimeRpcMethods,
   MergedRuntimeServiceInstance,
 } from "./runtime-service-rpc-conformance.js";
-import { runtimeServiceExposesRuntimeRpc } from "./runtime-service-rpc-conformance.js";
+import {
+  runtimeServiceExposesRuntimeRpc,
+  runtimeServiceHasOnlyRuntimeRpcMethods,
+} from "./runtime-service-rpc-conformance.js";
 
 describe("RuntimeService / RuntimeRpc conformance (INS-512)", () => {
   it("asserts the merged RuntimeService instance satisfies RuntimeRpc", () => {
@@ -15,6 +19,18 @@ describe("RuntimeService / RuntimeRpc conformance (INS-512)", () => {
     // `pnpm --filter @insecur/runtime typecheck` / `test` run, not a silent build-time drop.
     expect(runtimeServiceExposesRuntimeRpc).toBe(true);
     expectTypeOf(runtimeServiceExposesRuntimeRpc).toEqualTypeOf<true>();
+  });
+
+  it("rejects extra public methods outside the authenticated contract", () => {
+    type SurfaceWithUnauthenticatedMutation = MergedRuntimeServiceInstance & {
+      revokeWithoutActorToken(input: { organizationId: string }): Promise<void>;
+    };
+
+    expect(runtimeServiceHasOnlyRuntimeRpcMethods).toBe(true);
+    expectTypeOf(runtimeServiceHasOnlyRuntimeRpcMethods).toEqualTypeOf<true>();
+    expectTypeOf<
+      HasOnlyRuntimeRpcMethods<SurfaceWithUnauthenticatedMutation>
+    >().toEqualTypeOf<false>();
   });
 
   it("resolves false for a RuntimeService surface missing a required RuntimeRpc method", () => {

@@ -40,6 +40,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.webhookManage,
     AUTHORIZATION_SCOPES.approvalApprove,
     AUTHORIZATION_SCOPES.approvalReject,
+    AUTHORIZATION_SCOPES.operationCancel,
   ],
   [BUILT_IN_ROLE_PRESETS.admin]: [
     AUTHORIZATION_SCOPES.organizationRead,
@@ -51,6 +52,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.runtimeInjectionGrantIssue,
     AUTHORIZATION_SCOPES.runtimeInjectionGrantConsume,
     AUTHORIZATION_SCOPES.runtimeInjectionRun,
+    AUTHORIZATION_SCOPES.operationCancel,
     AUTHORIZATION_SCOPES.membershipManage,
     AUTHORIZATION_SCOPES.projectConfigure,
     AUTHORIZATION_SCOPES.connectionRead,

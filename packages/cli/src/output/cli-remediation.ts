@@ -1,6 +1,7 @@
 import {
   AUTH_ERROR_CODES,
   CLI_ERROR_CODES,
+  LOCAL_ERROR_CODES,
   SECRET_ERROR_CODES,
   VALIDATION_ERROR_CODES,
   type ErrorRemediation,
@@ -62,6 +63,7 @@ export const CLI_REMEDIATION_SUPPLEMENT_CODES = new Set<KnownErrorCode>([
   AUTH_ERROR_CODES.highAssuranceRequired,
   CLI_ERROR_CODES.unexpectedError,
   CLI_ERROR_CODES.validationError,
+  LOCAL_ERROR_CODES.keyStoreUnavailable,
   SECRET_ERROR_CODES.inputRequired,
   VALIDATION_ERROR_CODES.invalidOpaqueResourceId,
 ]);

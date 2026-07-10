@@ -18,6 +18,8 @@
     "clean": "rm -rf dist .wrangler .output"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource-variable/geist-mono": "^5.2.8",
     "@insecur/observability": "workspace:*",
     "@insecur/ui": "workspace:*",
     "@sentry/cloudflare": "^10.63.0",

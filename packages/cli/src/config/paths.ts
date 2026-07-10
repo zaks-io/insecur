@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -30,8 +30,12 @@ export function resolveUserConfigHome(): string {
   return homedir();
 }
 
+export function resolveUserConfigDir(): string {
+  return path.join(resolveUserConfigHome(), USER_CONFIG_DIR);
+}
+
 export function userConfigPath(): string {
-  return path.join(resolveUserConfigHome(), USER_CONFIG_DIR, USER_CONFIG_FILE);
+  return path.join(resolveUserConfigDir(), USER_CONFIG_FILE);
 }
 
 function isENOENT(error: unknown): boolean {
@@ -62,7 +66,21 @@ export async function readJsonFile(filePath: string): Promise<Record<string, unk
 export async function writeJsonFile(
   filePath: string,
   value: Record<string, unknown>,
+  options: { readonly mode?: number } = {},
 ): Promise<void> {
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const directory = path.dirname(filePath);
+  await mkdir(directory, {
+    recursive: true,
+    ...(options.mode === 0o600 ? { mode: 0o700 } : {}),
+  });
+  if (options.mode === 0o600) {
+    await chmod(directory, 0o700);
+  }
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, {
+    encoding: "utf8",
+    ...(options.mode === undefined ? {} : { mode: options.mode }),
+  });
+  if (options.mode !== undefined) {
+    await chmod(filePath, options.mode);
+  }
 }

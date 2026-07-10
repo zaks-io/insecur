@@ -49,7 +49,11 @@ export {
 export { FILE_FALLBACK_NOTICE } from "./notices.js";
 export { SEALED_RECORD_V1_PREFIX, sealLocalRecord, unsealLocalRecord } from "./sealed-record.js";
 export { resolveKeyStorePaths, resolveLocalStorePaths, resolveUserConfigHome } from "./paths.js";
-export { isLinuxSecretToolAvailable, resolveKeyStoreBackend } from "./resolve-backend.js";
+export {
+  INSECURE_FILE_KEY_STORE_ENV,
+  isLinuxSecretToolAvailable,
+  resolveKeyStoreBackend,
+} from "./resolve-backend.js";
 export type {
   CreateKeyStoreOptions,
   ExecFileFn,

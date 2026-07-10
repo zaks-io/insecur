@@ -9,7 +9,10 @@ import type {
   RequestProtectedRollbackRpcInput,
 } from "@insecur/worker-kit";
 
-import type { RuntimePostAuthRpcHost } from "./runtime-service-delegated-post-auth-rpc-host.js";
+import {
+  RUNTIME_POST_AUTH_RPC,
+  type RuntimePostAuthRpcHost,
+} from "./runtime-service-delegated-post-auth-rpc-host.js";
 import {
   approveApprovalRequestRpc,
   cancelApprovalRequestRpc,
@@ -31,30 +34,30 @@ export const RuntimeServiceProtectedChangePostAuthRpc = {
     this: RuntimePostAuthRpcHost,
     input: RequestProtectedPromotionRpcInput,
   ) {
-    return requestProtectedPromotionRpc(this.postAuthRpc(), input);
+    return requestProtectedPromotionRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   requestProtectedRollback(this: RuntimePostAuthRpcHost, input: RequestProtectedRollbackRpcInput) {
-    return requestProtectedRollbackRpc(this.postAuthRpc(), input);
+    return requestProtectedRollbackRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listEnvironmentApprovals(this: RuntimePostAuthRpcHost, input: ListEnvironmentApprovalsRpcInput) {
-    return listEnvironmentApprovalsRpc(this.postAuthRpc(), input);
+    return listEnvironmentApprovalsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   listPendingApprovalRequests(
     this: RuntimePostAuthRpcHost,
     input: ListPendingApprovalRequestsRpcInput,
   ) {
-    return listPendingApprovalRequestsRpc(this.postAuthRpc(), input);
+    return listPendingApprovalRequestsRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   getApprovalRequestReview(this: RuntimePostAuthRpcHost, input: GetApprovalRequestReviewRpcInput) {
-    return getApprovalRequestReviewRpc(this.postAuthRpc(), input);
+    return getApprovalRequestReviewRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   approveApprovalRequest(this: RuntimePostAuthRpcHost, input: ApproveApprovalRequestRpcInput) {
-    return approveApprovalRequestRpc(this.postAuthRpc(), input);
+    return approveApprovalRequestRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   rejectApprovalRequest(this: RuntimePostAuthRpcHost, input: RejectApprovalRequestRpcInput) {
-    return rejectApprovalRequestRpc(this.postAuthRpc(), input);
+    return rejectApprovalRequestRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
   cancelApprovalRequest(this: RuntimePostAuthRpcHost, input: CancelApprovalRequestRpcInput) {
-    return cancelApprovalRequestRpc(this.postAuthRpc(), input);
+    return cancelApprovalRequestRpc(this[RUNTIME_POST_AUTH_RPC](), input);
   },
 };

@@ -20,6 +20,9 @@ async function main() {
     INSECUR_CONFIG_HOME: configHome,
     PATH: process.env.PATH ?? "",
     SHELL: process.env.SHELL ?? "/bin/zsh",
+    // This suite runs in disposable CI homes. Production CLI use fails closed
+    // when a supported OS credential store is unavailable.
+    ...(process.platform === "linux" ? { INSECUR_ALLOW_INSECURE_FILE_KEYSTORE: "1" } : {}),
   };
   const cli = createCli({ cliPath, env, projectDir, repoRoot });
   const checks = [];

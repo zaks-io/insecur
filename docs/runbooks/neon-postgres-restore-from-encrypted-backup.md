@@ -78,15 +78,15 @@ Confirm `backup/export-success.json` and `backup/restore-drill.json` exist, list
 `artifact_ref`, `instance_id`, organization snapshot counts, and `expires_at` without
 opening the sealed artifact in a transcript.
 
-For local/CI rehearsal without Neon:
+For a local/CI backup-envelope fixture self-test without Neon:
 
 ```sh
-pnpm backup-restore:drill -- --evidence-dir evidence
+pnpm backup-restore:fixture-self-test -- --evidence-dir evidence
 ```
 
-This simulates seal → open → canary verification with fixture keys and writes
-metadata-only evidence. It does not replace the one production-equivalent drill before
-valuable secrets are stored.
+This tests seal → open → canary verification with an ephemeral fixture key and writes only
+`backup/fixture-self-test.json`. It never writes `backup/export-success.json` or
+`backup/restore-drill.json`, is not launch-grade evidence, and cannot satisfy the release gate.
 
 ## execute
 
@@ -96,8 +96,10 @@ Production-equivalent drill (summary — operator executes manually):
 2. Provision a fresh Neon project and apply schema migrations with the migration role.
 3. Load the escrowed root key version from the export header into the fresh Runtime
    Worker Secrets Store binding.
-4. Download the sealed artifact and run the bespoke JSONL importer (per-organization
-   transactions, no decrypt of Sensitive Values during import).
+4. Download the sealed artifact and import its JSONL rows using an operator-controlled importer
+   (per-organization transactions, no decrypt of Sensitive Values during import). No importer is
+   implemented in this repository yet, so the gate remains blocked until this step is performed
+   and evidenced outside the fixture self-test.
 5. Decrypt only the recovery canary secret through the normal runtime decrypt path.
 6. Record wall-clock RTO from download start through successful canary verification.
 
@@ -117,6 +119,10 @@ Pass requires:
 - `encryption_verified` is `true`
 - measured `rto.duration_seconds` is within `rto.target_seconds`
 - evidence output contains no forbidden reveal keys (enforced by package tests)
+- `artifact_ref`, `source_export_operation_id`, and `source_export_timestamp` match the scheduled
+  R2 export evidence
+- `restore_target_ref` identifies a fresh Neon project, and import completion precedes runtime
+  canary verification
 
 ## expected_audit
 
@@ -150,5 +156,6 @@ Attach to the Security Evidence Bundle (`backup_restore.*` controls):
 | Sealed artifact reference | `artifact_ref` field only       |
 
 Evidence fields include `actor`, `scope` (instance/org/project/secret IDs), `rto`
-timestamps and duration, `canary_verification.status`, and `encryption_verified`.
+timestamps and duration, `canary_verification.status`, `encryption_verified`, scheduled-export
+linkage, the fresh Neon target reference, import completion, and runtime-canary verification time.
 Never attach artifact bytes, JSONL payload, or canary plaintext.

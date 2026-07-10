@@ -81,7 +81,7 @@
     "clean": "turbo run clean",
     "release-gate:bundle": "pnpm --filter @insecur/release-gate bundle",
     "security:check": "pnpm release-gate:bundle",
-    "backup-restore:drill": "pnpm --filter @insecur/backup-restore drill",
+    "backup-restore:fixture-self-test": "pnpm --filter @insecur/backup-restore fixture-self-test",
     "backup-restore:verify-evidence": "pnpm --filter @insecur/backup-restore verify-evidence"
   },
   "engines": {

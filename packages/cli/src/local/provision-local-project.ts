@@ -13,7 +13,7 @@ import {
   type KeyStore,
   type LocalStore,
 } from "@insecur/local-store";
-import { resolveUserConfigHome } from "../config/paths.js";
+import { resolveUserConfigDir } from "../config/paths.js";
 import type { SecretShapeManifestEntry } from "../config/secret-shape-manifest.js";
 
 export interface LocalInitProvisionData {
@@ -58,7 +58,7 @@ function resolveProvisionInputs(options: ProvisionLocalProjectOptions): {
   readonly mintedEnvironmentId: EnvironmentId;
   readonly secretShapes: readonly SecretShapeManifestEntry[];
 } {
-  const configHome = options.configHome ?? resolveUserConfigHome();
+  const configHome = options.configHome ?? resolveUserConfigDir();
   return {
     configHome,
     keyStore: options.keyStore ?? createKeyStore({ configHome }),

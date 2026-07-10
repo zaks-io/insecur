@@ -1,5 +1,10 @@
 import { PRODUCTION_AUDIT_EVENT_CODES } from "./audit-event-codes.js";
-import { recordActionAudit, type RecordActionAuditInput } from "./record-action-audit.js";
+import {
+  recordActionAudit,
+  recordActionAuditInTenantScope,
+  type RecordActionAuditInput,
+} from "./record-action-audit.js";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "./audit-types.js";
 import {
   brandOpaqueResourceIdForPrefix,
@@ -42,6 +47,18 @@ export async function recordOperationCanceled(
   input: RecordOperationCanceledInput,
 ): Promise<{ readonly auditEventId: string }> {
   const result = await recordActionAudit({
+    ...operationAuditScope(input),
+    outcome: "success",
+    eventCode: PRODUCTION_AUDIT_EVENT_CODES.operationCanceled,
+  });
+  return { auditEventId: result.auditEventId };
+}
+
+export async function recordOperationCanceledInTenantScope(
+  sql: TenantScopedSql,
+  input: RecordOperationCanceledInput,
+): Promise<{ readonly auditEventId: string }> {
+  const result = await recordActionAuditInTenantScope(sql, {
     ...operationAuditScope(input),
     outcome: "success",
     eventCode: PRODUCTION_AUDIT_EVENT_CODES.operationCanceled,

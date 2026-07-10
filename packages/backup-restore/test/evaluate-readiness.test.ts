@@ -18,11 +18,12 @@ const baseExportEvidence = (): BackupExportSuccessEvidence => ({
   artifact_ref: "backup/latest-export.ibkp",
   encryption_verified: true,
   expires_at: computeExportExpiresAt("2026-07-04T00:00:00.000Z"),
+  operation_id: "op_00000000000000000000000001",
 });
 
 const baseDrillEvidence = (): RestoreDrillEvidence => ({
   status: "passed",
-  checked_at: "2026-07-04T00:00:00.000Z",
+  checked_at: "2026-07-04T00:00:05.000Z",
   actor: "ci:backup-restore-drill",
   scope: {
     instance_id: "inst_test",
@@ -44,7 +45,22 @@ const baseDrillEvidence = (): RestoreDrillEvidence => ({
   },
   encryption_verified: true,
   artifact_ref: "backup/latest-export.ibkp",
+  source_artifact_kind: "scheduled_r2_export",
+  source_export_operation_id: "op_00000000000000000000000001",
+  source_export_timestamp: "2026-07-04T00:00:00.000Z",
+  restore_target_ref: "neon-project://fresh-restore-drill",
+  restore_target_kind: "fresh_neon_project",
+  import_completed_at: "2026-07-04T00:00:04.000Z",
+  runtime_canary_verified_at: "2026-07-04T00:00:05.000Z",
 });
+
+function evaluateDrill(evidence: RestoreDrillEvidence | null) {
+  return evaluateRestoreDrillEvidence(
+    evidence,
+    new Date("2026-07-04T01:00:00.000Z"),
+    baseExportEvidence(),
+  );
+}
 
 describe("evaluateExportFreshnessEvidence", () => {
   it("passes when export evidence is fresh and encryption verified", () => {
@@ -93,16 +109,27 @@ describe("evaluateExportFreshnessEvidence", () => {
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("freshness window expired");
   });
+
+  it("blocks future-dated export evidence", () => {
+    const evidence: BackupExportSuccessEvidence = {
+      ...baseExportEvidence(),
+      export_timestamp: "2099-07-04T00:00:00.000Z",
+      expires_at: computeExportExpiresAt("2099-07-04T00:00:00.000Z"),
+    };
+    const result = evaluateExportFreshnessEvidence(evidence, new Date("2026-07-04T01:00:00.000Z"));
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("must not be later");
+  });
 });
 
 describe("evaluateRestoreDrillEvidence", () => {
   it("passes for successful drill evidence", () => {
-    const result = evaluateRestoreDrillEvidence(baseDrillEvidence());
+    const result = evaluateDrill(baseDrillEvidence());
     expect(result.status).toBe("passed");
   });
 
   it("blocks when evidence is missing", () => {
-    const result = evaluateRestoreDrillEvidence(null);
+    const result = evaluateDrill(null);
     expect(result.status).toBe("missing_evidence");
   });
 
@@ -114,8 +141,78 @@ describe("evaluateRestoreDrillEvidence", () => {
         status: "failed",
       },
     };
-    const result = evaluateRestoreDrillEvidence(evidence);
+    const result = evaluateDrill(evidence);
     expect(result.status).toBe("blocked");
+  });
+
+  it("blocks when runtime canary verification is not later than import completion", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      runtime_canary_verified_at: baseDrillEvidence().import_completed_at,
+    };
+    const result = evaluateDrill(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("runtime canary");
+  });
+
+  it("blocks restore evidence from a different instance", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      scope: { ...baseDrillEvidence().scope, instance_id: "inst_other" },
+    };
+    const result = evaluateDrill(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("instance_id");
+  });
+
+  it("blocks import and canary timestamps outside the claimed RTO window", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      import_completed_at: "2026-07-05T00:00:04.000Z",
+      runtime_canary_verified_at: "2026-07-05T00:00:05.000Z",
+      canary_verification: {
+        ...baseDrillEvidence().canary_verification,
+        checked_at: "2026-07-05T00:00:05.000Z",
+      },
+    };
+    const result = evaluateDrill(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("drill completion");
+  });
+
+  it("blocks mismatched canary and drill completion evidence timestamps", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      checked_at: "2026-07-04T00:00:04.000Z",
+      canary_verification: {
+        ...baseDrillEvidence().canary_verification,
+        checked_at: "2026-07-04T00:00:04.500Z",
+      },
+    };
+    const result = evaluateDrill(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("matching canary and drill timestamps");
+  });
+
+  it("blocks a self-consistent restore drill dated in the future", () => {
+    const evidence: RestoreDrillEvidence = {
+      ...baseDrillEvidence(),
+      checked_at: "2099-07-04T00:00:05.000Z",
+      rto: {
+        ...baseDrillEvidence().rto,
+        started_at: "2099-07-04T00:00:00.000Z",
+        completed_at: "2099-07-04T00:00:05.000Z",
+      },
+      import_completed_at: "2099-07-04T00:00:04.000Z",
+      runtime_canary_verified_at: "2099-07-04T00:00:05.000Z",
+      canary_verification: {
+        ...baseDrillEvidence().canary_verification,
+        checked_at: "2099-07-04T00:00:05.000Z",
+      },
+    };
+    const result = evaluateDrill(evidence);
+    expect(result.status).toBe("blocked");
+    expect(result.blocking_reason).toContain("evaluation time");
   });
 
   it("blocks when RTO target exceeded", () => {
@@ -126,7 +223,7 @@ describe("evaluateRestoreDrillEvidence", () => {
         duration_seconds: 99_999,
       },
     };
-    const result = evaluateRestoreDrillEvidence(evidence);
+    const result = evaluateDrill(evidence);
     expect(result.status).toBe("blocked");
   });
 
@@ -139,7 +236,7 @@ describe("evaluateRestoreDrillEvidence", () => {
         target_seconds: 999_999,
       },
     };
-    const result = evaluateRestoreDrillEvidence(evidence);
+    const result = evaluateDrill(evidence);
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("target_seconds");
   });
@@ -153,7 +250,7 @@ describe("evaluateRestoreDrillEvidence", () => {
         target_seconds: 999_999,
       },
     };
-    const result = evaluateRestoreDrillEvidence(evidence);
+    const result = evaluateDrill(evidence);
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("target_seconds");
   });
@@ -166,7 +263,7 @@ describe("evaluateRestoreDrillEvidence", () => {
         organization_id: "org_wrong_scope",
       },
     };
-    const result = evaluateRestoreDrillEvidence(evidence);
+    const result = evaluateDrill(evidence);
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("recovery canary constants");
   });
@@ -179,7 +276,7 @@ describe("evaluateRestoreDrillEvidence", () => {
         variable_key: "WRONG_CANARY_KEY",
       },
     };
-    const result = evaluateRestoreDrillEvidence(evidence);
+    const result = evaluateDrill(evidence);
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("recovery canary constants");
   });
@@ -194,7 +291,7 @@ describe("evaluateRestoreDrillEvidence", () => {
         target_seconds: 8 * 60 * 60,
       },
     };
-    const result = evaluateRestoreDrillEvidence(evidence);
+    const result = evaluateDrill(evidence);
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("duration_seconds");
   });
@@ -209,7 +306,7 @@ describe("evaluateRestoreDrillEvidence", () => {
         target_seconds: 8 * 60 * 60,
       },
     };
-    const result = evaluateRestoreDrillEvidence(evidence);
+    const result = evaluateDrill(evidence);
     expect(result.status).toBe("blocked");
     expect(result.blocking_reason).toContain("started_at and completed_at");
   });

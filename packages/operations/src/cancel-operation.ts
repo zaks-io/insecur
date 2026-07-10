@@ -1,4 +1,4 @@
-import { withTenantScope } from "@insecur/tenant-store";
+import { withTenantScope, type TenantScopedSql } from "@insecur/tenant-store";
 import { CANCELABLE_OPERATION_STATES } from "./operation-states.js";
 import { OPERATION_ERROR_CODES } from "./operation-errors.js";
 import type { CancelOperationInput, OperationMutationResult } from "./operation-types.js";
@@ -12,25 +12,27 @@ export async function cancelOperation(
 ): Promise<OperationMutationResult> {
   return await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async ({ sql }) => {
-      const store = new TenantOperationStore(sql);
-
-      const operation = await store.applyTransition({
-        organizationId: input.organizationId,
-        operationId: input.operationId,
-        nextState: "canceled",
-        progressPatch: input.progress ?? {},
-        legalFromStates: CANCELABLE_OPERATION_STATES,
-        ...(input.highAssuranceDenyCas === undefined
-          ? {}
-          : { highAssuranceDenyCas: input.highAssuranceDenyCas }),
-        notAllowedError: {
-          code: OPERATION_ERROR_CODES.notCancelable,
-          message: (state) => `operation in state ${state} cannot be canceled`,
-        },
-      });
-
-      return { operation, created: false };
-    },
+    ({ sql }) => cancelOperationInTenantScope(sql, input),
   );
+}
+
+export async function cancelOperationInTenantScope(
+  sql: TenantScopedSql,
+  input: CancelOperationInput,
+): Promise<OperationMutationResult> {
+  const operation = await new TenantOperationStore(sql).applyTransition({
+    organizationId: input.organizationId,
+    operationId: input.operationId,
+    nextState: "canceled",
+    progressPatch: input.progress ?? {},
+    legalFromStates: CANCELABLE_OPERATION_STATES,
+    ...(input.highAssuranceDenyCas === undefined
+      ? {}
+      : { highAssuranceDenyCas: input.highAssuranceDenyCas }),
+    notAllowedError: {
+      code: OPERATION_ERROR_CODES.notCancelable,
+      message: (state) => `operation in state ${state} cannot be canceled`,
+    },
+  });
+  return { operation, created: false };
 }

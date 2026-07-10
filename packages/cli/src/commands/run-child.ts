@@ -13,7 +13,15 @@ export function decodeDeliveryValue(encodedValueUtf8: string): string {
       retryable: false,
     });
   }
-  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  const value = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  if (value.includes("\0")) {
+    throw new CliError({
+      code: INJECTION_ERROR_CODES.decryptFailed,
+      message: "Grant delivery payload cannot be represented safely in a process environment.",
+      retryable: false,
+    });
+  }
+  return value;
 }
 
 export function buildRunChildEnv(variableKey: VariableKey, valueUtf8: string): NodeJS.ProcessEnv {

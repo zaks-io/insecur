@@ -11,6 +11,7 @@ import {
   type AuditExportVerificationResult,
 } from "@insecur/audit";
 import type { GlobalCliFlags } from "../cli-options.js";
+import { isAllowedHttpTransport } from "../config/api-host.js";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_VALIDATION } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
@@ -40,9 +41,17 @@ function resolvePublishedSigningKeysPath(options: AuditVerifyCommandOptions): st
   return publishedPath;
 }
 
-async function fetchPublishedSigningKeysJson(path: string): Promise<unknown> {
+export async function fetchPublishedSigningKeysJson(path: string): Promise<unknown> {
   if (/^https?:\/\//.test(path)) {
-    const response = await fetch(path);
+    const url = new URL(path);
+    if (!isAllowedHttpTransport(url)) {
+      throw new CliError({
+        code: "validation.invalid_opaque_resource_id",
+        message: "published audit signing keys must use HTTPS unless fetched from loopback",
+        retryable: false,
+      });
+    }
+    const response = await fetch(url);
     if (!response.ok) {
       throw new CliError({
         code: "validation.invalid_opaque_resource_id",

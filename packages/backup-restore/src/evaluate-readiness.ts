@@ -1,5 +1,7 @@
 import { BACKUP_EXPORT_FRESHNESS_HOURS, RESTORE_DRILL_RTO_TARGET_SECONDS } from "./constants.js";
 import { restoreDrillEvidenceMatchesRecoveryCanarySentinel } from "./recovery-canary.js";
+import { evaluateRestoreProvenance } from "./evaluate-restore-provenance.js";
+import { parseIso } from "./parse-iso.js";
 import type {
   BackupExportSuccessEvidence,
   BackupRestoreEvidenceStatus,
@@ -14,14 +16,6 @@ export interface ReadinessEvaluation {
   checked_at: string;
   expires_at?: string;
   blocking_reason?: string;
-}
-
-function parseIso(value: string | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? null : parsed;
 }
 
 /** Wall-clock elapsed seconds between drill timestamps; null when invalid or negative. */
@@ -116,12 +110,17 @@ export function evaluateExportFreshnessEvidence(
   }
 
   const freshnessDeadlineMs = exportTimestampMs + BACKUP_EXPORT_FRESHNESS_HOURS * 60 * 60 * 1000;
-  if (now.getTime() >= freshnessDeadlineMs) {
+  const futureDated = exportTimestampMs > now.getTime();
+  if (futureDated || now.getTime() >= freshnessDeadlineMs) {
     return blockedEvaluation({
       controlId,
-      summary: `Latest successful export is older than ${String(BACKUP_EXPORT_FRESHNESS_HOURS)}h.`,
+      summary: futureDated
+        ? "Backup export evidence is future-dated."
+        : `Latest successful export is older than ${String(BACKUP_EXPORT_FRESHNESS_HOURS)}h.`,
       checkedAt,
-      blockingReason: "export freshness window expired",
+      blockingReason: futureDated
+        ? "export_timestamp must not be later than the evaluation time"
+        : "export freshness window expired",
       expiresAt: policyExpiresAt,
     });
   }
@@ -195,6 +194,7 @@ function evaluateRestoreDrillRtoBlockingReason(
 export function evaluateRestoreDrillEvidence(
   evidence: RestoreDrillEvidence | null,
   now: Date = new Date(),
+  sourceExportEvidence: BackupExportSuccessEvidence | null = null,
 ): ReadinessEvaluation {
   const checkedAt = now.toISOString();
   const controlId = "backup_restore.drill" as const;
@@ -254,6 +254,16 @@ export function evaluateRestoreDrillEvidence(
       checkedAt,
       blockingReason:
         "scope and canary_verification.variable_key must match recovery canary constants",
+    });
+  }
+
+  const provenanceBlocking = evaluateRestoreProvenance(evidence, sourceExportEvidence, now);
+  if (provenanceBlocking) {
+    return blockedEvaluation({
+      controlId,
+      summary: provenanceBlocking.summary,
+      checkedAt,
+      blockingReason: provenanceBlocking.blockingReason,
     });
   }
 

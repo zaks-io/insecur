@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -55,6 +55,10 @@ describe("openLocalSqliteDatabase", () => {
         .prepare(`SELECT value FROM local_store_meta WHERE key = ?`)
         .get("schema_version") as { value: string };
       expect(Number(versionRow.value)).toBe(LOCAL_STORE_SCHEMA_VERSION);
+      if (process.platform !== "win32") {
+        expect(statSync(databasePath).mode & 0o777).toBe(0o600);
+        expect(statSync(path.dirname(databasePath)).mode & 0o777).toBe(0o700);
+      }
     } finally {
       closeLocalSqliteDatabase(database);
     }

@@ -6,7 +6,11 @@ import type { ApiClient } from "../src/api/types.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import { CliError } from "../src/output/cli-error.js";
 import { EXIT_AUTH_REQUIRED, EXIT_UNEXPECTED } from "../src/output/exit-codes.js";
-import { clearMemorySession, setMemorySession } from "../src/session/memory-session.js";
+import {
+  clearMemorySession,
+  resolveSessionCredential,
+  setMemorySession,
+} from "../src/session/memory-session.js";
 import { createSessionStore } from "../src/session/persisted-session.js";
 import { createFakeKeyStore, generateMachineRootKeyHex } from "@insecur/local-store";
 import { mkdtemp } from "node:fs/promises";
@@ -153,7 +157,12 @@ describe("logout command", () => {
     stdoutSpy.mockRestore();
   });
 
-  it("clears local state when revoke fails with a network error", async () => {
+  it("retains the sealed local session when server revocation cannot be confirmed", async () => {
+    const stderrChunks: string[] = [];
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      stderrChunks.push(String(chunk));
+      return true;
+    });
     const dir = await mkdtemp(path.join(tmpdir(), "insecur-cli-logout-"));
     const store = createSessionStore({
       keyStore: createFakeKeyStore({ keyHex: generateMachineRootKeyHex() }),
@@ -165,6 +174,12 @@ describe("logout command", () => {
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
       host,
     });
+    setMemorySession({
+      credential: sensitiveCredential,
+      sessionId: "sess_logout",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    const clear = vi.spyOn(store, "clear");
     const revoke = vi.fn(async () => {
       throw new Error("network unreachable");
     });
@@ -173,13 +188,39 @@ describe("logout command", () => {
     });
     expect(exitCode).toBe(EXIT_UNEXPECTED);
     expect(revoke).toHaveBeenCalledOnce();
-    expect(await store.load(host)).toBeUndefined();
-    await expect(
-      runInitCommand(flags, createMockApi(), mockContext(), { profileSlug: "local-dev" }),
-    ).rejects.toMatchObject({
-      exitCode: EXIT_AUTH_REQUIRED,
-      code: AUTH_ERROR_CODES.required,
-    } satisfies Partial<CliError>);
+    expect(clear).not.toHaveBeenCalled();
+    expect(resolveSessionCredential()).toBe(sensitiveCredential);
+    expect((await store.load(host))?.credential).toBe(sensitiveCredential);
+    expect(JSON.parse(stderrChunks.join(""))).toMatchObject({
+      ok: false,
+      error: { code: "cli.unexpected_error", retryable: true },
+    });
+    stderr.mockRestore();
+  });
+
+  it("does not claim an inactive server session when revocation fails", async () => {
+    const stderrChunks: string[] = [];
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      stderrChunks.push(String(chunk));
+      return true;
+    });
+    setMemorySession({
+      credential: sensitiveCredential,
+      sessionId: "sess_logout",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    const exitCode = await runLogoutCommand(
+      { ...flags, json: false, quiet: false },
+      createMockApi(async () => {
+        throw new Error("network unreachable");
+      }),
+      mockContext(),
+    );
+    expect(exitCode).toBe(EXIT_UNEXPECTED);
+    const output = stderrChunks.join("");
+    expect(output).toContain("could not be confirmed");
+    expect(output).not.toContain("already inactive");
+    stderr.mockRestore();
   });
 
   it("never prints session credentials in json output", async () => {

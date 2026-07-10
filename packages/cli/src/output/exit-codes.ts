@@ -148,6 +148,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [IMPORT_ERROR_CODES.parseError]: EXIT_VALIDATION,
   [IMPORT_ERROR_CODES.duplicateVariableKey]: EXIT_VALIDATION,
   [LOCAL_ERROR_CODES.cloudFeatureUnavailable]: EXIT_FORBIDDEN,
+  [LOCAL_ERROR_CODES.keyStoreUnavailable]: EXIT_ACTION_REQUIRED,
   [LOCAL_ERROR_CODES.valueMissingOnMachine]: EXIT_VALIDATION,
   [INJECTION_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,
   [CRYPTO_ERROR_CODES.decryptFailed]: EXIT_UNEXPECTED,

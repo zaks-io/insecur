@@ -13,6 +13,8 @@ import {
   Wordmark,
 } from "@insecur/ui";
 import { sentryBrowserConfigScript } from "@insecur/observability";
+import geistVariableUrl from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
+import geistMonoVariableUrl from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
 import { consoleOrigin } from "../console-url.js";
 import appCss from "../styles.css?url";
 
@@ -33,6 +35,20 @@ export const Route = createRootRoute({
       { name: "robots", content: "noindex, nofollow" },
     ],
     links: [
+      {
+        rel: "preload",
+        href: geistVariableUrl,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        href: geistMonoVariableUrl,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     ],

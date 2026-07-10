@@ -5,6 +5,7 @@ import { createLinuxSecretToolAdapter } from "./adapters/linux-secret-tool.js";
 import { createMacosKeychainAdapter } from "./adapters/macos-keychain.js";
 import { createWindowsDpapiAdapter } from "./adapters/windows-dpapi.js";
 import { MACHINE_ROOT_KEY_ACCOUNT, MACHINE_ROOT_KEY_SERVICE } from "./constants.js";
+import { KEY_STORE_ERROR_CODES, KeyStoreError } from "./errors.js";
 import { createDefaultExecFile } from "./exec-file.js";
 import { resolveKeyStorePaths } from "./paths.js";
 import { resolveKeyStoreBackend } from "./resolve-backend.js";
@@ -60,6 +61,20 @@ function wrapKeyStore(adapter: KeyStoreAdapter, slot?: string): KeyStore {
   };
 }
 
+function requireKeyStoreBackend(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+): KeyStoreBackend {
+  const backend = resolveKeyStoreBackend(platform, env);
+  if (backend === null) {
+    throw new KeyStoreError(
+      KEY_STORE_ERROR_CODES.unavailable,
+      "A supported operating-system credential store is required",
+    );
+  }
+  return backend;
+}
+
 export function createKeyStore(options: CreateKeyStoreOptions = {}): KeyStore {
   const service = options.service ?? MACHINE_ROOT_KEY_SERVICE;
   const account = options.account ?? MACHINE_ROOT_KEY_ACCOUNT;
@@ -72,7 +87,7 @@ export function createKeyStore(options: CreateKeyStoreOptions = {}): KeyStore {
     env,
     randomBytes: options.randomBytes ?? nodeRandomBytes,
   };
-  const backend = resolveKeyStoreBackend(platform, env);
+  const backend = requireKeyStoreBackend(platform, env);
   const adapter = createAdapter(backend, deps, service, account);
   const slot = buildMachineRootKeySlot(backend, deps.paths, service, account);
 
