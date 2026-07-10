@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig, devices } from "@playwright/test";
 
-const artifactRoot = fileURLToPath(new URL("../../preview-smoke-artifacts", import.meta.url));
+import { PREVIEW_SMOKE_ARTIFACT_ROOT as artifactRoot } from "./src/artifact-root";
 const testDir = fileURLToPath(new URL("tests", import.meta.url));
 const deployIdentityGlobalSetup = fileURLToPath(
   new URL("src/deploy-identity-global-setup.ts", import.meta.url),
@@ -40,7 +40,8 @@ export default defineConfig({
   timeout: 120_000,
   use: {
     screenshot: "only-on-failure",
-    trace: "retain-on-failure",
+    // Browser requests carry the smoke bearer. Retain screenshots, video, and reporters instead.
+    trace: "off",
     video: "retain-on-failure",
   },
   workers: 1,
