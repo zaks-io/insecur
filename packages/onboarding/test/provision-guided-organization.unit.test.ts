@@ -11,16 +11,32 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_INSTANCE_ID } from "../../tenant-store/test/rls/test-ids.js";
 
-const persistGuidedOrganizationMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const recordProvisionSuccessMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const persistGuidedOrganizationInTenantScopeMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
+const recordProvisionSuccessInTenantScopeMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
+const scopedHandles = vi.hoisted(() => ({ db: { tag: "scoped-db" }, sql: { tag: "scoped-sql" } }));
+const withTenantScopeMock = vi.hoisted(() =>
+  vi.fn().mockImplementation(async (_scope, callback) => callback(scopedHandles)),
+);
 
 vi.mock("../src/guided-organization-store.js", () => ({
-  persistGuidedOrganization: persistGuidedOrganizationMock,
+  persistGuidedOrganizationInTenantScope: persistGuidedOrganizationInTenantScopeMock,
 }));
 
 vi.mock("../src/provision-guided-organization-audit.js", () => ({
-  recordProvisionSuccess: recordProvisionSuccessMock,
+  recordProvisionSuccessInTenantScope: recordProvisionSuccessInTenantScopeMock,
 }));
+
+vi.mock("@insecur/tenant-store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
+  return {
+    ...actual,
+    withTenantScope: withTenantScopeMock,
+  };
+});
 
 import { provisionGuidedOrganization } from "../src/provision-guided-organization.js";
 import { GuidedOrganizationProvisionError } from "../src/provision-guided-organization-error.js";
@@ -30,9 +46,10 @@ const ORG = organizationId.brand("org_00000000000000000000000088");
 
 describe("provisionGuidedOrganization (unit)", () => {
   beforeEach(() => {
-    persistGuidedOrganizationMock.mockReset();
-    persistGuidedOrganizationMock.mockResolvedValue(undefined);
-    recordProvisionSuccessMock.mockClear();
+    persistGuidedOrganizationInTenantScopeMock.mockReset();
+    persistGuidedOrganizationInTenantScopeMock.mockResolvedValue(undefined);
+    recordProvisionSuccessInTenantScopeMock.mockReset();
+    recordProvisionSuccessInTenantScopeMock.mockResolvedValue(undefined);
   });
 
   it("denies provisioning before persistence when the user is not admitted", async () => {
@@ -46,8 +63,8 @@ describe("provisionGuidedOrganization (unit)", () => {
       code: AUTH_ERROR_CODES.required,
     });
 
-    expect(persistGuidedOrganizationMock).not.toHaveBeenCalled();
-    expect(recordProvisionSuccessMock).not.toHaveBeenCalled();
+    expect(persistGuidedOrganizationInTenantScopeMock).not.toHaveBeenCalled();
+    expect(recordProvisionSuccessInTenantScopeMock).not.toHaveBeenCalled();
     await expect(
       provisionGuidedOrganization({
         userId: USER,
@@ -65,16 +82,34 @@ describe("provisionGuidedOrganization (unit)", () => {
     });
 
     expect(result.organizationId).toMatch(/^org_/);
-    expect(persistGuidedOrganizationMock).toHaveBeenCalledOnce();
-    expect(recordProvisionSuccessMock).toHaveBeenCalledOnce();
-    expect(recordProvisionSuccessMock).toHaveBeenCalledWith(
+    expect(persistGuidedOrganizationInTenantScopeMock).toHaveBeenCalledOnce();
+    expect(persistGuidedOrganizationInTenantScopeMock).toHaveBeenCalledWith(
+      scopedHandles,
+      expect.objectContaining({ userId: USER, organizationId: result.organizationId }),
+    );
+    expect(recordProvisionSuccessInTenantScopeMock).toHaveBeenCalledOnce();
+    expect(recordProvisionSuccessInTenantScopeMock).toHaveBeenCalledWith(
+      scopedHandles.sql,
       expect.objectContaining({ userId: USER, isAdmitted: true }),
       expect.objectContaining({ organizationId: result.organizationId }),
     );
   });
 
+  it("fails provisioning when the success audit cannot be recorded in the same scope", async () => {
+    const auditFailure = new Error("audit write failed");
+    recordProvisionSuccessInTenantScopeMock.mockRejectedValue(auditFailure);
+
+    await expect(
+      provisionGuidedOrganization({
+        userId: USER,
+        instanceId: TEST_INSTANCE_ID,
+        isAdmitted: true,
+      }),
+    ).rejects.toBe(auditFailure);
+  });
+
   it("maps unique constraint violations to resource conflict", async () => {
-    persistGuidedOrganizationMock.mockRejectedValue({ code: "23505" });
+    persistGuidedOrganizationInTenantScopeMock.mockRejectedValue({ code: "23505" });
 
     await expect(
       provisionGuidedOrganization({
@@ -94,12 +129,12 @@ describe("provisionGuidedOrganization (unit)", () => {
       organizationId: ORG,
     });
 
-    expect(recordProvisionSuccessMock).not.toHaveBeenCalled();
+    expect(recordProvisionSuccessInTenantScopeMock).not.toHaveBeenCalled();
   });
 
   it("rethrows non-unique persistence failures", async () => {
     const persistenceError = new Error("database unavailable");
-    persistGuidedOrganizationMock.mockRejectedValue(persistenceError);
+    persistGuidedOrganizationInTenantScopeMock.mockRejectedValue(persistenceError);
 
     await expect(
       provisionGuidedOrganization({

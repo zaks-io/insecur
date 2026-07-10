@@ -1,20 +1,20 @@
 import { parseDisplayName } from "@insecur/domain";
 import { ONBOARDING_ERROR_CODES } from "@insecur/domain";
-import { isUniqueConstraintViolation } from "@insecur/tenant-store";
+import { isUniqueConstraintViolation, withTenantScope } from "@insecur/tenant-store";
 import { isInstanceOperator } from "./assert-instance-operator.js";
 import { GUIDED_ORGANIZATION_DEFAULT_DISPLAY_NAMES } from "./default-display-names.js";
 import { loadInstanceAnchorOrganizationId } from "./load-instance-anchor-organization-id.js";
 import { MembershipManagementError } from "./membership-management-error.js";
 import { mintOperatorOrganizationIds } from "./mint-operator-organization-ids.js";
 import {
-  recordOperatorOrganizationCreated,
+  recordOperatorOrganizationCreatedInTenantScope,
   recordOperatorOrganizationDenied,
 } from "./membership-management-audit.js";
 import type {
   CreateOperatorOrganizationInput,
   CreateOperatorOrganizationResult,
 } from "./operator-organization-types.js";
-import { persistOperatorOrganization } from "./persist-operator-organization.js";
+import { persistOperatorOrganizationInTransaction } from "./persist-operator-organization.js";
 
 export type {
   CreateOperatorOrganizationInput,
@@ -68,12 +68,20 @@ export async function createOperatorOrganization(
   );
 
   try {
-    await persistOperatorOrganization({
-      instanceId: input.instanceId,
-      organizationId: ids.organizationId,
-      defaultTeamId: ids.defaultTeamId,
-      organizationDisplayName,
-      teamDisplayName,
+    await withTenantScope({ kind: "service" }, async ({ sql }) => {
+      await persistOperatorOrganizationInTransaction(sql, {
+        instanceId: input.instanceId,
+        organizationId: ids.organizationId,
+        defaultTeamId: ids.defaultTeamId,
+        organizationDisplayName,
+        teamDisplayName,
+      });
+      await recordOperatorOrganizationCreatedInTenantScope(sql, {
+        operatorUserId: input.operatorUserId,
+        organizationId: ids.organizationId,
+        defaultTeamId: ids.defaultTeamId,
+        ...(input.request !== undefined ? { request: input.request } : {}),
+      });
     });
   } catch (error) {
     if (!isUniqueConstraintViolation(error)) {
@@ -85,13 +93,6 @@ export async function createOperatorOrganization(
       ids.organizationId,
     );
   }
-
-  await recordOperatorOrganizationCreated({
-    operatorUserId: input.operatorUserId,
-    organizationId: ids.organizationId,
-    defaultTeamId: ids.defaultTeamId,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-  });
 
   return ids;
 }

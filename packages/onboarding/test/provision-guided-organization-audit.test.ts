@@ -14,12 +14,13 @@ vi.mock("@insecur/audit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@insecur/audit")>();
   return {
     ...actual,
-    writeAuditEvent: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+    writeAuditEventInTenantScope: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
   };
 });
 
-import { writeAuditEvent } from "@insecur/audit";
-import { recordProvisionSuccess } from "../src/provision-guided-organization-audit.js";
+import { writeAuditEventInTenantScope } from "@insecur/audit";
+import type { TenantScopedSql } from "@insecur/tenant-store";
+import { recordProvisionSuccessInTenantScope } from "../src/provision-guided-organization-audit.js";
 import { TEST_INSTANCE_ID } from "../../tenant-store/test/rls/test-ids.js";
 
 const USER = userId.brand("usr_00000000000000000000000001");
@@ -30,13 +31,15 @@ const PROJECT = projectId.brand("prj_00000000000000000000000088");
 const ENV = environmentId.brand("env_00000000000000000000000088");
 const REQUEST = { requestId: requestId.brand("req_00000000000000000000000001") };
 
-const writeMock = vi.mocked(writeAuditEvent);
+const writeMock = vi.mocked(writeAuditEventInTenantScope);
+const SCOPED_SQL = { tag: "scoped-sql" } as unknown as TenantScopedSql;
 
-describe("recordProvisionSuccess", () => {
-  it("writes metadata-only guided provision success audit", async () => {
+describe("recordProvisionSuccessInTenantScope", () => {
+  it("writes metadata-only guided provision success audit on the tenant scope", async () => {
     writeMock.mockClear();
 
-    await recordProvisionSuccess(
+    await recordProvisionSuccessInTenantScope(
+      SCOPED_SQL,
       {
         userId: USER,
         instanceId: TEST_INSTANCE_ID,
@@ -52,7 +55,7 @@ describe("recordProvisionSuccess", () => {
       },
     );
 
-    expect(writeMock).toHaveBeenCalledWith({
+    expect(writeMock).toHaveBeenCalledWith(SCOPED_SQL, {
       eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingGuidedProvisioned,
       outcome: "success",
       actor: { type: "user", userId: USER },

@@ -73,39 +73,37 @@ export async function loadDefaultTeamId(orgId: OrganizationId): Promise<TeamId> 
   return teamId.brand(row.id);
 }
 
-export async function insertPendingInvitation(input: {
-  invitationId: InvitationId;
-  organizationId: OrganizationId;
-  teamId: TeamId;
-  inviteeUserId: UserId;
-  rolePreset: BuiltInRolePreset;
-  projectId: ProjectId | null;
-}): Promise<void> {
-  await withTenantScope(
-    { kind: "organization", organizationId: input.organizationId },
-    async ({ sql }) => {
-      await sql`
-        INSERT INTO invitations (
-          id,
-          org_id,
-          team_id,
-          invitee_user_id,
-          role_preset,
-          project_id,
-          status
-        )
-        VALUES (
-          ${input.invitationId},
-          ${input.organizationId},
-          ${input.teamId},
-          ${input.inviteeUserId},
-          ${input.rolePreset},
-          ${input.projectId},
-          ${"pending"}
-        )
-      `;
-    },
-  );
+export async function insertPendingInvitationInTransaction(
+  sql: TenantScopedSql,
+  input: {
+    invitationId: InvitationId;
+    organizationId: OrganizationId;
+    teamId: TeamId;
+    inviteeUserId: UserId;
+    rolePreset: BuiltInRolePreset;
+    projectId: ProjectId | null;
+  },
+): Promise<void> {
+  await sql`
+    INSERT INTO invitations (
+      id,
+      org_id,
+      team_id,
+      invitee_user_id,
+      role_preset,
+      project_id,
+      status
+    )
+    VALUES (
+      ${input.invitationId},
+      ${input.organizationId},
+      ${input.teamId},
+      ${input.inviteeUserId},
+      ${input.rolePreset},
+      ${input.projectId},
+      ${"pending"}
+    )
+  `;
 }
 
 export async function loadPendingInvitation(

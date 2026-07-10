@@ -11,10 +11,16 @@ const isInstanceOperatorMock = vi.hoisted(() => vi.fn());
 const loadInstanceAnchorOrganizationIdMock = vi.hoisted(() =>
   vi.fn().mockResolvedValue("org_00000000000000000000000001"),
 );
-const persistOperatorOrganizationMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const recordOperatorOrganizationDeniedMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const recordOperatorOrganizationCreatedMock = vi.hoisted(() =>
+const persistOperatorOrganizationInTransactionMock = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
+);
+const recordOperatorOrganizationDeniedMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const recordOperatorOrganizationCreatedInTenantScopeMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
+const scopedSql = vi.hoisted(() => ({ tag: "scoped-sql" }));
+const withTenantScopeMock = vi.hoisted(() =>
+  vi.fn().mockImplementation(async (_scope, callback) => callback({ sql: scopedSql })),
 );
 
 vi.mock("../src/assert-instance-operator.js", () => ({
@@ -26,13 +32,22 @@ vi.mock("../src/load-instance-anchor-organization-id.js", () => ({
 }));
 
 vi.mock("../src/persist-operator-organization.js", () => ({
-  persistOperatorOrganization: persistOperatorOrganizationMock,
+  persistOperatorOrganizationInTransaction: persistOperatorOrganizationInTransactionMock,
 }));
 
 vi.mock("../src/membership-management-audit.js", () => ({
   recordOperatorOrganizationDenied: recordOperatorOrganizationDeniedMock,
-  recordOperatorOrganizationCreated: recordOperatorOrganizationCreatedMock,
+  recordOperatorOrganizationCreatedInTenantScope:
+    recordOperatorOrganizationCreatedInTenantScopeMock,
 }));
+
+vi.mock("@insecur/tenant-store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@insecur/tenant-store")>();
+  return {
+    ...actual,
+    withTenantScope: withTenantScopeMock,
+  };
+});
 
 import { createOperatorOrganization } from "../src/create-operator-organization.js";
 import { MembershipManagementError } from "../src/membership-management-error.js";
@@ -50,10 +65,11 @@ describe("createOperatorOrganization (unit)", () => {
   beforeEach(() => {
     isInstanceOperatorMock.mockReset();
     loadInstanceAnchorOrganizationIdMock.mockClear();
-    persistOperatorOrganizationMock.mockReset();
-    persistOperatorOrganizationMock.mockResolvedValue(undefined);
+    persistOperatorOrganizationInTransactionMock.mockReset();
+    persistOperatorOrganizationInTransactionMock.mockResolvedValue(undefined);
     recordOperatorOrganizationDeniedMock.mockClear();
-    recordOperatorOrganizationCreatedMock.mockClear();
+    recordOperatorOrganizationCreatedInTenantScopeMock.mockReset();
+    recordOperatorOrganizationCreatedInTenantScopeMock.mockResolvedValue(undefined);
   });
 
   it("creates an operator organization for instance operators", async () => {
@@ -68,18 +84,32 @@ describe("createOperatorOrganization (unit)", () => {
     });
 
     expect(result).toEqual({ organizationId: ORG, defaultTeamId: TEAM });
-    expect(persistOperatorOrganizationMock).toHaveBeenCalledWith({
+    expect(persistOperatorOrganizationInTransactionMock).toHaveBeenCalledWith(scopedSql, {
       instanceId: TEST_INSTANCE_ID,
       organizationId: ORG,
       defaultTeamId: TEAM,
       organizationDisplayName: displayName("Operator org"),
       teamDisplayName: displayName("Operator team"),
     });
-    expect(recordOperatorOrganizationCreatedMock).toHaveBeenCalledWith({
+    expect(recordOperatorOrganizationCreatedInTenantScopeMock).toHaveBeenCalledWith(scopedSql, {
       operatorUserId: OPERATOR,
       organizationId: ORG,
       defaultTeamId: TEAM,
     });
+  });
+
+  it("fails creation when the success audit cannot be recorded in the same scope", async () => {
+    isInstanceOperatorMock.mockResolvedValue(true);
+    const auditFailure = new Error("audit write failed");
+    recordOperatorOrganizationCreatedInTenantScopeMock.mockRejectedValue(auditFailure);
+
+    await expect(
+      createOperatorOrganization({
+        instanceId: TEST_INSTANCE_ID,
+        operatorUserId: OPERATOR,
+        resourceIds: { organizationId: ORG, defaultTeamId: TEAM },
+      }),
+    ).rejects.toBe(auditFailure);
   });
 
   it("denies non-operators with audit before persistence", async () => {
@@ -100,7 +130,7 @@ describe("createOperatorOrganization (unit)", () => {
       organizationId: organizationId.brand(TEST_ORG_A_ID),
       reasonCode: ONBOARDING_ERROR_CODES.notInstanceOperator,
     });
-    expect(persistOperatorOrganizationMock).not.toHaveBeenCalled();
+    expect(persistOperatorOrganizationInTransactionMock).not.toHaveBeenCalled();
     await expect(
       createOperatorOrganization({
         instanceId: TEST_INSTANCE_ID,
@@ -121,12 +151,12 @@ describe("createOperatorOrganization (unit)", () => {
     ).rejects.toMatchObject({
       code: "validation.display_name_empty",
     });
-    expect(persistOperatorOrganizationMock).not.toHaveBeenCalled();
+    expect(persistOperatorOrganizationInTransactionMock).not.toHaveBeenCalled();
   });
 
   it("maps unique constraint violations to resource conflict", async () => {
     isInstanceOperatorMock.mockResolvedValue(true);
-    persistOperatorOrganizationMock.mockRejectedValue({ code: "23505" });
+    persistOperatorOrganizationInTransactionMock.mockRejectedValue({ code: "23505" });
 
     await expect(
       createOperatorOrganization({
@@ -138,6 +168,6 @@ describe("createOperatorOrganization (unit)", () => {
       code: ONBOARDING_ERROR_CODES.resourceConflict,
       organizationId: ORG,
     });
-    expect(recordOperatorOrganizationCreatedMock).not.toHaveBeenCalled();
+    expect(recordOperatorOrganizationCreatedInTenantScopeMock).not.toHaveBeenCalled();
   });
 });
