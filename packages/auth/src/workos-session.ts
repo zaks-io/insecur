@@ -6,6 +6,7 @@ import {
   parseApprovalPasskeyEnrolledMetadata,
 } from "./mfa-posture.js";
 import type { WorkOSAuthConfig } from "./workos-config.js";
+import { getSessionLogoutUrlWithWorkOS } from "./workos-session-logout.js";
 import {
   authenticateDeviceCodeWithWorkOS,
   startDeviceAuthorizationWithWorkOS,
@@ -249,6 +250,8 @@ export function createWorkOSSessionPort(config: WorkOSAuthConfig): WorkOSSession
       authenticateAuthorizationCodeWithWorkOS(workos, config, input),
     authenticateSealedSession: (sessionData) =>
       authenticateSealedSessionWithWorkOS(workos, config, sessionData),
+    getSessionLogoutUrl: (sessionData) =>
+      getSessionLogoutUrlWithWorkOS(workos, config, sessionData),
     refreshSealedSession: (sessionData) =>
       refreshSealedSessionWithWorkOS(workos, config, sessionData),
     listAuthFactors: (userId) => listAuthFactorsForUser(workos, userId),

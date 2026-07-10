@@ -140,6 +140,19 @@ function authenticateFakeSealedSession(
   });
 }
 
+function fakeSessionLogoutUrl(
+  bySession: Map<string, FakeWorkOSSessionEntry>,
+  sessionData: string,
+): Promise<string | null> {
+  const entry = bySession.get(sessionData);
+  if (entry === undefined || entry.authenticateFailure !== undefined) {
+    return Promise.resolve(null);
+  }
+  const url = new URL("https://workos.test/user_management/sessions/logout");
+  url.searchParams.set("session_id", entry.sessionId);
+  return Promise.resolve(url.toString());
+}
+
 function refreshFakeSealedSession(
   bySession: Map<string, FakeWorkOSSessionEntry>,
   sessionData: string,
@@ -245,6 +258,8 @@ export function createFakeWorkOSSessionPort(
 
     authenticateSealedSession: (sessionData) =>
       authenticateFakeSealedSession(bySession, sessionData),
+
+    getSessionLogoutUrl: (sessionData) => fakeSessionLogoutUrl(bySession, sessionData),
 
     refreshSealedSession: (sessionData) => refreshFakeSealedSession(bySession, sessionData),
 

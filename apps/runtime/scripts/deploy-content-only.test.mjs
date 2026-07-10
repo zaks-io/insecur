@@ -76,8 +76,12 @@ const PRODUCTION_SETTINGS_RESULT = {
   compatibility_flags: ["nodejs_compat"],
   observability: {
     enabled: true,
-    logs: { enabled: true, destinations: ["axiom-logs"] },
-    traces: { enabled: true, destinations: ["axiom-traces", "sentry-traces-insecur"] },
+    logs: { enabled: true, destinations: ["axiom-logs"], head_sampling_rate: 1 },
+    traces: {
+      enabled: true,
+      destinations: ["axiom-traces", "sentry-traces-insecur"],
+      head_sampling_rate: 1,
+    },
   },
 };
 
@@ -85,7 +89,41 @@ const PRODUCTION_SETTINGS_WITHOUT_SENTRY_TRACES_DESTINATION = {
   ...PRODUCTION_SETTINGS_RESULT,
   observability: {
     ...PRODUCTION_SETTINGS_RESULT.observability,
-    traces: { enabled: true, destinations: ["axiom-traces"] },
+    traces: { enabled: true, destinations: ["axiom-traces"], head_sampling_rate: 1 },
+  },
+};
+
+const PRODUCTION_SETTINGS_WITH_ZERO_SAMPLING_RATES = {
+  ...PRODUCTION_SETTINGS_RESULT,
+  observability: {
+    ...PRODUCTION_SETTINGS_RESULT.observability,
+    logs: { enabled: true, destinations: ["axiom-logs"], head_sampling_rate: 0 },
+    traces: {
+      enabled: true,
+      destinations: ["axiom-traces", "sentry-traces-insecur"],
+      head_sampling_rate: 0,
+    },
+  },
+};
+
+const PRODUCTION_SETTINGS_WITH_PARTIAL_SAMPLING_RATE_DRIFT = {
+  ...PRODUCTION_SETTINGS_RESULT,
+  observability: {
+    ...PRODUCTION_SETTINGS_RESULT.observability,
+    traces: {
+      enabled: true,
+      destinations: ["axiom-traces", "sentry-traces-insecur"],
+      head_sampling_rate: 0,
+    },
+  },
+};
+
+const PRODUCTION_SETTINGS_WITHOUT_SAMPLING_RATES = {
+  ...PRODUCTION_SETTINGS_RESULT,
+  observability: {
+    ...PRODUCTION_SETTINGS_RESULT.observability,
+    logs: { enabled: true, destinations: ["axiom-logs"] },
+    traces: { enabled: true, destinations: ["axiom-traces", "sentry-traces-insecur"] },
   },
 };
 
@@ -251,6 +289,95 @@ test("reconcileDeployedObservability attaches a configured trace destination wit
   assert.deepEqual(patchCall.settings, {
     observability: PRODUCTION_SETTINGS_RESULT.observability,
   });
+});
+
+test("reconcileDeployedObservability restores zero sampling rates without changing bindings", async () => {
+  const calls = [];
+
+  await reconcileDeployedObservability(
+    createSettingsCloudflareJson({
+      calls,
+      observability: PRODUCTION_SETTINGS_WITH_ZERO_SAMPLING_RATES.observability,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+    }),
+    "account-id",
+    "insecur-runtime",
+    PRODUCTION_SETTINGS_RESULT.observability,
+  );
+
+  const patchCall = calls.find(
+    (call) => call.method === "PATCH" && call.apiPath.endsWith("/settings"),
+  );
+  assert.ok(patchCall);
+  assert.deepEqual(patchCall.settings, {
+    observability: PRODUCTION_SETTINGS_RESULT.observability,
+  });
+});
+
+test("reconcileDeployedObservability repairs partial sampling-rate drift", async () => {
+  const calls = [];
+
+  await reconcileDeployedObservability(
+    createSettingsCloudflareJson({
+      calls,
+      observability: PRODUCTION_SETTINGS_WITH_PARTIAL_SAMPLING_RATE_DRIFT.observability,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+    }),
+    "account-id",
+    "insecur-runtime",
+    PRODUCTION_SETTINGS_RESULT.observability,
+  );
+
+  const patchCall = calls.find(
+    (call) => call.method === "PATCH" && call.apiPath.endsWith("/settings"),
+  );
+  assert.ok(patchCall);
+  assert.deepEqual(patchCall.settings, {
+    observability: PRODUCTION_SETTINGS_RESULT.observability,
+  });
+});
+
+test("reconcileDeployedObservability treats missing sampling rates as drift", async () => {
+  const calls = [];
+
+  await reconcileDeployedObservability(
+    createSettingsCloudflareJson({
+      calls,
+      observability: PRODUCTION_SETTINGS_WITHOUT_SAMPLING_RATES.observability,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+    }),
+    "account-id",
+    "insecur-runtime",
+    PRODUCTION_SETTINGS_RESULT.observability,
+  );
+
+  const patchCall = calls.find(
+    (call) => call.method === "PATCH" && call.apiPath.endsWith("/settings"),
+  );
+  assert.ok(patchCall);
+  assert.deepEqual(patchCall.settings, {
+    observability: PRODUCTION_SETTINGS_RESULT.observability,
+  });
+});
+
+test("reconcileDeployedObservability skips matching sampling rates", async () => {
+  const calls = [];
+
+  await reconcileDeployedObservability(
+    createSettingsCloudflareJson({
+      calls,
+      observability: PRODUCTION_SETTINGS_RESULT.observability,
+      settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+    }),
+    "account-id",
+    "insecur-runtime",
+    PRODUCTION_SETTINGS_RESULT.observability,
+  );
+
+  assert.equal(
+    calls.some((call) => call.method === "PATCH" && call.apiPath.endsWith("/settings")),
+    false,
+  );
 });
 
 test("assertDeployedSecretsStoreSecrets requires INSTANCE_ROOT_KEY_V1 in deploy config", () => {
