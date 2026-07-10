@@ -52,6 +52,7 @@ describe("backup envelope", () => {
     const sealed = await sealBackupArtifact({
       instanceId,
       exportTimestamp,
+      instanceSnapshotAt: exportTimestamp,
       rootKeyBytes,
       jsonlPayload,
       organizationSnapshots: [{ organization_id: "org_test", snapshot_at: exportTimestamp }],
@@ -70,6 +71,7 @@ describe("backup envelope", () => {
         format_marker: "wrong",
         instance_id: "",
         export_timestamp: "",
+        instance_snapshot_at: "",
         root_key_version: 0,
         dek_iv: "",
         wrapped_dek: "",
@@ -90,6 +92,7 @@ describe("backup envelope", () => {
     const sealed = await sealBackupArtifact({
       instanceId: "inst_wrong_key",
       exportTimestamp: "2026-07-04T00:00:00.000Z",
+      instanceSnapshotAt: "2026-07-04T00:00:00.000Z",
       rootKeyBytes,
       jsonlPayload: new TextEncoder().encode("{}\n"),
       organizationSnapshots: [
@@ -112,6 +115,7 @@ describe("backup envelope", () => {
     const sealed = await sealBackupArtifact({
       instanceId,
       exportTimestamp: "2026-07-04T00:00:00.000Z",
+      instanceSnapshotAt: "2026-07-04T00:00:00.000Z",
       rootKeyBytes,
       jsonlPayload: new TextEncoder().encode("{}\n"),
       organizationSnapshots: [
@@ -133,6 +137,7 @@ describe("backup envelope", () => {
     const sealed = await sealBackupArtifact({
       instanceId,
       exportTimestamp: "2026-07-04T00:00:00.000Z",
+      instanceSnapshotAt: "2026-07-04T00:00:00.000Z",
       rootKeyBytes,
       jsonlPayload: new TextEncoder().encode("{}\n"),
       organizationSnapshots: [

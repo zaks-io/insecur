@@ -22,6 +22,14 @@ export interface TenantScopedHandles {
   db: TenantScopedDb;
   /** postgres.js tagged SQL on the same transaction (raw statements). */
   sql: TenantScopedSql;
+  /** Present when the transaction explicitly captured its database snapshot instant. */
+  snapshotAt?: string;
 }
 
 export type TenantScopedCallback<TResult> = (handles: TenantScopedHandles) => Promise<TResult>;
+
+export interface TenantScopeTransactionOptions {
+  readonly isolationLevel?: "repeatable read";
+  readonly readOnly?: true;
+  readonly captureSnapshotAt?: true;
+}

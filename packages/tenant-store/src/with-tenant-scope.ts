@@ -1,7 +1,51 @@
 import { applyTenantScope } from "./apply-tenant-scope.js";
 import { getRuntimeSql } from "./db/connection.js";
 import { createTenantScopedTransaction } from "./tenant-scoped-transaction.js";
-import type { TenantScope, TenantScopedCallback } from "./tenant-scope.js";
+import { toIsoTimestamp } from "./parse-db-timestamp.js";
+import type {
+  TenantScope,
+  TenantScopedCallback,
+  TenantScopedHandles,
+  TenantScopeTransactionOptions,
+} from "./tenant-scope.js";
+import type { TenantScopedSql } from "./tenant-scoped-sql.js";
+
+function transactionOptionsSql(options: TenantScopeTransactionOptions | undefined): string {
+  return [
+    ...(options?.isolationLevel === "repeatable read" ? ["isolation level repeatable read"] : []),
+    ...(options?.readOnly ? ["read only"] : []),
+  ].join(" ");
+}
+
+async function readTransactionSnapshotAt(sql: TenantScopedSql): Promise<string> {
+  const rows = (await sql.unsafe("SELECT transaction_timestamp()::text AS snapshot_at")) as {
+    snapshot_at?: Date | string;
+  }[];
+  const snapshotAt = rows[0]?.snapshot_at;
+  if (snapshotAt === undefined) {
+    throw new Error("database transaction snapshot timestamp is missing");
+  }
+  return toIsoTimestamp(snapshotAt);
+}
+
+async function runTenantScopedTransaction<TResult>(
+  txSql: TenantScopedSql,
+  scope: TenantScope,
+  callback: TenantScopedCallback<TResult>,
+  options: TenantScopeTransactionOptions | undefined,
+): Promise<TResult> {
+  const snapshotAt = options?.captureSnapshotAt
+    ? await readTransactionSnapshotAt(txSql)
+    : undefined;
+  const { db, sql } = createTenantScopedTransaction(txSql);
+  await applyTenantScope(db, scope);
+  const handles: TenantScopedHandles = {
+    db,
+    sql,
+    ...(snapshotAt === undefined ? {} : { snapshotAt }),
+  };
+  return callback(handles);
+}
 
 /**
  * The only supported database entry point for tenant-owned metadata.
@@ -10,13 +54,15 @@ import type { TenantScope, TenantScopedCallback } from "./tenant-scope.js";
 export async function withTenantScope<TResult>(
   scope: TenantScope,
   callback: TenantScopedCallback<TResult>,
+  options?: TenantScopeTransactionOptions,
 ): Promise<TResult> {
   const sql = getRuntimeSql();
-  return (await sql.begin(async (txSql): Promise<TResult> => {
-    const { db, sql: scopedSql } = createTenantScopedTransaction(txSql);
-    await applyTenantScope(db, scope);
-    return callback({ db, sql: scopedSql });
-  })) as TResult;
+  const transaction = (txSql: TenantScopedSql) =>
+    runTenantScopedTransaction(txSql, scope, callback, options);
+  const beginOptions = transactionOptionsSql(options);
+  return (await (beginOptions
+    ? sql.begin(beginOptions, transaction)
+    : sql.begin(transaction))) as TResult;
 }
 
 export type {
@@ -25,4 +71,5 @@ export type {
   TenantScope,
   TenantScopedCallback,
   TenantScopedHandles,
+  TenantScopeTransactionOptions,
 } from "./tenant-scope.js";

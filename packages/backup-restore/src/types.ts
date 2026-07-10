@@ -19,6 +19,7 @@ export interface BackupExportHeader {
   format_marker: string;
   instance_id: string;
   export_timestamp: string;
+  instance_snapshot_at: string;
   root_key_version: number;
   dek_iv: string;
   wrapped_dek: string;

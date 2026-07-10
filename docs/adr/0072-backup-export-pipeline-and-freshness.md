@@ -151,6 +151,10 @@ output, the actual envelope, and the bespoke importer end to end.
 
 ## Consequences
 
+- **Amendment (INS-577, 2026-07-09):** The earlier "one transaction" wording omitted
+  PostgreSQL's READ COMMITTED statement snapshots. Each existing scope transaction now explicitly
+  uses REPEATABLE READ and READ ONLY, so its rows come from one snapshot; the accepted scope
+  boundaries and rejected global snapshot remain unchanged.
 - A bespoke JSONL importer is part of the restore path, and the drill consuming the latest real
   scheduled export is what keeps that importer honest. The cost of forgoing `pg_restore` is
   accepted as the price of a posture-consistent envelope.

@@ -17,6 +17,7 @@ interface ProtectedBackupHeaderMetadata {
   format_marker: string;
   instance_id: string;
   export_timestamp: string;
+  instance_snapshot_at: string;
   root_key_version: number;
   organization_snapshots: BackupExportOrganizationSnapshot[];
 }
@@ -35,6 +36,7 @@ function serializeProtectedHeaderAad(metadata: ProtectedBackupHeaderMetadata): U
     format_marker: metadata.format_marker,
     instance_id: metadata.instance_id,
     export_timestamp: metadata.export_timestamp,
+    instance_snapshot_at: metadata.instance_snapshot_at,
     root_key_version: metadata.root_key_version,
     organization_snapshots: canonicalOrganizationSnapshots(metadata.organization_snapshots),
   });
@@ -46,6 +48,7 @@ function protectedMetadataFromHeader(header: BackupExportHeader): ProtectedBacku
     format_marker: header.format_marker,
     instance_id: header.instance_id,
     export_timestamp: header.export_timestamp,
+    instance_snapshot_at: header.instance_snapshot_at,
     root_key_version: header.root_key_version,
     organization_snapshots: header.organization_snapshots,
   };
@@ -58,6 +61,7 @@ function protectedMetadataFromSealInput(
     format_marker: BACKUP_EXPORT_FORMAT_MARKER,
     instance_id: input.instanceId,
     export_timestamp: input.exportTimestamp,
+    instance_snapshot_at: input.instanceSnapshotAt,
     root_key_version: input.rootKeyVersion ?? DEFAULT_ROOT_KEY_VERSION,
     organization_snapshots: input.organizationSnapshots,
   };
@@ -76,6 +80,7 @@ async function importAesKey(bytes: Uint8Array): Promise<CryptoKey> {
 export interface SealBackupArtifactInput {
   instanceId: string;
   exportTimestamp: string;
+  instanceSnapshotAt: string;
   rootKeyBytes: Uint8Array;
   rootKeyVersion?: number;
   jsonlPayload: Uint8Array;
@@ -164,6 +169,7 @@ export async function sealBackupArtifact(input: SealBackupArtifactInput): Promis
     format_marker: protectedMetadata.format_marker,
     instance_id: protectedMetadata.instance_id,
     export_timestamp: protectedMetadata.export_timestamp,
+    instance_snapshot_at: protectedMetadata.instance_snapshot_at,
     root_key_version: protectedMetadata.root_key_version,
     dek_iv: bytesToBase64Url(dekIv),
     wrapped_dek: bytesToBase64Url(wrappedDek),
