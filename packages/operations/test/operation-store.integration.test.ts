@@ -225,6 +225,132 @@ describeIntegration("operation store (tenant-scoped)", () => {
     });
   });
 
+  it("preserves both writers' metadata when two same-state progress updates race", async () => {
+    const created = await createOperation({
+      organizationId: org,
+      intentCode: "sync.run",
+    });
+    const raceOperationId = created.operation.operationId;
+
+    await Promise.all([
+      recordOperationProgress({
+        organizationId: org,
+        operationId: raceOperationId,
+        progress: { counters: { alpha: 1 } },
+      }),
+      recordOperationProgress({
+        organizationId: org,
+        operationId: raceOperationId,
+        progress: { counters: { beta: 1 } },
+      }),
+    ]);
+
+    const polled = await getOperation({
+      organizationId: org,
+      operationId: raceOperationId,
+    });
+    expect(polled.progress.counters).toEqual({ alpha: 1, beta: 1 });
+  });
+
+  it("rejects a same-state transition writer whose read revision is stale", async () => {
+    const created = await createOperation({
+      organizationId: org,
+      intentCode: "sync.run",
+    });
+    const sameStateOperationId = created.operation.operationId;
+    await transitionOperation({
+      organizationId: org,
+      operationId: sameStateOperationId,
+      nextState: "running",
+    });
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+      const store = new TenantOperationStore(sql);
+      const snapshot = await store.getById(org, sameStateOperationId);
+      if (snapshot === null) {
+        throw new Error("operation not found");
+      }
+
+      const transitionFromSnapshot = (counters: Record<string, number>) =>
+        casApplyOperationTransition(sql, snapshot, {
+          organizationId: org,
+          operationId: sameStateOperationId,
+          nextState: "running",
+          progressPatch: { counters },
+          legalFromStates: "by-transition-table",
+          notAllowedError: {
+            code: OPERATION_ERROR_CODES.invalidTransition,
+            message: (state) => `operation transition not allowed: ${state} -> running`,
+          },
+        });
+
+      await transitionFromSnapshot({ first: 1 });
+      await expect(transitionFromSnapshot({ second: 1 })).rejects.toMatchObject({
+        code: "operation.stale_transition",
+        retryable: true,
+      });
+    });
+
+    const polled = await getOperation({
+      organizationId: org,
+      operationId: sameStateOperationId,
+    });
+    expect(polled.progress.counters).toEqual({ first: 1 });
+  });
+
+  it("fails a transition whose snapshot predates a concurrent progress update", async () => {
+    const created = await createOperation({
+      organizationId: org,
+      intentCode: "sync.run",
+    });
+    const racedOperationId = created.operation.operationId;
+    await transitionOperation({
+      organizationId: org,
+      operationId: racedOperationId,
+      nextState: "running",
+    });
+
+    const snapshot = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      async ({ sql }) => new TenantOperationStore(sql).getById(org, racedOperationId),
+    );
+    if (snapshot === null) {
+      throw new Error("operation not found");
+    }
+
+    await recordOperationProgress({
+      organizationId: org,
+      operationId: racedOperationId,
+      progress: { counters: { kept: 1 } },
+    });
+
+    await withTenantScope({ kind: "organization", organizationId: org }, async ({ sql }) => {
+      await expect(
+        casApplyOperationTransition(sql, snapshot, {
+          organizationId: org,
+          operationId: racedOperationId,
+          nextState: "succeeded",
+          progressPatch: {},
+          legalFromStates: "by-transition-table",
+          notAllowedError: {
+            code: OPERATION_ERROR_CODES.invalidTransition,
+            message: (state) => `operation transition not allowed: ${state} -> succeeded`,
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: "operation.stale_transition",
+        retryable: true,
+      });
+    });
+
+    const polled = await getOperation({
+      organizationId: org,
+      operationId: racedOperationId,
+    });
+    expect(polled.state).toBe("running");
+    expect(polled.progress.counters).toEqual({ kept: 1 });
+  });
+
   it("records audit references and safe polling output", async () => {
     const created = await createOperation({
       organizationId: org,

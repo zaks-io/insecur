@@ -4,7 +4,7 @@ import {
   isUniqueConstraintViolation,
   type TenantScopedSql,
 } from "@insecur/tenant-store";
-import { type OperationRow, toOperationPollResult } from "./operation-row.js";
+import { type OperationRecord, type OperationRow, toOperationPollResult } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import type { OperationPollResult, OperationProgress } from "./operation-types.js";
 import { validateOperationProgress } from "./validate-operation-metadata.js";
@@ -26,7 +26,7 @@ async function selectByIdempotencyKey(
   sql: TenantScopedSql,
   organizationId: OrganizationId,
   idempotencyKey: string,
-): Promise<OperationPollResult | null> {
+): Promise<OperationRecord | null> {
   const rows = await sql<OperationRow[]>`
     SELECT
       id,
@@ -36,6 +36,7 @@ async function selectByIdempotencyKey(
       idempotency_key,
       progress,
       execution_deadline,
+      revision,
       created_at,
       updated_at
     FROM operations
@@ -82,6 +83,7 @@ async function insertOperationRow(
       idempotency_key,
       progress,
       execution_deadline,
+      revision,
       created_at,
       updated_at
   `;
@@ -95,7 +97,7 @@ async function insertOperationRow(
 function resolveIdempotentUpsertResult(
   row: OperationRow,
   input: { operationId: OperationId; intentCode: string },
-): { operation: OperationPollResult; created: boolean } {
+): { operation: OperationRecord; created: boolean } {
   const created = row.id === input.operationId;
   if (!created) {
     assertIdempotentIntentMatch(row.intent_code, input.intentCode);
@@ -115,7 +117,7 @@ async function upsertOperationByIdempotencyKey(
     idempotencyKey: string;
     progress: OperationProgress;
   },
-): Promise<{ operation: OperationPollResult; created: boolean }> {
+): Promise<{ operation: OperationRecord; created: boolean }> {
   const rows = await sql<OperationRow[]>`
     INSERT INTO operations (
       id,
@@ -143,6 +145,7 @@ async function upsertOperationByIdempotencyKey(
       idempotency_key,
       progress,
       execution_deadline,
+      revision,
       created_at,
       updated_at
   `;
@@ -162,7 +165,7 @@ async function insertWithIdempotencyKey(
     idempotencyKey: string;
     progress: OperationProgress;
   },
-): Promise<{ operation: OperationPollResult; created: boolean }> {
+): Promise<{ operation: OperationRecord; created: boolean }> {
   try {
     return await upsertOperationByIdempotencyKey(sql, input);
   } catch (error) {

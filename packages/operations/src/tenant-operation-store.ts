@@ -5,7 +5,7 @@ import {
   insertOperationStart as persistOperationStart,
 } from "./insert-operation-row.js";
 import { mergeOperationProgress } from "./merge-operation-progress.js";
-import { type OperationRow, toOperationPollResult } from "./operation-row.js";
+import { type OperationRecord, type OperationRow, toOperationPollResult } from "./operation-row.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "./operation-errors.js";
 import {
   casApplyOperationTransition,
@@ -28,7 +28,7 @@ export class TenantOperationStore {
   private async readById(
     organizationId: OrganizationId,
     operationIdValue: OperationId,
-  ): Promise<OperationPollResult | null> {
+  ): Promise<OperationRecord | null> {
     const rows = await this.sql<OperationRow[]>`
       SELECT
         id,
@@ -38,6 +38,7 @@ export class TenantOperationStore {
         idempotency_key,
         progress,
         execution_deadline,
+        revision,
         created_at,
         updated_at
       FROM operations
@@ -52,7 +53,7 @@ export class TenantOperationStore {
   private async readByIdempotencyKey(
     organizationId: OrganizationId,
     idempotencyKey: string,
-  ): Promise<OperationPollResult | null> {
+  ): Promise<OperationRecord | null> {
     const rows = await this.sql<OperationRow[]>`
       SELECT
         id,
@@ -62,6 +63,7 @@ export class TenantOperationStore {
         idempotency_key,
         progress,
         execution_deadline,
+        revision,
         created_at,
         updated_at
       FROM operations
@@ -76,7 +78,7 @@ export class TenantOperationStore {
   async findByIdempotencyKey(
     organizationId: OrganizationId,
     idempotencyKey: string,
-  ): Promise<OperationPollResult | null> {
+  ): Promise<OperationRecord | null> {
     const operation = await this.readByIdempotencyKey(organizationId, idempotencyKey);
     if (operation === null) {
       return null;
@@ -87,7 +89,7 @@ export class TenantOperationStore {
   async getById(
     organizationId: OrganizationId,
     operationIdValue: OperationId,
-  ): Promise<OperationPollResult | null> {
+  ): Promise<OperationRecord | null> {
     const operation = await this.readById(organizationId, operationIdValue);
     if (operation === null) {
       return null;
@@ -118,7 +120,7 @@ export class TenantOperationStore {
   /**
    * Read-once compare-and-set state transition: one getById, gate, then CAS UPDATE.
    */
-  async applyTransition(input: ApplyTransitionInput): Promise<OperationPollResult> {
+  async applyTransition(input: ApplyTransitionInput): Promise<OperationRecord> {
     const current = await this.getById(input.organizationId, input.operationId);
     if (current === null) {
       throw new OperationStoreError(OPERATION_ERROR_CODES.notFound, "operation not found");
@@ -185,6 +187,7 @@ export class TenantOperationStore {
         idempotency_key,
         progress,
         execution_deadline,
+        revision,
         created_at,
         updated_at
       FROM operations
@@ -224,10 +227,12 @@ export class TenantOperationStore {
       UPDATE operations
       SET
         progress = ${bindJsonb(this.sql, mergedProgress)},
+        revision = revision + 1,
         updated_at = now()
       WHERE id = ${input.operationId}
         AND org_id = ${input.organizationId}
         AND state = ${existing.state}
+        AND revision = ${existing.revision}
       RETURNING id
     `;
     if (rows[0] === undefined) {
@@ -247,6 +252,7 @@ export class TenantOperationStore {
       UPDATE operations
       SET
         execution_deadline = NULL,
+        revision = revision + 1,
         updated_at = now()
       WHERE id = ${input.operationId}
         AND org_id = ${input.organizationId}

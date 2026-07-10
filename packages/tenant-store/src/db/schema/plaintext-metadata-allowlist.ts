@@ -168,6 +168,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     intent_code: { category: "type-code" },
     org_id: { category: "opaque-id" },
     progress: { category: "validated-payload" },
+    revision: { category: "count" },
     state: { category: "status-code" },
     updated_at: { category: "timestamp" },
   },

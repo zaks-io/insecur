@@ -12,9 +12,16 @@ export interface OperationRow {
   idempotency_key: string | null;
   progress: unknown;
   execution_deadline: Date | string | null;
+  revision: number | string;
   created_at: Date | string;
   updated_at: Date | string;
 }
+
+/**
+ * Store-internal read shape: poll result plus the optimistic-concurrency revision that every
+ * read-merge-write UPDATE must compare-and-set on. Not part of the public package surface.
+ */
+export type OperationRecord = OperationPollResult & { readonly revision: number };
 
 function parseProgress(value: unknown): OperationProgress {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -25,7 +32,15 @@ function parseProgress(value: unknown): OperationProgress {
   return progress;
 }
 
-export function toOperationPollResult(row: OperationRow): OperationPollResult {
+function parseRevision(value: number | string): number {
+  const revision = typeof value === "number" ? value : Number(value);
+  if (!Number.isSafeInteger(revision) || revision < 1) {
+    throw new Error(`invalid operation revision in database: ${String(value)}`);
+  }
+  return revision;
+}
+
+export function toOperationPollResult(row: OperationRow): OperationRecord {
   const state = row.state;
   if (!isOperationState(state)) {
     throw new Error(`unknown operation state in database: ${state}`);
@@ -40,6 +55,7 @@ export function toOperationPollResult(row: OperationRow): OperationPollResult {
     ...(row.execution_deadline === null
       ? {}
       : { executionDeadline: toIsoTimestamp(row.execution_deadline) }),
+    revision: parseRevision(row.revision),
     createdAt: toIsoTimestamp(row.created_at),
     updatedAt: toIsoTimestamp(row.updated_at),
   };

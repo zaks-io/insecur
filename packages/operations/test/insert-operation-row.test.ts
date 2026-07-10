@@ -19,6 +19,7 @@ function operationRow(overrides: Partial<OperationRow> = {}): OperationRow {
     idempotency_key: null,
     progress: {},
     execution_deadline: null,
+    revision: 1,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
