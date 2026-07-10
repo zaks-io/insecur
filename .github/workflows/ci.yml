@@ -26,6 +26,7 @@ jobs:
       db_backed: ${{ steps.diff.outputs.db_backed }}
       product_code: ${{ steps.diff.outputs.product_code }}
       workflow_config: ${{ steps.diff.outputs.workflow_config }}
+      security_docs: ${{ steps.diff.outputs.security_docs }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -44,6 +45,7 @@ jobs:
               echo "db_backed=true"
               echo "product_code=true"
               echo "workflow_config=true"
+              echo "security_docs=true"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -51,10 +53,18 @@ jobs:
           db_backed=false
           product_code=false
           workflow_config=false
+          security_docs=false
 
           while IFS= read -r file_path; do
             [ -z "$file_path" ] && continue
             case "$file_path" in
+              # Security owner documents (ADR-0067): docs-only PRs must still run their
+              # conformance gates, so classify them ahead of the docs catch-all (INS-587).
+              SECURITY.md|\
+              docs/specs/deploy-route-inventory.md|\
+              docs/specs/deploy-route-inventory.sidecar.json)
+                security_docs=true
+                ;;
               docs/*|*.md) ;;
               .github/workflows/*|.github/actionlint.yaml|.github/actions/*) workflow_config=true ;;
               *) product_code=true ;;
@@ -98,6 +108,7 @@ jobs:
             echo "db_backed=$db_backed"
             echo "product_code=$product_code"
             echo "workflow_config=$workflow_config"
+            echo "security_docs=$security_docs"
           } >> "$GITHUB_OUTPUT"
 
   verify:
@@ -117,20 +128,20 @@ jobs:
           bash scripts/ci/gitleaks-detect.sh detect
 
       - name: Setup pnpm
-        if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true'
+        if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true' || needs.changes.outputs.security_docs == 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           version: 10.19.0
 
       - name: Setup Node.js
-        if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true'
+        if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true' || needs.changes.outputs.security_docs == 'true'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .node-version
           package-manager-cache: false
 
       - name: Install dependencies
-        if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true'
+        if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true' || needs.changes.outputs.security_docs == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Product checks
@@ -171,6 +182,15 @@ jobs:
           bash scripts/ci/install-actionlint.sh
           actionlint -color
 
+      - name: Security owner-document conformance
+        # Docs-only PRs skip Product checks, but the security owner documents (route
+        # inventory + SECURITY.md, ADR-0067) must never bypass their conformance gates
+        # (INS-587). Product checks already run these via verify:policy.
+        if: needs.changes.outputs.security_docs == 'true' && needs.changes.outputs.product_code != 'true'
+        run: |
+          pnpm conformance:topology
+          pnpm conformance:security-md
+
       - name: DB-backed tests
         if: needs.changes.outputs.product_code == 'true' && needs.changes.outputs.db_backed == 'true'
         run: |
@@ -186,5 +206,5 @@ jobs:
           retention-days: 14
 
       - name: Docs-only short-circuit
-        if: needs.changes.outputs.product_code != 'true' && needs.changes.outputs.workflow_config != 'true'
+        if: needs.changes.outputs.product_code != 'true' && needs.changes.outputs.workflow_config != 'true' && needs.changes.outputs.security_docs != 'true'
         run: echo "Docs-only change; skipping Verify."
