@@ -10,7 +10,10 @@ import {
 import { describe, expect, it, beforeAll, vi } from "vitest";
 import { CliError } from "../src/output/cli-error.js";
 import { EXIT_VALIDATION } from "../src/output/exit-codes.js";
-import { runAuditVerifyCommand } from "../src/commands/audit-verify.js";
+import {
+  fetchPublishedSigningKeysJson,
+  runAuditVerifyCommand,
+} from "../src/commands/audit-verify.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
 
@@ -109,6 +112,21 @@ describe("audit verify CLI", () => {
 
   it("registered signing public key env for verify command", () => {
     expect(publicKey.length).toBeGreaterThan(0);
+  });
+
+  it("refuses remote plaintext HTTP signing-key documents before fetch", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    try {
+      await expect(
+        fetchPublishedSigningKeysJson("http://keys.example.test/audit-signing-keys.json"),
+      ).rejects.toMatchObject({
+        code: "validation.invalid_opaque_resource_id",
+        message: expect.stringContaining("must use HTTPS"),
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      fetchMock.mockRestore();
+    }
   });
 
   it("returns a stable validation failure for malformed manifests", async () => {

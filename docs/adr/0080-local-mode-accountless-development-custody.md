@@ -37,9 +37,11 @@ Structural decisions:
   Local Mode; the protected posture is structurally inexpressible locally.
 - **Key custody without native dependencies.** The machine-local root key lives in the OS
   keychain reached by shelling out to OS-shipped tooling (`security` on macOS, PowerShell DPAPI
-  on Windows, `secret-tool` on Linux where present), behind one `KeyStore` seam, with a documented
-  `0600` key-file fallback. No bundled keychain libraries. Keychain placement buys key/ciphertext
-  separation so a synced or backed-up `~/.insecur/` is ciphertext only.
+  on Windows, `secret-tool` on Linux), behind one `KeyStore` seam. Local Mode fails closed when a
+  supported credential store is unavailable. A `0600` key-file adapter remains available only
+  through the explicit `INSECUR_ALLOW_INSECURE_FILE_KEYSTORE=1` development opt-in. That opt-in
+  places key and ciphertext under the same config directory, so a synced or backed-up directory
+  contains both and does not provide key/ciphertext backup separation. No bundled keychain libraries.
 - **The local store holds Current Versions only.** No local version history; rotation history and
   rollback are logged-in features.
 - **Login never touches local data.** Migration is an explicit, per-project, human-confirmed

@@ -27,6 +27,7 @@ import {
   getRuntimeInjectionPolicyRpc,
 } from "./runtime-run-policies-rpc-delegates.js";
 import { RuntimeServiceDelegatedPostAuthRpc } from "./runtime-service-delegated-post-auth-rpc.js";
+import { RUNTIME_POST_AUTH_RPC } from "./runtime-service-delegated-post-auth-rpc-host.js";
 
 vi.mock("../operations/consume-grant-operation.js", () => ({
   consumeGrantOperation: vi.fn(),
@@ -145,7 +146,7 @@ describe("runtime rpc delegate seams", () => {
   });
 
   it("exposes delegated post-auth rpc methods on the runtime service map", async () => {
-    const host = { postAuthRpc: () => post, env };
+    const host = { [RUNTIME_POST_AUTH_RPC]: () => post, env };
 
     await RuntimeServiceDelegatedPostAuthRpc.listProjects.call(host, {
       actorToken: "token",

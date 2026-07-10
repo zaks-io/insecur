@@ -8,6 +8,7 @@ import {
   collectVerifyControl,
 } from "./collect-supply-chain-controls.js";
 import type { ReleaseGateProfile } from "./types.js";
+import { collectNoPlaintextExternalControls } from "./collect-no-plaintext-controls.js";
 
 export { collectChecklistControl } from "./collect-checklist-controls.js";
 export {
@@ -21,6 +22,7 @@ export {
   collectSecretScanControl,
   collectVerifyControl,
 } from "./collect-supply-chain-controls.js";
+export { collectNoPlaintextExternalControls } from "./collect-no-plaintext-controls.js";
 
 export function collectSecurityCheckControls(
   evidenceDir: string,
@@ -33,5 +35,6 @@ export function collectSecurityCheckControls(
     collectSbomVulnerabilityControl(evidenceDir),
     ...collectChecklistControls(evidenceDir),
     ...collectBackupRestoreControls(evidenceDir, profile),
+    ...collectNoPlaintextExternalControls(evidenceDir, profile),
   ];
 }

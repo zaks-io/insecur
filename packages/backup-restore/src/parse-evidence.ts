@@ -71,6 +71,42 @@ function parseRestoreDrillScope(
   };
 }
 
+function parseRestoreProvenance(record: Record<string, unknown>) {
+  const sourceArtifactKind = hasOneOf(record, "source_artifact_kind", [
+    "scheduled_r2_export",
+  ] as const);
+  const sourceExportOperationId = readString(record, "source_export_operation_id");
+  const sourceExportTimestamp = readString(record, "source_export_timestamp");
+  const restoreTargetRef = readString(record, "restore_target_ref");
+  const restoreTargetKind = hasOneOf(record, "restore_target_kind", [
+    "fresh_neon_project",
+  ] as const);
+  const importCompletedAt = readString(record, "import_completed_at");
+  const runtimeCanaryVerifiedAt = readString(record, "runtime_canary_verified_at");
+  if (
+    [
+      sourceArtifactKind,
+      sourceExportOperationId,
+      sourceExportTimestamp,
+      restoreTargetRef,
+      restoreTargetKind,
+      importCompletedAt,
+      runtimeCanaryVerifiedAt,
+    ].some((value) => !value)
+  ) {
+    return null;
+  }
+  return {
+    source_artifact_kind: sourceArtifactKind ?? "scheduled_r2_export",
+    source_export_operation_id: sourceExportOperationId ?? "",
+    source_export_timestamp: sourceExportTimestamp ?? "",
+    restore_target_ref: restoreTargetRef ?? "",
+    restore_target_kind: restoreTargetKind ?? "fresh_neon_project",
+    import_completed_at: importCompletedAt ?? "",
+    runtime_canary_verified_at: runtimeCanaryVerifiedAt ?? "",
+  };
+}
+
 export function parseRestoreDrillEvidence(value: unknown): RestoreDrillEvidence | null {
   const record = asRecord(value);
   if (!record) {
@@ -84,6 +120,7 @@ export function parseRestoreDrillEvidence(value: unknown): RestoreDrillEvidence 
   const rto = asRecord(record.rto);
   const canary = asRecord(record.canary_verification);
   const artifactRef = readString(record, "artifact_ref");
+  const provenance = parseRestoreProvenance(record);
   if (
     !status ||
     !checkedAt ||
@@ -92,6 +129,7 @@ export function parseRestoreDrillEvidence(value: unknown): RestoreDrillEvidence 
     !rto ||
     !canary ||
     !artifactRef ||
+    !provenance ||
     typeof record.encryption_verified !== "boolean"
   ) {
     return null;
@@ -136,12 +174,8 @@ export function parseRestoreDrillEvidence(value: unknown): RestoreDrillEvidence 
     },
     encryption_verified: record.encryption_verified,
     artifact_ref: artifactRef,
+    ...provenance,
   };
-
-  const restoreTargetRef = readString(record, "restore_target_ref");
-  if (restoreTargetRef) {
-    evidence.restore_target_ref = restoreTargetRef;
-  }
 
   return evidence;
 }

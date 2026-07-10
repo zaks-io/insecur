@@ -5,6 +5,7 @@ import type {
   InjectionGrantDeliveryEnvelope,
 } from "./runtime-injection-api-types.js";
 import { cliApiHeaders } from "./http-client-headers.js";
+import { parseApiHost } from "../config/api-host.js";
 
 export interface HttpClientOptions {
   readonly traceHeaders?: () => Record<string, string>;
@@ -92,6 +93,7 @@ export async function postJson(
   init: RequestInit,
   options?: HttpClientOptions,
 ): Promise<{ response: Response; body: unknown }> {
+  parseApiHost(url.origin);
   const response = await fetch(url, requestInitWithTraceHeaders(init, options));
   return { response, body: await readJsonResponse(response) };
 }

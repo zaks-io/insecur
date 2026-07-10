@@ -3,25 +3,21 @@ import { CLI_ERROR_CODES, type ErrorBody } from "@insecur/domain";
 const UNEXPECTED_CLI_FAILURE_MESSAGE = "Unexpected CLI failure" as const;
 
 export function unexpectedCliErrorBody(error: unknown): ErrorBody {
-  const errorName = error instanceof Error ? error.name : "UnknownError";
+  const errorCategory = error instanceof Error ? "Error" : "UnknownError";
   return {
     code: CLI_ERROR_CODES.unexpectedError,
-    message: `${UNEXPECTED_CLI_FAILURE_MESSAGE} (${errorName})`,
+    message: `${UNEXPECTED_CLI_FAILURE_MESSAGE} (${errorCategory})`,
     retryable: false,
   };
 }
 
-/** Full error detail is opt-in via --verbose; off by default in run. */
+/** Verbose mode adds diagnosis context without ever echoing the raw exception. */
 export function logUnexpectedCliErrorDebug(error: unknown, verbose: boolean): void {
   if (!verbose) {
     return;
   }
-  if (error instanceof Error) {
-    process.stderr.write(`[debug] ${error.name}: ${error.message}\n`);
-    if (error.stack !== undefined) {
-      process.stderr.write(`${error.stack}\n`);
-    }
-    return;
-  }
-  process.stderr.write(`[debug] ${String(error)}\n`);
+  const errorCategory = error instanceof Error ? "Error" : "UnknownError";
+  process.stderr.write(
+    `[debug] Unexpected CLI failure (${errorCategory}); raw exception detail suppressed.\n`,
+  );
 }

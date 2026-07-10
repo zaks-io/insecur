@@ -1,9 +1,10 @@
-import { successEnvelope } from "@insecur/domain";
+import { CLI_ERROR_CODES, errorEnvelope, successEnvelope } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { EXIT_UNEXPECTED } from "../output/exit-codes.js";
-import { renderSuccess } from "../output/render.js";
+import { actionableRemediation } from "../output/cli-remediation.js";
+import { renderEnvelope, renderSuccess } from "../output/render.js";
 import { clearMemorySession, resolveSessionCredential } from "../session/memory-session.js";
 import { defaultSessionStore, type SessionStore } from "../session/persisted-session.js";
 
@@ -48,6 +49,7 @@ function formatLogoutHumanMessage(data: {
   readonly revoked: boolean;
   readonly removed: boolean;
   readonly revokeAttempted: boolean;
+  readonly revokeFailed: boolean;
 }): string {
   if (!data.revokeAttempted) {
     return data.removed ? "No active session; persisted session removed." : "No active session.";
@@ -56,6 +58,9 @@ function formatLogoutHumanMessage(data: {
     return data.removed
       ? "Logged out; server session revoked and persisted session removed."
       : "Logged out; server session revoked.";
+  }
+  if (data.revokeFailed) {
+    return "Server revocation could not be confirmed. The local sealed session was retained; retry insecur logout.";
   }
   return data.removed
     ? "Logged out locally; server session was already inactive. Persisted session removed."
@@ -77,6 +82,28 @@ export async function runLogoutCommand(
       ? { serverRevoked: false, revokeFailed: false }
       : await attemptRevokeCliSession(api, host, credential);
 
+  if (revokeAttempt.revokeFailed) {
+    renderEnvelope(
+      errorEnvelope(
+        {
+          code: CLI_ERROR_CODES.unexpectedError,
+          message:
+            "Server revocation could not be confirmed. The local sealed session was retained.",
+          retryable: true,
+        },
+        {
+          remediation: actionableRemediation(CLI_ERROR_CODES.unexpectedError, {
+            suggestedFix: "Retry insecur logout when the server is reachable.",
+            usage: ["insecur", "logout"],
+          }),
+        },
+      ),
+      flags,
+      () => "",
+    );
+    return EXIT_UNEXPECTED;
+  }
+
   clearMemorySession();
   const removed = await store.clear();
   const revokeAttempted = credential !== undefined;
@@ -85,9 +112,10 @@ export async function runLogoutCommand(
       revoked: revokeAttempt.serverRevoked,
       removed,
       revokeAttempted,
+      revokeFailed: revokeAttempt.revokeFailed,
     }),
     flags,
     (data) => formatLogoutHumanMessage(data),
   );
-  return revokeAttempt.revokeFailed ? EXIT_UNEXPECTED : 0;
+  return 0;
 }

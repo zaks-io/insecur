@@ -1,7 +1,8 @@
 import process from "node:process";
-import { DEFAULT_SENTRY_TRACES_SAMPLE_RATE, sentryDataCollection } from "@insecur/observability";
+import { DEFAULT_SENTRY_TRACES_SAMPLE_RATE } from "@insecur/observability";
 import { resolveCliCommandFamily } from "./crash-command-family.js";
 import { loadUserConfig } from "./config/user-config.js";
+import { sanitizeSentryEvent, sanitizeSentryTransaction } from "./crash-reporting-sanitize.js";
 import { cliVersion } from "./version.js";
 
 const DEFAULT_INSECUR_CLI_SENTRY_DSN =
@@ -35,10 +36,6 @@ interface SentryRuntime {
     context: { readonly name: string; readonly op: string },
     callback: () => TResult,
   ) => TResult;
-  readonly onUncaughtExceptionIntegration?: (options: {
-    readonly exitEvenIfOtherHandlersAreRegistered: true;
-  }) => unknown;
-  readonly onUnhandledRejectionIntegration?: (options: { readonly mode: "strict" }) => unknown;
 }
 
 interface CrashReporterOptions {
@@ -74,7 +71,7 @@ export async function createCliCrashReporter(
 
   try {
     const runtime = options.sentryRuntime ?? (await importSentryRuntime());
-    runtime.init(sentryOptions(settings, runtime));
+    runtime.init(sentryOptions(settings));
     return activeCrashReporter(runtime);
   } catch {
     return NOOP_CRASH_REPORTER;
@@ -101,37 +98,22 @@ async function resolveCrashReporterSettings(
   };
 }
 
-function sentryOptions(
-  settings: CrashReporterSettings,
-  runtime: SentryRuntime,
-): Record<string, unknown> {
-  // Prelaunch telemetry posture: default integrations and full-fidelity events outside
-  // production so we can see what the SDK actually captures. Re-tightening is tracked in INS-553.
+function sentryOptions(settings: CrashReporterSettings): Record<string, unknown> {
   const environment = optional(settings.env[CLI_SENTRY_ENVIRONMENT_ENV]) ?? "production";
-  const dataCollection = sentryDataCollection(environment);
   return {
+    beforeSend: sanitizeSentryEvent,
+    beforeSendTransaction: sanitizeSentryTransaction,
+    defaultIntegrations: false,
     dsn: settings.dsn,
     enabled: true,
     environment,
     initialScope: { tags: sentryTags(settings.argv) },
-    integrations: crashHandlingIntegrations(runtime),
+    integrations: [],
+    maxBreadcrumbs: 0,
     release: `insecur-cli@${settings.version}`,
-    ...(dataCollection ? { dataCollection } : {}),
+    sendDefaultPii: false,
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
   };
-}
-
-function crashHandlingIntegrations(runtime: SentryRuntime): unknown[] {
-  const integrations: unknown[] = [];
-  if (runtime.onUncaughtExceptionIntegration) {
-    integrations.push(
-      runtime.onUncaughtExceptionIntegration({ exitEvenIfOtherHandlersAreRegistered: true }),
-    );
-  }
-  if (runtime.onUnhandledRejectionIntegration) {
-    integrations.push(runtime.onUnhandledRejectionIntegration({ mode: "strict" }));
-  }
-  return integrations;
 }
 
 function sentryTags(argv: readonly string[]): Record<string, string> {
@@ -237,11 +219,8 @@ async function importSentryRuntime(): Promise<SentryRuntime> {
 }
 
 function toErrorForCapture(error: unknown): Error {
-  if (error instanceof Error) {
-    return error;
-  }
-  const captured = new Error("NonErrorThrown");
-  captured.name = "NonErrorThrown";
+  const captured = new Error("Unexpected CLI failure");
+  captured.name = error instanceof Error ? "Error" : "NonErrorThrown";
   return captured;
 }
 

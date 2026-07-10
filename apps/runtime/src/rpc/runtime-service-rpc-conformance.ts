@@ -1,6 +1,9 @@
 import type { RuntimeRpc } from "@insecur/worker-kit";
+import type { WorkerEntrypoint } from "cloudflare:workers";
 
+import type { RuntimeEnv } from "../env.js";
 import type { RuntimeServiceBase } from "../runtime-service.js";
+import { RUNTIME_POST_AUTH_RPC } from "./runtime-service-delegated-post-auth-rpc-host.js";
 import { RuntimeServiceDelegatedPostAuthRpc } from "./runtime-service-delegated-post-auth-rpc.js";
 
 /**
@@ -30,10 +33,12 @@ import { RuntimeServiceDelegatedPostAuthRpc } from "./runtime-service-delegated-
  * -free contract the API Worker binds against, and this module changes nothing about what crosses
  * the Service Binding.
  *
- * Guarantee boundary: `T extends RuntimeRpc` is a one-directional structural check. It catches a
- * `RuntimeRpc` method being missing, renamed, or returning an incompatible type. It does NOT catch
- * `RuntimeService` exposing extra methods `RuntimeRpc` never declares (fine - the contract is meant
- * to be a subset), and — because TypeScript checks method-shorthand parameters bivariantly — it does
+ * Guarantee boundary: `T extends RuntimeRpc` catches a `RuntimeRpc` method being missing, renamed,
+ * or returning an incompatible type. The exact-surface assertion below also rejects extra public
+ * methods. The delegated post-auth seam is a symbol-named instance property, which Cloudflare RPC
+ * does not expose as a prototype method.
+ * Because TypeScript checks method-shorthand
+ * parameters bivariantly, it does
  * NOT catch a delegate narrowing its input to require MORE fields than `RuntimeRpc` promises to
  * supply. Neither gap has a real instance in this codebase today; this file guards against
  * method-level drift (the failure mode the ticket targets), not full input/output variance.
@@ -55,7 +60,17 @@ export type MergedRuntimeServiceInstance = InstanceType<typeof RuntimeServiceBas
  */
 export type ExposesRuntimeRpc<T> = T extends RuntimeRpc ? true : false;
 
+/** Rejects accidental public WorkerEntrypoint methods outside the reviewed Runtime RPC contract. */
+export type HasOnlyRuntimeRpcMethods<T> =
+  Exclude<
+    keyof T,
+    keyof RuntimeRpc | keyof WorkerEntrypoint<RuntimeEnv> | typeof RUNTIME_POST_AUTH_RPC
+  > extends never
+    ? true
+    : false;
+
 // The conformance assertion itself: assigning a non-`true` value to a `const: true` binding is a
 // type error, so this line fails to typecheck the moment `RuntimeService`'s merged instance type
 // stops exposing every `RuntimeRpc` member.
 export const runtimeServiceExposesRuntimeRpc: ExposesRuntimeRpc<MergedRuntimeServiceInstance> = true;
+export const runtimeServiceHasOnlyRuntimeRpcMethods: HasOnlyRuntimeRpcMethods<MergedRuntimeServiceInstance> = true;

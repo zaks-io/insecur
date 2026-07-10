@@ -71,7 +71,7 @@ export {
   validateOperationProgressInput,
 } from "./validate-operation-metadata.js";
 export { TenantOperationStore, generateOperationId } from "./tenant-operation-store.js";
-export { cancelOperation } from "./cancel-operation.js";
+export { cancelOperation, cancelOperationInTenantScope } from "./cancel-operation.js";
 export { createOperation } from "./create-operation.js";
 export { getOperation } from "./get-operation.js";
 export { listPendingHighAssuranceChallengeOperations } from "./list-pending-high-assurance-challenge-operations.js";

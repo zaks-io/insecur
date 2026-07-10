@@ -14,10 +14,11 @@ import { PRODUCTION_AUDIT_EVENT_CODES } from "../src/audit-event-codes.js";
 import { recordAccessDeniedAudit } from "../src/record-access-audit.js";
 import {
   recordApprovalAudit,
+  recordApprovalAuditInTenantScope,
   recordKeyCustodyAudit,
   recordSyncAudit,
 } from "../src/production-audit-writers.js";
-import { writeAuditEvent } from "../src/write-audit-event.js";
+import { writeAuditEvent, writeAuditEventInTenantScope } from "../src/write-audit-event.js";
 
 vi.mock("../src/write-audit-event.js", () => ({
   writeAuditEvent: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
@@ -32,6 +33,7 @@ const REQUEST = requestId.brand("req_00000000000000000000000001");
 const OPERATION = operationId.brand("op_00000000000000000000000001");
 
 const writeMock = vi.mocked(writeAuditEvent);
+const writeInScopeMock = vi.mocked(writeAuditEventInTenantScope);
 
 describe("production audit helpers", () => {
   it("recordSyncAudit writes execution denied with operation correlation", async () => {
@@ -118,6 +120,29 @@ describe("production audit helpers", () => {
         eventCode: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestCanceled,
         projectId: PROJECT,
         environmentId: ENV,
+        request: { requestId: REQUEST },
+      }),
+    );
+  });
+
+  it("recordApprovalAuditInTenantScope uses the caller's transaction", async () => {
+    writeInScopeMock.mockClear();
+    const sql = vi.fn() as never;
+
+    await recordApprovalAuditInTenantScope(sql, {
+      action: "request_approved",
+      outcome: "success",
+      actor: { type: "user", userId: USER },
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      requestId: REQUEST,
+    });
+
+    expect(writeInScopeMock).toHaveBeenCalledWith(
+      sql,
+      expect.objectContaining({
+        eventCode: PRODUCTION_AUDIT_EVENT_CODES.approvalRequestApproved,
         request: { requestId: REQUEST },
       }),
     );

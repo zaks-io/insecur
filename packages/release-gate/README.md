@@ -10,6 +10,7 @@ skeleton for release gating.
   syft and grype vulnerability scan, and ASVS/API Top 10 checklist status.
 - Metadata-only secret-scan summarization without Sensitive Values.
 - Fail-closed bundle verdict derivation.
+- Backup/restore evidence evaluation and external no-plaintext evidence requirements.
 
 ## Consumes
 
@@ -29,4 +30,5 @@ bundles, and no-reveal output constraints.
 
 ## Dependency Rule
 
-This package must not depend on other `@insecur/*` packages.
+This package may depend on domain packages that own evidence parsing or metadata-safety policy. It
+must not execute scanners, deploy infrastructure, query provider sinks, or own product workflows.

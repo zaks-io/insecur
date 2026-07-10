@@ -3,8 +3,8 @@
 //
 // It downloads the standalone CLI binary for the host OS/arch from the GitHub
 // release (`cli-v<version>` tags, assets built by .github/workflows/cli-release.yml),
-// verifies it against SHA256SUMS, sets the exec bit (release assets download
-// non-executable), and installs to ~/.local/bin with no sudo.
+// verifies its checksum and GitHub build provenance, sets the exec bit (release
+// assets download non-executable), and installs to ~/.local/bin with no sudo.
 //
 // Targets #!/bin/sh (not bash): piping to `sh` runs under dash/busybox on many
 // systems, so the script stays POSIX: no [[ ]], no arrays, printf over echo.
@@ -119,6 +119,16 @@ verify() {
   got      $got"
 }
 
+verify_provenance() {
+  file="$1"; bundle="$2"
+  have gh || err "GitHub CLI (gh) is required to verify build provenance; refusing to install"
+  gh attestation verify "$file" \
+    --bundle "$bundle" \
+    --repo "$REPO" \
+    --signer-workflow "$REPO/.github/workflows/cli-release.yml" \
+    >/dev/null 2>&1 || err "GitHub build provenance verification failed; refusing to install"
+}
+
 add_to_path_hint() {
   case ":\${PATH}:" in
     *":\${INSTALL_DIR}:"*) return 0 ;;
@@ -166,9 +176,12 @@ main() {
   info "Downloading \${BOLD}\${asset}\${RESET} (\${VERSION})..."
   download "\${base}/\${asset}" "$tmp/$asset"
   download "\${base}/SHA256SUMS" "$tmp/SHA256SUMS"
+  download "\${base}/\${asset}.intoto.jsonl" "$tmp/$asset.intoto.jsonl"
 
   info "Verifying checksum..."
   verify "$tmp/$asset" "$asset" "$tmp/SHA256SUMS"
+  info "Verifying GitHub build provenance..."
+  verify_provenance "$tmp/$asset" "$tmp/$asset.intoto.jsonl"
 
   chmod +x "$tmp/$asset"
   mkdir -p "$INSTALL_DIR"

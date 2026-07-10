@@ -41,6 +41,13 @@ function validRestoreEvidence() {
     },
     encryption_verified: true,
     artifact_ref: "backup/latest-export.ibkp",
+    source_artifact_kind: "scheduled_r2_export",
+    source_export_operation_id: "op_00000000000000000000000001",
+    source_export_timestamp: "2026-07-08T03:00:00.000Z",
+    restore_target_ref: "neon-project://fresh-restore-drill",
+    restore_target_kind: "fresh_neon_project",
+    import_completed_at: "2026-07-08T03:00:04.000Z",
+    runtime_canary_verified_at: "2026-07-08T03:00:05.000Z",
   };
 }
 
@@ -116,15 +123,8 @@ describe("parseExportSuccessEvidence", () => {
 });
 
 describe("parseRestoreDrillEvidence", () => {
-  it("parses a well-formed restore drill and carries the optional restore_target_ref", () => {
-    const parsed = parseRestoreDrillEvidence({
-      ...validRestoreEvidence(),
-      restore_target_ref: "neon-branch://restore-drill",
-    });
-    expect(parsed).toEqual({
-      ...validRestoreEvidence(),
-      restore_target_ref: "neon-branch://restore-drill",
-    });
+  it("parses a well-formed restore drill with real restore provenance", () => {
+    expect(parseRestoreDrillEvidence(validRestoreEvidence())).toEqual(validRestoreEvidence());
   });
 
   it("preserves failed drill and canary statuses with false encryption verification", () => {
@@ -142,13 +142,13 @@ describe("parseRestoreDrillEvidence", () => {
     expect(parsed?.encryption_verified).toBe(false);
   });
 
-  it("omits invalid optional restore_target_ref values", () => {
+  it("rejects invalid or missing restore_target_ref values", () => {
     expect(
       parseRestoreDrillEvidence({ ...validRestoreEvidence(), restore_target_ref: "" }),
-    ).not.toHaveProperty("restore_target_ref");
+    ).toBeNull();
     expect(
       parseRestoreDrillEvidence({ ...validRestoreEvidence(), restore_target_ref: 123 }),
-    ).not.toHaveProperty("restore_target_ref");
+    ).toBeNull();
   });
 
   it("returns null for a non-record or empty record value", () => {
@@ -169,6 +169,12 @@ describe("parseRestoreDrillEvidence", () => {
     ["canary_verification", null],
     ["canary_verification", "canary"],
     ["artifact_ref", ""],
+    ["source_artifact_kind", "fixture"],
+    ["source_export_operation_id", ""],
+    ["source_export_timestamp", null],
+    ["restore_target_kind", "existing_neon_project"],
+    ["import_completed_at", ""],
+    ["runtime_canary_verified_at", null],
     ["encryption_verified", "true"],
   ] as const)("returns null for invalid restore top-level field %s=%j", (key, replacement) => {
     expect(

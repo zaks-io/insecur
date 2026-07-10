@@ -17,10 +17,18 @@ describe("INSTALL_SH", () => {
     expect(INSTALL_SH).toContain("irm https://insecur.cloud/install.ps1 | iex");
   });
 
-  it("verifies checksums and refuses unverified binaries", () => {
+  it("requires checksums and signed GitHub build provenance", () => {
     expect(INSTALL_SH).toContain("SHA256SUMS");
     expect(INSTALL_SH).toContain("checksum mismatch");
     expect(INSTALL_SH).toContain("refusing to install unverified binary");
+    expect(INSTALL_SH).toContain(".intoto.jsonl");
+    expect(INSTALL_SH).toContain("gh attestation verify");
+    expect(INSTALL_SH).toContain('--signer-workflow "$REPO/.github/workflows/cli-release.yml"');
+    expect(INSTALL_SH).toContain("GitHub CLI (gh) is required");
+    expect(INSTALL_SH).toContain('download "${base}/${asset}.intoto.jsonl"');
+    expect(INSTALL_SH).toContain(
+      '>/dev/null 2>&1 || err "GitHub build provenance verification failed; refusing to install"',
+    );
   });
 
   it("downloads with fail-loud, https-pinned transport", () => {
@@ -51,16 +59,27 @@ describe("INSTALL_PS1", () => {
     expect(INSTALL_PS1).toContain("PROCESSOR_ARCHITEW6432");
   });
 
-  it("verifies checksums before installing", () => {
+  it("requires checksums and signed GitHub build provenance before installing", () => {
     expect(INSTALL_PS1).toContain("Get-FileHash");
     expect(INSTALL_PS1).toContain("SHA256SUMS");
     expect(INSTALL_PS1).toContain("checksum mismatch");
+    expect(INSTALL_PS1).toContain(".intoto.jsonl");
+    expect(INSTALL_PS1).toContain("gh attestation verify");
+    expect(INSTALL_PS1).toContain('--signer-workflow "$Repo/.github/workflows/cli-release.yml"');
+    expect(INSTALL_PS1).toContain("GitHub CLI (gh) is required");
+    expect(INSTALL_PS1).toContain('Invoke-WebRequest -Uri "$base/$asset.intoto.jsonl"');
+    expect(INSTALL_PS1).toContain(
+      'Fail "GitHub build provenance verification failed; refusing to install"',
+    );
   });
 
   it("honors version, install-dir, and base-url overrides", () => {
     expect(INSTALL_PS1).toContain("INSECUR_CLI_VERSION");
     expect(INSTALL_PS1).toContain("INSECUR_INSTALL_DIR");
     expect(INSTALL_PS1).toContain("INSECUR_INSTALL_BASE_URL");
+    expect(INSTALL_PS1.indexOf("INSECUR_INSTALL_BASE_URL")).toBeLessThan(
+      INSTALL_PS1.indexOf("gh attestation verify"),
+    );
   });
 
   it("has no unrendered template-literal escapes", () => {

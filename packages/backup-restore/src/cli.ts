@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 
-import { runLocalRestoreDrill } from "./run-local-drill.js";
+import { runBackupFixtureSelfTest } from "./run-local-drill.js";
 import { verifyBackupRestoreEvidence } from "./verify-evidence.js";
 
 function evidenceDirFromArgv(argv: string[]): string {
@@ -10,30 +10,17 @@ function evidenceDirFromArgv(argv: string[]): string {
   return value ? resolve(value) : resolve(process.cwd(), "evidence");
 }
 
-function restoreTargetRefFromArgv(argv: string[]): string | undefined {
-  const flagIndex = argv.indexOf("--restore-target-ref");
-  if (flagIndex === -1) {
-    return undefined;
-  }
-  return argv[flagIndex + 1];
-}
-
-async function runDrill(argv: string[]): Promise<void> {
+async function runFixtureSelfTest(argv: string[]): Promise<void> {
   const evidenceDir = evidenceDirFromArgv(argv);
-  const restoreTargetRef = restoreTargetRefFromArgv(argv);
-  const result = await runLocalRestoreDrill({
-    evidenceDir,
-    ...(restoreTargetRef ? { restoreTargetRef } : {}),
-  });
+  const result = await runBackupFixtureSelfTest({ evidenceDir });
 
   const summary = {
-    ok: result.drillEvidence.status === "passed" && result.exportEvidence.status === "passed",
-    export_status: result.exportEvidence.status,
-    drill_status: result.drillEvidence.status,
-    canary_status: result.drillEvidence.canary_verification.status,
-    encryption_verified: result.drillEvidence.encryption_verified,
-    rto_seconds: result.drillEvidence.rto.duration_seconds,
-    artifact_ref: result.drillEvidence.artifact_ref,
+    ok: result.evidence.status === "passed",
+    fixture_only: true,
+    launch_grade_evidence: false,
+    canary_verified: result.evidence.canary_verified,
+    encryption_verified: result.evidence.encryption_verified,
+    artifact_ref: result.evidence.artifact_ref,
     evidence_dir: evidenceDir,
   };
 
@@ -54,8 +41,8 @@ function runVerify(argv: string[]): void {
 
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
-  if (command === "drill") {
-    await runDrill(rest);
+  if (command === "fixture-self-test") {
+    await runFixtureSelfTest(rest);
     return;
   }
   if (command === "verify-evidence") {
@@ -63,7 +50,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  throw new Error("usage: backup-restore <drill|verify-evidence> [--evidence-dir path]");
+  throw new Error(
+    "usage: backup-restore <fixture-self-test|verify-evidence> [--evidence-dir path]",
+  );
 }
 
 try {

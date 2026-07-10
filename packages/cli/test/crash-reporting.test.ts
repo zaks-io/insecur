@@ -59,8 +59,6 @@ describe("CLI crash reporting", () => {
       baggage: "sentry-release=insecur-cli",
     }));
     const startSpan = vi.fn((_context: unknown, callback: () => unknown) => callback());
-    const onUncaughtExceptionIntegration = vi.fn(() => ({ name: "OnUncaughtException" }));
-    const onUnhandledRejectionIntegration = vi.fn(() => ({ name: "OnUnhandledRejection" }));
 
     const reporter = await createCliCrashReporter({
       argv: ["node", "insecur", "secrets", "set"],
@@ -70,8 +68,6 @@ describe("CLI crash reporting", () => {
         captureException,
         flush,
         getTraceData,
-        onUncaughtExceptionIntegration,
-        onUnhandledRejectionIntegration,
         startSpan,
       },
       userPreference: undefined,
@@ -82,11 +78,36 @@ describe("CLI crash reporting", () => {
     expect(init).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: true,
-        dataCollection: { userInfo: true, httpBodies: [] },
+        defaultIntegrations: false,
+        integrations: [],
+        maxBreadcrumbs: 0,
+        sendDefaultPii: false,
         tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
       }),
     );
-    expect(init).toHaveBeenCalledWith(expect.not.objectContaining({ defaultIntegrations: false }));
+    expect(init).toHaveBeenCalledWith(
+      expect.not.objectContaining({ dataCollection: expect.anything() }),
+    );
+    const initOptions = init.mock.calls[0]?.[0] as {
+      beforeSend: (event: Record<string, unknown>) => Record<string, unknown>;
+    };
+    const sanitizedEvent = initOptions.beforeSend({
+      event_id: "event-id",
+      request: { url: SENTINEL, data: SENTINEL },
+      breadcrumbs: [{ message: SENTINEL }],
+      contexts: { runtime: { value: SENTINEL } },
+      extra: { value: SENTINEL },
+      tags: { command_family: "secrets.set", unsafe: SENTINEL },
+      exception: {
+        values: [{ type: SENTINEL, value: SENTINEL, stacktrace: { frames: [{ vars: SENTINEL }] } }],
+      },
+    });
+    expect(JSON.stringify(sanitizedEvent)).not.toContain(SENTINEL);
+    expect(sanitizedEvent).toMatchObject({
+      event_id: "event-id",
+      tags: { command_family: "secrets.set" },
+      exception: { values: [{ type: "Error", value: "Unexpected CLI failure" }] },
+    });
     const productionInit = vi.fn();
     await createCliCrashReporter({
       argv: ["node", "insecur", "secrets", "set"],
@@ -101,10 +122,11 @@ describe("CLI crash reporting", () => {
     expect(productionInit).toHaveBeenCalledWith(
       expect.not.objectContaining({ dataCollection: expect.anything() }),
     );
-    expect(onUncaughtExceptionIntegration).toHaveBeenCalledWith({
-      exitEvenIfOtherHandlersAreRegistered: true,
-    });
-    expect(onUnhandledRejectionIntegration).toHaveBeenCalledWith({ mode: "strict" });
+    await reporter.captureException(new Error(SENTINEL), { source: "unexpected" });
+    const captured = captureException.mock.calls.at(-1)?.[0] as Error;
+    expect(captured.name).toBe("Error");
+    expect(captured.message).toBe("Unexpected CLI failure");
+    expect(captured.message).not.toContain(SENTINEL);
     expect(reporter.traceHeaders()).toEqual({
       "sentry-trace": "trace-id-span-id-1",
       baggage: "sentry-release=insecur-cli",
@@ -190,7 +212,7 @@ describe("CLI crash reporting", () => {
         ok: false,
         error: {
           code: CLI_ERROR_CODES.unexpectedError,
-          message: "Unexpected CLI failure (SyntaxError)",
+          message: "Unexpected CLI failure (Error)",
         },
       });
       expect(captureException).toHaveBeenCalledWith(expect.any(SyntaxError), {

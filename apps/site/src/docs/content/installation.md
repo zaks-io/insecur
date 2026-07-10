@@ -29,7 +29,9 @@ The script it runs is [install.ps1](https://insecur.cloud/install.ps1).
 
 ## What the installer does
 
-The install scripts ([install.sh](https://insecur.cloud/install.sh), [install.ps1](https://insecur.cloud/install.ps1)) download the platform binary from the published `cli-v*` GitHub Release. They refuse to install anything that fails SHA-256 verification against the release's `SHA256SUMS` file, so a corrupted or tampered download never lands on your machine.
+Install the [GitHub CLI](https://cli.github.com/) first. The insecur install scripts use `gh attestation verify` and refuse to install without it.
+
+The install scripts ([install.sh](https://insecur.cloud/install.sh), [install.ps1](https://insecur.cloud/install.ps1)) download the platform binary, `SHA256SUMS`, and signed provenance bundle from the published `cli-v*` GitHub Release. They verify the checksum and require a valid GitHub build attestation signed by this repository's CLI release workflow. A corrupted, substituted, or unattested binary never lands on your machine.
 
 The binary is placed in:
 

@@ -18,11 +18,23 @@ function assertValidUtf8(valueUtf8: Uint8Array): void {
   }
 }
 
+function assertNoNullBytes(valueUtf8: Uint8Array): void {
+  if (valueUtf8.includes(0)) {
+    throw new CliError({
+      code: SECRET_ERROR_CODES.invalidEncoding,
+      message:
+        "Secret value cannot contain a NUL character because process environments cannot represent it safely.",
+      retryable: false,
+    });
+  }
+}
+
 export function validateSecretValueUtf8(
   valueUtf8: Uint8Array,
   options: ValidateSecretValueOptions = {},
 ): void {
   assertValidUtf8(valueUtf8);
+  assertNoNullBytes(valueUtf8);
 
   if (valueUtf8.byteLength > SECRET_VALUE_SIZE_LIMIT_BYTES) {
     throw new CliError({

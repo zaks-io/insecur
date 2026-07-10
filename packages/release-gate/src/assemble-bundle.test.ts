@@ -10,6 +10,8 @@ import {
   EVIDENCE_BUNDLE_SCHEMA_VERSION,
   SECURITY_CHECK_CONTROL_IDS,
   SMALL_GROUP_BACKUP_RESTORE_CONTROL_IDS,
+  SMALL_GROUP_NO_PLAINTEXT_EXTERNAL_CONTROL_IDS,
+  NO_PLAINTEXT_EXTERNAL_SURFACES,
 } from "./index.js";
 
 function writeEvidence(evidenceDir: string, relativePath: string, payload: unknown): void {
@@ -29,6 +31,7 @@ function writeBackupEvidence(evidenceDir: string): void {
     artifact_ref: "backup/latest-export.ibkp",
     encryption_verified: true,
     expires_at: "2026-07-06T00:00:00.000Z",
+    operation_id: "op_00000000000000000000000001",
   });
   writeEvidence(evidenceDir, "backup/restore-drill.json", {
     status: "passed",
@@ -54,7 +57,28 @@ function writeBackupEvidence(evidenceDir: string): void {
     },
     encryption_verified: true,
     artifact_ref: "backup/latest-export.ibkp",
+    source_artifact_kind: "scheduled_r2_export",
+    source_export_operation_id: "op_00000000000000000000000001",
+    source_export_timestamp: "2026-07-04T00:00:00.000Z",
+    restore_target_ref: "neon-project://fresh-restore-drill",
+    restore_target_kind: "fresh_neon_project",
+    import_completed_at: "2026-07-04T00:00:04.000Z",
+    runtime_canary_verified_at: "2026-07-04T00:00:05.000Z",
   });
+}
+
+function writeNoPlaintextExternalEvidence(evidenceDir: string): void {
+  for (const entry of NO_PLAINTEXT_EXTERNAL_SURFACES) {
+    writeEvidence(evidenceDir, entry.evidencePath, {
+      status: "passed",
+      checked_at: "2026-07-04T00:00:05.000Z",
+      surface: entry.surface,
+      evidence_adapter: entry.requiredEvidenceAdapter,
+      target_ref: `external-system://${entry.surface}`,
+      sentinel_run_id: "canary_run_000000000000000000000001",
+      finding_count: 0,
+    });
+  }
 }
 
 function writePassingEvidenceSet(evidenceDir: string): void {
@@ -147,6 +171,7 @@ describe("assembleSecurityEvidenceBundle", () => {
     const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-release-gate-"));
     writePassingEvidenceSet(evidenceDir);
     writeBackupEvidence(evidenceDir);
+    writeNoPlaintextExternalEvidence(evidenceDir);
 
     const bundle = assembleSecurityEvidenceBundle({
       evidenceDir,
@@ -157,8 +182,27 @@ describe("assembleSecurityEvidenceBundle", () => {
     expect(bundle.controls.map((control) => control.id)).toEqual([
       ...SECURITY_CHECK_CONTROL_IDS,
       ...SMALL_GROUP_BACKUP_RESTORE_CONTROL_IDS,
+      ...SMALL_GROUP_NO_PLAINTEXT_EXTERNAL_CONTROL_IDS,
     ]);
     expect(bundle.ok).toBe(true);
+  });
+
+  it("blocks small_group_production when external no-plaintext sweeps are missing", () => {
+    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-release-gate-"));
+    writePassingEvidenceSet(evidenceDir);
+    writeBackupEvidence(evidenceDir);
+
+    const bundle = assembleSecurityEvidenceBundle({
+      evidenceDir,
+      profile: "small_group_production",
+    });
+
+    expect(bundle.ok).toBe(false);
+    expect(
+      bundle.controls
+        .filter((control) => control.id.startsWith("no_plaintext."))
+        .every((control) => control.status === "missing_evidence"),
+    ).toBe(true);
   });
 
   it("blocks small_group_production when backup evidence is missing", () => {

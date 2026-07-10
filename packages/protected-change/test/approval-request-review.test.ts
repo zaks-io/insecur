@@ -32,6 +32,7 @@ vi.mock("@insecur/tenant-store", () => ({
 
 vi.mock("@insecur/audit", () => ({
   recordApprovalAudit: vi.fn().mockResolvedValue(undefined),
+  recordApprovalAuditInTenantScope: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
 }));
 
 vi.mock("@insecur/auth", () => ({
@@ -47,7 +48,7 @@ vi.mock("../src/compute-impact-review-fingerprint.js", () => ({
 }));
 
 import { evaluateHighAssuranceChallengeClearAssurance } from "@insecur/auth";
-import { recordApprovalAudit } from "@insecur/audit";
+import { recordApprovalAudit, recordApprovalAuditInTenantScope } from "@insecur/audit";
 import { resolveEffectiveAccess, resolveEffectiveAccessBatch } from "@insecur/access";
 import {
   TenantApprovalRequestStore,
@@ -98,7 +99,7 @@ const IMPACT_STATE = {
 
 function mockTenantScope() {
   vi.mocked(withTenantScope).mockImplementation(async (_scope, callback) =>
-    callback({ db: {} } as never),
+    callback({ db: {}, sql: {} } as never),
   );
 }
 
@@ -518,8 +519,71 @@ describe("approveApprovalRequest", () => {
     ).resolves.toEqual({ approvalRequestId: REQUEST, status: "approved_applied" });
 
     expect(publishVersions).toHaveBeenCalled();
-    expect(recordApprovalAudit).toHaveBeenCalledWith(
+    expect(recordApprovalAuditInTenantScope).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ action: "request_approved", outcome: "success" }),
     );
+    expect(recordApprovalAudit).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "request_approved", outcome: "success" }),
+    );
+  });
+
+  it("rolls back publish and transition when the success audit insert fails", async () => {
+    let committed = false;
+    let staged = false;
+    vi.mocked(withTenantScope).mockImplementation(async (_scope, callback) => {
+      try {
+        const result = await callback({ db: {}, sql: {} } as never);
+        committed = staged;
+        return result;
+      } catch (error) {
+        staged = false;
+        throw error;
+      }
+    });
+    const getApprovalRequestById = vi.fn().mockResolvedValue({
+      ...DETAIL_ROW,
+      impactReviewFingerprint: "fp-current",
+    });
+    const getDraftVersionsForRequest = vi.fn().mockResolvedValue([]);
+    const publishVersions = vi.fn().mockImplementation(async () => {
+      staged = true;
+    });
+    const transitionPendingApprovalRequest = vi.fn().mockResolvedValue(true);
+    vi.mocked(TenantApprovalRequestStore).mockImplementation(function MockStore() {
+      return {
+        getApprovalRequestById,
+        getDraftVersionsForRequest,
+        transitionPendingApprovalRequest,
+      } as never;
+    });
+    vi.mocked(TenantSecretVersionStore).mockImplementation(function MockStore() {
+      return { publishVersions } as never;
+    });
+    vi.mocked(resolveEffectiveAccess).mockResolvedValue({
+      organizationId: ORG,
+      scopes: [AUTHORIZATION_SCOPES.approvalApprove],
+    });
+    vi.mocked(evaluateHighAssuranceChallengeClearAssurance).mockReturnValue({ ok: true } as never);
+    vi.mocked(recordApprovalAuditInTenantScope).mockRejectedValueOnce(
+      new Error("audit insert failed"),
+    );
+
+    await expect(
+      approveApprovalRequest({
+        actor: ACTOR,
+        auditActor: AUDIT_ACTOR,
+        organizationId: ORG,
+        approvalRequestId: REQUEST,
+        sessionAssurance: {} as never,
+        impactReviewFingerprint: "fp-current",
+        requestId: REQ,
+      }),
+    ).rejects.toThrow("audit insert failed");
+
+    expect(publishVersions).toHaveBeenCalledOnce();
+    expect(transitionPendingApprovalRequest).toHaveBeenCalledOnce();
+    expect(recordApprovalAuditInTenantScope).toHaveBeenCalledOnce();
+    expect(committed).toBe(false);
   });
 });

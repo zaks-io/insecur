@@ -33,11 +33,20 @@ describe("resolveKeyStoreBackend", () => {
     expect(resolveKeyStoreBackend("linux", { PATH: tempBinDir })).toBe("linux-secret-tool");
   });
 
-  it("falls back to the key file when secret-tool is absent on linux", () => {
-    expect(resolveKeyStoreBackend("linux", { PATH: "/empty" })).toBe("file-fallback");
+  it("fails closed when secret-tool is absent on linux", () => {
+    expect(resolveKeyStoreBackend("linux", { PATH: "/empty" })).toBeNull();
   });
 
-  it("falls back to the key file on unsupported platforms", () => {
-    expect(resolveKeyStoreBackend("freebsd", { PATH: "/usr/bin" })).toBe("file-fallback");
+  it("fails closed on unsupported platforms", () => {
+    expect(resolveKeyStoreBackend("freebsd", { PATH: "/usr/bin" })).toBeNull();
+  });
+
+  it("uses the file key store only after explicit insecure opt-in", () => {
+    expect(
+      resolveKeyStoreBackend("linux", {
+        PATH: "/empty",
+        INSECUR_ALLOW_INSECURE_FILE_KEYSTORE: "1",
+      }),
+    ).toBe("file-fallback");
   });
 });

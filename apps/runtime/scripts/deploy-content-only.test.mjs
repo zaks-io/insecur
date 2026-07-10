@@ -11,6 +11,7 @@ import {
   pickDesiredPublicDeployVars,
 } from "./deploy-content-only-public-vars.mjs";
 import {
+  assertDeployedCronSchedules,
   assertDeployedSecretsStoreSecrets,
   reconcileDeployedObservability,
   runContentOnlyDeploy,
@@ -55,6 +56,11 @@ const PRODUCTION_GET_SETTINGS_BINDINGS = [
     hyperdrive_id: "00000000000000000000000000000002",
   },
   { name: "RUNTIME_TOKEN_SIGNING_SECRET", type: "secret_text" },
+  {
+    name: "BACKUPS",
+    type: "r2_bucket",
+    bucket_name: "insecur-backups-test",
+  },
 ];
 
 const PRODUCTION_SETTINGS_WITHOUT_RELEASE = PRODUCTION_GET_SETTINGS_BINDINGS.filter(
@@ -268,6 +274,11 @@ test("assertDeployedSecretsStoreSecrets rejects empty deploy config", () => {
   );
 });
 
+test("assertDeployedCronSchedules requires the configured backup cron", () => {
+  assert.doesNotThrow(() => assertDeployedCronSchedules([{ cron: "0 3 * * *" }], ["0 3 * * *"]));
+  assert.throws(() => assertDeployedCronSchedules([], ["0 3 * * *"]), /cron schedules drifted/);
+});
+
 test("runContentOnlyDeploy patches public deploy vars after uploading content", async () => {
   const calls = [];
 
@@ -350,6 +361,47 @@ test("runContentOnlyDeploy refuses custody drift before reconciling observabilit
   );
 });
 
+test("runContentOnlyDeploy refuses a missing BACKUPS R2 binding", async () => {
+  const calls = [];
+  await assert.rejects(
+    runContentOnlyDeploy({
+      env: CONTENT_ONLY_DEPLOY_ENV,
+      readFileFn: createReadFileStub(),
+      fetchFn: createContentOnlyDeployFetchHandler({
+        calls,
+        settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS.filter(
+          (binding) => binding.name !== "BACKUPS",
+        ),
+      }),
+    }),
+    /missing BACKUPS/,
+  );
+  assert.equal(
+    calls.some((call) => call.method === "PUT"),
+    false,
+  );
+});
+
+test("runContentOnlyDeploy refuses a missing backup cron", async () => {
+  const calls = [];
+  await assert.rejects(
+    runContentOnlyDeploy({
+      env: CONTENT_ONLY_DEPLOY_ENV,
+      readFileFn: createReadFileStub(),
+      fetchFn: createContentOnlyDeployFetchHandler({
+        calls,
+        settingsBindings: PRODUCTION_GET_SETTINGS_BINDINGS,
+        schedules: [],
+      }),
+    }),
+    /cron schedules drifted/,
+  );
+  assert.equal(
+    calls.some((call) => call.method === "PUT"),
+    false,
+  );
+});
+
 function createReadFileStub() {
   return async (filePath) => {
     if (filePath.endsWith("index.js")) {
@@ -385,6 +437,10 @@ async function routeContentOnlyDeployFetch(url, init, options) {
 
   if (url.endsWith("/settings") && method === "GET") {
     return respondWithSettings(settingsBindings, options.observability);
+  }
+
+  if (url.endsWith("/schedules") && method === "GET") {
+    return jsonResponse({ success: true, result: options.schedules ?? [{ cron: "0 3 * * *" }] });
   }
 
   throw new Error(`Unexpected fetch: ${method} ${url}`);
@@ -462,6 +518,11 @@ function createSettingsCloudflareJson({
         deployedObservability = settings.observability;
       }
       return {};
+    }
+
+    if (apiPath.endsWith("/schedules") && method === "GET") {
+      calls.push({ method, apiPath });
+      return [{ cron: "0 3 * * *" }];
     }
 
     throw new Error(`Unexpected Cloudflare request: ${method} ${apiPath}`);

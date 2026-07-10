@@ -121,6 +121,31 @@ describe("resolveCliScope precedence", () => {
     expect(scope.host).toBe("https://api.insecur.cloud");
   });
 
+  it.each([
+    ["flag", () => ({ flags: { ...baseFlags, host: "http://api.example" }, project: null })],
+    [
+      "environment",
+      () => {
+        process.env.INSECUR_HOST = "http://api.example";
+        return { flags: baseFlags, project: null };
+      },
+    ],
+    [
+      "project config",
+      () => ({ flags: baseFlags, project: { ...project, host: "http://api.example" } }),
+    ],
+  ])("rejects plaintext HTTP from %s", (_source, setup) => {
+    const input = setup();
+    expect(() => resolveCliScope(input.flags, input.project, emptyUser)).toThrow("must use HTTPS");
+  });
+
+  it.each(["http://localhost:8787", "http://127.0.0.1:8787", "http://[::1]:8787"])(
+    "permits explicit loopback integration host %s",
+    (host) => {
+      expect(resolveCliScope({ ...baseFlags, host }, null, emptyUser).host).toBe(host);
+    },
+  );
+
   it("resolves local profiles to the fixed Local Mode org id through the precedence chain", () => {
     const localProfileId = "prof_01LOCAL0000000000000000001" as const;
     const localProjectId = "prj_01LOCAL0000000000000000001" as const;

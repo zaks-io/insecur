@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SCHEMA_SHAPE_REGISTRY } from "@insecur/tenant-store";
 
 import {
   BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY,
@@ -9,7 +10,10 @@ import {
   writeBackupExportArtifacts,
 } from "../src/backup-export-storage.js";
 import { concatJsonlLines } from "../src/build-backup-jsonl-payload.js";
-import { assertBackupExportTableName } from "../src/export-tables.js";
+import {
+  assertBackupExportTableName,
+  collectBackupExportCoverageViolations,
+} from "../src/export-tables.js";
 import { parseBackupJsonlPayload } from "../src/parse-backup-jsonl-payload.js";
 import { encodeBackupJsonlLine, serializeBackupRow } from "../src/serialize-backup-row.js";
 import type { BackupExportSuccessEvidence } from "../src/types.js";
@@ -95,6 +99,21 @@ describe("assertBackupExportTableName", () => {
     expect(() => assertBackupExportTableName("evil_table")).toThrow(
       /unsupported backup export table/,
     );
+  });
+});
+
+describe("backup export schema coverage", () => {
+  it("requires every schema table to be exported or explicitly excluded", () => {
+    expect(collectBackupExportCoverageViolations(Object.keys(SCHEMA_SHAPE_REGISTRY))).toEqual([]);
+  });
+
+  it("fails closed when a future schema table has no export decision", () => {
+    expect(
+      collectBackupExportCoverageViolations([
+        ...Object.keys(SCHEMA_SHAPE_REGISTRY),
+        "future_tenant_table",
+      ]),
+    ).toContain("schema table future_tenant_table is neither exported nor explicitly excluded");
   });
 });
 

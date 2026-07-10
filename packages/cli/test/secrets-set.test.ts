@@ -407,6 +407,13 @@ describe("secret value validation", () => {
     );
   });
 
+  it("rejects NUL before a secret can be stored", () => {
+    const value = new TextEncoder().encode("before\0after");
+    expect(() => validateSecretValueUtf8(value)).toThrowError(
+      expect.objectContaining({ code: SECRET_ERROR_CODES.invalidEncoding }),
+    );
+  });
+
   it("rejects empty values unless allowEmpty is set", () => {
     expect(() => validateSecretValueUtf8(new Uint8Array(0))).toThrow(
       expect.objectContaining({ code: SECRET_ERROR_CODES.emptyValue }),

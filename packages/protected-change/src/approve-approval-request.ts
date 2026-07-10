@@ -1,7 +1,13 @@
 import type { AuditActorRef } from "@insecur/audit";
 import type { EvaluateHighAssuranceChallengeClearInput } from "@insecur/auth";
 import { evaluateHighAssuranceChallengeClearAssurance } from "@insecur/auth";
-import type { ApprovalRequestId, OrganizationId, RequestId } from "@insecur/domain";
+import type {
+  ApprovalRequestId,
+  EnvironmentId,
+  OrganizationId,
+  ProjectId,
+  RequestId,
+} from "@insecur/domain";
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   TenantApprovalRequestStore,
@@ -21,7 +27,7 @@ import {
   resolveCurrentImpactFingerprint,
 } from "./approval-request-impact-review.js";
 import { loadApprovalRequestForReviewDecision } from "./get-approval-request-review.js";
-import { recordApprovalRequestSuccessAudit } from "./record-approval-request-success-audit.js";
+import { recordApprovalRequestSuccessAuditInTenantScope } from "./record-approval-request-success-audit.js";
 
 export interface ApproveApprovalRequestInput {
   readonly actor: ActorRef;
@@ -37,10 +43,14 @@ async function publishApprovedChangeSet(input: {
   readonly organizationId: OrganizationId;
   readonly approvalRequestId: ApprovalRequestId;
   readonly draftTargets: Awaited<ReturnType<typeof loadDraftTargetsForRequest>>;
+  readonly auditActor: AuditActorRef;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly requestId: RequestId;
 }): Promise<void> {
   await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
-    async ({ db }) => {
+    async ({ db, sql }) => {
       await new TenantSecretVersionStore(db).publishVersions({
         organizationId: input.organizationId,
         targets: input.draftTargets,
@@ -58,6 +68,15 @@ async function publishApprovedChangeSet(input: {
           "approval request is not pending",
         );
       }
+      await recordApprovalRequestSuccessAuditInTenantScope(sql, {
+        action: "request_approved",
+        auditActor: input.auditActor,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        environmentId: input.environmentId,
+        approvalRequestId: input.approvalRequestId,
+        requestId: input.requestId,
+      });
     },
   );
 }
@@ -111,15 +130,9 @@ export async function approveApprovalRequest(input: ApproveApprovalRequestInput)
     organizationId: input.organizationId,
     approvalRequestId: input.approvalRequestId,
     draftTargets,
-  });
-
-  await recordApprovalRequestSuccessAudit({
-    action: "request_approved",
     auditActor: input.auditActor,
-    organizationId: input.organizationId,
     projectId: row.projectId,
     environmentId: row.environmentId,
-    approvalRequestId: input.approvalRequestId,
     requestId: input.requestId,
   });
 

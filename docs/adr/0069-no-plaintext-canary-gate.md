@@ -77,20 +77,15 @@ Implementation note: the gate contract is defined here; the harness lives in
   gates and evidence bundles" ownership in
   [docs/specs/architecture-groups.md](../specs/architecture-groups.md). There is no AG1 interface
   commitment; AG1's store surface is untouched.
-- **Sweep-adapter rule (normative, mechanism deferred).** Surfaces the gate cannot enumerate
-  structurally — R2 export files, Queue payloads, Durable Object state, KV, traces, analytics
-  sinks, local CLI config — must register a checked-in sweep adapter when they land, and the
-  registration list is a review-visible checked-in artifact. The registry mechanism is not built
-  now: zero such surfaces exist today, so it would ship with zero adapters. It is built at the
-  first non-enumerable surface, and a non-enumerable surface landing without an adapter is a
-  review-blocking violation of this rule from that point on.
+- **External-evidence rule.** Surfaces the gate cannot enumerate structurally must register a
+  checked-in evidence requirement when they land. R2 backups, deployed Worker logs, traces, and API
+  analytics are registered now and block `small_group_production` without metadata-only,
+  zero-finding evidence. The provider query/download implementations remain external and missing.
 - **Honest evidence scope.** The gate proves exactly: Postgres columns (including operation
   records and audit rows), in-process captured console output, and serialized First Value HTTP/RPC
-  egress with the `delivery.encodedValueUtf8` allowance above. It does not prove deployed worker
-  logs, which belong to the preview-smoke layer or a future adapter, and it does not prove R2, KV,
-  Durable Objects, Queues, traces, or analytics until their adapters exist. Docs that cite canary
-  evidence must cite `pnpm test:canary` for the enumerated surfaces and mark the rest as pending
-  adapters or preview-layer coverage, never swapping one fictional evidence citation for another.
+  egress with the `delivery.encodedValueUtf8` allowance above. It does not prove deployed Worker
+  logs, R2, traces, or analytics. Those surfaces require separate external sweep evidence, and the
+  release gate fails closed without it. KV, Durable Objects, and Queues are not deployed surfaces.
 
 The existing ad-hoc `not.toContain` assertions in `first-value-loop.e2e.test.ts` stay as
 per-response regression guards. The canary gate generalizes their pattern structurally across
@@ -109,9 +104,10 @@ persistence, logging, and serialized egress rather than replacing them.
   reads the store deliberately cannot provide. An enumeration surface in product code with one
   test consumer also fails the deletion test: it is speculative indirection where a direct
   migration-role connection, the pattern the RLS harness already uses, does the job.
-- **Build the sweep-adapter registry now.** Deferred. R2 exports, Queue payloads, DO state, KV,
-  and local CLI config do not exist yet, so the registry would ship empty. The rule is normative
-  now; the mechanism lands with the first surface that needs it.
+- **Build executable provider sweep adapters now.** Deferred. The release gate now registers R2
+  backups, deployed Worker logs, traces, and API analytics as external evidence requirements and
+  fails closed without zero-finding evidence. Provider-specific query/download implementations
+  still do not exist in this repository; the registry must not be read as a claim that they do.
 - **A new test layer or a new gate variable.** Rejected. ADR-0065's layers answer "where does
   Postgres come from"; the canary gate uses the same Docker Compose Postgres as the rest of the
   integration layer, so it is a fourth command there, and it reuses the proven

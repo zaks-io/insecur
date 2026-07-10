@@ -1,5 +1,6 @@
 # Daily randomized property-test run. Manual dispatch can replay a failing seed.
 name: Fuzz
+# checkov:skip=CKV_GHA_7: Authorized dispatch inputs only tune bounded fuzz tests; this workflow has read-only permissions, no secrets, no deploy, and a five-minute timeout.
 
 on:
   schedule:

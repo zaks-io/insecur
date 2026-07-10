@@ -1,45 +1,28 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 
 import { openBackupArtifact, sealBackupArtifact } from "./backup-envelope.js";
 import { validateBackupEncryptionConfig } from "./backup-encryption-config.js";
-import {
-  BACKUP_EXPORT_FRESHNESS_HOURS,
-  RECOVERY_CANARY_ORGANIZATION_ID,
-  RESTORE_DRILL_RTO_TARGET_SECONDS,
-} from "./constants.js";
-import { computeExportExpiresAt, computeRestoreDrillElapsedSeconds } from "./evaluate-readiness.js";
+import { RECOVERY_CANARY_ORGANIZATION_ID, BACKUP_EXPORT_FRESHNESS_HOURS } from "./constants.js";
 import {
   buildRecoveryCanaryExportRow,
   findRecoveryCanaryRow,
-  recoveryCanaryScope,
   verifyRecoveryCanaryFromCiphertext,
 } from "./recovery-canary.js";
-import type { BackupExportSuccessEvidence, RestoreDrillEvidence } from "./types.js";
+import type { BackupFixtureSelfTestEvidence } from "./types.js";
 import { assertBackupRestoreEvidenceIsMetadataSafe } from "./assert-metadata-safe.js";
 
-export interface RunLocalRestoreDrillInput {
+export interface RunBackupFixtureSelfTestInput {
   evidenceDir: string;
   instanceId?: string;
-  actor?: string;
   rootKeyBytes?: Uint8Array;
-  restoreTargetRef?: string;
   startedAt?: Date;
-  completedAt?: Date;
 }
 
-export interface RunLocalRestoreDrillResult {
-  exportEvidence: BackupExportSuccessEvidence;
-  drillEvidence: RestoreDrillEvidence;
+export interface RunBackupFixtureSelfTestResult {
+  evidence: BackupFixtureSelfTestEvidence;
   artifactPath: string;
-}
-
-function durableDrillRootKey(): Uint8Array {
-  const root = new Uint8Array(32);
-  for (let index = 0; index < root.byteLength; index += 1) {
-    root[index] = (index * 7 + 11) % 256;
-  }
-  return root;
 }
 
 function writeJsonEvidence(path: string, payload: unknown): void {
@@ -48,69 +31,24 @@ function writeJsonEvidence(path: string, payload: unknown): void {
   writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
-function buildDrillEvidence(input: {
-  instanceId: string;
-  actor: string;
-  startedAt: Date;
-  completedAt: Date;
-  exportTimestamp: string;
-  artifactRef: string;
-  encryptionVerified: boolean;
-  canaryStatus: "passed" | "failed";
-  canaryCheckedAt: string;
-  organizationCount: number;
-  rootKeyVersion: number;
-  restoreTargetRef?: string;
-}): { exportEvidence: BackupExportSuccessEvidence; drillEvidence: RestoreDrillEvidence } {
-  const checkedAt = input.completedAt.toISOString();
-  const durationSeconds =
-    computeRestoreDrillElapsedSeconds({
-      started_at: input.startedAt.toISOString(),
-      completed_at: checkedAt,
-    }) ?? 0;
-
-  const exportEvidence: BackupExportSuccessEvidence = {
-    status: input.encryptionVerified ? "passed" : "failed",
-    checked_at: checkedAt,
-    instance_id: input.instanceId,
-    export_timestamp: input.exportTimestamp,
-    root_key_version: input.rootKeyVersion,
-    organization_count: input.organizationCount,
-    artifact_ref: input.artifactRef,
-    encryption_verified: input.encryptionVerified,
-    expires_at: computeExportExpiresAt(input.exportTimestamp),
-  };
-
-  const drillEvidence: RestoreDrillEvidence = {
-    status: input.encryptionVerified && input.canaryStatus === "passed" ? "passed" : "failed",
-    checked_at: checkedAt,
-    actor: input.actor,
-    scope: recoveryCanaryScope(input.instanceId),
-    rto: {
-      started_at: input.startedAt.toISOString(),
-      completed_at: checkedAt,
-      duration_seconds: durationSeconds,
-      target_seconds: RESTORE_DRILL_RTO_TARGET_SECONDS,
-    },
-    canary_verification: {
-      status: input.canaryStatus,
-      checked_at: input.canaryCheckedAt,
-      variable_key: "INSECUR_RECOVERY_CANARY",
-    },
-    encryption_verified: input.encryptionVerified,
-    artifact_ref: input.artifactRef,
-    ...(input.restoreTargetRef ? { restore_target_ref: input.restoreTargetRef } : {}),
-  };
-
-  return { exportEvidence, drillEvidence };
+export async function runBackupFixtureSelfTest(
+  input: RunBackupFixtureSelfTestInput,
+): Promise<RunBackupFixtureSelfTestResult> {
+  const rootKeyBytes = input.rootKeyBytes ?? randomBytes(32);
+  try {
+    return await executeBackupFixtureSelfTest({ ...input, rootKeyBytes });
+  } finally {
+    if (!input.rootKeyBytes) {
+      rootKeyBytes.fill(0);
+    }
+  }
 }
 
-export async function runLocalRestoreDrill(
-  input: RunLocalRestoreDrillInput,
-): Promise<RunLocalRestoreDrillResult> {
-  const instanceId = input.instanceId ?? "inst_local_restore_drill";
-  const actor = input.actor ?? "ci:backup-restore-drill";
-  const rootKeyBytes = input.rootKeyBytes ?? durableDrillRootKey();
+async function executeBackupFixtureSelfTest(
+  input: RunBackupFixtureSelfTestInput & { rootKeyBytes: Uint8Array },
+): Promise<RunBackupFixtureSelfTestResult> {
+  const instanceId = input.instanceId ?? "inst_backup_fixture_self_test";
+  const rootKeyBytes = input.rootKeyBytes;
   const startedAt = input.startedAt ?? new Date();
   const exportTimestamp = startedAt.toISOString();
   const canaryRow = await buildRecoveryCanaryExportRow(rootKeyBytes);
@@ -129,7 +67,7 @@ export async function runLocalRestoreDrill(
   });
 
   const backupDir = join(input.evidenceDir, "backup");
-  const artifactPath = join(backupDir, "latest-export.ibkp");
+  const artifactPath = join(backupDir, "fixture-export.ibkp");
   mkdirSync(backupDir, { recursive: true });
   writeFileSync(artifactPath, sealed);
 
@@ -151,26 +89,21 @@ export async function runLocalRestoreDrill(
     instanceId,
   });
 
-  const artifactRef = "backup/latest-export.ibkp";
-  const { exportEvidence, drillEvidence } = buildDrillEvidence({
-    instanceId,
-    actor,
-    startedAt,
-    completedAt: input.completedAt ?? new Date(),
-    exportTimestamp,
-    artifactRef,
-    encryptionVerified: encryptionCheck.status === "passed",
-    canaryStatus: canaryVerification.status,
-    canaryCheckedAt: canaryVerification.checked_at,
-    organizationCount: opened.header.organization_snapshots.length,
-    rootKeyVersion: opened.header.root_key_version,
-    ...(input.restoreTargetRef ? { restoreTargetRef: input.restoreTargetRef } : {}),
-  });
+  const evidence: BackupFixtureSelfTestEvidence = {
+    status:
+      encryptionCheck.status === "passed" && canaryVerification.status === "passed"
+        ? "passed"
+        : "failed",
+    checked_at: canaryVerification.checked_at,
+    fixture_only: true,
+    encryption_verified: encryptionCheck.status === "passed",
+    canary_verified: canaryVerification.status === "passed",
+    artifact_ref: "backup/fixture-export.ibkp",
+  };
 
-  writeJsonEvidence(join(input.evidenceDir, "backup/export-success.json"), exportEvidence);
-  writeJsonEvidence(join(input.evidenceDir, "backup/restore-drill.json"), drillEvidence);
+  writeJsonEvidence(join(input.evidenceDir, "backup/fixture-self-test.json"), evidence);
 
-  return { exportEvidence, drillEvidence, artifactPath };
+  return { evidence, artifactPath };
 }
 
 export function backupRestoreEvidenceDocs(): string[] {

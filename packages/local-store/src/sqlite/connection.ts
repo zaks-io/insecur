@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { chmodSync, closeSync, constants as fsConstants, mkdirSync, openSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
@@ -86,24 +86,32 @@ function assertCurrentSchemaVersion(database: LocalSqliteDatabase): void {
   }
 }
 
+function preparePrivateDatabaseFile(databaseFilePath: string): void {
+  const directory = path.dirname(databaseFilePath);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  chmodSync(directory, 0o700);
+  closeSync(openSync(databaseFilePath, fsConstants.O_CREAT | fsConstants.O_RDWR, 0o600));
+  chmodSync(databaseFilePath, 0o600);
+}
+
+function initializeLocalStoreSchema(database: LocalSqliteDatabase): void {
+  database.exec("PRAGMA foreign_keys = ON");
+  const existingVersion = readPersistedSchemaVersion(database);
+  if (existingVersion !== null && existingVersion !== LOCAL_STORE_SCHEMA_VERSION) {
+    throw new Error("unsupported local store schema version");
+  }
+  database.exec(LOCAL_STORE_SCHEMA_SQL);
+  database
+    .prepare("INSERT OR IGNORE INTO local_store_meta (key, value) VALUES (?, ?)")
+    .run("schema_version", String(LOCAL_STORE_SCHEMA_VERSION));
+  assertCurrentSchemaVersion(database);
+}
+
 export function openLocalSqliteDatabase(databaseFilePath: string): LocalSqliteDatabase {
-  mkdirSync(path.dirname(databaseFilePath), { recursive: true });
+  preparePrivateDatabaseFile(databaseFilePath);
   const database = openRuntimeSqliteDatabase(databaseFilePath);
   try {
-    database.exec("PRAGMA foreign_keys = ON");
-
-    const existingVersion = readPersistedSchemaVersion(database);
-    if (existingVersion !== null && existingVersion !== LOCAL_STORE_SCHEMA_VERSION) {
-      throw new Error("unsupported local store schema version");
-    }
-
-    database.exec(LOCAL_STORE_SCHEMA_SQL);
-
-    database
-      .prepare("INSERT OR IGNORE INTO local_store_meta (key, value) VALUES (?, ?)")
-      .run("schema_version", String(LOCAL_STORE_SCHEMA_VERSION));
-    assertCurrentSchemaVersion(database);
-
+    initializeLocalStoreSchema(database);
     return database;
   } catch (error) {
     database.close();

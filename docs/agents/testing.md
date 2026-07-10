@@ -179,9 +179,11 @@ fresh high-entropy sentinel, then sweeps every `public` schema column from live
 `information_schema` (migration-role connection), captured in-process console output, and
 serialized First Value HTTP/RPC egress for raw, base64, base64url, and hex encodings. On egress,
 base64url is permitted only at JSON paths ending in `delivery.encodedValueUtf8` (the designed
-grant-consume delivery field); any other encoding or path fails. Deployed worker logs, R2, KV,
-Queues, Durable Objects, traces, and analytics are not swept until their sweep adapters land (see
-sweep-adapter rule below). The Plaintext Metadata Allowlist conformance gate
+grant-consume delivery field); any other encoding or path fails. Deployed Worker logs, scheduled
+R2 backups, traces, and API analytics are registered as external evidence requirements in
+`@insecur/release-gate`; `small_group_production` fails closed until their external zero-finding
+sweep evidence is supplied. Their provider query/download implementations do not yet exist in this
+repository. KV, Queues, and Durable Objects are not deployed surfaces today. The Plaintext Metadata Allowlist conformance gate
 ([ADR-0070](../adr/0070-plaintext-metadata-allowlist-registry-and-conformance-gate.md)) runs in
 the unit layer via `packages/tenant-store/test/plaintext-metadata-conformance.test.ts` inside
 `pnpm verify`, and in the integration layer via
@@ -215,9 +217,8 @@ CI runs the same path via `postgres-integration-tests.mjs` after every compose r
 
 ### Sweep-adapter rule (ADR-0069)
 
-Surfaces the canary gate cannot enumerate structurally — R2 export files, Queue payloads,
-Durable Object state, KV, traces, analytics sinks, local CLI config — must register a checked-in
-sweep adapter when they land. A non-enumerable surface landing without an adapter is a
-review-blocking violation from that point on. The registry mechanism is built with the first
-such surface; today the gate sweeps Postgres columns, in-process console output, and serialized
-First Value HTTP/RPC egress (with the `delivery.encodedValueUtf8` allowance above).
+Surfaces the canary gate cannot enumerate structurally must register a checked-in evidence
+requirement when they land. The release-gate registry covers the deployed R2 backup, Worker log,
+Worker trace, and API analytics surfaces and blocks without their evidence. These entries do not
+pretend to execute the missing provider-specific sweeps. The in-repo canary gate sweeps Postgres
+columns, in-process console output, and serialized First Value HTTP/RPC egress.
