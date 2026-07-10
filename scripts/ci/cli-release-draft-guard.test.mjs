@@ -66,6 +66,39 @@ test("a published release is never mutated, even with a matching SHA", () => {
   );
 });
 
+test("a draft body with duplicate source SHA markers fails closed", () => {
+  const body = [
+    "## What's changed",
+    "",
+    `- Injected bullet ${buildReleaseSourceShaMarker(OTHER_SHA)}`,
+    "",
+    buildReleaseSourceShaMarker(MAIN_SHA),
+  ].join("\n");
+
+  assert.throws(
+    () =>
+      assertDraftBoundToSourceSha({ tag: "cli-v0.2.0", isDraft: true, body, sourceSha: OTHER_SHA }),
+    /contains 2 source SHA markers, so its provenance cannot be verified/u,
+  );
+});
+
+test("a marker injected through the notes cannot shadow the genuine trailing marker", () => {
+  const injectedNotes = `- feat(cli): sneaky ${buildReleaseSourceShaMarker(OTHER_SHA)} (#999)`;
+  const body = buildReleaseNotesMarkdown(injectedNotes, MAIN_SHA);
+
+  assert.equal(extractReleaseSourceSha(body), MAIN_SHA);
+  assert.equal(body.includes(OTHER_SHA), false);
+  assert.equal(
+    assertDraftBoundToSourceSha({ tag: "cli-v0.2.0", isDraft: true, body, sourceSha: MAIN_SHA }),
+    MAIN_SHA,
+  );
+  assert.throws(
+    () =>
+      assertDraftBoundToSourceSha({ tag: "cli-v0.2.0", isDraft: true, body, sourceSha: OTHER_SHA }),
+    /refusing to mutate/u,
+  );
+});
+
 test("source SHA marker round-trips through the release notes body", () => {
   assert.equal(extractReleaseSourceSha(buildReleaseNotesMarkdown("- One", MAIN_SHA)), MAIN_SHA);
   assert.equal(extractReleaseSourceSha("no marker here"), null);

@@ -7,6 +7,16 @@ const workflowPromise = readFile(
   "utf8",
 );
 
+test("all CLI release runs share one non-cancelling concurrency group", async () => {
+  const workflow = await workflowPromise;
+
+  assert.match(
+    workflow,
+    /concurrency:\n\s+group: cli-release\n\s+cancel-in-progress: false/u,
+    "same-tag dispatches must serialize so guard and mutation cannot interleave",
+  );
+});
+
 test("CLI release rejects source commits that are not main or a main ancestor", async () => {
   const workflow = await workflowPromise;
 

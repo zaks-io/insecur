@@ -6,8 +6,11 @@ on:
 permissions:
   contents: read
 
+# A single static group serializes all CLI release runs: the same-version draft
+# guard checks then mutates, and two concurrent dispatches sharing a tag must
+# not interleave between those steps.
 concurrency:
-  group: cli-release-${{ github.sha }}
+  group: cli-release
   cancel-in-progress: false
 
 jobs:
