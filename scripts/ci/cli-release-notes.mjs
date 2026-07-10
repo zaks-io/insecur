@@ -6,6 +6,7 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
+  assertFullCommitSha,
   buildReleaseNotesMarkdown,
   CLI_RELEASE_PATHS,
   DEFAULT_ANTHROPIC_MODEL,
@@ -13,33 +14,17 @@ import {
   parseGitLog,
 } from "./cli-release-notes-lib.mjs";
 import { execFileForOutput } from "./exec-file-output.mjs";
+import { parseFlagArgs } from "./parse-flag-args.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 export function parseArgs(argv) {
-  const args = { output: "dist-binaries/RELEASE_NOTES.md" };
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    const value = argv[index + 1];
-    if (arg === "--tag" && value) {
-      args.tag = value;
-      index += 1;
-    } else if (arg === "--release-sha" && value) {
-      args.releaseSha = value;
-      index += 1;
-    } else if (arg === "--output" && value) {
-      args.output = value;
-      index += 1;
-    } else {
-      throw new Error(`Unknown or incomplete argument: ${arg}`);
-    }
-  }
-  if (!args.tag) {
-    throw new Error("--tag is required");
-  }
-  if (!args.releaseSha) {
-    throw new Error("--release-sha is required");
-  }
+  const args = parseFlagArgs(argv, {
+    flags: { "--tag": "tag", "--release-sha": "releaseSha", "--output": "output" },
+    defaults: { output: "dist-binaries/RELEASE_NOTES.md" },
+    required: ["tag", "releaseSha"],
+  });
+  assertFullCommitSha(args.releaseSha);
   return args;
 }
 
@@ -103,7 +88,7 @@ async function main() {
 
   const outputPath = path.resolve(REPO_ROOT, args.output);
   await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, buildReleaseNotesMarkdown(result.notes), "utf8");
+  await writeFile(outputPath, buildReleaseNotesMarkdown(result.notes, args.releaseSha), "utf8");
 }
 
 function logGenerationSource(source) {

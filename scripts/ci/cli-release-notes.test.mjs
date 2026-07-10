@@ -160,11 +160,14 @@ test("configured Anthropic key returns validated model bullets", async () => {
   assert.equal(result.notes, "- Added clearer `insecur run` status output.");
 });
 
-test("release notes builder preserves the release heading and artifact footer", () => {
-  const markdown = buildReleaseNotesMarkdown("- Added clearer status output.");
+test("release notes builder preserves the heading, footer, and source SHA marker", () => {
+  const sourceSha = "0123456789abcdef0123456789abcdef01234567";
+  const markdown = buildReleaseNotesMarkdown("- Added clearer status output.", sourceSha);
 
   assert.match(markdown, /^## What's changed/u);
   assert.match(markdown, /Standalone CLI binaries/u);
+  assert.match(markdown, new RegExp(`<!-- insecur-cli-release-source-sha: ${sourceSha} -->`, "u"));
+  assert.throws(() => buildReleaseNotesMarkdown("- One", "not-a-sha"), /full 40-character/u);
 });
 
 test("model notes validator accepts bullets only", () => {

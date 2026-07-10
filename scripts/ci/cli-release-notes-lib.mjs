@@ -12,6 +12,9 @@ const MAX_MODEL_BULLETS = 8;
 const MAX_FALLBACK_BULLETS = 12;
 const MAX_ERROR_BODY_LENGTH = 800;
 
+const RELEASE_SOURCE_SHA_MARKER_PATTERN =
+  /<!-- insecur-cli-release-source-sha: (?<sha>[0-9a-f]{40}) -->/u;
+
 export const RELEASE_NOTES_FOOTER =
   "Standalone CLI binaries built with `bun build --compile`. macOS codesign and notarization run when Apple signing secrets are configured. GitHub build-provenance attestations and SLSA provenance sidecars (`*.intoto.jsonl`) are attached when repository visibility and organization billing support GitHub artifact attestations. A CycloneDX SBOM of the bundled CLI (`insecur-cli.sbom.cdx.json`), blocking grype scan report (`insecur-cli.grype.json`), scanner database metadata (`scan-metadata.json`), and repo security attestation bundle (`repo-security-attestation.tgz`) are attached. Draft release: review and publish manually. Verify downloads against `SHA256SUMS`.";
 
@@ -233,8 +236,25 @@ export function validateModelNotes(notes) {
   }
 }
 
-export function buildReleaseNotesMarkdown(notes) {
-  return `## What's changed\n\n${notes.trim()}\n\n${RELEASE_NOTES_FOOTER}\n`;
+export function buildReleaseNotesMarkdown(notes, sourceSha) {
+  return `## What's changed\n\n${notes.trim()}\n\n${RELEASE_NOTES_FOOTER}\n\n${buildReleaseSourceShaMarker(sourceSha)}\n`;
+}
+
+export function buildReleaseSourceShaMarker(sourceSha) {
+  return `<!-- insecur-cli-release-source-sha: ${assertFullCommitSha(sourceSha)} -->`;
+}
+
+export function extractReleaseSourceSha(body) {
+  return String(body ?? "").match(RELEASE_SOURCE_SHA_MARKER_PATTERN)?.groups?.sha ?? null;
+}
+
+export function assertFullCommitSha(sourceSha) {
+  if (!/^[0-9a-f]{40}$/u.test(String(sourceSha ?? ""))) {
+    throw new Error(
+      `Release source SHA must be a full 40-character commit SHA, got '${String(sourceSha)}'.`,
+    );
+  }
+  return sourceSha;
 }
 
 function parsePullRequestNumber(subject) {

@@ -28,6 +28,21 @@ jobs:
           SOURCE_SHA: ${{ github.sha }}
         run: echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
 
+      - name: Require the release source to be main or a main ancestor
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          status="$(gh api "repos/$REPO/compare/main...$SOURCE_SHA" --jq '.status')"
+          if [ "$status" != "identical" ] && [ "$status" != "behind" ]; then
+            echo "::error::CLI release requires a source commit on main; $SOURCE_SHA compares to main as '$status'. Dispatch CLI Release from main."
+            exit 1
+          fi
+          echo "Source $SOURCE_SHA is on main (compare status: $status)."
+
       - name: Require successful CI for manual release dispatch
         if: github.event_name == 'workflow_dispatch'
         shell: bash
@@ -102,6 +117,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.verify-source-ci.outputs.source_sha }}
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./packages/cli/package.json').version")"
@@ -118,6 +134,7 @@ jobs:
               echo "::notice::Skipping CLI release: $TAG is already published. Bump packages/cli/package.json before preparing a new draft release."
               exit 0
             fi
+            node scripts/ci/cli-release-draft-guard.mjs --tag "$TAG" --source-sha "$SOURCE_SHA"
             echo "should_run=true" >> "$GITHUB_OUTPUT"
             echo "Manual dispatch: updating existing draft release $TAG."
             exit 0
@@ -569,6 +586,7 @@ jobs:
               echo "::notice::Release $TAG is already published; skipping draft update to avoid mutating published assets. Bump packages/cli/package.json to prepare a new release."
               exit 0
             fi
+            node scripts/ci/cli-release-draft-guard.mjs --tag "$TAG" --source-sha "$RELEASE_SHA"
             gh release edit "$TAG" \
               --draft \
               --target "$RELEASE_SHA" \
