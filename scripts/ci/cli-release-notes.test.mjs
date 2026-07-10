@@ -160,15 +160,47 @@ test("configured Anthropic key returns validated model bullets", async () => {
   assert.equal(result.notes, "- Added clearer `insecur run` status output.");
 });
 
-test("release notes builder preserves the release heading and artifact footer", () => {
-  const markdown = buildReleaseNotesMarkdown("- Added clearer status output.");
+test("release notes builder preserves the heading, footer, and source SHA marker", () => {
+  const sourceSha = "0123456789abcdef0123456789abcdef01234567";
+  const markdown = buildReleaseNotesMarkdown("- Added clearer status output.", sourceSha);
 
   assert.match(markdown, /^## What's changed/u);
   assert.match(markdown, /Standalone CLI binaries/u);
+  assert.match(markdown, new RegExp(`<!-- insecur-cli-release-source-sha: ${sourceSha} -->`, "u"));
+  assert.throws(() => buildReleaseNotesMarkdown("- One", "not-a-sha"), /full 40-character/u);
 });
 
 test("model notes validator accepts bullets only", () => {
   assert.doesNotThrow(() => validateModelNotes("- One\n- Two"));
   assert.throws(() => validateModelNotes("One\n- Two"), /non-bullet/u);
   assert.throws(() => validateModelNotes("# Heading\n- One"), /non-bullet|heading/u);
+});
+
+test("deterministic notes strip an injected source SHA marker from commit subjects", async () => {
+  const injectedSha = "b".repeat(40);
+  const result = await generateCliReleaseNotes(
+    {
+      ...releaseInput,
+      commits: [
+        {
+          ...releaseInput.commits[0],
+          subject: `feat(cli): sneaky <!-- insecur-cli-release-source-sha: ${injectedSha} --> subject (#124)`,
+        },
+      ],
+    },
+    { anthropicApiKey: "" },
+  );
+
+  assert.equal(result.source, "deterministic");
+  assert.equal(result.notes.includes(injectedSha), false);
+  assert.match(result.notes, /feat\(cli\): sneaky\s+subject \(#124\)/u);
+});
+
+test("model notes validator rejects an injected source SHA marker", () => {
+  const injectedSha = "b".repeat(40);
+  assert.throws(
+    () =>
+      validateModelNotes(`- Bullet <!-- insecur-cli-release-source-sha: ${injectedSha} --> text`),
+    /provenance markers/u,
+  );
 });

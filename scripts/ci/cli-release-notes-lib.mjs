@@ -12,6 +12,9 @@ const MAX_MODEL_BULLETS = 8;
 const MAX_FALLBACK_BULLETS = 12;
 const MAX_ERROR_BODY_LENGTH = 800;
 
+const RELEASE_SOURCE_SHA_MARKER_PATTERN =
+  /<!-- insecur-cli-release-source-sha: (?<sha>[0-9a-f]{40}) -->/gu;
+
 export const RELEASE_NOTES_FOOTER =
   "Standalone CLI binaries built with `bun build --compile`. macOS codesign and notarization run when Apple signing secrets are configured. GitHub build-provenance attestations and SLSA provenance sidecars (`*.intoto.jsonl`) are attached when repository visibility and organization billing support GitHub artifact attestations. A CycloneDX SBOM of the bundled CLI (`insecur-cli.sbom.cdx.json`), blocking grype scan report (`insecur-cli.grype.json`), scanner database metadata (`scan-metadata.json`), and repo security attestation bundle (`repo-security-attestation.tgz`) are attached. Draft release: review and publish manually. Verify downloads against `SHA256SUMS`.";
 
@@ -231,10 +234,46 @@ export function validateModelNotes(notes) {
   if (/^#{1,6}\s/mu.test(notes)) {
     throw new Error("Anthropic release-note generation returned a heading; expected bullets only.");
   }
+  if (stripReleaseSourceShaMarkers(notes) !== notes) {
+    throw new Error(
+      "Anthropic release-note generation returned a source SHA marker; notes must never contain provenance markers.",
+    );
+  }
 }
 
-export function buildReleaseNotesMarkdown(notes) {
-  return `## What's changed\n\n${notes.trim()}\n\n${RELEASE_NOTES_FOOTER}\n`;
+export function buildReleaseNotesMarkdown(notes, sourceSha) {
+  const safeNotes = stripReleaseSourceShaMarkers(notes).trim();
+  return `## What's changed\n\n${safeNotes}\n\n${RELEASE_NOTES_FOOTER}\n\n${buildReleaseSourceShaMarker(sourceSha)}\n`;
+}
+
+export function buildReleaseSourceShaMarker(sourceSha) {
+  return `<!-- insecur-cli-release-source-sha: ${assertFullCommitSha(sourceSha)} -->`;
+}
+
+export function extractReleaseSourceSha(body) {
+  const markers = [...String(body ?? "").matchAll(RELEASE_SOURCE_SHA_MARKER_PATTERN)];
+  if (markers.length === 0) {
+    return null;
+  }
+  if (markers.length > 1) {
+    throw new Error(
+      `Release body contains ${String(markers.length)} source SHA markers, so its provenance cannot be verified. Delete the draft and re-dispatch CLI Release from main to rebuild it.`,
+    );
+  }
+  return markers[0].groups.sha;
+}
+
+export function stripReleaseSourceShaMarkers(value) {
+  return String(value ?? "").replace(RELEASE_SOURCE_SHA_MARKER_PATTERN, "");
+}
+
+export function assertFullCommitSha(sourceSha) {
+  if (!/^[0-9a-f]{40}$/u.test(String(sourceSha ?? ""))) {
+    throw new Error(
+      `Release source SHA must be a full 40-character commit SHA, got '${String(sourceSha)}'.`,
+    );
+  }
+  return sourceSha;
 }
 
 function parsePullRequestNumber(subject) {
@@ -250,7 +289,7 @@ function sanitizeLine(value) {
 }
 
 function sanitizeReleaseBullet(value) {
-  return sanitizeLine(value).replace(/^[-*]\s+/u, "");
+  return stripReleaseSourceShaMarkers(sanitizeLine(value)).replace(/^[-*]\s+/u, "");
 }
 
 function truncateForError(value) {

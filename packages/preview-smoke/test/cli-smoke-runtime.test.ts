@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { KNOWN_HARNESS_MARKERS } from "../../agent-attribution/src/harness-markers";
+import {
+  INSECURE_FILE_KEY_STORE_ENV,
+  resolveKeyStoreBackend,
+} from "../../local-store/src/resolve-backend";
 import { AGENT_HARNESS_MARKER_ENV_KEYS, buildCliChildEnv } from "../src/cli-smoke-runtime";
 
 const MUTATED_ENV_KEYS = [
@@ -60,6 +64,16 @@ describe("preview CLI child environment", () => {
     expect(env.INSECUR_CONFIG_HOME).toBe("/tmp/smoke-home");
     expect(env.INSECUR_SESSION_TOKEN).toBe("");
     expect(env.INSECUR_AGENT_CREDENTIAL_FILE).toBe("/tmp/smoke-agent");
+  });
+
+  it("gives the CLI child a keystore backend on a headless Linux runner", () => {
+    // `agent env` seals the derived credential with a machine root key; without a Secret
+    // Service session the CLI exits 7 (INS-594). The child env must opt in to the
+    // file-fallback keystore, scoped to the disposable INSECUR_CONFIG_HOME.
+    const env = buildCliChildEnv("/tmp/smoke-home", "smoke-token");
+
+    expect(env[INSECURE_FILE_KEY_STORE_ENV]).toBe("1");
+    expect(resolveKeyStoreBackend("linux", { ...env, PATH: "/nonexistent" })).toBe("file-fallback");
   });
 
   it("allows explicit marker re-injection through extraEnv", () => {

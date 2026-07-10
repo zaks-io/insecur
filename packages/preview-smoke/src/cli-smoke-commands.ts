@@ -21,7 +21,6 @@ export function buildCliSecretsSetValueStdinArgs(
   return [
     "secrets",
     "set",
-    "--variable-key",
     variableKey,
     "--value-stdin",
     ...(input.allowEmpty === true ? ["--allow-empty"] : []),
@@ -35,7 +34,6 @@ export function buildCliSecretsSetGenerateArgs(input: {
   return [
     "secrets",
     "set",
-    "--variable-key",
     input.variableKey,
     "--generate",
     "random",
