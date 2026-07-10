@@ -5,6 +5,7 @@ import type { SiteEnv } from "./env.js";
 import { tryStaticSiteResponse } from "./static-site-routes.js";
 
 const AUDIT_SIGNING_KEYS_PATH = "/.well-known/insecur/audit-export-signing-keys.json";
+const SECURITY_TXT_PATH = "/.well-known/security.txt";
 const PUBLIC_KEY = "uyf4yAw8SnsMpN9tVr5glKfg0TFwss_hvYPyqt-Soos";
 
 function siteEnv(overrides: Partial<SiteEnv> = {}): SiteEnv {
@@ -61,6 +62,29 @@ describe("audit-export signing-keys route", () => {
     const response = requireResponse(
       tryStaticSiteResponse(AUDIT_SIGNING_KEYS_PATH, "HEAD", siteEnv()),
     );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("");
+  });
+});
+
+describe("security.txt route", () => {
+  it("directs vulnerability reports to GitHub private vulnerability reporting", async () => {
+    const response = requireResponse(tryStaticSiteResponse(SECURITY_TXT_PATH, "GET", siteEnv()));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    expect(await response.text()).toBe(
+      `Contact: https://github.com/zaks-io/insecur/security/advisories/new
+Expires: 2027-07-09T00:00:00Z
+Preferred-Languages: en
+Canonical: https://insecur.cloud/.well-known/security.txt
+`,
+    );
+  });
+
+  it("serves HEAD with no body", async () => {
+    const response = requireResponse(tryStaticSiteResponse(SECURITY_TXT_PATH, "HEAD", siteEnv()));
 
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("");
