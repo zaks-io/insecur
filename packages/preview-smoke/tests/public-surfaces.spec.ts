@@ -100,12 +100,10 @@ test.describe("preview public surfaces @preview", () => {
     const text = await response.text();
 
     assertStatus(response, 200, "Site install.sh", { bodyText: text.slice(0, 200) });
-    assertHeaderEquals(
-      response,
-      "content-type",
-      "text/x-shellscript; charset=utf-8",
-      "Site install.sh",
-    );
+    // text/plain by design (INS-556): the docs installation page links the script for in-browser
+    // reading, and nosniff makes browsers download unrecognized script types. Pinned in
+    // apps/site/src/install-scripts.test.ts; change both together.
+    assertHeaderEquals(response, "content-type", "text/plain; charset=utf-8", "Site install.sh");
     assertHeaderEquals(response, "x-frame-options", "DENY", "Site install.sh");
     assertTextIncludes(text, "#!/bin/sh", "Site install.sh");
     assertTextIncludes(text, 'REPO="zaks-io/insecur"', "Site install.sh");

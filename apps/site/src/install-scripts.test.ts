@@ -90,6 +90,15 @@ describe("INSTALL_PS1", () => {
   });
 });
 
+describe("install script content types", () => {
+  // packages/preview-smoke/tests/public-surfaces.spec.ts asserts these exact literals against the
+  // deployed Worker; changing a constant here without the smoke spec fails preview (INS-595).
+  it("serve both installers as text/plain for in-browser reading", () => {
+    expect(INSTALL_SH_CONTENT_TYPE).toBe("text/plain; charset=utf-8");
+    expect(INSTALL_PS1_CONTENT_TYPE).toBe("text/plain; charset=utf-8");
+  });
+});
+
 describe("installScriptResponse", () => {
   it("serves GET with body, content type, cache, and the site security headers", async () => {
     const response = installScriptResponse(INSTALL_SH, INSTALL_SH_CONTENT_TYPE, "GET");
