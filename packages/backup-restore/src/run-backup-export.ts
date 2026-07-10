@@ -44,20 +44,18 @@ export interface RunBackupExportResult {
   exportEvidence?: BackupExportSuccessEvidence;
 }
 
-async function buildBackupJsonlPayload(
-  organizationIds: readonly string[],
-  snapshotAt: string,
-): Promise<{
+async function buildBackupJsonlPayload(organizationIds: readonly string[]): Promise<{
   jsonlPayload: Uint8Array;
+  instanceSnapshotAt: string;
   organizationSnapshots: BackupExportOrganizationSnapshot[];
 }> {
-  const lines = await buildInstanceScopeJsonlLines();
+  const instanceScope = await buildInstanceScopeJsonlLines();
+  const lines = instanceScope.lines;
   const organizationSnapshots: BackupExportOrganizationSnapshot[] = [];
 
   for (const organizationIdValue of organizationIds) {
     const scoped = await buildOrganizationScopeJsonlLines(
       brandOrganizationId.brand(organizationIdValue),
-      snapshotAt,
     );
     lines.push(...scoped.lines);
     organizationSnapshots.push(scoped.snapshot);
@@ -65,6 +63,7 @@ async function buildBackupJsonlPayload(
 
   return {
     jsonlPayload: concatJsonlLines(lines),
+    instanceSnapshotAt: instanceScope.snapshotAt,
     organizationSnapshots,
   };
 }
@@ -92,6 +91,7 @@ async function recordBackupExportAuditEvent(input: {
 async function sealAndStoreBackupArtifact(input: {
   instanceId: string;
   exportTimestamp: string;
+  instanceSnapshotAt: string;
   rootKeyBytes: Uint8Array;
   rootKeyVersion: number;
   organizationSnapshots: BackupExportOrganizationSnapshot[];
@@ -102,6 +102,7 @@ async function sealAndStoreBackupArtifact(input: {
   const sealedArtifact = await sealBackupArtifact({
     instanceId: input.instanceId,
     exportTimestamp: input.exportTimestamp,
+    instanceSnapshotAt: input.instanceSnapshotAt,
     rootKeyBytes: input.rootKeyBytes,
     rootKeyVersion: input.rootKeyVersion,
     jsonlPayload: input.jsonlPayload,
@@ -174,14 +175,13 @@ async function executeBackupExport(input: {
   const instanceId = await resolveExportInstanceId(input.instanceId);
   const exportTimestamp = input.scheduledAt.toISOString();
   const organizationIds = await enumerateOrganizationIds();
-  const { jsonlPayload, organizationSnapshots } = await buildBackupJsonlPayload(
-    organizationIds,
-    exportTimestamp,
-  );
+  const { jsonlPayload, instanceSnapshotAt, organizationSnapshots } =
+    await buildBackupJsonlPayload(organizationIds);
 
   const exportEvidence = await sealAndStoreBackupArtifact({
     instanceId,
     exportTimestamp,
+    instanceSnapshotAt,
     rootKeyBytes: input.rootKeyBytes,
     rootKeyVersion: input.rootKeyVersion,
     organizationSnapshots,

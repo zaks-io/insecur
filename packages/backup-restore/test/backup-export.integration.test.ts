@@ -6,6 +6,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   BACKUP_EXPORT_FRESHNESS_HOURS,
   BACKUP_LATEST_EXPORT_ARTIFACT_KEY,
+  buildOrganizationScopeJsonlLines,
+  concatJsonlLines,
   MemoryBackupExportStorage,
   RECOVERY_CANARY_ORGANIZATION_ID,
   evaluateExportFreshnessEvidence,
@@ -19,9 +21,11 @@ import {
   TEST_INSTANCE_ID,
   TEST_ORG_A_ID,
   TEST_ORG_B_ID,
+  TEST_PROJECT_A_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
 
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
+const SNAPSHOT_TEST_ENVIRONMENT_ID = "env_00000000000000000000000099";
 
 function durableRootKey(): Uint8Array {
   const root = new Uint8Array(32);
@@ -56,6 +60,15 @@ async function assertRuntimeDatabaseRole(): Promise<void> {
     expect(rows[0]?.bypasses_rls).toBe(false);
     expect(String(rows[0]?.role_name)).toContain("runtime");
   });
+}
+
+async function deleteSnapshotTestEnvironment(): Promise<void> {
+  await withTenantScope(
+    { kind: "organization", organizationId: organizationId.brand(TEST_ORG_A_ID) },
+    async ({ sql }) => {
+      await sql`DELETE FROM environments WHERE id = ${SNAPSHOT_TEST_ENVIRONMENT_ID}`;
+    },
+  );
 }
 
 function rowsForOrganization(
@@ -112,6 +125,13 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
       sealedBytes: artifact as Uint8Array,
     });
     const rows = parseBackupJsonlPayload(opened.jsonlPayload);
+    expect(opened.header.instance_snapshot_at).not.toBe(scheduledAt.toISOString());
+    expect(Number.isNaN(Date.parse(opened.header.instance_snapshot_at))).toBe(false);
+    const organizationSnapshot = opened.header.organization_snapshots.find(
+      (snapshot) => snapshot.organization_id === TEST_ORG_A_ID,
+    );
+    expect(organizationSnapshot?.snapshot_at).not.toBe(scheduledAt.toISOString());
+    expect(Number.isNaN(Date.parse(organizationSnapshot?.snapshot_at ?? ""))).toBe(false);
     expect(rowsForOrganization(rows, TEST_ORG_A_ID).length).toBeGreaterThan(0);
     expect(rowsForOrganization(rows, TEST_ORG_B_ID).length).toBeGreaterThan(0);
 
@@ -130,6 +150,54 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
     );
     const stale = evaluateExportFreshnessEvidence(first.exportEvidence ?? null, staleAt);
     expect(stale.status).toBe("blocked");
+  });
+
+  it("keeps an organization export on one database snapshot across concurrent writes", async () => {
+    const organization = organizationId.brand(TEST_ORG_A_ID);
+    let concurrentWriteCommitted = false;
+
+    await deleteSnapshotTestEnvironment();
+    try {
+      const exported = await buildOrganizationScopeJsonlLines(organization, {
+        afterTableRead: async (tableName) => {
+          if (tableName !== "organizations") {
+            return;
+          }
+          await withTenantScope(
+            { kind: "organization", organizationId: organization },
+            async ({ sql }) => {
+              await sql`
+              INSERT INTO environments (
+                id,
+                org_id,
+                project_id,
+                display_name,
+                is_protected,
+                lifecycle_stage
+              )
+              VALUES (
+                ${SNAPSHOT_TEST_ENVIRONMENT_ID},
+                ${TEST_ORG_A_ID},
+                ${TEST_PROJECT_A_ID},
+                ${"Snapshot consistency test environment"},
+                false,
+                ${"development"}
+              )
+            `;
+            },
+          );
+          concurrentWriteCommitted = true;
+        },
+      });
+
+      const rows = parseBackupJsonlPayload(concatJsonlLines(exported.lines));
+      expect(concurrentWriteCommitted).toBe(true);
+      expect(
+        rows.some((row) => row.table === "environments" && row.id === SNAPSHOT_TEST_ENVIRONMENT_ID),
+      ).toBe(false);
+    } finally {
+      await deleteSnapshotTestEnvironment();
+    }
   });
 
   it("starts a new Operation per scheduled run and replays duplicate cron idempotently", async () => {

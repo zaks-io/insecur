@@ -8,6 +8,7 @@ function failedHeaderChecks(header: BackupExportHeader): HeaderFieldCheck[] {
     [header.format_marker !== BACKUP_EXPORT_FORMAT_MARKER, "format_marker"],
     [!header.instance_id, "instance_id"],
     [!header.export_timestamp, "export_timestamp"],
+    [!header.instance_snapshot_at, "instance_snapshot_at"],
     [
       typeof header.root_key_version !== "number" || header.root_key_version < 1,
       "root_key_version",
