@@ -24,8 +24,11 @@ import {
   BACKUP_RESTORE_ERROR_CODES,
   MemoryBackupExportStorage,
   RECOVERY_CANARY_ORGANIZATION_ID,
+  openBackupArtifact,
+  parseBackupJsonlPayload,
   runBackupExport,
   runRestoreImport,
+  type BackupExportRow,
   type BackupExportSuccessEvidence,
 } from "../src/index.js";
 
@@ -230,18 +233,37 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
       throw new Error("backup export fixture must produce evidence");
     }
     exportEvidence = exported.exportEvidence;
+
+    // Expectations derive from the sealed artifact itself, not a later live-DB read: other suites
+    // sharing this Postgres may mutate the baseline tenants between export and assertion.
+    const sealed = storage.objects.get(exportEvidence.artifact_ref);
+    if (!(sealed instanceof Uint8Array)) {
+      throw new Error("exported artifact bytes missing from fixture storage");
+    }
+    const opened = await openBackupArtifact({
+      instanceId: TEST_INSTANCE_ID,
+      rootKeyBytes,
+      sealedBytes: sealed,
+    });
+    const artifactRows = parseBackupJsonlPayload(opened.jsonlPayload);
+    const secretsFor = (orgId: string) =>
+      artifactRows.filter((row) => row.table === "secrets" && row.organization_id === orgId).length;
     sourceCounts = {
-      organizations: await countRowsInScope({ kind: "service" }, "organizations"),
-      orgASecrets: await countRowsInScope(
-        { kind: "organization", organizationId: TEST_ORG_A_ID },
-        "secrets",
+      organizations: artifactRows.filter((row) => row.table === "organizations").length,
+      orgASecrets: secretsFor(TEST_ORG_A_ID),
+      orgBSecrets: secretsFor(TEST_ORG_B_ID),
+      orgAVersions: new Map(
+        artifactRows
+          .filter(
+            (row): row is BackupExportRow & { id: string; ciphertext_storage_ref: string } =>
+              row.table === "secret_versions" &&
+              row.organization_id === TEST_ORG_A_ID &&
+              typeof row.id === "string" &&
+              typeof row.ciphertext_storage_ref === "string",
+          )
+          .map((row) => [row.id, row.ciphertext_storage_ref]),
       ),
-      orgBSecrets: await countRowsInScope(
-        { kind: "organization", organizationId: TEST_ORG_B_ID },
-        "secrets",
-      ),
-      orgAVersions: await secretVersionCiphertexts(TEST_ORG_A_ID),
-      userAdmissions: await countRowsInScope({ kind: "service" }, "user_admissions"),
+      userAdmissions: artifactRows.filter((row) => row.table === "user_admissions").length,
     };
   }, 120_000);
 
