@@ -142,4 +142,11 @@ describe("toRuntimeRpcError", () => {
     expect(mapped.retryable).toBe(false);
     expect(mapped.message).toBe(RUNTIME_RPC_GENERIC_MESSAGE);
   });
+
+  it("keeps 08007 (COMMIT fate unknown) non-retryable so clients cannot double-apply a write", () => {
+    const mapped = toRuntimeRpcError(Object.assign(new Error(SENTINEL), { code: "08007" }));
+    expect(mapped.code).toBe("08007");
+    expect(mapped.retryable).toBe(false);
+    expect(mapped.message).toBe(RUNTIME_RPC_GENERIC_MESSAGE);
+  });
 });

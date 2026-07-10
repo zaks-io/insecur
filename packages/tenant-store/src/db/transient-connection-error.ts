@@ -8,22 +8,40 @@
  * public error code.
  */
 
-/** SQLSTATE class 08 (connection exception) and class 58 (system errors external to Postgres). */
-const TRANSIENT_SQLSTATE_CLASSES = new Set(["08", "58"]);
-
-/** Server-shutdown / cannot-connect SQLSTATEs from class 57 (operator intervention). */
-const TRANSIENT_SQLSTATES = new Set(["57P01", "57P02", "57P03"]);
+/**
+ * Enumerated transient SQLSTATEs. Deliberately NOT whole-class matching: persistent faults inside
+ * class 08/58 (08P01 protocol_violation, 58P01 undefined_file, 58P02 duplicate_file) never clear
+ * on retry, and 08007 transaction_resolution_unknown means the COMMIT fate is unknown — a client
+ * honoring `retryable: true` could re-issue a write that already committed, so it stays
+ * non-retryable like any unknown error.
+ */
+const TRANSIENT_SQLSTATES = new Set([
+  "08000", // connection_exception
+  "08001", // sqlclient_unable_to_establish_sqlconnection
+  "08003", // connection_does_not_exist
+  "08004", // sqlserver_rejected_establishment_of_sqlconnection
+  "08006", // connection_failure
+  "57P01", // admin_shutdown
+  "57P02", // crash_shutdown
+  "57P03", // cannot_connect_now
+  "58000", // system_error (Hyperdrive pool-slot exhaustion)
+  "58030", // io_error
+]);
 
 /** postgres.js client-side codes for connection loss or connect timeout. */
 const TRANSIENT_CLIENT_CODES = new Set(["CONNECT_TIMEOUT", "CONNECTION_CLOSED"]);
 
 /**
  * Failures that occur while acquiring a connection, before any statement of the transaction can
- * have run: Hyperdrive pool-wait timeout (58000 fires when the origin pool has no free slot),
- * connection-establishment rejections, and client-side connect timeouts. Only these are safe for
- * an in-place transaction retry; later connection loss could follow a commit whose ack was lost.
+ * have run: connection-establishment rejections and client-side connect timeouts. Only these are
+ * safe for an in-place transaction retry; later connection loss could follow a commit whose ack
+ * was lost. SQLSTATE 58000 is handled separately because it is a generic system_error: it only
+ * qualifies together with Hyperdrive's pool-wait message.
  */
-const ACQUISITION_FAILURE_CODES = new Set(["58000", "57P03", "08001", "08004", "CONNECT_TIMEOUT"]);
+const ACQUISITION_FAILURE_CODES = new Set(["57P03", "08001", "08004", "CONNECT_TIMEOUT"]);
+
+/** Hyperdrive's origin pool-slot wait timeout ("Timed out while waiting for an open slot in the pool"). */
+const HYPERDRIVE_POOL_WAIT_MESSAGE = /waiting for an open slot/i;
 
 function readCode(error: unknown): string | undefined {
   if (typeof error === "object" && error !== null && "code" in error) {
@@ -35,34 +53,41 @@ function readCode(error: unknown): string | undefined {
   return undefined;
 }
 
-function isSqlstate(code: string): boolean {
-  return /^[0-9A-Z]{5}$/.test(code);
+function readMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "";
 }
 
 /**
  * True when the error is a transient database connection-layer failure that a caller may safely
- * retry: connection exceptions (class 08), external system errors such as Hyperdrive pool
- * exhaustion (class 58), server shutdown (57P01/57P02/57P03), or postgres.js connect timeouts and
- * unexpected socket closes. Data, constraint, and authorization SQLSTATEs never match, so real
- * errors keep failing closed.
+ * retry: enumerated connection exceptions (class 08), external system errors such as Hyperdrive
+ * pool exhaustion (58000/58030), server shutdown (57P01/57P02/57P03), or postgres.js connect
+ * timeouts and unexpected socket closes. Data, constraint, and authorization SQLSTATEs — and
+ * ambiguous or persistent faults like 08007/08P01/58P01/58P02 — never match, so real errors keep
+ * failing closed.
  */
 export function isTransientConnectionError(error: unknown): boolean {
   const code = readCode(error);
   if (code === undefined) {
     return false;
   }
-  if (TRANSIENT_CLIENT_CODES.has(code)) {
-    return true;
-  }
-  if (!isSqlstate(code)) {
-    return false;
-  }
-  return TRANSIENT_SQLSTATES.has(code) || TRANSIENT_SQLSTATE_CLASSES.has(code.slice(0, 2));
+  return TRANSIENT_CLIENT_CODES.has(code) || TRANSIENT_SQLSTATES.has(code);
 }
 
-/** True when the failure happened at connection acquisition, before the transaction body ran. */
+/**
+ * True when the failure happened at connection acquisition, before the transaction body ran.
+ * A bare 58000 is a generic system_error and does NOT qualify — only 58000 carrying Hyperdrive's
+ * pool-wait message does, since a synthesized 58000 for a mid-flight loss could carry commit
+ * ambiguity that an in-place retry would double-apply.
+ */
 export function isConnectionAcquisitionFailure(error: unknown): boolean {
-  return ACQUISITION_FAILURE_CODES.has(readCode(error) ?? "");
+  const code = readCode(error);
+  if (code === undefined) {
+    return false;
+  }
+  if (ACQUISITION_FAILURE_CODES.has(code)) {
+    return true;
+  }
+  return code === "58000" && HYPERDRIVE_POOL_WAIT_MESSAGE.test(readMessage(error));
 }
 
 /**
