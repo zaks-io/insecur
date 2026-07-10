@@ -144,6 +144,8 @@ export async function armRestoreTarget(
 export interface CompleteRestoreJournalInput {
   readonly status: "succeeded" | "failed";
   readonly organizationCount?: number;
+  readonly manifestOrganizationCount?: number;
+  readonly skippedOrganizationCount?: number;
   readonly importedRowCount?: number;
 }
 
@@ -155,9 +157,17 @@ export async function completeRestoreJournal(input: CompleteRestoreJournalInput)
        SET status = $1,
            completed_at = now(),
            organization_count = $2,
-           imported_row_count = $3
+           manifest_organization_count = $3,
+           skipped_organization_count = $4,
+           imported_row_count = $5
        WHERE only_row = true AND status = 'running'`,
-      [input.status, input.organizationCount ?? null, input.importedRowCount ?? null],
+      [
+        input.status,
+        input.organizationCount ?? null,
+        input.manifestOrganizationCount ?? null,
+        input.skippedOrganizationCount ?? null,
+        input.importedRowCount ?? null,
+      ],
     );
   });
 }

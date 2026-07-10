@@ -96,7 +96,11 @@ This tests seal → open → canary verification with an ephemeral fixture key a
 Production-equivalent drill (summary — operator executes manually):
 
 1. Identify the latest successful `backup.export` Operation and its R2 `artifact_ref`.
-2. Provision a fresh Neon project and apply schema migrations with the migration role.
+2. Provision a **truly fresh** migrated Neon project and apply schema migrations with the migration
+   role. It must be a brand-new project, never one mid-bootstrap: the fresh-target proof only checks
+   for zero organizations and an empty instance-identity table, so a bootstrapped-but-not-yet-
+   onboarded live database in its zero-org window would also pass. Only a project you just created
+   for this restore is a safe target.
 3. Load the escrowed root key version from the export header into the fresh Runtime
    Worker Secrets Store binding.
 4. Arm the restore window: add the temporary `RESTORE_DB` Hyperdrive binding (targeting the fresh
@@ -105,7 +109,11 @@ Production-equivalent drill (summary — operator executes manually):
    `entrypoint: RuntimeRestoreService` ([ADR-0084](../adr/0084-runtime-only-restore-import-boundary.md)).
    Render the coordinator with
    `node scripts/restore/render-restore-coordinator.mjs --out-dir <dir-outside-repo>` and follow
-   its printed deploy steps. Neither binding is ever committed to the checked-in fleet config; the
+   its printed deploy steps. The rendered config sets `workers_dev: false`: the coordinator's trust
+   anchor is Cloudflare account access (ADR-0084), so bind it to a Cloudflare Access-gated route or
+   drive it over a local `wrangler dev` tunnel rather than a public workers.dev URL. The
+   `RESTORE_COORDINATOR_TOKEN` bearer check is defense-in-depth on top of that account-access
+   anchor, not the sole gate. Neither binding is ever committed to the checked-in fleet config; the
    deploy-topology conformance gate fails a checked-in `RESTORE_DB` binding or
    `RuntimeRestoreService` Service Binding.
 5. Trigger the import through the coordinator with the `artifact_ref`, expected `instance_id`, and
@@ -153,6 +161,13 @@ Under the recovery canary organization scope:
   (the discarded target keeps no rows) — [ADR-0084](../adr/0084-runtime-only-restore-import-boundary.md)
 - Operation intent `backup.export` rows for scheduled exports
 - `backup.export_succeeded` / `backup.export_failed` on export runs
+
+The `restore_import_journal` row is the **authoritative** import-outcome record, not the success
+audit. The importer writes the `backup.restore_import_succeeded` audit before it marks the journal
+`succeeded`, so a crash between those two writes can leave a success audit beside a still-`running`
+journal in a target you then discard. Confirm a completed import by the journal row's
+`status = 'succeeded'`, and diff `manifest_organization_count` against `organization_count` /
+`skipped_organization_count` to confirm no organization silently vanished from the restore.
 
 Audit and evidence records include scope IDs, operation IDs, timestamps, and status only.
 

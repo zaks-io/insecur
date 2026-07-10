@@ -1,5 +1,5 @@
 {
-  "id": "2d94f4b4-f553-408b-a6ab-d09fa3801a94",
+  "id": "42d615e8-56a5-4432-b946-409aea010167",
   "prevId": "f193650b-23ef-455b-b264-8417e2ca450c",
   "version": "7",
   "dialect": "postgresql",
@@ -4813,6 +4813,18 @@
         },
         "organization_count": {
           "name": "organization_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manifest_organization_count": {
+          "name": "manifest_organization_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skipped_organization_count": {
+          "name": "skipped_organization_count",
           "type": "integer",
           "primaryKey": false,
           "notNull": false

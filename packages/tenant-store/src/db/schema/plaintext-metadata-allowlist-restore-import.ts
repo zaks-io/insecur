@@ -12,6 +12,8 @@ export const PLAINTEXT_METADATA_ALLOWLIST_RESTORE_IMPORT = {
     started_at: { category: "timestamp" },
     completed_at: { category: "timestamp" },
     organization_count: { category: "count" },
+    manifest_organization_count: { category: "count" },
+    skipped_organization_count: { category: "count" },
     imported_row_count: { category: "count" },
   },
 } as const satisfies PlaintextMetadataAllowlist;

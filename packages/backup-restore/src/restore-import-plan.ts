@@ -30,6 +30,12 @@ export interface RestoreImportPlan {
   readonly instanceRows: readonly BackupExportRow[];
   /** Per-organization rows keyed by organization ID, in header snapshot order. */
   readonly organizationRows: ReadonlyMap<string, readonly BackupExportRow[]>;
+  /**
+   * Manifest organizations dropped as no-ops because their payload bucket was empty (ADR-0072
+   * vanished-organization shape). Surfaced so a restore that silently dropped an organization is
+   * self-evidencing in the journal and audit, sorted for a stable record. Opaque IDs only.
+   */
+  readonly prunedOrganizationIds: readonly string[];
   readonly totalRowCount: number;
 }
 
@@ -57,7 +63,10 @@ function manifestOrganizationIds(header: BackupExportHeader): string[] {
  * which is required standing state. A NON-empty bucket missing its organizations row is still an
  * incomplete manifest and fails closed.
  */
-function pruneAndAssertOrganizationBuckets(organizationRows: Map<string, BackupExportRow[]>): void {
+function pruneAndAssertOrganizationBuckets(
+  organizationRows: Map<string, BackupExportRow[]>,
+): string[] {
+  const prunedOrganizationIds: string[] = [];
   for (const [organizationId, bucket] of organizationRows) {
     if (bucket.length === 0) {
       if (organizationId === RECOVERY_CANARY_ORGANIZATION_ID) {
@@ -66,6 +75,7 @@ function pruneAndAssertOrganizationBuckets(organizationRows: Map<string, BackupE
         );
       }
       organizationRows.delete(organizationId);
+      prunedOrganizationIds.push(organizationId);
       continue;
     }
     const hasOrganizationRow = bucket.some(
@@ -77,6 +87,7 @@ function pruneAndAssertOrganizationBuckets(organizationRows: Map<string, BackupE
       );
     }
   }
+  return prunedOrganizationIds.sort();
 }
 
 /**
@@ -117,12 +128,13 @@ export function buildRestoreImportPlan(
     bucket.push(row);
   }
 
-  pruneAndAssertOrganizationBuckets(organizationRows);
+  const prunedOrganizationIds = pruneAndAssertOrganizationBuckets(organizationRows);
 
   return {
     header,
     instanceRows,
     organizationRows,
+    prunedOrganizationIds,
     totalRowCount: rows.length,
   };
 }

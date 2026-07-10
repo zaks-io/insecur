@@ -234,6 +234,37 @@ describe("verifyRestoreArtifact", () => {
       BACKUP_RESTORE_ERROR_CODES.artifactInvalid,
     );
   });
+
+  it("fails a malformed-but-authenticated payload closed as artifact_invalid, leaking no payload text", async () => {
+    // Authentic envelope (sealed with the real root key), malformed contents: a JSONL line that is
+    // not valid JSON and embeds a sentinel. The parse must fail closed as artifact_invalid and the
+    // thrown error must not carry the decrypted payload snippet a raw V8 SyntaxError would include.
+    const payloadSentinel = "SENTINEL_DECRYPTED_PAYLOAD_LEAK_MARKER";
+    const malformedPayload = new TextEncoder().encode(`{ not json ${payloadSentinel} \n`);
+    const sealed = await sealBackupArtifact({
+      instanceId: INSTANCE_ID,
+      exportTimestamp: EXPORT_TIMESTAMP,
+      instanceSnapshotAt: EXPORT_TIMESTAMP,
+      rootKeyBytes: rootKey(),
+      jsonlPayload: malformedPayload,
+      organizationSnapshots: organizationSnapshots(),
+    });
+    const storage = await storageWith(sealed);
+
+    let thrown: unknown;
+    try {
+      await verifyRestoreArtifact(verifyInput(storage));
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toMatchObject({
+      name: "RestoreImportError",
+      code: BACKUP_RESTORE_ERROR_CODES.artifactInvalid,
+    });
+    const serialized = `${(thrown as Error).message}\n${(thrown as Error).stack ?? ""}`;
+    expect(serialized).not.toContain(payloadSentinel);
+    expect((thrown as { cause?: unknown }).cause).toBeUndefined();
+  });
 });
 
 function tamperHeader(
@@ -315,10 +346,16 @@ describe("buildRestoreImportPlan", () => {
     );
   });
 
-  it("tolerates a manifest organization with zero payload rows (deleted mid-export) as a no-op", () => {
+  it("tolerates a manifest organization with zero payload rows (deleted mid-export) as a no-op and records it as pruned", () => {
     const rows = fixtureRows().filter((row) => row.organization_id !== OTHER_ORG_ID);
     const plan = buildRestoreImportPlan(headerFixture(), rows);
     expect([...plan.organizationRows.keys()]).toEqual([RECOVERY_CANARY_ORGANIZATION_ID]);
+    expect(plan.prunedOrganizationIds).toEqual([OTHER_ORG_ID]);
+  });
+
+  it("records no pruned organizations when every manifest org has rows", () => {
+    const plan = buildRestoreImportPlan(headerFixture(), fixtureRows());
+    expect(plan.prunedOrganizationIds).toEqual([]);
   });
 
   it("still requires rows for the recovery-canary sentinel organization", () => {

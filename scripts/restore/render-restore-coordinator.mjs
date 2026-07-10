@@ -103,7 +103,11 @@ function wranglerConfig(envName) {
       name: `insecur-restore-coordinator-${envName}`,
       main: "worker.js",
       compatibility_date: "2026-05-27",
-      workers_dev: true,
+      // ADR-0084 anchors the coordinator on Cloudflare account access, not a public URL. Keep the
+      // workers.dev route OFF: the operator binds their own trigger path (a Cloudflare Access -
+      // gated route or a local `wrangler dev` tunnel) so the token is defense-in-depth, not the
+      // sole gate. The renderer never ships a public URL.
+      workers_dev: false,
       services: [
         {
           binding: "RUNTIME_RESTORE",
@@ -129,8 +133,11 @@ process.stdout.write(`  1. cd ${outDir}\n`);
 process.stdout.write(
   "  2. openssl rand -hex 32 | npx wrangler secret put RESTORE_COORDINATOR_TOKEN\n",
 );
-process.stdout.write("  3. npx wrangler deploy\n");
 process.stdout.write(
-  '  4. curl -X POST "https://<workers-dev-url>/restore-import" -H "Authorization: Bearer <token>" -d \'{"artifactRef":"...","expectedInstanceId":"...","expectedRootKeyVersion":1}\'\n',
+  "  3. npx wrangler deploy  (workers.dev is off; bind a Cloudflare Access-gated route\n" +
+    "     for the account-access anchor, or trigger over `npx wrangler dev` locally)\n",
+);
+process.stdout.write(
+  '  4. curl -X POST "https://<your-access-gated-route>/restore-import" -H "Authorization: Bearer <token>" -d \'{"artifactRef":"...","expectedInstanceId":"...","expectedRootKeyVersion":1}\'\n',
 );
 process.stdout.write("  5. teardown with: npx wrangler delete (required before window close)\n");

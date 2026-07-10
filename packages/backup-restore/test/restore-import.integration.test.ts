@@ -24,10 +24,17 @@ import {
   BACKUP_RESTORE_ERROR_CODES,
   MemoryBackupExportStorage,
   RECOVERY_CANARY_ORGANIZATION_ID,
+  buildBackupExportArtifactKey,
+  buildBackupExportEvidenceKey,
+  concatJsonlLines,
+  encodeBackupJsonlLine,
+  hashBackupArtifact,
   openBackupArtifact,
+  parseBackupExportArtifactKey,
   parseBackupJsonlPayload,
   runBackupExport,
   runRestoreImport,
+  sealBackupArtifact,
   type BackupExportRow,
   type BackupExportSuccessEvidence,
 } from "../src/index.js";
@@ -42,6 +49,31 @@ function durableRootKey(): Uint8Array {
     root[index] = (index * 11 + 29) % 256;
   }
   return root;
+}
+
+/**
+ * Rewrites one org A `secrets` row's own `org_id` column to org B while leaving its
+ * `organization_id` grouping key at A, so the importer still routes it into org A's scope where
+ * the RLS WITH CHECK must reject the org-B org_id. Module-level so the test body stays flat.
+ */
+function crossTenantTamper(rows: BackupExportRow[]): BackupExportRow[] {
+  let rewrote = false;
+  const mutated = rows.map((row) => {
+    if (
+      !rewrote &&
+      row.table === "secrets" &&
+      row.organization_id === TEST_ORG_A_ID &&
+      row.org_id === TEST_ORG_A_ID
+    ) {
+      rewrote = true;
+      return { ...row, org_id: TEST_ORG_B_ID };
+    }
+    return row;
+  });
+  if (!rewrote) {
+    throw new Error("fixture expected at least one org A secrets row to tamper");
+  }
+  return mutated;
 }
 
 function adminDatabaseUrl(): string {
@@ -217,6 +249,51 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
       storage,
       ...overrides,
     };
+  }
+
+  /**
+   * Re-seals the authentic export payload after `mutate` rewrites its parsed rows, under a fresh
+   * export identity, and registers matching export-success evidence. The envelope is genuinely
+   * authentic (sealed with the real root key), so it passes the AEAD open and header/manifest
+   * checks — the tamper lives in the row contents. Returns the new `artifactRef`.
+   */
+  async function sealTamperedArtifact(
+    mutate: (rows: BackupExportRow[]) => BackupExportRow[],
+  ): Promise<string> {
+    const originalSealed = storage.objects.get(exportEvidence.artifact_ref);
+    if (!(originalSealed instanceof Uint8Array)) {
+      throw new Error("original sealed artifact missing from fixture storage");
+    }
+    const opened = await openBackupArtifact({
+      instanceId: TEST_INSTANCE_ID,
+      rootKeyBytes,
+      sealedBytes: originalSealed,
+    });
+    const mutatedRows = mutate(parseBackupJsonlPayload(opened.jsonlPayload));
+    const jsonlPayload = concatJsonlLines(mutatedRows.map((row) => encodeBackupJsonlLine(row)));
+
+    const tamperedSealed = await sealBackupArtifact({
+      instanceId: opened.header.instance_id,
+      exportTimestamp: opened.header.export_timestamp,
+      instanceSnapshotAt: opened.header.instance_snapshot_at,
+      rootKeyBytes,
+      rootKeyVersion: opened.header.root_key_version,
+      jsonlPayload,
+      organizationSnapshots: opened.header.organization_snapshots,
+    });
+
+    const exportIdentity = `${parseBackupExportArtifactKey(exportEvidence.artifact_ref) ?? "backup.export"}.tampered.${randomBytes(4).toString("hex")}`;
+    const artifactRef = buildBackupExportArtifactKey(exportIdentity);
+    storage.objects.set(artifactRef, tamperedSealed);
+    storage.objects.set(
+      buildBackupExportEvidenceKey(exportIdentity),
+      JSON.stringify({
+        ...exportEvidence,
+        artifact_ref: artifactRef,
+        artifact_sha256: await hashBackupArtifact(tamperedSealed),
+      }),
+    );
+    return artifactRef;
   }
 
   beforeAll(async () => {
@@ -416,5 +493,46 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
     await expect(
       onRestoreTarget(target, () => runRestoreImport(importInput())),
     ).rejects.toMatchObject({ code: BACKUP_RESTORE_ERROR_CODES.schemaMismatch });
+  }, 120_000);
+
+  it("lets forced RLS reject a row whose own org_id crosses its import scope", async () => {
+    // Tamper (authentic envelope, malformed contents): rewrite one org A `secrets` row's own
+    // `org_id` column to org B. The importer groups by `organization_id`, so the row still imports
+    // inside org A's `app.current_org = A` transaction — where the RLS WITH CHECK
+    // (app.tenant_visible(org_id)) on the org-B org_id must REJECT the insert. This locks the last
+    // line of cross-tenant defense: a future refactor dropping org_id from insertRestoreRows'
+    // column set, or a table losing its WITH CHECK, fails HERE instead of silently reassigning a
+    // tenant's row on restore.
+    const crossTenantArtifactRef = await sealTamperedArtifact(crossTenantTamper);
+
+    const target = scratchName("cross-tenant");
+    await provisionFreshTarget(target);
+
+    await expect(
+      onRestoreTarget(target, () =>
+        runRestoreImport(importInput({ artifactRef: crossTenantArtifactRef })),
+      ),
+    ).rejects.toMatchObject({ code: BACKUP_RESTORE_ERROR_CODES.importFailed });
+
+    await onRestoreTarget(target, async () => {
+      // The org A transaction that carried the rejected row is fully rolled back: org A is absent,
+      // no success evidence exists, and the journal is terminal-failed.
+      expect(
+        await countRowsInScope({ kind: "organization", organizationId: TEST_ORG_A_ID }, "secrets"),
+      ).toBe(0);
+      expect(
+        await countRowsInScope(
+          { kind: "organization", organizationId: TEST_ORG_A_ID },
+          "organizations",
+        ),
+      ).toBe(0);
+      // The org-B org_id was never persisted into any scope either.
+      expect(
+        await countRowsInScope({ kind: "organization", organizationId: TEST_ORG_B_ID }, "secrets"),
+      ).toBe(0);
+      expect(await restoreImportOperationStates()).toEqual([]);
+      expect(await restoreImportAuditCount("backup.restore_import_succeeded")).toBe(0);
+      expect(await readJournalRow()).toMatchObject({ status: "failed" });
+    });
   }, 120_000);
 });

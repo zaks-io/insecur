@@ -134,9 +134,16 @@ async function importAllScopes(
  * journal is the in-flight record and this Operation is written only once the canary
  * organization's rows exist in the target.
  */
+interface RestoreImportCounts {
+  readonly organizationCount: number;
+  readonly manifestOrganizationCount: number;
+  readonly skippedOrganizationCount: number;
+  readonly importedRowCount: number;
+}
+
 async function recordRestoreImportEvidence(
   verified: VerifiedRestoreArtifact,
-  counts: { organizationCount: number; importedRowCount: number },
+  counts: RestoreImportCounts,
 ): Promise<OperationId> {
   const canaryOrganizationId = brandOrganizationId.brand(RECOVERY_CANARY_ORGANIZATION_ID);
   const idempotencyKey = buildRestoreImportIdempotencyKey(verified.exportIdentity);
@@ -169,6 +176,8 @@ async function recordRestoreImportEvidence(
         ? sourceExportTimestampMs
         : null,
       organization_count: counts.organizationCount,
+      manifest_organization_count: counts.manifestOrganizationCount,
+      skipped_organization_count: counts.skippedOrganizationCount,
       imported_row_count: counts.importedRowCount,
     },
   });
@@ -218,12 +227,22 @@ export async function runRestoreImport(
 
   try {
     const importedRowCount = await importAllScopes(input, verified, columnTypes);
+    const skippedOrganizationIds = verified.plan.prunedOrganizationIds;
     const organizationCount = verified.plan.organizationRows.size;
-    const operationId = await recordRestoreImportEvidence(verified, {
+    const skippedOrganizationCount = skippedOrganizationIds.length;
+    const manifestOrganizationCount = organizationCount + skippedOrganizationCount;
+    const counts: RestoreImportCounts = {
       organizationCount,
+      manifestOrganizationCount,
+      skippedOrganizationCount,
       importedRowCount,
-    });
-    await completeRestoreJournal({ status: "succeeded", organizationCount, importedRowCount });
+    };
+    // Evidence ordering (ADR-0084): the success audit is written first, then the journal is marked
+    // succeeded. The journal row is the AUTHORITATIVE outcome record — a crash between these two
+    // writes can leave a success audit beside a still-`running` journal in a target the operator
+    // then discards, so a success audit is never on its own proof of a completed import.
+    const operationId = await recordRestoreImportEvidence(verified, counts);
+    await completeRestoreJournal({ status: "succeeded", ...counts });
     return {
       status: "succeeded",
       instance_id: input.expectedInstanceId,
@@ -231,6 +250,9 @@ export async function runRestoreImport(
       source_export_operation_id: verified.sourceExportOperationId,
       source_export_timestamp: verified.sourceExportTimestamp,
       organization_count: organizationCount,
+      manifest_organization_count: manifestOrganizationCount,
+      skipped_organization_count: skippedOrganizationCount,
+      skipped_organization_ids: skippedOrganizationIds,
       imported_row_count: importedRowCount,
       operation_id: String(operationId),
       completed_at: new Date().toISOString(),

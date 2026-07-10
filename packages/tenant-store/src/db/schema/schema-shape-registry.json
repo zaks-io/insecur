@@ -3085,6 +3085,20 @@
         "columnType": "PgInteger",
         "sqlType": "integer"
       },
+      "manifest_organization_count": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "skipped_organization_count": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
       "imported_row_count": {
         "notNull": false,
         "primaryKey": false,

@@ -22,7 +22,11 @@ export const restoreImportJournal = pgTable(
     status: text("status").notNull(),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // organization_count is retained as the imported-organization count for compatibility with the
+    // ADR-0084 evidence shape; manifest/skipped counts make a vanished-org restore self-evidencing.
     organizationCount: integer("organization_count"),
+    manifestOrganizationCount: integer("manifest_organization_count"),
+    skippedOrganizationCount: integer("skipped_organization_count"),
     importedRowCount: integer("imported_row_count"),
   },
   (table) => [

@@ -33,6 +33,24 @@ function headerMismatch(message: string): RestoreImportError {
 }
 
 /**
+ * Parses the decrypted JSONL payload into rows, failing closed as `artifact_invalid` on malformed
+ * JSON. Defense-in-depth: a raw V8 `SyntaxError` can embed a snippet of the DECRYPTED payload in
+ * its message and would otherwise escape unwrapped as the generic cross-seam code. We drop the
+ * cause and use a fixed message so no payload text can ride the error out of the Runtime, matching
+ * the fail-closed shape of the sibling authenticity checks.
+ */
+function parseAuthenticatedPayloadRows(jsonlPayload: Uint8Array) {
+  try {
+    return parseBackupJsonlPayload(jsonlPayload);
+  } catch {
+    throw new RestoreImportError(
+      BACKUP_RESTORE_ERROR_CODES.artifactInvalid,
+      "backup artifact payload is not well-formed JSONL",
+    );
+  }
+}
+
+/**
  * Advisory header pre-checks (ADR-0084): fail fast with a precise error before the AEAD open.
  * A passing pre-check confers NO trust — authenticity rests solely on the GCM open under the
  * AAD-bound instance ID in {@link verifyRestoreArtifact}.
@@ -169,7 +187,7 @@ export async function verifyRestoreArtifact(
     );
   }
 
-  const plan = buildRestoreImportPlan(header, parseBackupJsonlPayload(jsonlPayload));
+  const plan = buildRestoreImportPlan(header, parseAuthenticatedPayloadRows(jsonlPayload));
   return {
     plan,
     exportIdentity,
