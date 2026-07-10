@@ -1,5 +1,5 @@
 import { AUTHORIZATION_SCOPES, authorizeScopeOrThrow } from "@insecur/access";
-import { assertSecretWriteCoordinate, checkSecretPossession } from "@insecur/secret-store";
+import { assertSecretPossessionCoordinate, checkSecretPossession } from "@insecur/secret-store";
 import type {
   CheckSecretPossessionPayload,
   CheckSecretPossessionRpcInput,
@@ -41,8 +41,11 @@ export async function checkSecretPossessionOperation({
     requiredScope: AUTHORIZATION_SCOPES.secretNonProtectedWrite,
     requestId: input.requestId,
   });
-  await assertSecretWriteCoordinate({
+  // A coordinate denial here is a possession probe, so it audits under the possession-specific
+  // `secret.possession_check_denied` code rather than the write path's denied code (INS-528).
+  await assertSecretPossessionCoordinate({
     ...coordinate,
+    ...(input.secretId !== undefined ? { secretId: input.secretId } : {}),
     actor: auditActor,
     request: { requestId: input.requestId },
   });
