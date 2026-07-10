@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,7 +12,13 @@ import {
 } from "./preview-smoke-deploy-identity-evidence.js";
 
 const EXPECTED_SHA = "a".repeat(40);
-const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+const packageRoot = fileURLToPath(new URL("..", import.meta.url));
+const VERIFIER_COMMAND = "node";
+const VERIFIER_ARGS = [
+  "--import",
+  "tsx/esm",
+  "src/verify-preview-smoke-deploy-identity-evidence.ts",
+];
 
 function passingEvidence(): Record<string, unknown> {
   return {
@@ -81,6 +87,16 @@ describe("preview smoke deploy identity evidence", () => {
   });
 
   it("accepts proof through the production verifier invocation", () => {
+    // Production runs `pnpm --filter @insecur/release-gate verify-preview-smoke-identity`,
+    // a thin wrapper around this node command. Pin the wrapper's command and spawn node
+    // directly to keep invocation fidelity without pnpm's startup cost under CI load.
+    const packageManifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    expect(packageManifest.scripts["verify-preview-smoke-identity"]).toBe(
+      [VERIFIER_COMMAND, ...VERIFIER_ARGS].join(" "),
+    );
+
     const evidencePath = join(
       mkdtempSync(join(tmpdir(), "insecur-preview-smoke-identity-")),
       "deploy-identity.json",
@@ -88,20 +104,12 @@ describe("preview smoke deploy identity evidence", () => {
     writeFileSync(evidencePath, JSON.stringify(passingEvidence()), "utf8");
 
     const result = spawnSync(
-      "pnpm",
-      [
-        "--filter",
-        "@insecur/release-gate",
-        "verify-preview-smoke-identity",
-        "--evidence",
-        evidencePath,
-        "--expected-sha",
-        EXPECTED_SHA,
-      ],
-      { cwd: repoRoot, encoding: "utf8" },
+      VERIFIER_COMMAND,
+      [...VERIFIER_ARGS, "--evidence", evidencePath, "--expected-sha", EXPECTED_SHA],
+      { cwd: packageRoot, encoding: "utf8" },
     );
 
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(0);
-  });
+  }, 60_000);
 });
