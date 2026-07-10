@@ -276,7 +276,9 @@ function nestedObservabilityMatches(actual, expected) {
   }
   return (
     actual?.enabled === expected.enabled &&
-    setsEqual(actual?.destinations ?? [], expected.destinations ?? [])
+    setsEqual(actual?.destinations ?? [], expected.destinations ?? []) &&
+    isValidSamplingRate(actual?.head_sampling_rate) &&
+    actual.head_sampling_rate === expected.head_sampling_rate
   );
 }
 
@@ -288,6 +290,16 @@ function assertNestedObservability(actual, expected, label) {
     throw new Error(`Refusing content-only deploy: deployed ${label}.enabled drifted.`);
   }
   assertSetEqual(actual?.destinations ?? [], expected.destinations ?? [], `${label}.destinations`);
+  if (
+    !isValidSamplingRate(actual?.head_sampling_rate) ||
+    actual.head_sampling_rate !== expected.head_sampling_rate
+  ) {
+    throw new Error(`Refusing content-only deploy: deployed ${label}.head_sampling_rate drifted.`);
+  }
+}
+
+function isValidSamplingRate(value) {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 export function assertDeployedSecretsStoreSecrets(bindings, desiredSecrets) {
