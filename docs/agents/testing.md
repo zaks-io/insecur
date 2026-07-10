@@ -155,11 +155,15 @@ tests. `pnpm smoke:local` and CI's DB-backed runner include this suite after `te
   operation row and the smoke-created non-protected development environment, including a
   not-found assertion through the CLI process for each of `operations get` and `run-policies show`;
   every CLI stdout/stderr payload and exported artifact is asserted metadata-only and free of the
-  smoke sentinel or bearer material. Because no audit-export HMAC secret is wired to the smoke job
+  smoke sentinel or bearer material. Before failure artifacts upload, the workflow revokes every
+  minted smoke session, disables trace capture (request headers carry the bearer), and fails closed
+  if the artifact tree contains any bearer encoding. Screenshots, video, HTML, JSON, and JUnit
+  diagnostics remain available for normal failures.
+  Because no audit-export HMAC secret is wired to the smoke job
   today, `audit verify` is expected to report `status: "invalid"` with
   `audit.export.key_evidence_missing` while hash-chain, signature, and tenant-scope integrity still
   verify, sweeps preview Postgres for the generated sentinel, emits GitHub annotations, and uploads
-  HTML, JSON, JUnit XML, and failure trace artifacts.
+  HTML, JSON, JUnit XML, screenshot, and video failure artifacts.
   Local runs load ignored `.env.preview` and `.env.local` files before checking required variables.
   `SMOKE_SESSION_SIGNING_SECRET` may be supplied as `SESSION_SIGNING_SECRET`, but it must match the
   API/Web workers under test; a throwaway random value only works for a local Worker stack that was

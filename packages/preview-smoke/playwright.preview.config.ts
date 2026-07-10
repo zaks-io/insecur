@@ -40,7 +40,8 @@ export default defineConfig({
   timeout: 120_000,
   use: {
     screenshot: "only-on-failure",
-    trace: "retain-on-failure",
+    // Browser requests carry the smoke bearer. Retain screenshots, video, and reporters instead.
+    trace: "off",
     video: "retain-on-failure",
   },
   workers: 1,
