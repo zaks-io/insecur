@@ -51,7 +51,6 @@ function gateInput(overrides: Record<string, unknown> = {}) {
     auditActor: { type: "user" as const, userId: "usr_00000000000000000000000001" as never },
     requestId: REQUEST_ID,
     protectedChangeId: PROTECTED_CHANGE_ID,
-    approvedDeliveryTargetFingerprint: "sha256:deadbeef",
     ...overrides,
   };
 }

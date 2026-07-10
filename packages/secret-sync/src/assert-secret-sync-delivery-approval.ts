@@ -27,8 +27,6 @@ export interface AssertSecretSyncDeliveryApprovalInput {
   readonly requestId: RequestId;
   /** The Protected Change / Approval Request authorizing this exact sync execution. */
   readonly protectedChangeId: RequestId;
-  /** The delivery target fingerprint the approval covered; null for a non-delivery approval. */
-  readonly approvedDeliveryTargetFingerprint: string | null | undefined;
   readonly deps?: AuthorizeScopeDeps;
 }
 
@@ -66,7 +64,6 @@ export async function assertSecretSyncDeliveryApproval(
   await enforceProtectedDeliveryApproval({
     target,
     protectedChangeId: input.protectedChangeId,
-    approvedDeliveryTargetFingerprint: input.approvedDeliveryTargetFingerprint,
     actor: input.actor,
     auditActor: input.auditActor,
     requestId: input.requestId,

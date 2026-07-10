@@ -2623,6 +2623,13 @@
         "columnType": "PgText",
         "sqlType": "text"
       },
+      "delivery_target_fingerprint": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
       "created_at": {
         "notNull": true,
         "primaryKey": false,

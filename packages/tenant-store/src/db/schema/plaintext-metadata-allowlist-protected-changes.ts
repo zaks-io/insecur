@@ -22,6 +22,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST_PROTECTED_CHANGES = {
     approver_user_id: { category: "actor-id" },
     audit_event_id: { category: "opaque-id" },
     created_at: { category: "timestamp" },
+    delivery_target_fingerprint: { category: "type-code" },
     id: { category: "opaque-id" },
     impact_review_fingerprint: { category: "type-code" },
     operation_id: { category: "opaque-id" },

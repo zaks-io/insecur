@@ -172,6 +172,7 @@ describe("TenantProtectedChangeStore approval evidence", () => {
     audit_event_id: "aud_00000000000000000000000002",
     operation_id: null,
     impact_review_fingerprint: "impact-fingerprint-v1",
+    delivery_target_fingerprint: "sha256:delivery-fingerprint-v1",
     created_at: "2026-01-01T00:00:00.000Z",
   };
 
@@ -182,12 +183,14 @@ describe("TenantProtectedChangeStore approval evidence", () => {
     approverUserId: "usr_00000000000000000000000001" as never,
     auditEventId: "aud_00000000000000000000000002" as never,
     impactReviewFingerprint: "impact-fingerprint-v1",
+    deliveryTargetFingerprint: "sha256:delivery-fingerprint-v1",
   };
 
   it("returns the inserted evidence", async () => {
     const store = new TenantProtectedChangeStore(fakeSql([[evidenceRow]]));
     const evidence = await store.insertApprovalEvidence(evidenceInput);
     expect(evidence.impactReviewFingerprint).toBe("impact-fingerprint-v1");
+    expect(evidence.deliveryTargetFingerprint).toBe("sha256:delivery-fingerprint-v1");
   });
 
   it("throws when the evidence insert returns no row", async () => {

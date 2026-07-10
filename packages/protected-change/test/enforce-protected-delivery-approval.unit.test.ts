@@ -60,6 +60,7 @@ const ORG = "org_00000000000000000000000001" as ProtectedChangeRecord["organizat
 const PROJECT = "prj_00000000000000000000000001" as ProtectedChangeRecord["projectId"];
 const ENV = "env_00000000000000000000000001" as ProtectedChangeRecord["environmentId"];
 const SYNC = "sync_0000000000000000000000001";
+const OTHER_SYNC = "sync_0000000000000000000000009";
 const PROTECTED_CHANGE_ID = requestId.brand("req_00000000000000000000000001");
 const REQUEST_ID = requestId.brand("req_00000000000000000000000002");
 const USER = "usr_00000000000000000000000001";
@@ -93,11 +94,19 @@ const APPROVED_RECORD: ProtectedChangeRecord = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
-async function enforceInput(overrides: Record<string, unknown> = {}) {
+/** The authoritative approval-evidence row: the delivery-target fingerprint is SERVER state. */
+async function approvedEvidence(overrides: Record<string, unknown> = {}) {
+  return {
+    impactReviewFingerprint: FINGERPRINT,
+    deliveryTargetFingerprint: await computeDeliveryTargetFingerprint(TARGET),
+    ...overrides,
+  };
+}
+
+function enforceInput(overrides: Record<string, unknown> = {}) {
   return {
     target: TARGET,
     protectedChangeId: PROTECTED_CHANGE_ID,
-    approvedDeliveryTargetFingerprint: await computeDeliveryTargetFingerprint(TARGET),
     actor: ACTOR,
     auditActor: AUDIT_ACTOR,
     requestId: REQUEST_ID,
@@ -106,17 +115,17 @@ async function enforceInput(overrides: Record<string, unknown> = {}) {
 }
 
 describe("enforceProtectedDeliveryApproval", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     accessMocks.authorizeScopeOrThrow.mockResolvedValue(undefined);
     storeMocks.getById.mockResolvedValue(APPROVED_RECORD);
-    storeMocks.getApprovalEvidence.mockResolvedValue({ impactReviewFingerprint: FINGERPRINT });
+    storeMocks.getApprovalEvidence.mockResolvedValue(await approvedEvidence());
     recomputeMocks.recomputeProtectedChangeImpactFingerprint.mockResolvedValue(FINGERPRINT);
     auditMocks.recordProtectedDeliveryApprovalAudit.mockResolvedValue(undefined);
   });
 
   it("authorizes execution with current matching approval evidence and records a success audit", async () => {
-    const verdict = await enforceProtectedDeliveryApproval(await enforceInput());
+    const verdict = await enforceProtectedDeliveryApproval(enforceInput());
 
     expect(verdict).toMatchObject({
       status: "authorized",
@@ -131,7 +140,7 @@ describe("enforceProtectedDeliveryApproval", () => {
   it("fails closed with missing_evidence when no protected change record exists", async () => {
     storeMocks.getById.mockResolvedValue(null);
 
-    await expect(enforceProtectedDeliveryApproval(await enforceInput())).rejects.toMatchObject({
+    await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
       code: PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
     });
     expect(auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls.at(-1)?.[0]).toMatchObject({
@@ -140,10 +149,18 @@ describe("enforceProtectedDeliveryApproval", () => {
     });
   });
 
+  it("fails closed with missing_evidence when no approval-evidence row exists", async () => {
+    storeMocks.getApprovalEvidence.mockResolvedValue(null);
+
+    await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
+      code: PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
+    });
+  });
+
   it("fails closed with review_stale when recorded evidence no longer matches current impact", async () => {
     recomputeMocks.recomputeProtectedChangeImpactFingerprint.mockResolvedValue("drifted");
 
-    await expect(enforceProtectedDeliveryApproval(await enforceInput())).rejects.toMatchObject({
+    await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
       code: APPROVAL_ERROR_CODES.reviewStale,
     });
     expect(auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls.at(-1)?.[0]).toMatchObject({
@@ -152,18 +169,19 @@ describe("enforceProtectedDeliveryApproval", () => {
     });
   });
 
-  it("fails closed with delivery_target_mismatch when the approval covered a different target", async () => {
-    const otherTargetFingerprint = await computeDeliveryTargetFingerprint({
-      ...TARGET,
-      targetId: "sync_0000000000000000000000009",
-    });
-
+  it("cannot be satisfied by a caller recomputing the fingerprint for a forged target", async () => {
+    // The stored evidence authorizes only SYNC. A caller requests OTHER_SYNC; there is NO caller
+    // parameter to influence the approved fingerprint, and the live recompute of the forged target
+    // will not equal the stored fingerprint. This is the core exact-target guarantee (INS-87).
     await expect(
       enforceProtectedDeliveryApproval(
-        await enforceInput({ approvedDeliveryTargetFingerprint: otherTargetFingerprint }),
+        enforceInput({ target: { ...TARGET, targetId: OTHER_SYNC } }),
       ),
     ).rejects.toMatchObject({ code: PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch });
-    expect(storeMocks.getApprovalEvidence).not.toHaveBeenCalled();
+    expect(auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls.at(-1)?.[0]).toMatchObject({
+      outcome: "denied",
+      reasonCode: PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch,
+    });
   });
 
   it("fails closed with delivery_target_mismatch when the record coordinate differs from the target", async () => {
@@ -172,17 +190,19 @@ describe("enforceProtectedDeliveryApproval", () => {
       environmentId: "env_00000000000000000000000009" as ProtectedChangeRecord["environmentId"],
     });
 
-    await expect(enforceProtectedDeliveryApproval(await enforceInput())).rejects.toMatchObject({
+    await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
       code: PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch,
     });
   });
 
   it("fails closed with delivery_target_mismatch when a promotion approval carries no delivery fingerprint", async () => {
-    await expect(
-      enforceProtectedDeliveryApproval(
-        await enforceInput({ approvedDeliveryTargetFingerprint: null }),
-      ),
-    ).rejects.toMatchObject({ code: PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch });
+    storeMocks.getApprovalEvidence.mockResolvedValue(
+      await approvedEvidence({ deliveryTargetFingerprint: null }),
+    );
+
+    await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
+      code: PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch,
+    });
   });
 
   it.each(["rejected", "canceled", "stale", "pending_approval"] as const)(
@@ -190,7 +210,7 @@ describe("enforceProtectedDeliveryApproval", () => {
     async (state) => {
       storeMocks.getById.mockResolvedValue({ ...APPROVED_RECORD, state });
 
-      await expect(enforceProtectedDeliveryApproval(await enforceInput())).rejects.toMatchObject({
+      await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
         code: PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized,
       });
       expect(auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls.at(-1)?.[0]).toMatchObject({
@@ -200,17 +220,18 @@ describe("enforceProtectedDeliveryApproval", () => {
     },
   );
 
-  it("fails closed and audits denial when the actor lacks delivery scope", async () => {
+  it("fails closed and audits a scope denial with the insufficient_scope reason code", async () => {
     accessMocks.authorizeScopeOrThrow.mockRejectedValueOnce(
       Object.assign(new Error("denied"), { code: AUTH_ERROR_CODES.insufficientScope }),
     );
 
-    await expect(enforceProtectedDeliveryApproval(await enforceInput())).rejects.toMatchObject({
+    await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
       code: AUTH_ERROR_CODES.insufficientScope,
     });
     expect(storeMocks.getById).not.toHaveBeenCalled();
     expect(auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls.at(-1)?.[0]).toMatchObject({
       outcome: "denied",
+      reasonCode: AUTH_ERROR_CODES.insufficientScope,
     });
   });
 
@@ -218,13 +239,13 @@ describe("enforceProtectedDeliveryApproval", () => {
     storeMocks.getById.mockResolvedValue(null);
     auditMocks.recordProtectedDeliveryApprovalAudit.mockRejectedValue(new Error("audit sink down"));
 
-    await expect(enforceProtectedDeliveryApproval(await enforceInput())).rejects.toMatchObject({
+    await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
       code: PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
     });
   });
 
   it("keeps every enforcement output metadata-only with no sensitive value leakage", async () => {
-    const verdict = await enforceProtectedDeliveryApproval(await enforceInput());
+    const verdict = await enforceProtectedDeliveryApproval(enforceInput());
     const serialized = JSON.stringify({
       verdict,
       audits: auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls,
