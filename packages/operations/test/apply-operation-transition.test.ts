@@ -4,7 +4,6 @@ import { casApplyOperationTransition } from "../src/apply-operation-transition.j
 import { OPERATION_INTENT_CODES } from "../src/operation-intent-codes.js";
 import { OPERATION_ERROR_CODES, OperationStoreError } from "../src/operation-errors.js";
 import type { OperationRecord, OperationRow } from "../src/operation-row.js";
-import type { OperationPollResult } from "../src/operation-types.js";
 import type { SyncTargetLeaseRow } from "../src/sync-target-lease-row.js";
 import { createFakeTenantSql, queryIncludes } from "./helpers/fake-tenant-sql.js";
 
@@ -51,7 +50,7 @@ function findIsoDeadline(values: readonly unknown[]): string {
 }
 
 function createLegalTransitionSql(
-  current: OperationPollResult,
+  current: OperationRecord,
   rowOverrides: Partial<OperationRow> = {},
 ) {
   return createFakeTenantSql((query, values) => {

@@ -240,6 +240,13 @@ export class TenantOperationStore {
     }
   }
 
+  /**
+   * Atomic single-field clear; no revision CAS on purpose. The sole caller is the serialized
+   * lease-claim path acting on the operation whose lease it just claimed, and for a lease-held
+   * operation the deadline is authoritatively null (ADR-0073), so clearing cannot erase newer
+   * state. Bumping the revision still forces any concurrent read-merge-write snapshot to conflict
+   * instead of resurrecting the cleared deadline.
+   */
   async clearExecutionDeadline(input: {
     organizationId: OrganizationId;
     operationId: OperationId;
