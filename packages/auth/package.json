@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./cookie-header": "./src/cookie-header.ts",
     "./testing": "./src/testing/index.ts"
   },
   "scripts": {

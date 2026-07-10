@@ -12,6 +12,10 @@ export default defineConfig({
         replacement: path.join(repoRoot, "packages/auth/src/testing/index.ts"),
       },
       {
+        find: "@insecur/auth/cookie-header",
+        replacement: path.join(repoRoot, "packages/auth/src/cookie-header.ts"),
+      },
+      {
         find: "@insecur/auth",
         replacement: path.join(repoRoot, "packages/auth/src/index.ts"),
       },

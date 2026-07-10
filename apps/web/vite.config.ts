@@ -14,6 +14,11 @@ const repoRoot = repoRootFromAppConfig(import.meta.url);
 
 const workspaceAliases = [
   ...uiWorkspaceAliases(repoRoot),
+  workspaceSourceAlias(
+    repoRoot,
+    "@insecur/auth/cookie-header",
+    "packages/auth/src/cookie-header.ts",
+  ),
   workspaceSourceAlias(repoRoot, "@insecur/auth", "packages/auth/src/index.ts"),
   workspaceSourceAlias(repoRoot, "@insecur/auth/testing", "packages/auth/src/testing/index.ts"),
   workspaceSourceAlias(repoRoot, "@insecur/domain", "packages/domain/src/index.ts"),
