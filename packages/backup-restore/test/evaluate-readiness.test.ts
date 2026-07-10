@@ -16,6 +16,7 @@ const baseExportEvidence = (): BackupExportSuccessEvidence => ({
   root_key_version: 1,
   organization_count: 1,
   artifact_ref: "backup/latest-export.ibkp",
+  artifact_sha256: "F3dYxqbVd3pBfVw1S73rUNra2RfN9GqYapKawP_0xJ4",
   encryption_verified: true,
   expires_at: computeExportExpiresAt("2026-07-04T00:00:00.000Z"),
   operation_id: "op_00000000000000000000000001",

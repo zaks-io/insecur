@@ -14,6 +14,7 @@ export function parseExportSuccessEvidence(value: unknown): BackupExportSuccessE
   const rootKeyVersion = readNumber(record, "root_key_version");
   const organizationCount = readNumber(record, "organization_count");
   const artifactRef = readString(record, "artifact_ref");
+  const artifactSha256 = readString(record, "artifact_sha256");
   const expiresAt = readString(record, "expires_at");
 
   if (
@@ -24,6 +25,7 @@ export function parseExportSuccessEvidence(value: unknown): BackupExportSuccessE
     rootKeyVersion === null ||
     organizationCount === null ||
     !artifactRef ||
+    !artifactSha256 ||
     !expiresAt ||
     typeof record.encryption_verified !== "boolean"
   ) {
@@ -38,6 +40,7 @@ export function parseExportSuccessEvidence(value: unknown): BackupExportSuccessE
     root_key_version: rootKeyVersion,
     organization_count: organizationCount,
     artifact_ref: artifactRef,
+    artifact_sha256: artifactSha256,
     encryption_verified: record.encryption_verified,
     expires_at: expiresAt,
   };

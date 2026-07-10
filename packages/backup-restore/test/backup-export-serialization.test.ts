@@ -4,11 +4,16 @@ import { SCHEMA_SHAPE_REGISTRY } from "@insecur/tenant-store";
 import {
   BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY,
   BACKUP_LATEST_EXPORT_ARTIFACT_KEY,
+  buildBackupExportArtifactKey,
+  buildBackupExportEvidenceKey,
 } from "../src/artifact-refs.js";
 import {
   MemoryBackupExportStorage,
-  writeBackupExportArtifacts,
+  writeBackupExportArtifact,
+  writeBackupExportEvidence,
+  type BackupExportStorage,
 } from "../src/backup-export-storage.js";
+import { publishLatestBackupExport } from "../src/publish-latest-backup-export.js";
 import { concatJsonlLines } from "../src/build-backup-jsonl-payload.js";
 import {
   assertBackupExportTableName,
@@ -17,6 +22,8 @@ import {
 import { parseBackupJsonlPayload } from "../src/parse-backup-jsonl-payload.js";
 import { encodeBackupJsonlLine, serializeBackupRow } from "../src/serialize-backup-row.js";
 import type { BackupExportSuccessEvidence } from "../src/types.js";
+
+const EXPORT_IDENTITY = "backup.export.2026-07-08T03.00.00.000Z";
 
 function successEvidence(
   overrides: Partial<BackupExportSuccessEvidence> = {},
@@ -28,7 +35,8 @@ function successEvidence(
     export_timestamp: "2026-07-08T03:00:00.000Z",
     root_key_version: 1,
     organization_count: 2,
-    artifact_ref: "backup/latest-export.ibkp",
+    artifact_ref: buildBackupExportArtifactKey(EXPORT_IDENTITY),
+    artifact_sha256: "F3dYxqbVd3pBfVw1S73rUNra2RfN9GqYapKawP_0xJ4",
     encryption_verified: true,
     expires_at: "2026-07-09T03:00:00.000Z",
     operation_id: "op_00000000000000000000000001",
@@ -117,17 +125,37 @@ describe("backup export schema coverage", () => {
   });
 });
 
-describe("MemoryBackupExportStorage + writeBackupExportArtifacts", () => {
-  it("stores the sealed artifact and metadata-safe evidence under the R2 keys", async () => {
+async function writeBackupExportArtifacts(
+  storage: BackupExportStorage,
+  input: {
+    exportIdentity: string;
+    sealedArtifact: Uint8Array;
+    exportEvidence: BackupExportSuccessEvidence;
+  },
+): Promise<void> {
+  await writeBackupExportArtifact(storage, input);
+  await writeBackupExportEvidence(storage, input);
+}
+
+describe("MemoryBackupExportStorage + immutable export writes", () => {
+  it("stages immutable artifact and evidence before advancing the latest evidence pointer", async () => {
     const storage = new MemoryBackupExportStorage();
     const sealedArtifact = new Uint8Array([1, 2, 3, 4]);
+    const exportEvidence = successEvidence();
 
     await writeBackupExportArtifacts(storage, {
+      exportIdentity: EXPORT_IDENTITY,
       sealedArtifact,
-      exportEvidence: successEvidence(),
+      exportEvidence,
     });
 
-    expect(storage.objects.get(BACKUP_LATEST_EXPORT_ARTIFACT_KEY)).toBe(sealedArtifact);
+    expect(storage.objects.get(buildBackupExportArtifactKey(EXPORT_IDENTITY))).toBe(sealedArtifact);
+    const stagedEvidence = storage.objects.get(buildBackupExportEvidenceKey(EXPORT_IDENTITY));
+    expect(typeof stagedEvidence).toBe("string");
+    expect(storage.objects.has(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY)).toBe(false);
+
+    await publishLatestBackupExport(storage, exportEvidence);
+
     const evidence = storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY);
     expect(typeof evidence).toBe("string");
     expect(JSON.parse(evidence as string).operation_id).toBe("op_00000000000000000000000001");
@@ -137,6 +165,7 @@ describe("MemoryBackupExportStorage + writeBackupExportArtifacts", () => {
     const storage = new MemoryBackupExportStorage();
     await expect(
       writeBackupExportArtifacts(storage, {
+        exportIdentity: EXPORT_IDENTITY,
         sealedArtifact: new Uint8Array([0]),
         exportEvidence: successEvidence({
           instance_id: "ghp_0123456789abcdefghijABCDEFGHIJ",
@@ -144,5 +173,51 @@ describe("MemoryBackupExportStorage + writeBackupExportArtifacts", () => {
       }),
     ).rejects.toThrow(/not metadata-safe/);
     expect(storage.objects.size).toBe(0);
+  });
+
+  it("keeps existing latest pointer objects unchanged until a complete run is published", async () => {
+    const storage = new MemoryBackupExportStorage();
+    const previousArtifact = new Uint8Array([9, 9, 9]);
+    const previousEvidence = '{"run":"previous"}\n';
+    storage.objects.set(BACKUP_LATEST_EXPORT_ARTIFACT_KEY, previousArtifact);
+    storage.objects.set(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, previousEvidence);
+
+    await writeBackupExportArtifacts(storage, {
+      exportIdentity: EXPORT_IDENTITY,
+      sealedArtifact: new Uint8Array([1, 2, 3]),
+      exportEvidence: successEvidence(),
+    });
+
+    expect(storage.objects.get(BACKUP_LATEST_EXPORT_ARTIFACT_KEY)).toBe(previousArtifact);
+    expect(storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY)).toBe(previousEvidence);
+  });
+
+  it("never regresses the latest pointer to an older export", async () => {
+    const storage = new MemoryBackupExportStorage();
+    const newer = successEvidence({ export_timestamp: "2026-07-08T03:00:00.000Z" });
+    const older = successEvidence({ export_timestamp: "2026-07-07T03:00:00.000Z" });
+
+    await publishLatestBackupExport(storage, newer);
+    await publishLatestBackupExport(storage, older);
+
+    const pointer = storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY);
+    expect(JSON.parse(pointer as string)).toEqual(newer);
+  });
+
+  it("advances the latest pointer to a newer export and repairs a corrupt pointer", async () => {
+    const storage = new MemoryBackupExportStorage();
+    storage.objects.set(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, "not json");
+    const first = successEvidence({ export_timestamp: "2026-07-07T03:00:00.000Z" });
+    const second = successEvidence({ export_timestamp: "2026-07-08T03:00:00.000Z" });
+
+    await publishLatestBackupExport(storage, first);
+    expect(JSON.parse(storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY) as string)).toEqual(
+      first,
+    );
+
+    await publishLatestBackupExport(storage, second);
+    expect(JSON.parse(storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY) as string)).toEqual(
+      second,
+    );
   });
 });
