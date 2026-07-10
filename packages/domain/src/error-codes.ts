@@ -275,6 +275,8 @@ export const PROTECTED_CHANGE_ERROR_CODES = {
   missingEvidence: "protected_change.missing_evidence",
   requesterMismatch: "protected_change.requester_mismatch",
   nonProtectedEnvironment: "protected_change.non_protected_environment",
+  approvalNotAuthorized: "protected_change.approval_not_authorized",
+  deliveryTargetMismatch: "protected_change.delivery_target_mismatch",
 } as const;
 
 export type ProtectedChangeErrorCode =

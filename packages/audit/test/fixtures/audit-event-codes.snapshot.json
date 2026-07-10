@@ -58,6 +58,8 @@
   "operation.canceled",
   "protected_change.approved",
   "protected_change.canceled",
+  "protected_change.delivery_approval_authorized",
+  "protected_change.delivery_approval_denied",
   "protected_change.execution_failed",
   "protected_change.execution_started",
   "protected_change.execution_succeeded",
