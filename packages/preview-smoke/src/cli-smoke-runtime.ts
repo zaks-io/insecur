@@ -47,6 +47,12 @@ export const AGENT_HARNESS_MARKER_ENV_KEYS = [
 ] as const;
 const INSECUR_ENV_PREFIX = "INSECUR_";
 
+/**
+ * Mirrors `INSECURE_FILE_KEY_STORE_ENV` in `@insecur/local-store` (duplicated, like the harness
+ * markers above, to keep preview-smoke off that package's dependency graph).
+ */
+const INSECURE_FILE_KEY_STORE_ENV = "INSECUR_ALLOW_INSECURE_FILE_KEYSTORE";
+
 export async function createCliSmokeWorkspace(): Promise<CliSmokeWorkspace> {
   const configHomeDir = await mkdtemp(join(tmpdir(), "insecur-preview-cli-home-"));
   const configDir = await mkdtemp(join(tmpdir(), "insecur-preview-cli-project-"));
@@ -98,6 +104,14 @@ export function buildCliChildEnv(
       ...omitInsecurKeys(process.env),
       INSECUR_CONFIG_HOME: configHomeDir,
       INSECUR_SESSION_TOKEN: bearer,
+      // The CLI seals derived agent credentials and local-store state with a machine root key
+      // from an OS credential store; headless CI runners provide no Secret Service session, so
+      // allow the file-fallback keystore for the CLI child only. Its key material lives under
+      // INSECUR_CONFIG_HOME, which is a disposable per-test mkdtemp dir deleted by
+      // workspace.cleanup(); the flag never reaches the runner's real user config. Platforms
+      // with a native store (macOS/Windows) ignore the flag entirely, and the OS-keychain
+      // adapters keep their own integration coverage in @insecur/local-store.
+      [INSECURE_FILE_KEY_STORE_ENV]: "1",
     },
     AGENT_HARNESS_MARKER_ENV_KEYS,
   );
