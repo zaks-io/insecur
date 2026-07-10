@@ -5,17 +5,17 @@ import { ConsoleNav, ConsoleNavItem } from "#components/layout/console-shell";
 import { Badge } from "./badge";
 
 describe("Badge", () => {
-  it("renders the solid ink stamp for states that must read at a glance", () => {
+  it("renders the solid stamp for states that must read at a glance", () => {
     const markup = renderToStaticMarkup(<Badge variant="solid">Protected</Badge>);
     expect(markup).toContain('data-slot="badge"');
-    expect(markup).toContain("bg-ink");
-    expect(markup).toContain("text-paper");
+    expect(markup).toContain("bg-primary");
+    expect(markup).toContain("text-primary-foreground");
     expect(markup).toContain("Protected");
   });
 
   it("defaults to the quiet outline variant", () => {
     const markup = renderToStaticMarkup(<Badge>Development</Badge>);
-    expect(markup).not.toContain("bg-ink");
+    expect(markup).not.toContain("bg-primary");
     expect(markup).toContain("Development");
   });
 });

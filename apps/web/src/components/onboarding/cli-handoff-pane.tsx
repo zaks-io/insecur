@@ -29,9 +29,9 @@ export function CliHandoffPane({
   });
 
   return (
-    <div className="border-2 border-ink">
-      <div className="border-b-2 border-ink px-6 py-6">
-        <h2 className="font-display text-2xl leading-tight sm:text-3xl">
+    <div className="rounded-xl border border-border bg-card">
+      <div className="border-b border-border px-6 py-6">
+        <h2 className="text-2xl leading-tight font-semibold tracking-tight sm:text-3xl">
           Ready. The CLI takes it from here.
         </h2>
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted-foreground">
@@ -49,7 +49,7 @@ export function CliHandoffPane({
           <CommandBlock key={entry.id} entry={entry} />
         ))}
       </section>
-      <div className="flex flex-col gap-3 border-t-2 border-ink px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-t border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           Keep this tab around, or find these IDs any time in your console.
         </p>

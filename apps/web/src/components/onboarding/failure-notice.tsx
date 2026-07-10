@@ -10,7 +10,7 @@ export function FailureNotice({
   onContinueToHandoff: () => void;
 }) {
   return (
-    <div role="alert" className="max-w-prose border-2 border-destructive px-4 py-3">
+    <div role="alert" className="max-w-prose rounded-xl border border-destructive/40 px-4 py-3">
       <p className="text-sm font-medium text-destructive">{failure.headline}</p>
       <p className="mt-1 text-sm leading-relaxed">{failure.detail}</p>
       {failure.action === "sign-in" ? (

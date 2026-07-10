@@ -93,7 +93,7 @@ const clauses: LegalClause[] = [
     body: (
       <>
         <p>Use insecur for lawful work with secrets that are yours to hold. Do not:</p>
-        <ul className="ml-4 flex list-disc flex-col gap-1 marker:text-ink/40">
+        <ul className="ml-4 flex list-disc flex-col gap-1 marker:text-muted-foreground">
           <li>break, probe, or overload the service, or try to reach data that is not yours;</li>
           <li>resell or rebrand insecur as your own product;</li>
           <li>upload material you have no right to store.</li>

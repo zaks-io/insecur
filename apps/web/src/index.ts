@@ -59,7 +59,9 @@ const handler = {
 
     const nonce = generateCspNonce();
     const sentry = sentryBrowserConfig(env);
-    const response = await sentryServerEntry.fetch(request, { context: { nonce, sentry } });
+    const response = await sentryServerEntry.fetch(request, {
+      context: { nonce, sentry, host: new URL(request.url).host },
+    });
     return withSecurityHeaders(response, nonce, {
       sentryDsn: sentry?.dsn,
       workosAuthkitOrigin: env.WORKOS_AUTHKIT_ORIGIN,

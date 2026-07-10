@@ -1,4 +1,4 @@
-import { Button } from "@insecur/ui";
+import { Button, THEME_INIT_SCRIPT, useThemeClass } from "@insecur/ui";
 import { sentryBrowserConfigScript } from "@insecur/observability";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
@@ -16,8 +16,13 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "insecur console" },
       { name: "description", content: "insecur tenant web console" },
+      { name: "theme-color", media: "(prefers-color-scheme: light)", content: "#ffffff" },
+      { name: "theme-color", media: "(prefers-color-scheme: dark)", content: "#0a0a0a" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+    ],
   }),
   shellComponent: RootDocument,
   notFoundComponent: RootNotFound,
@@ -31,10 +36,10 @@ export const Route = createRootRoute({
 function RootNotFound() {
   return (
     <SiteFrame>
-      <section className="px-5 py-10 sm:px-8 sm:py-12">
-        <div className="max-w-xl border-2 border-ink px-6 py-6">
+      <section className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+        <div className="max-w-xl rounded-xl border border-border bg-card px-6 py-6">
           <p className="font-mono text-xs text-muted-foreground">404</p>
-          <h1 className="mt-1 font-display text-2xl leading-tight">Not found</h1>
+          <h1 className="mt-1 text-2xl leading-tight font-semibold tracking-tight">Not found</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             This page doesn't exist.
           </p>
@@ -50,10 +55,13 @@ function RootNotFound() {
 function RootDocument({ children }: { children: ReactNode }) {
   const context = readStartContext();
   const sentryScript = sentryBrowserConfigScript(context?.sentry);
+  const themeClass = useThemeClass();
 
   return (
-    <html lang="en">
+    <html lang="en" className={themeClass} suppressHydrationWarning>
       <head>
+        {/* Stamp .dark before first paint so SSR'd pages never flash the wrong scheme. */}
+        <script nonce={context?.nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>

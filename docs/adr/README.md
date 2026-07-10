@@ -86,6 +86,7 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0080: Local Mode Is An Account-Less V1 Development Custody Mode](0080-local-mode-accountless-development-custody.md)
 - [ADR-0081: CLI Positional Arguments For The Primary Resource, Flags For Everything Else](0081-cli-positional-argument-grammar.md)
 - [ADR-0082: CLI Error Remediation Follows RFC 9457 Problem Details](0082-cli-error-shape-follows-rfc-9457.md)
+- [ADR-0083: One Visual System Across Site, Docs, and Console, Light and Dark](0083-unified-visual-system-light-dark.md)
 
 ## Superseded
 

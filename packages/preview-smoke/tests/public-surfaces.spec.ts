@@ -24,11 +24,13 @@ test.describe("preview public surfaces @preview", () => {
     assertHeaderContains(siteRoot, "x-robots-tag", "noindex", "Site root");
     assertHeaderEquals(siteRoot, "x-frame-options", "DENY", "Site root");
     assertHeaderEquals(siteRoot, "x-content-type-options", "nosniff", "Site root");
-    assertTextIncludes(text ?? "", "Secrets for teams shipping with agents", "Site root");
+    assertTextIncludes(text ?? "", "no-reveal secrets custody", "Site root");
     assertTextIncludes(text ?? "", "insecur.cloud", "Site root");
   });
 
   test("Web BFF root renders with security headers @happy-path", async ({ page, preview }) => {
+    // The console root redirects unauthenticated visitors through /orgs to /login; the final
+    // document is the sign-in page and must still carry the security headers.
     const response = await page.goto(`${preview.webBaseUrl}/`);
     const text = await page.textContent("body");
 
@@ -37,7 +39,7 @@ test.describe("preview public surfaces @preview", () => {
     assertHeaderContains(webRoot, "content-security-policy", "default-src", "Web root");
     assertHeaderEquals(webRoot, "x-frame-options", "DENY", "Web root");
     assertHeaderEquals(webRoot, "x-content-type-options", "nosniff", "Web root");
-    assertTextIncludes(text ?? "", "insecur web console", "Web root");
+    assertTextIncludes(text ?? "", "Continue to the tenant console", "Web root");
   });
 
   test("Site coverage badge serves Shields-compatible JSON @happy-path", async ({ preview }) => {

@@ -42,9 +42,12 @@ export function AuditFiltersForm({ search }: { search: AuditSearchParams }) {
   }
 
   return (
-    <form className="mt-8 border-2 border-ink p-5 sm:p-6" onSubmit={applyFilters}>
-      <div className="flex items-baseline justify-between gap-4 border-b border-ink/30 pb-4">
-        <h2 className="font-display text-xl leading-tight">Filters</h2>
+    <form
+      className="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6"
+      onSubmit={applyFilters}
+    >
+      <div className="flex items-baseline justify-between gap-4 border-b border-border pb-4">
+        <h2 className="text-xl font-semibold tracking-tight leading-tight">Filters</h2>
         {auditSearchHasActiveFilters(search) ? (
           <button
             type="button"
@@ -59,7 +62,7 @@ export function AuditFiltersForm({ search }: { search: AuditSearchParams }) {
       <div className="mt-5">
         <button
           type="submit"
-          className="inline-flex h-8 items-center border-2 border-ink bg-ink px-3 text-xs font-semibold text-paper"
+          className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"
         >
           Apply filters
         </button>

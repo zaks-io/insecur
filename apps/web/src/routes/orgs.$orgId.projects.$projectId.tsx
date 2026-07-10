@@ -33,7 +33,7 @@ function ProjectViewTabs({ orgId, projectId }: { orgId: string; projectId: strin
     <ConsoleNav
       orientation="horizontal"
       aria-label="Project views"
-      className="mt-8 border-b-2 border-ink"
+      className="mt-8 border-b border-border"
     >
       {PROJECT_VIEWS.map((view) => (
         <ConsoleNavItem key={view.label} asChild active={view.segment === active.segment}>
@@ -50,11 +50,11 @@ function ProjectLayout() {
 
   return (
     <section className="px-5 py-8 sm:px-8 sm:py-10">
-      <header className="border-b-2 border-ink pb-6">
-        <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+      <header className="border-b border-border pb-6">
+        <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
           Project
         </p>
-        <h1 className="mt-1 font-display text-3xl leading-tight sm:text-4xl">
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight leading-tight sm:text-4xl">
           {project.displayName}
         </h1>
         <p className="mt-2 font-mono text-xs text-muted-foreground">
@@ -72,9 +72,9 @@ function ProjectNotFound() {
   const { orgId } = Route.useParams();
   return (
     <section className="px-5 py-10 sm:px-8 sm:py-12">
-      <div className="max-w-xl border-2 border-ink px-6 py-6">
+      <div className="max-w-xl rounded-xl border border-border bg-card px-6 py-6">
         <p className="font-mono text-xs text-muted-foreground">404</p>
-        <h1 className="mt-1 font-display text-2xl leading-tight">Not found</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight leading-tight">Not found</h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           This project doesn't exist or you don't have access to it.
         </p>

@@ -34,9 +34,9 @@ export function CommandBlock({ entry }: { entry: CliHandoffCommand }) {
   return (
     <div>
       <p className="text-sm leading-relaxed text-muted-foreground">{entry.label}</p>
-      <div className="mt-2 flex items-start gap-3 bg-ink px-4 py-3 text-paper">
+      <div className="mt-2 flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 font-mono">
         <pre className="min-w-0 flex-1 font-mono text-[13px] leading-relaxed break-all whitespace-pre-wrap select-all">
-          <span aria-hidden className="mr-2 text-paper/50 select-none">
+          <span aria-hidden className="mr-2 text-muted-foreground select-none">
             $
           </span>
           {entry.command}
@@ -46,7 +46,7 @@ export function CommandBlock({ entry }: { entry: CliHandoffCommand }) {
           onClick={() => {
             void copy();
           }}
-          className="shrink-0 border border-paper/40 px-2 py-1 font-mono text-[11px] tracking-wide text-paper uppercase transition-colors outline-none select-none hover:bg-paper/10 focus-visible:ring-2 focus-visible:ring-paper/60"
+          className="shrink-0 rounded-md border border-border px-2 py-1 font-mono text-[11px] tracking-wide text-muted-foreground uppercase transition-colors outline-none select-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           {copyState === "copied" ? "Copied" : copyState === "manual" ? "Select it" : "Copy"}
         </button>

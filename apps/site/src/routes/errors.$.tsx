@@ -28,13 +28,15 @@ export const Route = createFileRoute("/errors/$")({
 function ErrorDetailPage() {
   const { entry } = Route.useLoaderData();
   return (
-    <article className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
-      <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
+      <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
         Error reference
       </p>
-      <h1 className="mt-3 font-mono text-2xl font-bold break-words">{entry.code}</h1>
+      <h1 className="mt-3 font-mono text-3xl font-semibold tracking-tight break-words">
+        {entry.code}
+      </h1>
       {entry.notes ? <p className="mt-4 max-w-prose">{entry.notes}</p> : null}
-      <dl className="mt-8 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 border-t border-ink/20 pt-6 text-sm">
+      <dl className="mt-8 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 border-t border-border pt-6 text-sm">
         <dt className="font-semibold">CLI exit code</dt>
         <dd className="font-mono">{entry.exitCode}</dd>
         <dt className="font-semibold">HTTP status</dt>

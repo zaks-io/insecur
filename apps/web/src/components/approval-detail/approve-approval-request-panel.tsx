@@ -26,9 +26,15 @@ export function ApproveApprovalRequestPanel({
   const disabled = request.impactReview.isStale;
 
   return (
-    <section aria-labelledby="approve-approval-heading" className="border-2 border-ink">
-      <header className="border-b-2 border-ink px-4 py-4 sm:px-5">
-        <h2 id="approve-approval-heading" className="font-display text-2xl leading-tight">
+    <section
+      aria-labelledby="approve-approval-heading"
+      className="rounded-xl border border-border bg-card"
+    >
+      <header className="border-b border-border px-4 py-4 sm:px-5">
+        <h2
+          id="approve-approval-heading"
+          className="text-2xl font-semibold tracking-tight leading-tight"
+        >
           Approve
         </h2>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">

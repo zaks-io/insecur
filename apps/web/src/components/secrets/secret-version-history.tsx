@@ -19,7 +19,7 @@ function VersionStateBadges({ version }: { version: ConsoleSecretVersionRow }) {
 function VersionHistoryRow({ version }: { version: ConsoleSecretVersionRow }) {
   const setAt = version.setAt ?? version.createdAt;
   return (
-    <tr className="border-t border-ink/20 first:border-t-0">
+    <tr className="border-t border-border first:border-t-0">
       <td className="px-4 py-3 align-top font-mono text-sm">v{version.versionNumber}</td>
       <td className="px-4 py-3 align-top font-mono text-xs text-muted-foreground">
         {shortDate(setAt)}
@@ -45,14 +45,22 @@ export function SecretVersionHistoryTable({
   versions: readonly ConsoleSecretVersionRow[];
 }) {
   return (
-    <div className="mt-6 overflow-x-auto border-2 border-ink">
+    <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
       <table className="w-full min-w-[40rem] border-collapse text-sm">
         <thead>
-          <tr className="border-b-2 border-ink text-left">
-            <th className="px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase">Version</th>
-            <th className="px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase">Set at</th>
-            <th className="px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase">Actor</th>
-            <th className="px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase">State</th>
+          <tr className="border-b border-border text-left">
+            <th className="px-4 py-3 text-xs font-medium tracking-widest uppercase text-muted-foreground">
+              Version
+            </th>
+            <th className="px-4 py-3 text-xs font-medium tracking-widest uppercase text-muted-foreground">
+              Set at
+            </th>
+            <th className="px-4 py-3 text-xs font-medium tracking-widest uppercase text-muted-foreground">
+              Actor
+            </th>
+            <th className="px-4 py-3 text-xs font-medium tracking-widest uppercase text-muted-foreground">
+              State
+            </th>
           </tr>
         </thead>
         <tbody>

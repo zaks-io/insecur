@@ -9,7 +9,7 @@ function AuditEventRow({ event }: { event: ConsoleAuditEvent }) {
   ].filter((part): part is string => part !== null);
 
   return (
-    <tr className="border-t border-ink/20 align-top">
+    <tr className="border-t border-border align-top">
       <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-muted-foreground">
         {event.createdAt}
       </td>
@@ -35,9 +35,9 @@ function AuditEventRow({ event }: { event: ConsoleAuditEvent }) {
 
 export function AuditEventTable({ events }: { events: readonly ConsoleAuditEvent[] }) {
   return (
-    <div className="mt-8 overflow-x-auto border-2 border-ink">
+    <div className="mt-8 overflow-x-auto rounded-xl border border-border bg-card">
       <table className="min-w-full border-collapse text-left">
-        <thead className="border-b-2 border-ink bg-ink/5">
+        <thead className="border-b border-border bg-muted">
           <tr className="font-mono text-xs text-muted-foreground">
             <th className="px-4 py-3 font-normal">When</th>
             <th className="px-4 py-3 font-normal">Event</th>

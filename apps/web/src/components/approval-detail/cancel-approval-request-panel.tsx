@@ -12,8 +12,8 @@ import { cancelOrgApprovalRequest } from "../../server/console-cancel-approval-r
 
 function ActionMessage({ voice }: { voice: ApprovalActionVoice }) {
   return (
-    <div className="border-2 border-ink px-4 py-4 sm:px-5" role="status">
-      <p className="font-display text-lg leading-tight">{voice.headline}</p>
+    <div className="px-4 py-4 sm:px-5" role="status">
+      <p className="text-lg font-semibold tracking-tight leading-tight">{voice.headline}</p>
       <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
         {voice.detail}
       </p>
@@ -29,9 +29,15 @@ function CancelApprovalRequestForm({
   onCancel: () => void;
 }) {
   return (
-    <section aria-labelledby="cancel-approval-heading" className="border-2 border-ink">
-      <header className="border-b-2 border-ink px-4 py-4 sm:px-5">
-        <h2 id="cancel-approval-heading" className="font-display text-2xl leading-tight">
+    <section
+      aria-labelledby="cancel-approval-heading"
+      className="rounded-xl border border-border bg-card"
+    >
+      <header className="border-b border-border px-4 py-4 sm:px-5">
+        <h2
+          id="cancel-approval-heading"
+          className="text-2xl font-semibold tracking-tight leading-tight"
+        >
           Cancel
         </h2>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
@@ -55,13 +61,16 @@ function CancelApprovalRequestForm({
 
 function CancelResultPanel({ orgId, voice }: { orgId: string; voice: ApprovalActionVoice }) {
   return (
-    <section aria-labelledby="cancel-approval-result-heading" className="border-2 border-ink">
+    <section
+      aria-labelledby="cancel-approval-result-heading"
+      className="rounded-xl border border-border bg-card"
+    >
       <h2 id="cancel-approval-result-heading" className="sr-only">
         Cancellation result
       </h2>
       <ActionMessage voice={voice} />
       {voice.action === "back-to-inbox" ? (
-        <div className="border-t-2 border-ink px-4 py-4 sm:px-5">
+        <div className="border-t border-border px-4 py-4 sm:px-5">
           <Button asChild variant="outline" size="sm">
             <a href={approvalInboxPath(orgId)}>Back to approvals</a>
           </Button>

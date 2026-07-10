@@ -18,6 +18,7 @@ declare module "@tanstack/react-start" {
     server: {
       requestContext: {
         sentry?: SentryBrowserConfig;
+        host?: string;
       };
     };
   }

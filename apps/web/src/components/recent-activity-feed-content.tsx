@@ -10,7 +10,7 @@ function AuditEventRow({ event }: { event: ConsoleAuditEvent }) {
     event.resource === null ? null : `${event.resource.type} ${event.resource.id}`;
 
   return (
-    <li className="px-5 py-4 sm:px-6">
+    <li className="py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <span className="min-w-0 font-mono text-sm text-foreground">{event.eventCode}</span>
         <span className="shrink-0 font-mono text-xs text-muted-foreground">
@@ -32,7 +32,7 @@ function AuditEventRow({ event }: { event: ConsoleAuditEvent }) {
 
 function RecentActivityRegister({ events }: { events: readonly ConsoleAuditEvent[] }) {
   return (
-    <ul className="divide-y-2 divide-ink border-2 border-ink">
+    <ul className="divide-y divide-border border-b border-border">
       {events.map((event) => (
         <AuditEventRow key={event.auditEventId} event={event} />
       ))}
@@ -79,8 +79,8 @@ export function RecentActivityFeedContent({
 }) {
   return (
     <section aria-label="Recent activity">
-      <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink pb-3">
-        <h2 className="font-display text-2xl leading-tight">Recent activity</h2>
+      <div className="flex items-baseline justify-between gap-4 border-b border-border pb-3">
+        <h2 className="text-2xl leading-tight font-semibold tracking-tight">Recent activity</h2>
         <p className="font-mono text-xs text-muted-foreground">
           {events.length === 1 ? "1 event" : `${String(events.length)} events`}
         </p>

@@ -52,9 +52,9 @@ function OrgNotFound() {
   return (
     <SiteFrame>
       <section className="px-5 py-10 sm:px-8 sm:py-12">
-        <div className="max-w-xl border-2 border-ink px-6 py-6">
+        <div className="max-w-xl rounded-xl border border-border bg-card px-6 py-6">
           <p className="font-mono text-xs text-muted-foreground">404</p>
-          <h1 className="mt-1 font-display text-2xl leading-tight">Not found</h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight leading-tight">Not found</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             This organization doesn't exist or you don't have access to it.
           </p>

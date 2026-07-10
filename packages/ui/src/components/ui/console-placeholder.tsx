@@ -15,15 +15,15 @@ export function ConsolePlaceholder({
   return (
     <section
       data-slot="console-placeholder"
-      className={cn("border-2 border-ink", className)}
+      className={cn("overflow-hidden rounded-xl border border-dashed border-border", className)}
       {...props}
     >
       <div
         aria-hidden
-        className="h-20 border-b-2 border-ink bg-[repeating-linear-gradient(-45deg,transparent,transparent_9px,color-mix(in_oklab,var(--ink)_12%,transparent)_9px,color-mix(in_oklab,var(--ink)_12%,transparent)_10px)]"
+        className="h-16 border-b border-dashed border-border bg-[repeating-linear-gradient(-45deg,transparent,transparent_9px,color-mix(in_oklab,var(--foreground)_8%,transparent)_9px,color-mix(in_oklab,var(--foreground)_8%,transparent)_10px)]"
       />
       <div className="flex flex-col gap-2 px-6 py-6">
-        <h2 className="font-display text-2xl leading-tight">{title}</h2>
+        <h2 className="text-lg leading-tight font-semibold tracking-tight">{title}</h2>
         <div className="max-w-prose text-sm leading-relaxed text-muted-foreground">{children}</div>
       </div>
     </section>

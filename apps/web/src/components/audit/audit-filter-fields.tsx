@@ -1,7 +1,7 @@
 import { Input } from "@insecur/ui";
 
 function filterFieldClassName(): string {
-  return "mt-1 block w-full min-w-0 border-2 border-ink bg-background px-3 py-2 font-mono text-xs";
+  return "mt-1 block w-full min-w-0 rounded-md border border-border bg-background px-3 py-2 font-mono text-xs";
 }
 
 export function AuditTextFilterField({

@@ -9,7 +9,9 @@ export {
   CardDescription,
   CardContent,
 } from "#components/ui/card";
-export { SiteShell, SiteHeader, SiteFooter } from "#components/layout/site-shell";
+export { SiteShell, SiteHeader, SiteFooter, SiteNavLink } from "#components/layout/site-shell";
+export { ThemeToggle } from "#components/ui/theme-toggle";
+export { THEME_INIT_SCRIPT, THEME_STORAGE_KEY, toggleTheme, useThemeClass } from "#lib/theme";
 export {
   ConsoleShell,
   ConsoleTopbar,

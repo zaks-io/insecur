@@ -4,14 +4,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "#lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 border px-1.5 py-0.5 align-middle text-[0.625rem] leading-4 font-semibold tracking-[0.18em] uppercase whitespace-nowrap select-none",
+  "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 align-middle text-xs leading-4 font-medium tracking-wider uppercase whitespace-nowrap select-none",
   {
     variants: {
       variant: {
-        // Solid ink is the console's signature inversion; reserve it for states that must read
-        // at a glance across a dense table (a protected environment, an actionable approval).
-        solid: "border-ink bg-ink text-paper",
-        outline: "border-ink/40 text-muted-foreground",
+        // Solid is the loud variant; reserve it for states that must read at a glance across a
+        // dense table (a protected environment, an actionable approval).
+        solid: "border-transparent bg-primary text-primary-foreground",
+        outline: "border-border text-muted-foreground",
       },
     },
     defaultVariants: {
