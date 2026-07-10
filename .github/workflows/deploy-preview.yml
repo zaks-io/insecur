@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-preview
+  group: preview-fleet
   cancel-in-progress: false
 
 jobs:

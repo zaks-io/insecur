@@ -17,6 +17,12 @@ export {
   findMetadataSafetyViolations,
 } from "./assert-metadata-safe.js";
 export { evidencePath, parseJsonEvidence, readJsonFile } from "./read-evidence.js";
+export {
+  assertPreviewSmokeDeployIdentityEvidence,
+  parsePreviewSmokeDeployIdentityEvidence,
+  PREVIEW_SMOKE_DEPLOY_IDENTITY_SERVICES,
+  type PreviewSmokeDeployIdentityEvidence,
+} from "./preview-smoke-deploy-identity-evidence.js";
 export { secretScanSummaryText, summarizeSecretScanEvidence } from "./summarize-secret-scan.js";
 export {
   EVIDENCE_BUNDLE_SCHEMA_VERSION,
