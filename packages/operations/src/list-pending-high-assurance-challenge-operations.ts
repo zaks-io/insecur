@@ -1,6 +1,7 @@
 import type { OrganizationId } from "@insecur/domain";
 import { withTenantScope } from "@insecur/tenant-store";
 import type { OperationPollResult } from "./operation-types.js";
+import { toOperationPollResult } from "./operation-row.js";
 import { TenantOperationStore } from "./tenant-operation-store.js";
 
 /**
@@ -12,6 +13,7 @@ export async function listPendingHighAssuranceChallengeOperations(
 ): Promise<readonly OperationPollResult[]> {
   return await withTenantScope({ kind: "organization", organizationId }, async ({ sql }) => {
     const store = new TenantOperationStore(sql);
-    return await store.listPendingHighAssuranceChallenges(organizationId);
+    const operations = await store.listPendingHighAssuranceChallenges(organizationId);
+    return operations.map((operation) => toOperationPollResult(operation));
   });
 }
