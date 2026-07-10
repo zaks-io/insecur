@@ -15,6 +15,29 @@ export interface SecretsPromoteCommandOptions {
   readonly operationId: string | undefined;
 }
 
+function promoteResumeArgv(input: {
+  options: SecretsPromoteCommandOptions;
+  draftVersionIds: readonly string[];
+  environmentId: string;
+  operationId: string;
+}): readonly string[] {
+  return [
+    "insecur",
+    "secrets",
+    "promote",
+    ...input.draftVersionIds,
+    "--env-id",
+    input.environmentId,
+    ...(input.options.comment === undefined ? [] : ["--comment", input.options.comment]),
+    ...(input.options.impactReviewFingerprint === undefined
+      ? []
+      : ["--impact-review-fingerprint", input.options.impactReviewFingerprint]),
+    "--operation",
+    input.operationId,
+    "--json",
+  ];
+}
+
 export async function runSecretsPromoteCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
@@ -50,5 +73,14 @@ export async function runSecretsPromoteCommand(
     result,
     flags,
     (data) => `Created approval request ${data.approvalRequestId} for protected promotion.`,
+    {
+      resumeArgv: (resumeOperationId) =>
+        promoteResumeArgv({
+          options: commandOptions,
+          draftVersionIds,
+          environmentId,
+          operationId: resumeOperationId,
+        }),
+    },
   );
 }

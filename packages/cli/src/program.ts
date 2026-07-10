@@ -14,6 +14,7 @@ import { registerLogoutCommand } from "./register-logout-command.js";
 import { registerRunCommand } from "./register-run-command.js";
 import { registerScanCommand } from "./register-scan-command.js";
 import { registerShellCommand } from "./register-shell-command.js";
+import { registerDescribeCommand } from "./register-describe-command.js";
 import { configureIdTruncation } from "./output/cell-format.js";
 import { configureColor } from "./output/style.js";
 import {
@@ -51,6 +52,7 @@ function buildProgram(options: { readonly crashReporter: CliCrashReporter }): Co
   registerLogoutCommand(program, deps);
   registerShellCommand(program, deps);
   registerAgentCommands(program, deps);
+  registerDescribeCommand(program, deps);
   registerRunCommand(program, deps);
   registerInitCommand(program, deps);
   registerScanCommand(program, { globalFlags: deps.globalFlags });

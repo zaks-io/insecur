@@ -8,6 +8,7 @@ import { emptyState } from "../output/format.js";
 import { renderSuccess } from "../output/render.js";
 import { statusTone } from "../output/cell-format.js";
 import { renderTable } from "../output/table.js";
+import { describeCreationNext } from "./empty-list-next.js";
 
 export async function runConnectionsListCommand(
   flags: GlobalCliFlags,
@@ -26,7 +27,11 @@ export async function runConnectionsListCommand(
     return handleApiFailure(result.envelope, flags);
   }
 
-  renderSuccess(result.envelope, flags, (data) => {
+  const output =
+    result.envelope.data.connections.length === 0
+      ? { ...result.envelope, next: describeCreationNext(["connections", "create"]) }
+      : result.envelope;
+  renderSuccess(output, flags, (data) => {
     if (data.connections.length === 0) {
       return emptyState(
         "No connections here yet. Add one with",

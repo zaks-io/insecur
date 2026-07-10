@@ -350,6 +350,9 @@ describe("runRunCommand --watch", () => {
     expect(api.consumeInjectionGrant).toHaveBeenCalledTimes(2);
     expect(consumedGrantIds[0]).not.toBe(consumedGrantIds[1]);
     expect(stdout).not.toContain(SENSITIVE_VALUE);
+    expect(spawnCommandManagedMock).toHaveBeenCalledWith(["node", "-e", "0"], expect.any(Object), {
+      controlOutput: "stdout-json",
+    });
   });
 
   it("rejects --watch against a non-development environment before issuing grants", async () => {

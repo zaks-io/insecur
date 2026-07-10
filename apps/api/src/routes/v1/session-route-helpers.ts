@@ -53,6 +53,26 @@ export async function readHumanSessionMetadata(
   return sessionMetadata;
 }
 
+export function sessionPolicyFromMetadata(metadata: SessionCredentialMetadata) {
+  const values = [
+    metadata.credentialScopes,
+    metadata.organizationId,
+    metadata.projectId,
+    metadata.environmentId,
+  ];
+  if (values.every((value) => value === undefined)) {
+    return undefined;
+  }
+  return {
+    ...(metadata.credentialScopes === undefined
+      ? {}
+      : { credentialScopes: metadata.credentialScopes }),
+    ...(metadata.projectId === undefined ? {} : { projectId: metadata.projectId }),
+    ...(metadata.organizationId === undefined ? {} : { organizationId: metadata.organizationId }),
+    ...(metadata.environmentId === undefined ? {} : { environmentId: metadata.environmentId }),
+  };
+}
+
 /**
  * Agent-marked credentials carry harness identity in the signed `hrn` claim only (ADR-0032).
  * Client query params must not override that attribution.

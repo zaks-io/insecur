@@ -74,7 +74,7 @@ insecur secrets promote sv_7c1 sv_7c2 --env-id env_2b9 --comment "release 0.4"
 | `--env-id <id>`                    | Target environment.                          |
 | `--comment <text>`                 | Human-readable note attached to the request. |
 | `--impact-review-fingerprint <fp>` | Bind the request to a reviewed impact set.   |
-| `--operation-id <id>`              | Continue or reference an existing operation. |
+| `--operation <id>`                 | Continue or reference an existing operation. |
 
 Roll back to a prior version:
 

@@ -10,9 +10,30 @@ export function finishApiCommand<T>(
     | { readonly ok: false; readonly envelope: ErrorEnvelope; readonly httpStatus: number },
   flags: GlobalCliFlags,
   formatMessage: (data: T) => string,
+  options: {
+    readonly resumeArgv?: (operationId: string) => readonly string[];
+    readonly resumeActor?: "agent" | "human";
+  } = {},
 ): number {
   if (!result.ok) {
-    return handleApiFailure(result.envelope, flags);
+    const operationId = result.envelope.meta?.operationId;
+    const resume =
+      operationId === undefined || options.resumeArgv === undefined
+        ? undefined
+        : options.resumeArgv(operationId);
+    return handleApiFailure(
+      resume === undefined
+        ? result.envelope
+        : {
+            ...result.envelope,
+            remediation: {
+              ...result.envelope.remediation,
+              resume,
+              resumeActor: options.resumeActor ?? "agent",
+            },
+          },
+      flags,
+    );
   }
 
   renderSuccess(result.envelope, flags, formatMessage);

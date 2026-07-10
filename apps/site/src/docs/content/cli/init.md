@@ -2,7 +2,7 @@
 title: insecur init
 description: Provision guided organization defaults and write .insecur.json
 section: CLI reference
-order: 9
+order: 10
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

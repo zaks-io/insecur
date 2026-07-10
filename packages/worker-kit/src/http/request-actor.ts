@@ -7,5 +7,10 @@ export function toAuditActor(actor: UserActor): AuditActorRef {
 }
 
 export function toAccessActor(actor: UserActor): ActorRef {
-  return { type: "user", userId: actor.userId };
+  return {
+    type: "user",
+    userId: actor.userId,
+    ...(actor.credentialScopes === undefined ? {} : { credentialScopes: actor.credentialScopes }),
+    ...(actor.tokenScope === undefined ? {} : { tokenScope: actor.tokenScope }),
+  };
 }

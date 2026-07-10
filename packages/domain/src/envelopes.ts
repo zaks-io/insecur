@@ -42,6 +42,7 @@ export interface ErrorRemediation {
   readonly migrate?: readonly string[];
   readonly poll?: readonly string[];
   readonly resume?: readonly string[];
+  readonly resumeActor?: "agent" | "human";
   readonly hosted?: readonly string[];
   readonly secretsSet?: readonly string[];
   readonly type?: string;
@@ -49,10 +50,26 @@ export interface ErrorRemediation {
   readonly usage?: readonly string[];
 }
 
+export type NextAction =
+  | {
+      readonly id: string;
+      readonly actor: "agent" | "human";
+      readonly kind: "execute" | "wait";
+      readonly argv: readonly string[];
+      readonly until?: string;
+    }
+  | {
+      readonly id: string;
+      readonly actor: "human";
+      readonly kind: "open_url";
+      readonly url: string;
+    };
+
 export interface SuccessEnvelope<TData> {
   readonly ok: true;
   readonly data: TData;
   readonly meta?: MetadataEnvelopeMeta;
+  readonly next?: readonly NextAction[];
 }
 
 export interface ErrorEnvelope {
@@ -60,11 +77,13 @@ export interface ErrorEnvelope {
   readonly error: ErrorBody;
   readonly meta?: MetadataEnvelopeMeta;
   readonly remediation?: ErrorRemediation;
+  readonly next?: readonly NextAction[];
 }
 
 export interface ErrorEnvelopeOptions {
   readonly meta?: MetadataEnvelopeMeta;
   readonly remediation?: ErrorRemediation;
+  readonly next?: readonly NextAction[];
 }
 
 export type MetadataEnvelope<TData> = SuccessEnvelope<TData> | ErrorEnvelope;
@@ -247,29 +266,42 @@ export function assertMetadataOnlyEnvelopeShape(value: Record<string, unknown>):
 export function successEnvelope<TData>(
   data: TData,
   meta?: MetadataEnvelopeMeta,
+  next?: readonly NextAction[],
 ): SuccessEnvelope<TData> {
   assertMetadataOnlyValue(data);
   if (meta !== undefined) {
     assertMetadataOnlyValue(meta);
   }
-  return meta === undefined ? { ok: true, data } : { ok: true, data, meta };
+  if (next !== undefined) {
+    assertMetadataOnlyValue(next);
+  }
+  return {
+    ok: true,
+    data,
+    ...(meta === undefined ? {} : { meta }),
+    ...(next === undefined ? {} : { next }),
+  };
+}
+
+function assertErrorEnvelopeOptions(options: ErrorEnvelopeOptions): void {
+  for (const value of [options.meta, options.remediation, options.next]) {
+    if (value !== undefined) {
+      assertMetadataOnlyValue(value);
+    }
+  }
 }
 
 export function errorEnvelope(error: ErrorBody, options?: ErrorEnvelopeOptions): ErrorEnvelope {
   assertMetadataOnlyValue(error);
-  if (options?.meta !== undefined) {
-    assertMetadataOnlyValue(options.meta);
-  }
-  if (options?.remediation !== undefined) {
-    assertMetadataOnlyValue(options.remediation);
-  }
   if (options === undefined) {
     return { ok: false, error };
   }
+  assertErrorEnvelopeOptions(options);
   return {
     ok: false,
     error,
     ...(options.meta !== undefined ? { meta: options.meta } : {}),
     ...(options.remediation !== undefined ? { remediation: options.remediation } : {}),
+    ...(options.next !== undefined ? { next: options.next } : {}),
   };
 }

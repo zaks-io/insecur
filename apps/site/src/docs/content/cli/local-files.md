@@ -2,7 +2,7 @@
 title: insecur local-files
 description: Local plaintext secret file utilities (metadata-only; no secure erasure)
 section: CLI reference
-order: 10
+order: 11
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

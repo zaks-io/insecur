@@ -242,6 +242,11 @@ The CLI has local profile/config resolution, safe secret input paths, masked TTY
 stdin/generation paths for secret values, metadata-only output rendering, child-process
 environment construction, and HTTP clients for the First Value API routes.
 
+The agent product surface now includes versioned JSON envelopes with typed next actions,
+`describe`, `agent status`, idempotent Codex/Claude setup and scan hooks, `run --plan`, secret-write
+dry runs, JSONL operation watching, exact High-Assurance resume actions, clean child/control stream
+separation, and task-scoped derived sessions with signed scope, resource, and TTL ceilings.
+
 Installer scripts are served by the Public Site Worker at `/install.sh` and `/install.ps1`
 (`apps/site/src/install-sh.ts`, `apps/site/src/install-ps1.ts`): they fetch the `cli-v*`
 GitHub Release binaries and verify them against `SHA256SUMS` before installing. The public

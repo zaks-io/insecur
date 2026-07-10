@@ -54,7 +54,7 @@ function registerConnectionsCreateCommand(connections: Command, deps: Connection
     .option("--installation-id <id>", "GitHub App installation id (boundary)")
     .option("--owner <name>", "GitHub owner login (boundary)")
     .option("--allowed-repositories <repos>", "comma-separated GitHub repository names (boundary)")
-    .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
+    .option("--operation <id>", "resume after High-Assurance Challenge clearance")
     .action(async function connectionsCreateAction(provider: string, command: CommanderCommand) {
       const flags = deps.globalFlags(command);
       const options = command.opts<{
@@ -68,7 +68,7 @@ function registerConnectionsCreateCommand(connections: Command, deps: Connection
         installationId?: string;
         owner?: string;
         allowedRepositories?: string;
-        operationId?: string;
+        operation?: string;
       }>();
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runConnectionsCreateCommand(flags, api, context, {
@@ -83,7 +83,7 @@ function registerConnectionsCreateCommand(connections: Command, deps: Connection
         installationId: options.installationId,
         owner: options.owner,
         allowedRepositories: options.allowedRepositories,
-        operationId: options.operationId,
+        operationId: options.operation,
       });
     });
 }
@@ -111,7 +111,7 @@ function registerConnectionsRotateCommand(connections: Command, deps: Connection
     .option("--dry-run", "validate the active credential without replacing it")
     .option("--value-stdin", "read replacement provider token from stdin")
     .option("--token <value>", "REJECTED: provider tokens must not be passed on argv")
-    .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
+    .option("--operation <id>", "resume after High-Assurance Challenge clearance")
     .action(async function connectionsRotateAction(
       connectionId: string,
       command: CommanderCommand,
@@ -121,7 +121,7 @@ function registerConnectionsRotateCommand(connections: Command, deps: Connection
         dryRun?: boolean;
         valueStdin?: boolean;
         token?: string;
-        operationId?: string;
+        operation?: string;
       }>();
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runConnectionsRotateCommand(flags, api, context, {
@@ -129,7 +129,7 @@ function registerConnectionsRotateCommand(connections: Command, deps: Connection
         dryRun: options.dryRun === true,
         valueStdin: options.valueStdin === true,
         token: options.token,
-        operationId: options.operationId,
+        operationId: options.operation,
       });
     });
 }
@@ -142,7 +142,7 @@ function registerConnectionsReauthCommand(connections: Command, deps: Connection
     .option("--installation-id <id>", "GitHub App installation id (boundary override)")
     .option("--owner <name>", "GitHub owner login (boundary override)")
     .option("--allowed-repositories <repos>", "comma-separated GitHub repository names (boundary)")
-    .option("--operation-id <id>", "resume after High-Assurance Challenge clearance")
+    .option("--operation <id>", "resume after High-Assurance Challenge clearance")
     .action(async function connectionsReauthAction(
       connectionId: string,
       command: CommanderCommand,
@@ -152,12 +152,12 @@ function registerConnectionsReauthCommand(connections: Command, deps: Connection
         installationId?: string;
         owner?: string;
         allowedRepositories?: string;
-        operationId?: string;
+        operation?: string;
       }>();
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runConnectionsReauthCommand(flags, api, context, {
         connectionId,
-        operationId: options.operationId,
+        operationId: options.operation,
         installationId: options.installationId,
         owner: options.owner,
         allowedRepositories: options.allowedRepositories,

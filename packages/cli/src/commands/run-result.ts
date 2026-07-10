@@ -86,6 +86,7 @@ export function renderVariableKeyRunSuccess(input: {
         variableKey: input.delivery.variableKey,
         secretId: input.delivery.secretId,
         secretVersionId: input.delivery.secretVersionId,
+        exitSource: "child" as const,
         childExitCode: input.childExitCode,
         ...(input.delivery.auditEventId !== undefined
           ? { auditEventId: input.delivery.auditEventId }
@@ -155,6 +156,7 @@ export function renderProfileRunSuccess(input: {
           secretId: entry.secretId,
           secretVersionId: entry.secretVersionId,
         })),
+        exitSource: "child" as const,
         childExitCode: input.childExitCode,
         ...(input.delivery.auditEventId !== undefined
           ? { auditEventId: input.delivery.auditEventId }

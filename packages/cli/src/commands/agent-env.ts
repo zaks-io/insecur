@@ -10,12 +10,15 @@ import {
 import { CLI_SESSION_TOKEN_ENV } from "../auth/child-env.js";
 import {
   buildAgentEnvExports,
+  bindAgentSessionPolicyToContext,
   deriveAgentSessionFromHuman,
   requireHumanSessionCredential,
   resolveAgentTag,
 } from "./agent-shared.js";
 import { CliError } from "../output/cli-error.js";
 import { EXIT_VALIDATION } from "../output/exit-codes.js";
+import type { AgentSessionPolicyOptions } from "./agent-session-policy.js";
+import type { DerivedAgentSession } from "./agent-shared.js";
 
 const ALLOWED_AGENT_ENV_EXPORT_KEYS = new Set([
   "INSECUR_HOST",
@@ -42,11 +45,37 @@ function assertMetadataOnlyAgentEnvOutput(exports: Record<string, string>): void
   }
 }
 
+async function formatPersistedAgentEnv(input: {
+  readonly derived: DerivedAgentSession;
+  readonly host: string;
+  readonly agentTag: string | undefined;
+  readonly store: AgentCredentialStore | undefined;
+}): Promise<string> {
+  const credentialFile = await writeAgentCredentialFile(
+    {
+      credential: input.derived.credential,
+      sessionId: input.derived.data.sessionId,
+      expiresAt: input.derived.data.expiresAt,
+      host: input.host,
+    },
+    input.store,
+  );
+  const exports = buildAgentEnvExports({
+    host: input.host,
+    agentCredentialFile: credentialFile,
+    ...(input.agentTag === undefined ? {} : { agentTag: input.agentTag }),
+  });
+  assertMetadataOnlyAgentEnvOutput(exports);
+  return `${formatAgentEnvExports(exports)}\n`;
+}
+
 export async function runAgentEnvCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
   context: ResolvedCliContext,
-  options: { readonly agentCredentialStore?: AgentCredentialStore } = {},
+  options: AgentSessionPolicyOptions & {
+    readonly agentCredentialStore?: AgentCredentialStore;
+  } = {},
 ): Promise<number> {
   if (flags.json) {
     throw new CliError(
@@ -59,25 +88,20 @@ export async function runAgentEnvCommand(
     );
   }
   const humanCredential = await requireHumanSessionCredential(context.scope.host);
-  const derived = await deriveAgentSessionFromHuman(api, context.scope.host, humanCredential);
-  const agentTag = resolveAgentTag(flags);
-  const store = options.agentCredentialStore;
-  const credentialFile = await writeAgentCredentialFile(
-    {
-      credential: derived.credential,
-      sessionId: derived.data.sessionId,
-      expiresAt: derived.data.expiresAt,
-      host: context.scope.host,
-    },
-    store,
+  const policy = bindAgentSessionPolicyToContext(options, context);
+  const derived = await deriveAgentSessionFromHuman(
+    api,
+    context.scope.host,
+    humanCredential,
+    policy,
   );
-  const exports = buildAgentEnvExports({
+  const agentTag = resolveAgentTag(flags);
+  const output = await formatPersistedAgentEnv({
+    derived,
     host: context.scope.host,
-    agentCredentialFile: credentialFile,
-    ...(agentTag === undefined ? {} : { agentTag }),
+    agentTag,
+    store: options.agentCredentialStore,
   });
-  const output = `${formatAgentEnvExports(exports)}\n`;
-  assertMetadataOnlyAgentEnvOutput(exports);
   process.stdout.write(output);
   return 0;
 }

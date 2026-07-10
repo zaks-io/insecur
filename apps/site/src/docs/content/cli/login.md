@@ -2,7 +2,7 @@
 title: insecur login
 description: Authenticate with WorkOS AuthKit PKCE and mint a short-lived CLI credential
 section: CLI reference
-order: 11
+order: 12
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

@@ -18,6 +18,7 @@ export interface RunWatchLoopInput {
   readonly command: readonly string[];
   readonly watchRoot: string;
   readonly executeIteration: () => Promise<RunWatchIteration>;
+  readonly controlOutput?: "stdout-json";
   /** Test seam: bypass filesystem watching and await an explicit restart signal. */
   readonly waitForRestartSignal?: () => Promise<void>;
 }
@@ -184,9 +185,14 @@ async function runWatchCycle(input: {
   readonly command: readonly string[];
   readonly executeIteration: () => Promise<RunWatchIteration>;
   readonly waitForRestart: () => Promise<void>;
+  readonly controlOutput?: "stdout-json";
 }): Promise<number | "restart"> {
   const iteration = await input.executeIteration();
-  const managed = spawnCommandManaged(input.command, iteration.childEnv);
+  const managed = spawnCommandManaged(
+    input.command,
+    iteration.childEnv,
+    input.controlOutput === undefined ? {} : { controlOutput: input.controlOutput },
+  );
   try {
     const outcome = await raceChildExitOrRestart({
       exitCode: managed.exitCode,
@@ -234,6 +240,7 @@ export async function runWatchLoop(input: RunWatchLoopInput): Promise<number> {
         command,
         executeIteration: input.executeIteration,
         waitForRestart: restartSignal.waitForRestart,
+        ...(input.controlOutput === undefined ? {} : { controlOutput: input.controlOutput }),
       });
       if (result !== "restart") {
         return result;

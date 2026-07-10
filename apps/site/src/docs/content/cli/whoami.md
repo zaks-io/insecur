@@ -2,7 +2,7 @@
 title: insecur whoami
 description: Report acting human, session validity, resolved context, and attribution tier
 section: CLI reference
-order: 21
+order: 22
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

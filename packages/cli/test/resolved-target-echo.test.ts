@@ -42,6 +42,7 @@ describe("resolved target echo", () => {
     const line = stdout.mock.calls[0]?.[0];
     const parsed: unknown = JSON.parse(line as string);
     expect(parsed).toEqual({
+      schemaVersion: "1",
       ok: true,
       data: { profileId: PROFILE_ID },
       meta: {

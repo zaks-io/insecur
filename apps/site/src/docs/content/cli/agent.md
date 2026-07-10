@@ -15,6 +15,29 @@ Agent harness attribution and child sessions
 insecur agent [options] [command]
 ```
 
+## `insecur agent status`
+
+Report agent readiness, resolved context, capabilities, and exact next actions
+
+```sh
+insecur agent status [options]
+```
+
+## `insecur agent setup`
+
+Install or verify project-local agent instructions and scan hooks
+
+```sh
+insecur agent setup [options]
+```
+
+| Option             | Description                                              |
+| ------------------ | -------------------------------------------------------- |
+| `--harness <name>` | agent harness: codex or claude (required)                |
+| `--mode <mode>`    | scan hook mode: advisory or strict (default: `advisory`) |
+| `--dry-run`        | report the files that would change                       |
+| `--check`          | exit 7 when managed agent setup has drifted              |
+
 ## `insecur agent shell`
 
 Run a command in a deny-by-default child environment with a derived agent session
@@ -23,6 +46,11 @@ Run a command in a deny-by-default child environment with a derived agent sessio
 insecur agent shell [options]
 ```
 
+| Option                   | Description                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `--allow <capabilities>` | comma-separated task capabilities: secrets:list, secrets:set, run, operations:cancel |
+| `--ttl <seconds>`        | derived session lifetime from 60 to 86400 seconds                                    |
+
 ## `insecur agent env`
 
 Print metadata-only shell exports for a separately launched agent harness
@@ -30,6 +58,11 @@ Print metadata-only shell exports for a separately launched agent harness
 ```sh
 insecur agent env [options]
 ```
+
+| Option                   | Description                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `--allow <capabilities>` | comma-separated task capabilities: secrets:list, secrets:set, run, operations:cancel |
+| `--ttl <seconds>`        | derived session lifetime from 60 to 86400 seconds                                    |
 
 ## `insecur agent register`
 

@@ -9,6 +9,7 @@ export interface RunCommandOptions {
   readonly variableKey?: string;
   readonly command: readonly string[];
   readonly watch?: boolean;
+  readonly plan?: boolean;
 }
 
 export function requireRunCommand(command: readonly string[]): readonly string[] {

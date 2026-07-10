@@ -10,6 +10,7 @@ import {
   resolveOrgScopedConnectionTarget,
 } from "./connections-command-scope.js";
 import { rejectArgvProviderToken } from "./connections-cli-input.js";
+import { connectionRotateResumeArgv } from "./resume-argv.js";
 
 export interface ConnectionsRotateCommandOptions {
   readonly connectionId: string;
@@ -21,6 +22,29 @@ export interface ConnectionsRotateCommandOptions {
 
 function rejectArgvToken(token: string | undefined): void {
   rejectArgvProviderToken(token);
+}
+
+async function readRotationToken(
+  options: ConnectionsRotateCommandOptions,
+): Promise<Uint8Array | undefined> {
+  if (options.dryRun) {
+    return undefined;
+  }
+  const collected = await collectSecretValue({
+    generateMode: undefined,
+    generateLength: undefined,
+    valueStdin: options.valueStdin,
+    allowEmpty: false,
+    inputRequiredUsage: ["insecur", "connections", "rotate", options.connectionId, "--value-stdin"],
+  });
+  if (collected.inputMode === "generated") {
+    throw new CliError({
+      code: CLI_ERROR_CODES.validationError,
+      message: "Credential rotation does not support --generate.",
+      retryable: false,
+    });
+  }
+  return collected.valueUtf8;
 }
 
 export async function runConnectionsRotateCommand(
@@ -38,30 +62,7 @@ export async function runConnectionsRotateCommand(
   const operationId =
     options.operationId === undefined ? undefined : parseOperationIdOrThrow(options.operationId);
 
-  let tokenUtf8: Uint8Array | undefined;
-  if (!options.dryRun) {
-    const collected = await collectSecretValue({
-      generateMode: undefined,
-      generateLength: undefined,
-      valueStdin: options.valueStdin,
-      allowEmpty: false,
-      inputRequiredUsage: [
-        "insecur",
-        "connections",
-        "rotate",
-        options.connectionId,
-        "--value-stdin",
-      ],
-    });
-    if (collected.inputMode === "generated") {
-      throw new CliError({
-        code: CLI_ERROR_CODES.validationError,
-        message: "Credential rotation does not support --generate.",
-        retryable: false,
-      });
-    }
-    tokenUtf8 = collected.valueUtf8;
-  }
+  const tokenUtf8 = await readRotationToken(options);
 
   const result = await api.rotateAppConnectionCredential({
     ...target,
@@ -69,9 +70,17 @@ export async function runConnectionsRotateCommand(
     ...(operationId === undefined ? {} : { operationId }),
     ...(tokenUtf8 === undefined ? {} : { tokenUtf8 }),
   });
-  return finishConnectionCommand(flags, result, () =>
-    options.dryRun
-      ? `Dry-run validation completed for ${target.appConnectionId}.`
-      : `Rotated credentials for ${target.appConnectionId}.`,
+  return finishConnectionCommand(
+    flags,
+    result,
+    () =>
+      options.dryRun
+        ? `Dry-run validation completed for ${target.appConnectionId}.`
+        : `Rotated credentials for ${target.appConnectionId}.`,
+    {
+      resumeActor: options.dryRun ? "agent" : "human",
+      resumeArgv: (nextOperationId) =>
+        connectionRotateResumeArgv(options.connectionId, options.dryRun, nextOperationId),
+    },
   );
 }

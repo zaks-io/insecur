@@ -59,7 +59,35 @@ export function formatWhoamiHuman(data: SessionWhoamiData): string {
     { label: "Session", value: sessionValidity(data) },
     { label: "Expires", value: expiresValue(data) },
   ];
-  return renderDetail(pairs, [contextSection(data), attributionSection(data)]);
+  const policySection: DetailSection | undefined =
+    data.sessionPolicy === undefined
+      ? undefined
+      : {
+          heading: "Session policy",
+          pairs: [
+            {
+              label: "Scopes",
+              value: data.sessionPolicy.credentialScopes?.join(", ") ?? emptyValue(),
+            },
+            {
+              label: "Organization",
+              value: data.sessionPolicy.organizationId ?? emptyValue(),
+            },
+            {
+              label: "Project",
+              value: data.sessionPolicy.projectId ?? emptyValue(),
+            },
+            {
+              label: "Environment",
+              value: data.sessionPolicy.environmentId ?? emptyValue(),
+            },
+          ],
+        };
+  return renderDetail(pairs, [
+    contextSection(data),
+    attributionSection(data),
+    ...(policySection === undefined ? [] : [policySection]),
+  ]);
 }
 
 export interface LocalWhoamiData {

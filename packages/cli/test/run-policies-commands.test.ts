@@ -88,6 +88,7 @@ describe("run-policies CLI commands", () => {
   });
 
   it("create returns step-up exit code when high-assurance challenge is required", async () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const api = createMockApi({
       createRuntimeInjectionPolicy: vi.fn(async () => ({
         ok: false as const,
@@ -119,6 +120,15 @@ describe("run-policies CLI commands", () => {
       },
     );
     expect(exitCode).toBe(EXIT_STEP_UP);
+    const output = JSON.parse(String(stderr.mock.calls[0]?.[0])) as {
+      next: { id: string; actor: string; argv: string[] }[];
+    };
+    expect(output.next.at(-1)).toMatchObject({
+      id: "resume",
+      actor: "human",
+      argv: expect.arrayContaining(["--operation", "op_00000000000000000000000001"]),
+    });
+    stderr.mockRestore();
   });
 
   it("show --json returns metadata-only policy payload", async () => {
@@ -200,6 +210,7 @@ describe("run-policies CLI commands", () => {
   });
 
   it("disable returns step-up exit code when high-assurance challenge is required", async () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const api = createMockApi({
       disableRuntimeInjectionPolicy: vi.fn(async () => ({
         ok: false as const,
@@ -228,6 +239,28 @@ describe("run-policies CLI commands", () => {
       },
     );
     expect(exitCode).toBe(EXIT_STEP_UP);
+    const output = JSON.parse(String(stderr.mock.calls[0]?.[0])) as {
+      next: { id: string; actor: string; argv: string[] }[];
+    };
+    expect(output.next.at(-1)).toEqual({
+      id: "resume",
+      kind: "execute",
+      actor: "agent",
+      argv: [
+        "insecur",
+        "run-policies",
+        "disable",
+        POLICY_ID,
+        "--env-id",
+        "env_00000000000000000000000001",
+        "--comment",
+        "retire migration flow",
+        "--operation",
+        "op_00000000000000000000000001",
+        "--json",
+      ],
+    });
+    stderr.mockRestore();
   });
 
   it("disable succeeds and returns exit code zero", async () => {
@@ -431,7 +464,7 @@ describe("run-policies CLI commands", () => {
       "env_00000000000000000000000001",
       "--comment",
       "retire migration flow",
-      "--operation-id",
+      "--operation",
       "op_00000000000000000000000001",
       POLICY_ID,
     ]);

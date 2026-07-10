@@ -405,6 +405,13 @@ and remediation prose go to stderr. JSON output should be stable. With `--json`,
 written to stdout and error envelopes are written to stderr. Command-specific non-envelope machine
 formats document their own stream behavior.
 
+Every JSON envelope carries `"schemaVersion": "1"`. Ordered `next` entries are typed as agent or
+human actions and contain executable argv arrays, approval URLs, or wait conditions. Agents can
+inspect a command without authentication through `insecur describe <command...> --json`. In
+`insecur run --json`, child stdout is routed to the CLI's stderr so stdout remains a pure control
+channel. `run --watch --json` and `operations watch --jsonl` emit one versioned JSON object per
+line.
+
 ### Human presentation
 
 List commands render aligned tables with bold UPPERCASE headers, a two-space column gutter, and one
@@ -444,6 +451,7 @@ Success envelope:
 
 ```json
 {
+  "schemaVersion": "1",
   "ok": true,
   "data": {},
   "meta": {
@@ -467,7 +475,15 @@ Success envelope:
         }
       }
     ]
-  }
+  },
+  "next": [
+    {
+      "id": "execute",
+      "kind": "execute",
+      "actor": "agent",
+      "argv": ["insecur", "run", "local-dev", "--", "npm", "test"]
+    }
+  ]
 }
 ```
 
@@ -475,6 +491,7 @@ Error envelope:
 
 ```json
 {
+  "schemaVersion": "1",
   "ok": false,
   "error": {
     "code": "auth.insufficient_scope",
@@ -509,7 +526,27 @@ description. The `auth.high_assurance_required` envelope is the canonical case:
     "approvalUrl": "https://app.insecur.cloud/orgs/org_.../approvals/op_...",
     "poll": ["insecur", "operations", "wait", "op_...", "--json"],
     "resume": ["insecur", "secrets", "promote", "--env-id", "env_...", "--operation", "op_..."]
-  }
+  },
+  "next": [
+    {
+      "id": "open-approval",
+      "kind": "open_url",
+      "actor": "human",
+      "url": "https://app.insecur.cloud/orgs/org_.../approvals/op_..."
+    },
+    {
+      "id": "poll",
+      "kind": "wait",
+      "actor": "agent",
+      "argv": ["insecur", "operations", "wait", "op_...", "--json"]
+    },
+    {
+      "id": "resume",
+      "kind": "execute",
+      "actor": "agent",
+      "argv": ["insecur", "secrets", "promote", "--env-id", "env_...", "--operation", "op_..."]
+    }
+  ]
 }
 ```
 
@@ -780,16 +817,15 @@ insecur agent env                      # print exports for harnesses launched an
 insecur login --device --agent-session         # remote/cloud agents: mint agent-marked directly
 ```
 
-The derived session carries the same Effective Access as the parent (V1), is marked as an Agent
-Session with its own opaque ID, has a TTL no longer than the parent, dies when the parent session
-ends, and cannot satisfy a High-Assurance Challenge. Because the harness's whole process subtree
-holds the agent-marked token while the human's own commands hold the human one, server-side
-attribution is exact per request with no self-reporting: audit records and the console group
-activity per Agent Session ("agent session ag\_... (claude-code) · under isaac"). This adds no
-standing authority and no new identity class; it is the same human session lineage with an
-attribution mark (ADR-0032 amendment). Agent-marked sessions are a future policy hook (an
-Organization Configuration may later narrow what they may do, enforced by token scope), but V1
-uses them for attribution only.
+The derived session is marked as an Agent Session with its own opaque ID, has a TTL no longer than
+the parent, dies when the parent session ends, and cannot satisfy a High-Assurance Challenge.
+`--allow <capabilities>` and `--ttl <seconds>` optionally narrow it to a task. Explicit task
+sessions are signed with the selected Authorization Scopes and current Organization, Project, and
+Environment bounds; Effective Access intersects all of those with the human's live Membership
+access. Omitting `--allow` preserves the parent's scope ceiling. Because the harness's process
+subtree holds the agent-marked token while the human's own commands hold the human one,
+server-side attribution is exact per request with no self-reporting. `whoami --json` and
+`agent status --json` report the active policy as metadata.
 
 **Tier 2 — Registered Agent Session (automatic, session-persistent).** An agent running on a bare
 human token is upgraded to a registered Agent Session with no agent effort. The first command that
@@ -812,28 +848,27 @@ best-effort tag: explicit `--agent <name>` flag, then `INSECUR_AGENT_TAG`, then 
 markers. The tag is non-authoritative, recorded in audit metadata, and rendered as unverified
 ("isaac · via claude-code (unverified)").
 
-No tier is ever an input to authorization: authority is exactly the acting credential per
-ADR-0032. Detection observes; the token enforces.
+No attribution tier or detected label is an input to authorization. Authority is exactly the
+acting credential per ADR-0032. Detection observes; signed task scope enforces.
 
 ### Whoami As The Agent Entry Point
 
-`insecur whoami --json` is the taught first command for agents and doubles as the attribution
-status check. Its envelope reports the acting human, session validity and expiry, resolved
-org/project context, and the attribution tier in effect (derived, registered with Agent Session ID
-and harness, tag-only, or none). Running it triggers Tier 2 auto-registration as a side effect
+`insecur agent status --json` is the taught first command for agents; `whoami --json` remains the
+authenticated identity and attribution check. Status can report local readiness without a network
+request and includes protocol versions, mode, resolved context, session presence, detected
+harness, capabilities, missing prerequisites, and an ordered next action. Whoami reports the
+acting human, session validity and expiry, resolved org/project context, the attribution tier, and
+any signed task policy. Running it triggers Tier 2 auto-registration as a side effect
 when applicable, so "run whoami first" leaves the agent fully registered. Unauthenticated `whoami`
 exits `3` with remediation telling the agent exactly what to have its human run.
 
 ### Agent Onboarding Artifact
 
-`insecur init` offers to write a "Using secrets (for agents)" section into the repo's `AGENTS.md`
-(creating the file if absent) teaching the agent loop: run `insecur whoami --json` first to check
-auth and confirm registration; never read or echo secret values; use `insecur run` for secret use;
-write values via `--generate` or by piping to `--value-stdin`
-(`printenv NAME | insecur secrets set NAME --value-stdin`) so plaintext never enters
-the agent's own command line or context; treat exit `10` as a human handoff and follow the
-envelope's `remediation` steps. This section is the primary agent-facing product documentation and
-is kept in lockstep with this doc.
+`insecur agent setup --harness <codex|claude> --mode <advisory|strict>` idempotently writes a
+managed agent-guidance block and harness-native scan hook configuration without replacing unrelated
+repository instructions or hooks. `--dry-run` previews changes and `--check` fails on drift. The
+managed guidance teaches `agent status`, no-reveal secret handling, `run`, safe stdin/generation,
+and the exit `10` human handoff. This is the primary repository-local agent onboarding artifact.
 
 ## Command Shape
 

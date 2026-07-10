@@ -2,6 +2,7 @@ import { agentSessionId, userId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import { mintDerivedAgentSessionCredential } from "./derived-agent-session.js";
 import { readSessionCredentialMetadata } from "./session-credential-metadata.js";
+import { verifyEphemeralSessionCredential } from "./ephemeral-session.js";
 import { testSessionSigningSecret } from "./testing/index.js";
 
 const signingSecret = testSessionSigningSecret();
@@ -38,5 +39,35 @@ describe("mintDerivedAgentSessionCredential", () => {
         parentExpiresAt: new Date(Date.now() - 1_000).toISOString(),
       }),
     ).rejects.toMatchObject({ code: "auth.expired" });
+  });
+
+  it("binds explicit task scopes and resource limits into the derived credential", async () => {
+    const parentExpiresAt = new Date(Date.now() + 3_600_000).toISOString();
+    const minted = await mintDerivedAgentSessionCredential({
+      actor,
+      signingSecret,
+      parentExpiresAt,
+      credentialScopes: ["secret:read", "runtime_injection:run"],
+      projectId: "prj_00000000000000000000000001" as never,
+      environmentId: "env_00000000000000000000000001" as never,
+      ttlSeconds: 600,
+    });
+
+    const metadata = await readSessionCredentialMetadata(minted.credential, signingSecret);
+    expect(metadata.credentialScopes).toEqual(["secret:read", "runtime_injection:run"]);
+    expect(metadata.projectId).toBe("prj_00000000000000000000000001");
+    expect(metadata.environmentId).toBe("env_00000000000000000000000001");
+    expect(Date.parse(metadata.expiresAt)).toBeLessThanOrEqual(Date.now() + 600_000);
+    const verified = await verifyEphemeralSessionCredential(minted.credential, signingSecret);
+    expect(verified).toMatchObject({
+      ok: true,
+      actor: {
+        credentialScopes: ["secret:read", "runtime_injection:run"],
+        tokenScope: {
+          projectId: "prj_00000000000000000000000001",
+          environmentId: "env_00000000000000000000000001",
+        },
+      },
+    });
   });
 });

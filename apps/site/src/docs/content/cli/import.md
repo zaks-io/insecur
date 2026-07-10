@@ -2,7 +2,7 @@
 title: insecur import
 description: Import secrets from a local dotenv file into a development environment (create-only; all-or-nothing preflight)
 section: CLI reference
-order: 8
+order: 9
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

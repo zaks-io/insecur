@@ -158,6 +158,44 @@ describe("runSecretsSetCommand", () => {
     stdout.mockRestore();
   });
 
+  it("dry-runs a write without collecting or sending a sensitive value", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const api = createMockApi({
+      listEnvironmentSecrets: vi.fn(async () => ({
+        ok: true as const,
+        envelope: { ok: true as const, data: { secrets: [] } },
+      })),
+    });
+
+    const exitCode = await runSecretsSetCommand(flags, api, mockContext, {
+      variableKey: "API_KEY",
+      generateMode: "random",
+      generateLength: "32",
+      valueStdin: false,
+      allowEmpty: false,
+      dryRun: true,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(inputMocks.readMaskedPrompt).not.toHaveBeenCalled();
+    expect(inputMocks.readStdinBytes).not.toHaveBeenCalled();
+    expect(api.writeSecretByVariableKey).not.toHaveBeenCalled();
+    const parsed = JSON.parse(String(stdout.mock.calls[0]?.[0])) as {
+      data: { plan: { effect: string; writeMode: string; variableKey: string } };
+    };
+    expect(parsed.data.plan).toMatchObject({
+      effect: "create",
+      writeMode: "generated",
+      variableKey: "API_KEY",
+    });
+    stdout.mockRestore();
+  });
+
   it("preserves --value-stdin bytes exactly through the command", async () => {
     setMemorySession({
       credential: "credential_test",
