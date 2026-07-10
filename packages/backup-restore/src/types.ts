@@ -41,6 +41,19 @@ export interface BackupExportSuccessEvidence {
   operation_id?: string;
 }
 
+/** Metadata-only result of a completed restore import (ADR-0084). Never row payloads. */
+export interface RestoreImportSuccess {
+  status: "succeeded";
+  instance_id: string;
+  artifact_ref: string;
+  source_export_operation_id: string;
+  source_export_timestamp: string;
+  organization_count: number;
+  imported_row_count: number;
+  operation_id: string;
+  completed_at: string;
+}
+
 export interface RestoreDrillRtoMetadata {
   started_at: string;
   completed_at: string;

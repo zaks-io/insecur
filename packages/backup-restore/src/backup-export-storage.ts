@@ -10,6 +10,7 @@ export interface BackupExportStorage {
   putArtifact(key: string, body: Uint8Array): Promise<void>;
   putEvidence(key: string, body: string): Promise<void>;
   putLatestEvidence(body: string): Promise<void>;
+  getArtifact(key: string): Promise<Uint8Array | null>;
   getEvidence(key: string): Promise<string | null>;
   getLatestEvidence(): Promise<string | null>;
 }
@@ -36,6 +37,11 @@ export class MemoryBackupExportStorage implements BackupExportStorage {
   putLatestEvidence(body: string): Promise<void> {
     this.objects.set(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, body);
     return Promise.resolve();
+  }
+
+  getArtifact(key: string): Promise<Uint8Array | null> {
+    const value = this.objects.get(key);
+    return Promise.resolve(value instanceof Uint8Array ? value : null);
   }
 
   getEvidence(key: string): Promise<string | null> {

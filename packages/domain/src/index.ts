@@ -177,6 +177,8 @@ export {
   type ProviderAppRegistrationErrorCode,
   IMPORT_ERROR_CODES,
   type ImportErrorCode,
+  BACKUP_RESTORE_ERROR_CODES,
+  type BackupRestoreErrorCode,
   type KnownErrorCode,
   SECRET_ERROR_CODES,
   type SecretErrorCode,

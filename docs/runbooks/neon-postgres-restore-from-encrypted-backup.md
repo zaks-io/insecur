@@ -103,13 +103,18 @@ Production-equivalent drill (summary — operator executes manually):
    Neon project) to the Runtime deploy, and deploy the window-scoped operator coordinator Worker
    whose single Service Binding targets `insecur-runtime` with
    `entrypoint: RuntimeRestoreService` ([ADR-0084](../adr/0084-runtime-only-restore-import-boundary.md)).
-   Neither binding is ever committed to the checked-in fleet config.
+   Render the coordinator with
+   `node scripts/restore/render-restore-coordinator.mjs --out-dir <dir-outside-repo>` and follow
+   its printed deploy steps. Neither binding is ever committed to the checked-in fleet config; the
+   deploy-topology conformance gate fails a checked-in `RESTORE_DB` binding or
+   `RuntimeRestoreService` Service Binding.
 5. Trigger the import through the coordinator with the `artifact_ref`, expected `instance_id`, and
    expected `root_key_version`. The Runtime importer verifies artifact authenticity, proves the
    target fresh, and imports per-organization transactions itself — no decrypt of Sensitive Values
    during import, and no artifact bytes on operator hardware paths beyond the R2 fetch the Runtime
-   performs. (The importer implementation is INS-565; the gate remains blocked until this step is
-   performed and evidenced outside the fixture self-test.)
+   performs. When `RESTORE_DB` is absent the call fails closed with `backup_restore.not_armed`.
+   (The gate remains blocked until this step is performed and evidenced outside the fixture
+   self-test; the launch drill is INS-568.)
 6. Decrypt only the recovery canary secret through the normal runtime decrypt path
    (`RuntimeService`), not the restore entrypoint.
 7. Record wall-clock RTO from download start through successful canary verification.
