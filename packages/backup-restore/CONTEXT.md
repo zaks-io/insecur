@@ -11,6 +11,7 @@ canary verification path for production readiness gates.
 
 - `../../docs/adr/0058-minimal-backup-and-tested-restore.md`
 - `../../docs/adr/0072-backup-export-pipeline-and-freshness.md`
+- `../../docs/adr/0084-runtime-only-restore-import-boundary.md`
 - `../../docs/security-runbooks-and-release-gates.md`
 - `../../docs/runbooks/neon-postgres-restore-from-encrypted-backup.md`
 
@@ -26,5 +27,8 @@ canary verification path for production readiness gates.
 
 - Neon provisioning or production operator ceremonies.
 - Release gate bundle assembly (`@insecur/release-gate` consumes this package).
+- Restore import execution: it runs inside `apps/runtime` behind the restore-only
+  `RuntimeRestoreService` entrypoint (ADR-0084). There is no second key-bearing backup or restore
+  Worker; the Runtime deploy is the only root-key holder for backup and restore.
 
 Scheduled Worker export execution and R2 landing live in `apps/runtime` (ADR-0072).
