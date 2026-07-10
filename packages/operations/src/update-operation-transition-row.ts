@@ -1,10 +1,10 @@
 import { bindJsonb, type TenantScopedSql } from "@insecur/tenant-store";
 import type { ApplyTransitionInput } from "./apply-operation-transition.js";
-import { type OperationRow } from "./operation-row.js";
+import { type OperationRecord, type OperationRow } from "./operation-row.js";
 import type { OperationPollResult } from "./operation-types.js";
 
 interface TransitionRowUpdateInput {
-  current: OperationPollResult;
+  current: OperationRecord;
   transition: ApplyTransitionInput;
   mergedProgress: OperationPollResult["progress"];
   executionDeadline: string | null;
@@ -56,10 +56,12 @@ export async function updateOperationTransitionRow(
       state = ${input.transition.nextState},
       progress = ${bindJsonb(sql, input.mergedProgress)},
       execution_deadline = ${input.executionDeadline},
+      revision = revision + 1,
       updated_at = now()
     WHERE id = ${input.transition.operationId}
       AND org_id = ${input.transition.organizationId}
       AND state = ${input.current.state}
+      AND revision = ${input.current.revision}
       ${extraWhereClause}
     RETURNING
       id,
@@ -69,6 +71,7 @@ export async function updateOperationTransitionRow(
       idempotency_key,
       progress,
       execution_deadline,
+      revision,
       created_at,
       updated_at
   `;

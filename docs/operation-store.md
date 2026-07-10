@@ -153,6 +153,12 @@ implemented in `@insecur/operations` (`resolve-operation-liveness.ts`, migration
 - Operation records are tenant-qualified and reachable only through the Tenant-Scoped Store.
 - Operation IDs are non-secret selectors, not bearer authority.
 - Every transition is compare-and-set against the current state or fencing token.
+- Every Operation row write compare-and-sets on the row `revision` it read and increments it, so
+  two writers starting from the same state cannot both succeed and silently lose a write. Stale
+  writers fail with the stable, metadata-only, retryable `operation.stale_transition` conflict.
+- Progress updates are merge-patches: on a revision conflict the store re-reads and re-merges the
+  patch a bounded number of times, so concurrent non-conflicting progress writers both land without
+  dropping metadata. State transitions never auto-retry; the caller owns transition retry.
 - Operation metadata is safe for agent-facing polling and must never contain Sensitive Values.
 - Raw provider errors are normalized before storage; provider-native error text is not stored.
 - Bounded operations used for High-Assurance Challenge cannot be broadened after the challenge is
@@ -173,6 +179,9 @@ The Interface is the test surface:
   duplicating live effects.
 - Transition tests prove stale writers cannot move an Operation backward or overwrite terminal
   state.
+- Concurrency tests prove two same-state writers based on one read revision cannot both overwrite
+  the same Operation, and that concurrent transition/update races fail closed or re-merge instead
+  of silently losing metadata.
 - Abandonment tests prove abandoned `running` Operations are reclaimable only after claim expiry
   and only via the compare-and-set `running → incomplete` parking arm.
 - Metadata safety tests prove Operation records, polling output, JSON output, audit references, and

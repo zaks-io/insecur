@@ -2,8 +2,7 @@ import { organizationId, operationId, projectId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import { OPERATION_INTENT_CODES } from "../src/operation-intent-codes.js";
 import { OPERATION_ERROR_CODES } from "../src/operation-errors.js";
-import type { OperationRow } from "../src/operation-row.js";
-import type { OperationPollResult } from "../src/operation-types.js";
+import type { OperationRecord, OperationRow } from "../src/operation-row.js";
 import { TenantOperationStore } from "../src/tenant-operation-store.js";
 import { createFakeTenantSql, queryIncludes } from "./helpers/fake-tenant-sql.js";
 
@@ -11,13 +10,14 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 const OP = operationId.brand("op_00000000000000000000000001");
 const PRJ = projectId.brand("prj_00000000000000000000000001");
 
-function sampleOperation(overrides: Partial<OperationPollResult> = {}): OperationPollResult {
+function sampleOperation(overrides: Partial<OperationRecord> = {}): OperationRecord {
   return {
     operationId: OP,
     organizationId: ORG,
     state: "running",
     intentCode: OPERATION_INTENT_CODES.syncRun,
     progress: {},
+    revision: 1,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -34,7 +34,7 @@ function findBindingsProgressJson(values: readonly unknown[]): string | undefine
 }
 
 function operationRowFromPoll(
-  operation: OperationPollResult,
+  operation: OperationRecord,
   overrides: Partial<OperationRow> = {},
 ): OperationRow {
   return {
@@ -45,6 +45,7 @@ function operationRowFromPoll(
     idempotency_key: null,
     progress: operation.progress,
     execution_deadline: operation.executionDeadline ?? null,
+    revision: operation.revision,
     created_at: operation.createdAt,
     updated_at: operation.updatedAt,
     ...overrides,
@@ -271,6 +272,97 @@ describe("TenantOperationStore", () => {
       code: OPERATION_ERROR_CODES.staleTransition,
       retryable: true,
     });
+  });
+
+  it("recordProgress compare-and-sets on the revision it read and bumps it", async () => {
+    const operation = sampleOperation({ state: "running", revision: 7 });
+    let updateQuery = "";
+    let updateValues: readonly unknown[] = [];
+    const sql = createFakeTenantSql((query, values) => {
+      if (queryIncludes(query, "from operations", "limit 1")) {
+        return [operationRowFromPoll(operation)];
+      }
+      if (queryIncludes(query, "from sync_target_leases")) {
+        return [];
+      }
+      if (queryIncludes(query, "update operations", "returning")) {
+        updateQuery = query;
+        updateValues = values;
+        return [operationRowFromPoll(operation, { revision: 8 })];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+    const store = new TenantOperationStore(sql);
+
+    await store.recordProgress({
+      organizationId: ORG,
+      operationId: OP,
+      progressPatch: { counters: { step: 1 } },
+    });
+
+    expect(queryIncludes(updateQuery, "revision = revision + 1")).toBe(true);
+    expect(queryIncludes(updateQuery, "and revision =")).toBe(true);
+    expect(updateValues).toContain(7);
+  });
+
+  it("recordProgress retries a revision conflict and re-merges the concurrent write", async () => {
+    let reads = 0;
+    let updates = 0;
+    let secondUpdateValues: readonly unknown[] = [];
+    const sql = createFakeTenantSql((query, values) => {
+      if (queryIncludes(query, "from operations", "limit 1")) {
+        reads += 1;
+        if (reads === 1) {
+          return [operationRowFromPoll(sampleOperation({ state: "running", revision: 1 }))];
+        }
+        return [
+          operationRowFromPoll(
+            sampleOperation({
+              state: "running",
+              revision: 2,
+              progress: { counters: { other: 1 } },
+            }),
+          ),
+        ];
+      }
+      if (queryIncludes(query, "from sync_target_leases")) {
+        return [];
+      }
+      if (queryIncludes(query, "update operations", "returning")) {
+        updates += 1;
+        if (updates === 1) {
+          return [];
+        }
+        secondUpdateValues = values;
+        return [
+          operationRowFromPoll(
+            sampleOperation({
+              state: "running",
+              revision: 3,
+              progress: { counters: { other: 1, mine: 1 } },
+            }),
+          ),
+        ];
+      }
+      throw new Error(`unexpected query: ${query}`);
+    });
+    const store = new TenantOperationStore(sql);
+
+    const result = await store.recordProgress({
+      organizationId: ORG,
+      operationId: OP,
+      progressPatch: { counters: { mine: 1 } },
+    });
+
+    expect(reads).toBe(2);
+    expect(updates).toBe(2);
+    expect(secondUpdateValues).toContain(2);
+    const mergedJson = secondUpdateValues.find(
+      (value) => typeof value === "string" && value.includes("counters"),
+    );
+    expect(mergedJson).toContain("other");
+    expect(mergedJson).toContain("mine");
+    expect(result.progress.counters).toEqual({ other: 1, mine: 1 });
   });
 
   it("clearSyncTargetLeaseBinding no-ops when no lease metadata is present", async () => {

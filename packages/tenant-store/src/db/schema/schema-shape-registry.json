@@ -2129,6 +2129,13 @@
         "sqlType": "timestamp with time zone",
         "withTimezone": true
       },
+      "revision": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
       "created_at": {
         "notNull": true,
         "primaryKey": false,

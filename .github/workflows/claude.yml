@@ -25,9 +25,9 @@ jobs:
         github.event.comment.body != '/review' &&
         !startsWith(github.event.comment.body, '/review ')
       )
-    # Upstream has no semver tags; pinned to main HEAD as of 2026-07-09.
+    # Upstream has no semver tags; pinned to main HEAD as of 2026-07-10.
     # Bump SHA to update; review diff before bumping.
-    uses: zaks-io/claude-code-action/.github/workflows/claude.yml@d5a0d305e8f5bff7dc0ceb20c2f3b45fd626dcb2
+    uses: zaks-io/claude-code-action/.github/workflows/claude.yml@3c9d5703b1d7ed27fdd5a0b89ec494bf7ea2af55
     secrets:
       claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
@@ -40,6 +40,6 @@ jobs:
         github.event.comment.body == '/review' ||
         startsWith(github.event.comment.body, '/review ')
       )
-    uses: zaks-io/claude-code-action/.github/workflows/code-review.yml@d5a0d305e8f5bff7dc0ceb20c2f3b45fd626dcb2
+    uses: zaks-io/claude-code-action/.github/workflows/code-review.yml@3c9d5703b1d7ed27fdd5a0b89ec494bf7ea2af55
     secrets:
       claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

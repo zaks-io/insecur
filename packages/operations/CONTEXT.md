@@ -48,6 +48,9 @@ fencing tokens that serialize provider writes per Sync Target.
 - Idempotency keys per the ADR-0066 contract.
 - Metadata-only status, progress, wait, retry, and cancellation state.
 - Compare-and-set state transitions that reject stale writers.
+- Row-revision optimistic concurrency: every operation row write compare-and-sets on the revision
+  it read; progress merge-patches re-merge on conflict, stale writers get
+  `operation.stale_transition`.
 - Sync Target Serialization lease rows and fencing-token metadata.
 - Bounded operation references for High-Assurance Challenge step-up flows.
 - Audit references that correlate events to one Operation.

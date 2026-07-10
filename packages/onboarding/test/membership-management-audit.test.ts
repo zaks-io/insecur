@@ -15,16 +15,18 @@ vi.mock("@insecur/audit", async (importOriginal) => {
   return {
     ...actual,
     recordActionAudit: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
+    recordActionAuditInTenantScope: vi.fn().mockResolvedValue({ auditEventId: "aud_test" }),
   };
 });
 
-import { recordActionAudit } from "@insecur/audit";
+import { recordActionAudit, recordActionAuditInTenantScope } from "@insecur/audit";
+import type { TenantScopedSql } from "@insecur/tenant-store";
 import {
   recordInvitationAcceptDenied,
-  recordInvitationAccepted,
+  recordInvitationAcceptedInTenantScope,
   recordInvitationCreateDenied,
-  recordInvitationCreated,
-  recordOperatorOrganizationCreated,
+  recordInvitationCreatedInTenantScope,
+  recordOperatorOrganizationCreatedInTenantScope,
   recordOperatorOrganizationDenied,
 } from "../src/membership-management-audit.js";
 
@@ -37,6 +39,8 @@ const MEM = membershipId.brand("mem_00000000000000000000000001");
 const REQUEST = { requestId: requestId.brand("req_00000000000000000000000001") };
 
 const recordMock = vi.mocked(recordActionAudit);
+const recordInScopeMock = vi.mocked(recordActionAuditInTenantScope);
+const SCOPED_SQL = { tag: "scoped-sql" } as unknown as TenantScopedSql;
 
 describe("membership-management audit envelopes", () => {
   it("records operator organization denied with metadata-only fields", async () => {
@@ -59,16 +63,16 @@ describe("membership-management audit envelopes", () => {
     });
   });
 
-  it("records operator organization created with organization resource", async () => {
-    recordMock.mockClear();
+  it("records operator organization created on the tenant scope with organization resource", async () => {
+    recordInScopeMock.mockClear();
 
-    await recordOperatorOrganizationCreated({
+    await recordOperatorOrganizationCreatedInTenantScope(SCOPED_SQL, {
       operatorUserId: USER,
       organizationId: ORG,
       defaultTeamId: TEAM,
     });
 
-    expect(recordMock).toHaveBeenCalledWith({
+    expect(recordInScopeMock).toHaveBeenCalledWith(SCOPED_SQL, {
       outcome: "success",
       eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingOperatorOrganizationCreated,
       actor: { type: "user", userId: USER },
@@ -77,17 +81,17 @@ describe("membership-management audit envelopes", () => {
     });
   });
 
-  it("records invitation created with invitation resource", async () => {
-    recordMock.mockClear();
+  it("records invitation created on the tenant scope with invitation resource", async () => {
+    recordInScopeMock.mockClear();
 
-    await recordInvitationCreated({
+    await recordInvitationCreatedInTenantScope(SCOPED_SQL, {
       actorUserId: USER,
       organizationId: ORG,
       invitationId: INV,
       request: REQUEST,
     });
 
-    expect(recordMock).toHaveBeenCalledWith({
+    expect(recordInScopeMock).toHaveBeenCalledWith(SCOPED_SQL, {
       outcome: "success",
       eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationCreated,
       actor: { type: "user", userId: USER },
@@ -115,17 +119,17 @@ describe("membership-management audit envelopes", () => {
     });
   });
 
-  it("records invitation accepted with invitation resource", async () => {
-    recordMock.mockClear();
+  it("records invitation accepted on the tenant scope with invitation resource", async () => {
+    recordInScopeMock.mockClear();
 
-    await recordInvitationAccepted({
+    await recordInvitationAcceptedInTenantScope(SCOPED_SQL, {
       actorUserId: INVITEE,
       organizationId: ORG,
       invitationId: INV,
       membershipId: MEM,
     });
 
-    expect(recordMock).toHaveBeenCalledWith({
+    expect(recordInScopeMock).toHaveBeenCalledWith(SCOPED_SQL, {
       outcome: "success",
       eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.onboardingInvitationAccepted,
       actor: { type: "user", userId: INVITEE },
