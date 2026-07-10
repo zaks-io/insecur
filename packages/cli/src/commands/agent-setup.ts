@@ -4,6 +4,7 @@ import { successEnvelope, type NextAction } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { resolveProjectRoot } from "../config/paths.js";
 import { CliError } from "../output/cli-error.js";
+import { EXIT_ACTION_REQUIRED } from "../output/exit-codes.js";
 import { renderSuccess } from "../output/render.js";
 
 const START = "<!-- insecur:agents:start -->";
@@ -214,5 +215,5 @@ export async function runAgentSetupCommand(
     flags,
     () => `${options.dryRun ? "Would configure" : "Configured"} ${harness} ${mode} agent setup.`,
   );
-  return options.check && plan.changed.length > 0 ? 7 : 0;
+  return options.check && plan.changed.length > 0 ? EXIT_ACTION_REQUIRED : 0;
 }

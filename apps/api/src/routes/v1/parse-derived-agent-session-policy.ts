@@ -33,11 +33,13 @@ function parseScopes(value: unknown): readonly string[] | undefined {
   if (value === undefined) {
     return undefined;
   }
-  if (
-    !Array.isArray(value) ||
-    value.length > 32 ||
-    !value.every((scope) => typeof scope === "string" && isAuthorizationScope(scope))
-  ) {
+  if (!Array.isArray(value) || value.length > 32) {
+    return invalid("credentialScopes contains an unknown authorization scope.");
+  }
+  if (value.length === 0) {
+    return invalid("credentialScopes must not be empty.");
+  }
+  if (!value.every((scope) => typeof scope === "string" && isAuthorizationScope(scope))) {
     return invalid("credentialScopes contains an unknown authorization scope.");
   }
   return value;

@@ -44,4 +44,22 @@ describe("insecur describe", () => {
       watchOutputFormatInJsonMode: "jsonl",
     });
   });
+
+  it("fails an unknown command path with a versioned JSON error envelope", async () => {
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    const exitCode = await runCli(["node", "insecur", "describe", "no-such-command", "--json"]);
+
+    expect(exitCode).toBe(2);
+    const parsed = JSON.parse(String(stderr.mock.calls[0]?.[0])) as {
+      schemaVersion: string;
+      ok: boolean;
+      error: { code: string; message: string };
+    };
+    expect(parsed.schemaVersion).toBe("1");
+    expect(parsed.ok).toBe(false);
+    expect(parsed.error.code).toBe("validation.invalid_command_input");
+    expect(parsed.error.message).toContain("no-such-command");
+  });
 });

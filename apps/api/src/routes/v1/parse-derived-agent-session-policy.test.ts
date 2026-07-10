@@ -20,6 +20,12 @@ describe("parseDerivedAgentSessionPolicy", () => {
     });
   });
 
+  it("rejects an empty credentialScopes array instead of minting a zero-access token", () => {
+    expect(() => parseDerivedAgentSessionPolicy({ credentialScopes: [] })).toThrow(
+      "credentialScopes must not be empty",
+    );
+  });
+
   it("rejects unknown scopes and malformed resource boundaries", () => {
     expect(() => parseDerivedAgentSessionPolicy({ credentialScopes: ["root:everything"] })).toThrow(
       "unknown authorization scope",

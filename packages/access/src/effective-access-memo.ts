@@ -2,8 +2,12 @@ import { coordinateCacheKey } from "./coordinate-cache-key.js";
 import type { EffectiveAccessResult } from "./resolve-effective-access.js";
 import type { ActorRef, ResourceCoordinate } from "./resolve-effective-access.js";
 
-function sortedScopes(scopes: readonly string[] = []): string {
-  return [...scopes].sort().join(",");
+/**
+ * An unrestricted actor (no signed scope set) must never share a memo key with any bounded
+ * actor, including one whose signed scope set is empty.
+ */
+function scopeSetKey(scopes: readonly string[] | undefined): string {
+  return scopes === undefined ? "unbounded" : `scoped:${[...scopes].sort().join(",")}`;
 }
 
 function actorCacheKey(actor: ActorRef): string {
@@ -14,7 +18,7 @@ function actorCacheKey(actor: ActorRef): string {
       actor.tokenScope?.organizationId,
       actor.tokenScope?.projectId,
       actor.tokenScope?.environmentId,
-      sortedScopes(actor.credentialScopes),
+      scopeSetKey(actor.credentialScopes),
     ].join(":");
   }
   return [
@@ -24,7 +28,7 @@ function actorCacheKey(actor: ActorRef): string {
     actor.tokenScope.projectId,
     actor.tokenScope.environmentId,
     actor.tokenScope.runtimePolicyKeyId,
-    sortedScopes(actor.credentialScopes),
+    scopeSetKey(actor.credentialScopes),
   ].join(":");
 }
 

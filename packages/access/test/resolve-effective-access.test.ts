@@ -153,6 +153,25 @@ describe("resolveEffectiveAccess", () => {
     expect(loadMemberships).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps unrestricted and empty-scope-set user results separate in the request memo", async () => {
+    const loadMemberships: LoadMembershipsFn = vi.fn(async () => [
+      membership({ rolePreset: "owner" }),
+    ]);
+    const memo = new EffectiveAccessMemo();
+    const coordinate = { organizationId: ORG_A, projectId: PROJECT_A };
+
+    const emptyBounded = await resolveEffectiveAccess(
+      { ...ACTOR, credentialScopes: [] },
+      coordinate,
+      { loadMemberships, memo },
+    );
+    const unrestricted = await resolveEffectiveAccess(ACTOR, coordinate, { loadMemberships, memo });
+
+    expect(emptyBounded.scopes).toEqual([]);
+    expect(unrestricted.scopes).toContain(AUTHORIZATION_SCOPES.secretNonProtectedWrite);
+    expect(loadMemberships).toHaveBeenCalledTimes(2);
+  });
+
   it("does not treat unknown role presets as authorization shortcuts", () => {
     expect(expandBuiltInRolePresetToScopes("owner")).not.toEqual([]);
     expect(expandBuiltInRolePresetToScopes("custom-role")).toEqual([]);

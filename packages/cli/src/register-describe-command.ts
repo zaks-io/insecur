@@ -1,5 +1,6 @@
 import { successEnvelope } from "@insecur/domain";
 import type { Argument, Command, Option } from "commander";
+import { CliError } from "./output/cli-error.js";
 import { CLI_ENVELOPE_SCHEMA_VERSION, renderSuccess } from "./output/render.js";
 import type { ProgramDeps } from "./program-deps.js";
 
@@ -57,8 +58,11 @@ export function registerDescribeCommand(program: Command, deps: ProgramDeps): vo
       const flags = deps.globalFlags(command);
       const target = findCommand(program, commandPath);
       if (target === undefined) {
-        command.error(`Unknown command path: ${commandPath.join(" ")}`);
-        return;
+        throw new CliError({
+          code: "validation.invalid_command_input",
+          message: `Unknown command path: ${commandPath.join(" ")}`,
+          retryable: false,
+        });
       }
       const path = [program.name(), ...commandPath].join(" ");
       const data = {

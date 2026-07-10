@@ -111,6 +111,7 @@ Malformed signed resource IDs fail authentication rather than becoming branded i
 
 Omitting an explicit task policy preserves the July 4 behavior for compatibility: the child is
 agent-marked and bounded by the parent session, but receives no additional scope intersection.
-`whoami` and `agent status` expose the effective session policy as metadata so an agent can verify
-its boundary before acting. Agent marking remains attribution, not authorization. The signed task
+`whoami` exposes the signed session policy as metadata so an agent can verify its boundary before
+acting; `agent status` reports local configuration, attribution, and capability posture without a
+server round trip. Agent marking remains attribution, not authorization. The signed task
 policy is the authorization input.
