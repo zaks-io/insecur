@@ -359,6 +359,10 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
 
     expect(result.status).toBe("succeeded");
     expect(result.organization_count).toBe(sourceCounts.organizations);
+    // Every manifest org has rows here, so nothing is pruned: manifest == imported, skipped == 0.
+    expect(result.manifest_organization_count).toBe(sourceCounts.organizations);
+    expect(result.skipped_organization_count).toBe(0);
+    expect(result.skipped_organization_ids).toEqual([]);
     expect(result.source_export_operation_id).toBe(exportEvidence.operation_id);
     expect(result.source_export_timestamp).toBe(exportEvidence.export_timestamp);
     expect(result.imported_row_count).toBeGreaterThan(0);
@@ -393,6 +397,8 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
         artifact_ref: exportEvidence.artifact_ref,
         source_export_operation_id: exportEvidence.operation_id,
         organization_count: sourceCounts.organizations,
+        manifest_organization_count: sourceCounts.organizations,
+        skipped_organization_count: 0,
       });
     });
   }, 120_000);
