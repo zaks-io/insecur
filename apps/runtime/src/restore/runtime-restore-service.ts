@@ -43,8 +43,6 @@ class RuntimeRestoreServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   }
 }
 
-export type { RuntimeRestoreServiceBase };
-
 export const RuntimeRestoreService = Sentry.withSentry<
   RuntimeEnv,
   unknown,

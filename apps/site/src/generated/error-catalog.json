@@ -765,6 +765,114 @@
     "notes": "Duplicate final Variable Key in the import source."
   },
   {
+    "code": "backup_restore.not_armed",
+    "slug": "backup-restore-not-armed",
+    "typeUri": "https://insecur.dev/errors/backup-restore-not-armed",
+    "exitCode": 1,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Restore entrypoint called while the RESTORE_DB arming binding is absent (ADR-0084 fail-closed default)."
+  },
+  {
+    "code": "backup_restore.target_is_live",
+    "slug": "backup-restore-target-is-live",
+    "typeUri": "https://insecur.dev/errors/backup-restore-target-is-live",
+    "exitCode": 1,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "RESTORE_DB points at the normal database target; restore refuses before any statement runs (ADR-0084)."
+  },
+  {
+    "code": "backup_restore.target_not_fresh",
+    "slug": "backup-restore-target-not-fresh",
+    "typeUri": "https://insecur.dev/errors/backup-restore-target-not-fresh",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Restore target failed the fresh-target proof (journal marker, instance identity, or organizations already present). Discard the target and retry on a fresh one."
+  },
+  {
+    "code": "backup_restore.import_conflict",
+    "slug": "backup-restore-import-conflict",
+    "typeUri": "https://insecur.dev/errors/backup-restore-import-conflict",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Another restore import holds the target's exclusion lock or journal marker (ADR-0084 at-most-one import per target)."
+  },
+  {
+    "code": "backup_restore.artifact_not_found",
+    "slug": "backup-restore-artifact-not-found",
+    "typeUri": "https://insecur.dev/errors/backup-restore-artifact-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "No sealed scheduled-export artifact exists at the named reference."
+  },
+  {
+    "code": "backup_restore.artifact_invalid",
+    "slug": "backup-restore-artifact-invalid",
+    "typeUri": "https://insecur.dev/errors/backup-restore-artifact-invalid",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Sealed artifact is malformed or failed authenticated decryption under the AAD-bound instance ID."
+  },
+  {
+    "code": "backup_restore.header_mismatch",
+    "slug": "backup-restore-header-mismatch",
+    "typeUri": "https://insecur.dev/errors/backup-restore-header-mismatch",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Advisory header pre-check failed fast (format marker, instance, or root key version); trust still derives from the AEAD open."
+  },
+  {
+    "code": "backup_restore.export_operation_mismatch",
+    "slug": "backup-restore-export-operation-mismatch",
+    "typeUri": "https://insecur.dev/errors/backup-restore-export-operation-mismatch",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Export success evidence is missing, hash-mismatched, or does not link the artifact to its source export Operation."
+  },
+  {
+    "code": "backup_restore.manifest_incomplete",
+    "slug": "backup-restore-manifest-incomplete",
+    "typeUri": "https://insecur.dev/errors/backup-restore-manifest-incomplete",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Payload rows and the header organization manifest disagree, or the recovery-canary sentinel organization is absent."
+  },
+  {
+    "code": "backup_restore.unsupported_table",
+    "slug": "backup-restore-unsupported-table",
+    "typeUri": "https://insecur.dev/errors/backup-restore-unsupported-table",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Artifact names a table outside the export-table registry (unsupported newer export version); fails closed before any row import."
+  },
+  {
+    "code": "backup_restore.schema_mismatch",
+    "slug": "backup-restore-schema-mismatch",
+    "typeUri": "https://insecur.dev/errors/backup-restore-schema-mismatch",
+    "exitCode": 6,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "Restore target is missing migrated export-registry tables or columns the exported rows require."
+  },
+  {
+    "code": "backup_restore.import_failed",
+    "slug": "backup-restore-import-failed",
+    "typeUri": "https://insecur.dev/errors/backup-restore-import-failed",
+    "exitCode": 1,
+    "httpStatus": 500,
+    "remediationRequired": false,
+    "notes": "Restore import failed mid-run; the run is terminal, the target is never repaired in place — discard it and retry on a fresh target."
+  },
+  {
     "code": "injection.grant_denied",
     "slug": "injection-grant-denied",
     "typeUri": "https://insecur.dev/errors/injection-grant-denied",
