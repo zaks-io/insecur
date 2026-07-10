@@ -531,7 +531,9 @@ try {
   const orglessAuthorization = {
     Authorization: `Bearer ${await mintSmokeCredential(ORG_LESS_USER_ID, ORG_LESS_WORKOS_ID, "session_orgless")}`,
   };
-  await assertRouteHasMatchingCspNonce("/");
+  // The web root serves no document: it always forwards into the console shell (unauth lands on
+  // /login via the /orgs guard, asserted below).
+  await assertAuthenticatedRedirect("/", {}, "/orgs");
   await assertRouteHasMatchingCspNonce("/login");
   await assertLoginFormActionAllowsAuthkit([
     "https://api.workos.com",
