@@ -49,6 +49,22 @@ describe("preview smoke artifact sweep", () => {
       assertArtifactSweepClear(result);
     }).toThrow(/sensitive value encoding/u);
   });
+
+  it("fails loud when the artifact root does not exist instead of passing an empty sweep", async () => {
+    const missingRoot = join(tmpdir(), `insecur-preview-smoke-missing-${Date.now().toString()}`);
+
+    await expect(runArtifactSweep(missingRoot, [mintSmokeSentinel()])).rejects.toThrow(
+      /artifact sweep root does not exist/u,
+    );
+  });
+
+  it("fails loud when the artifact root contains zero files", async () => {
+    artifactRoot = await mkdtemp(join(tmpdir(), "insecur-preview-smoke-artifacts-"));
+
+    await expect(runArtifactSweep(requiredArtifactRoot(), [mintSmokeSentinel()])).rejects.toThrow(
+      /found no artifacts under/u,
+    );
+  });
 });
 
 function requiredArtifactRoot(): string {

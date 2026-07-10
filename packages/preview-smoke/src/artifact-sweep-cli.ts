@@ -1,14 +1,11 @@
-import { fileURLToPath } from "node:url";
-
 import {
   clearSmokeArtifactCredentials,
   readSmokeArtifactCredentials,
 } from "./artifact-credential-registry";
 import { revokeSmokeCredentials } from "./artifact-credential-revocation";
+import { PREVIEW_SMOKE_ARTIFACT_ROOT } from "./artifact-root";
 import { assertArtifactSweepClear, runArtifactSweep } from "./artifact-sweep";
 import { sentinelForValue } from "./redaction";
-
-const artifactRoot = fileURLToPath(new URL("../../preview-smoke-artifacts", import.meta.url));
 
 try {
   const credentials = readSmokeArtifactCredentials();
@@ -16,7 +13,7 @@ try {
     await revokeSmokeCredentials(requireApiBaseUrl(), credentials);
   }
   const sentinels = credentials.map(sentinelForValue);
-  const result = await runArtifactSweep(artifactRoot, sentinels);
+  const result = await runArtifactSweep(PREVIEW_SMOKE_ARTIFACT_ROOT, sentinels);
   assertArtifactSweepClear(result);
   console.log(
     `Preview smoke artifact sweep passed: ${String(result.fileCount)} files, ${String(result.archiveCount)} archives.`,

@@ -1,6 +1,13 @@
+import { Buffer } from "node:buffer";
+
 import { describe, expect, it } from "vitest";
 
 import { revokeSmokeCredentials } from "../src/artifact-credential-revocation";
+
+function fakeHmacCredential(claims: { exp: number }): string {
+  const payload = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
+  return `fake-header.${payload}.fake-signature`;
+}
 
 describe("preview smoke credential revocation", () => {
   it("revokes each fake credential through the self-revocation endpoint", async () => {
@@ -28,6 +35,41 @@ describe("preview smoke credential revocation", () => {
       expect(request.headers.get("authorization")).toMatch(
         /^Bearer fake-preview-smoke-credential-/u,
       );
+    }
+  });
+
+  it("treats an already-expired fake credential as revoked without calling the API", async () => {
+    let fetchCalls = 0;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = () => {
+      fetchCalls += 1;
+      return Promise.resolve(new Response(JSON.stringify({ data: { revoked: false }, ok: true })));
+    };
+
+    try {
+      await revokeSmokeCredentials("https://api.preview.example", [
+        fakeHmacCredential({ exp: Math.floor(Date.now() / 1000) - 60 }),
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(fetchCalls).toBe(0);
+  });
+
+  it("still fails when a not-yet-expired fake credential is not confirmed revoked", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = () =>
+      Promise.resolve(new Response(JSON.stringify({ data: { revoked: false }, ok: true })));
+
+    try {
+      await expect(
+        revokeSmokeCredentials("https://api.preview.example", [
+          fakeHmacCredential({ exp: Math.floor(Date.now() / 1000) + 600 }),
+        ]),
+      ).rejects.toThrow("Preview smoke credential revocation was not confirmed");
+    } finally {
+      globalThis.fetch = originalFetch;
     }
   });
 
