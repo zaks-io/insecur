@@ -14,6 +14,7 @@ import {
 } from "./browser-oauth.js";
 import { formatPkceStateClearCookie, INSECUR_OAUTH_PKCE_COOKIE } from "./browser-oauth-pkce.js";
 import { loginFailureRedirectPath } from "./login-error.js";
+import { LOGOUT_CSRF_FIELD } from "./logout-contract.js";
 
 // Single-source the PKCE exchange literals so the fake WorkOS port and the test assertions can
 // never silently diverge: the mock factory is hoisted above the imports, so it reads these through
@@ -164,7 +165,54 @@ describe("logoutBrowserSession", () => {
     vi.clearAllMocks();
   });
 
-  it("clears session cookies when the CSRF pair matches", () => {
+  function expectLocalCookiesCleared(clearCookieHeaders: readonly string[]): void {
+    for (const cookie of [WORKOS_SESSION_COOKIE, INSECUR_CSRF_COOKIE, INSECUR_OAUTH_PKCE_COOKIE]) {
+      expect(clearCookieHeaders.some((header) => header.includes(`${cookie}=`))).toBe(true);
+    }
+  }
+
+  it("terminates the WorkOS session via the provider logout URL when the CSRF header matches", async () => {
+    const token = generateCsrfToken();
+    const request = new Request("https://insecur.test/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `${INSECUR_CSRF_COOKIE}=${token}; ${WORKOS_SESSION_COOKIE}=sealed-browser-login`,
+        [INSECUR_CSRF_HEADER]: token,
+      },
+    });
+
+    const result = await logoutBrowserSession(request, createFakeWebEnv());
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const redirect = new URL(result.redirectTo);
+      expect(redirect.origin).toBe("https://workos.test");
+      expect(redirect.searchParams.get("session_id")).toBe("session_browser");
+      expectLocalCookiesCleared(result.clearCookieHeaders);
+    }
+  });
+
+  it("accepts the CSRF token from the plain-form hidden field", async () => {
+    const token = generateCsrfToken();
+    const request = new Request("https://insecur.test/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `${INSECUR_CSRF_COOKIE}=${token}; ${WORKOS_SESSION_COOKIE}=sealed-browser-login`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ [LOGOUT_CSRF_FIELD]: token }),
+    });
+
+    const result = await logoutBrowserSession(request, createFakeWebEnv());
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(new URL(result.redirectTo).searchParams.get("session_id")).toBe("session_browser");
+      expectLocalCookiesCleared(result.clearCookieHeaders);
+    }
+  });
+
+  it("falls back to a local /login logout when no sealed session is present", async () => {
     const token = generateCsrfToken();
     const request = new Request("https://insecur.test/logout", {
       method: "POST",
@@ -174,32 +222,74 @@ describe("logoutBrowserSession", () => {
       },
     });
 
-    const result = logoutBrowserSession(request);
+    const result = await logoutBrowserSession(request, createFakeWebEnv());
 
-    expect(result.status).toBe(204);
-    expect(result.clearCookieHeaders.some((header) => header.includes(WORKOS_SESSION_COOKIE))).toBe(
-      true,
-    );
-    expect(result.clearCookieHeaders.some((header) => header.includes(INSECUR_CSRF_COOKIE))).toBe(
-      true,
-    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.redirectTo).toBe("/login");
+      expectLocalCookiesCleared(result.clearCookieHeaders);
+    }
   });
 
-  it("rejects logout without a valid CSRF pair", () => {
-    const cookieToken = generateCsrfToken();
-    const headerToken = generateCsrfToken();
+  it("still clears local cookies when the sealed session no longer resolves at WorkOS", async () => {
+    const token = generateCsrfToken();
     const request = new Request("https://insecur.test/logout", {
       method: "POST",
       headers: {
-        Cookie: `${INSECUR_CSRF_COOKIE}=${cookieToken}`,
-        [INSECUR_CSRF_HEADER]: headerToken,
+        Cookie: `${INSECUR_CSRF_COOKIE}=${token}; ${WORKOS_SESSION_COOKIE}=sealed-unknown`,
+        [INSECUR_CSRF_HEADER]: token,
       },
     });
 
-    const result = logoutBrowserSession(request);
+    const result = await logoutBrowserSession(request, createFakeWebEnv());
 
-    expect(result.status).toBe(403);
-    expect(result.clearCookieHeaders).toHaveLength(0);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.redirectTo).toBe("/login");
+      expectLocalCookiesCleared(result.clearCookieHeaders);
+    }
+  });
+
+  it("rejects logout with a mismatched CSRF pair", async () => {
+    const request = new Request("https://insecur.test/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `${INSECUR_CSRF_COOKIE}=${generateCsrfToken()}; ${WORKOS_SESSION_COOKIE}=sealed-browser-login`,
+        [INSECUR_CSRF_HEADER]: generateCsrfToken(),
+      },
+    });
+
+    const result = await logoutBrowserSession(request, createFakeWebEnv());
+
+    expect(result).toEqual({ ok: false, status: 403 });
+  });
+
+  it("rejects logout with a mismatched form-field token", async () => {
+    const request = new Request("https://insecur.test/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `${INSECUR_CSRF_COOKIE}=${generateCsrfToken()}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ [LOGOUT_CSRF_FIELD]: generateCsrfToken() }),
+    });
+
+    const result = await logoutBrowserSession(request, createFakeWebEnv());
+
+    expect(result).toEqual({ ok: false, status: 403 });
+  });
+
+  it("rejects logout when no CSRF token is presented at all", async () => {
+    const request = new Request("https://insecur.test/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `${INSECUR_CSRF_COOKIE}=${generateCsrfToken()}; ${WORKOS_SESSION_COOKIE}=sealed-browser-login`,
+      },
+    });
+
+    const result = await logoutBrowserSession(request, createFakeWebEnv());
+
+    expect(result).toEqual({ ok: false, status: 403 });
   });
 });
 
