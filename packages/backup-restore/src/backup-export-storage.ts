@@ -10,6 +10,8 @@ export interface BackupExportStorage {
   putArtifact(key: string, body: Uint8Array): Promise<void>;
   putEvidence(key: string, body: string): Promise<void>;
   putLatestEvidence(body: string): Promise<void>;
+  getEvidence(key: string): Promise<string | null>;
+  getLatestEvidence(): Promise<string | null>;
 }
 
 export class MemoryBackupExportStorage implements BackupExportStorage {
@@ -35,6 +37,15 @@ export class MemoryBackupExportStorage implements BackupExportStorage {
     this.objects.set(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, body);
     return Promise.resolve();
   }
+
+  getEvidence(key: string): Promise<string | null> {
+    const value = this.objects.get(key);
+    return Promise.resolve(typeof value === "string" ? value : null);
+  }
+
+  getLatestEvidence(): Promise<string | null> {
+    return this.getEvidence(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY);
+  }
 }
 
 interface WriteBackupExportArtifactsInput {
@@ -50,7 +61,7 @@ function assertExportEvidenceMatchesIdentity(input: WriteBackupExportArtifactsIn
   }
 }
 
-function serializeExportEvidence(evidence: BackupExportSuccessEvidence): string {
+export function serializeExportEvidence(evidence: BackupExportSuccessEvidence): string {
   return `${JSON.stringify(evidence, null, 2)}\n`;
 }
 
@@ -74,20 +85,4 @@ export async function writeBackupExportEvidence(
     buildBackupExportEvidenceKey(input.exportIdentity),
     serializeExportEvidence(input.exportEvidence),
   );
-}
-
-export async function writeBackupExportArtifacts(
-  storage: BackupExportStorage,
-  input: WriteBackupExportArtifactsInput,
-): Promise<void> {
-  await writeBackupExportArtifact(storage, input);
-  await writeBackupExportEvidence(storage, input);
-}
-
-export async function publishLatestBackupExport(
-  storage: BackupExportStorage,
-  exportEvidence: BackupExportSuccessEvidence,
-): Promise<void> {
-  assertBackupRestoreEvidenceIsMetadataSafe(exportEvidence);
-  await storage.putLatestEvidence(serializeExportEvidence(exportEvidence));
 }

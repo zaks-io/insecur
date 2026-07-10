@@ -28,6 +28,14 @@ function createR2BackupExportStorage(bucket: R2Bucket): BackupExportStorage {
     async putLatestEvidence(body) {
       await bucket.put(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, body);
     },
+    async getEvidence(key) {
+      const object = await bucket.get(key);
+      return object === null ? null : await object.text();
+    },
+    async getLatestEvidence() {
+      const object = await bucket.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY);
+      return object === null ? null : await object.text();
+    },
   };
 }
 

@@ -127,6 +127,26 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
     );
   }
 
+  async function failureAuditEventCountForScheduledRun(scheduledAt: Date): Promise<number> {
+    return await withTenantScope(
+      { kind: "organization", organizationId: recoveryOrg },
+      async ({ sql }) => {
+        const operation = await new TenantOperationStore(sql).findByIdempotencyKey(
+          recoveryOrg,
+          buildBackupExportIdempotencyKey(scheduledAt),
+        );
+        expect(operation).toBeDefined();
+        const rows = (await sql`
+          SELECT COUNT(*)::int AS count
+          FROM audit_events
+          WHERE operation_id = ${operation?.operationId ?? ""}
+            AND event_code = ${"backup.export_failed"}
+        `) as { count: number }[];
+        return rows[0]?.count ?? 0;
+      },
+    );
+  }
+
   async function assertFailureDoesNotAdvanceLatestPointer(input: {
     step: BackupExportStep;
     priorScheduledAt: Date;
@@ -161,6 +181,7 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
 
     expect(storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY)).toBe(priorPointer);
     expect(await operationStateForScheduledRun(input.failedScheduledAt)).toBe("failed");
+    expect(await failureAuditEventCountForScheduledRun(input.failedScheduledAt)).toBe(1);
   }
 
   it("uses the NOBYPASSRLS runtime credential", async () => {
@@ -246,6 +267,53 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
       priorScheduledAt: new Date("2026-07-12T05:00:00.000Z"),
       failedScheduledAt: new Date("2026-07-12T06:00:00.000Z"),
     });
+  });
+
+  it("keeps a run succeeded and repairs the pointer on replay when the final publish fails", async () => {
+    const storage = new MemoryBackupExportStorage();
+    const scheduledAt = new Date("2026-07-12T09:00:00.000Z");
+    const onExportFailureAlert = vi.fn();
+    const publishFailure = new Error("simulated transient latest-pointer put failure");
+
+    await expect(
+      runBackupExport({
+        scheduledAt,
+        rootKeyBytes,
+        storage,
+        organizationId: recoveryOrg,
+        instanceId: TEST_INSTANCE_ID,
+        onExportFailureAlert,
+        onStepCompleted: (step) => {
+          if (step === "operation_succeeded") {
+            throw publishFailure;
+          }
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: "BackupExportPointerPublishError",
+      cause: publishFailure,
+    });
+
+    // The failure after success must page, but never rewrite the run's outcome: the Operation
+    // stays succeeded, no contradictory failure audit event exists, and the pointer is untouched.
+    expect(onExportFailureAlert).toHaveBeenCalledTimes(1);
+    expect(await operationStateForScheduledRun(scheduledAt)).toBe("succeeded");
+    expect(await failureAuditEventCountForScheduledRun(scheduledAt)).toBe(0);
+    expect(storage.objects.has(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY)).toBe(false);
+
+    // Replaying the same scheduled run re-publishes the pointer from the durable per-run evidence.
+    const replay = await runBackupExport({
+      scheduledAt,
+      rootKeyBytes,
+      storage,
+      organizationId: recoveryOrg,
+      instanceId: TEST_INSTANCE_ID,
+    });
+    expect(replay.created).toBe(false);
+    const stagedEvidence = storage.objects.get(
+      buildBackupExportEvidenceKey(buildBackupExportIdempotencyKey(scheduledAt)),
+    );
+    expect(readLatestExportEvidence(storage)).toEqual(JSON.parse(stagedEvidence as string));
   });
 
   it("does not cross-link immutable artifacts when scheduled runs share storage", async () => {
@@ -351,24 +419,27 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
   });
 
   it("starts a new Operation per scheduled run and replays duplicate cron idempotently", async () => {
+    // Replay shares the storage bucket with the original run, mirroring production where every
+    // scheduler invocation targets the same R2 bucket holding the durable per-run evidence.
+    const sharedStorage = new MemoryBackupExportStorage();
     const firstRun = await runBackupExport({
       scheduledAt: new Date("2026-07-09T03:00:00.000Z"),
       rootKeyBytes,
-      storage: new MemoryBackupExportStorage(),
+      storage: sharedStorage,
       organizationId: recoveryOrg,
       instanceId: TEST_INSTANCE_ID,
     });
     const replay = await runBackupExport({
       scheduledAt: new Date("2026-07-09T03:00:00.000Z"),
       rootKeyBytes,
-      storage: new MemoryBackupExportStorage(),
+      storage: sharedStorage,
       organizationId: recoveryOrg,
       instanceId: TEST_INSTANCE_ID,
     });
     const secondRun = await runBackupExport({
       scheduledAt: new Date("2026-07-10T03:00:00.000Z"),
       rootKeyBytes,
-      storage: new MemoryBackupExportStorage(),
+      storage: sharedStorage,
       organizationId: recoveryOrg,
       instanceId: TEST_INSTANCE_ID,
     });
@@ -378,6 +449,7 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
     expect(replay.operation.operationId).toEqual(firstRun.operation.operationId);
     expect(secondRun.created).toBe(true);
     expect(secondRun.operation.operationId).not.toEqual(firstRun.operation.operationId);
+    expect(readLatestExportEvidence(sharedStorage)).toEqual(secondRun.exportEvidence);
   });
 
   it("fires the failure alert and rethrows when createOperation fails", async () => {

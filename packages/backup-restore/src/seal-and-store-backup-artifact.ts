@@ -8,13 +8,10 @@ import {
   writeBackupExportEvidence,
   type BackupExportStorage,
 } from "./backup-export-storage.js";
+import type { OnBackupExportStepCompleted } from "./backup-export-step.js";
 import { buildExportSuccessEvidence } from "./build-export-success-evidence.js";
 import { hashBackupArtifact } from "./hash-backup-artifact.js";
 import type { BackupExportOrganizationSnapshot, BackupExportSuccessEvidence } from "./types.js";
-
-export type BackupExportStep = "artifact_stored" | "evidence_stored" | "audit_recorded";
-
-export type OnBackupExportStepCompleted = (step: BackupExportStep) => void | Promise<void>;
 
 export interface SealAndStoreBackupArtifactInput {
   exportIdentity: string;

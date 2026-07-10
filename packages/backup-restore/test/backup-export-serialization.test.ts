@@ -9,9 +9,11 @@ import {
 } from "../src/artifact-refs.js";
 import {
   MemoryBackupExportStorage,
-  publishLatestBackupExport,
-  writeBackupExportArtifacts,
+  writeBackupExportArtifact,
+  writeBackupExportEvidence,
+  type BackupExportStorage,
 } from "../src/backup-export-storage.js";
+import { publishLatestBackupExport } from "../src/publish-latest-backup-export.js";
 import { concatJsonlLines } from "../src/build-backup-jsonl-payload.js";
 import {
   assertBackupExportTableName,
@@ -123,7 +125,19 @@ describe("backup export schema coverage", () => {
   });
 });
 
-describe("MemoryBackupExportStorage + writeBackupExportArtifacts", () => {
+async function writeBackupExportArtifacts(
+  storage: BackupExportStorage,
+  input: {
+    exportIdentity: string;
+    sealedArtifact: Uint8Array;
+    exportEvidence: BackupExportSuccessEvidence;
+  },
+): Promise<void> {
+  await writeBackupExportArtifact(storage, input);
+  await writeBackupExportEvidence(storage, input);
+}
+
+describe("MemoryBackupExportStorage + immutable export writes", () => {
   it("stages immutable artifact and evidence before advancing the latest evidence pointer", async () => {
     const storage = new MemoryBackupExportStorage();
     const sealedArtifact = new Uint8Array([1, 2, 3, 4]);
@@ -176,5 +190,34 @@ describe("MemoryBackupExportStorage + writeBackupExportArtifacts", () => {
 
     expect(storage.objects.get(BACKUP_LATEST_EXPORT_ARTIFACT_KEY)).toBe(previousArtifact);
     expect(storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY)).toBe(previousEvidence);
+  });
+
+  it("never regresses the latest pointer to an older export", async () => {
+    const storage = new MemoryBackupExportStorage();
+    const newer = successEvidence({ export_timestamp: "2026-07-08T03:00:00.000Z" });
+    const older = successEvidence({ export_timestamp: "2026-07-07T03:00:00.000Z" });
+
+    await publishLatestBackupExport(storage, newer);
+    await publishLatestBackupExport(storage, older);
+
+    const pointer = storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY);
+    expect(JSON.parse(pointer as string)).toEqual(newer);
+  });
+
+  it("advances the latest pointer to a newer export and repairs a corrupt pointer", async () => {
+    const storage = new MemoryBackupExportStorage();
+    storage.objects.set(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, "not json");
+    const first = successEvidence({ export_timestamp: "2026-07-07T03:00:00.000Z" });
+    const second = successEvidence({ export_timestamp: "2026-07-08T03:00:00.000Z" });
+
+    await publishLatestBackupExport(storage, first);
+    expect(JSON.parse(storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY) as string)).toEqual(
+      first,
+    );
+
+    await publishLatestBackupExport(storage, second);
+    expect(JSON.parse(storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY) as string)).toEqual(
+      second,
+    );
   });
 });

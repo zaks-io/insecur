@@ -20,12 +20,16 @@ export {
 } from "./backup-encryption-config.js";
 export {
   MemoryBackupExportStorage,
-  publishLatestBackupExport,
+  serializeExportEvidence,
   writeBackupExportArtifact,
-  writeBackupExportArtifacts,
   writeBackupExportEvidence,
   type BackupExportStorage,
 } from "./backup-export-storage.js";
+export {
+  BackupExportPointerPublishError,
+  publishLatestBackupExport,
+  republishLatestBackupExport,
+} from "./publish-latest-backup-export.js";
 export {
   openBackupArtifact,
   sealBackupArtifact,
@@ -52,9 +56,9 @@ export { enumerateOrganizationIds } from "./enumerate-organization-ids.js";
 export { parseBackupJsonlPayload } from "./parse-backup-jsonl-payload.js";
 export { readExportTableRows } from "./read-export-table-rows.js";
 export { resolveExportInstanceId } from "./resolve-export-instance-id.js";
+export type { BackupExportStep, OnBackupExportStepCompleted } from "./backup-export-step.js";
 export {
   runBackupExport,
-  type BackupExportStep,
   type RunBackupExportInput,
   type RunBackupExportResult,
 } from "./run-backup-export.js";
