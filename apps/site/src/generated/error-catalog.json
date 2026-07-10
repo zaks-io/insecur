@@ -1575,6 +1575,15 @@
     "notes": "Retryable lease contention."
   },
   {
+    "code": "sync.stale_plan",
+    "slug": "sync-stale-plan",
+    "typeUri": "https://insecur.dev/errors/sync-stale-plan",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Sync Execution Revalidation found the plan no longer matches current sync configuration, App Connection state, or Explicit Provider Lookup status; re-plan before execution. No provider write starts."
+  },
+  {
     "code": "sync.overwrite_status_unknown",
     "slug": "sync-overwrite-status-unknown",
     "typeUri": "https://insecur.dev/errors/sync-overwrite-status-unknown",

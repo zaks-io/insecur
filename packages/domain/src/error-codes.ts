@@ -2,6 +2,13 @@
  * Stable dotted error codes shared across packages.
  * Extend per-package catalogs in later slices; domain holds cross-cutting validation codes.
  */
+import {
+  PROVIDER_APP_REGISTRATION_ERROR_CODES,
+  PROVIDER_ERROR_CODES,
+  type ProviderAppRegistrationErrorCode,
+  type ProviderErrorCode,
+} from "./provider-error-codes.js";
+import { IMPORT_ERROR_CODES, type ImportErrorCode } from "./import-error-codes.js";
 import { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
 import {
   BACKUP_RESTORE_ERROR_CODES,
@@ -9,6 +16,8 @@ import {
 } from "./backup-restore-error-codes.js";
 import { CLI_ERROR_CODES, type CliErrorCode } from "./cli-error-codes.js";
 
+export * from "./import-error-codes.js";
+export * from "./provider-error-codes.js";
 export { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
 export {
   BACKUP_RESTORE_ERROR_CODES,
@@ -231,26 +240,6 @@ export const APP_CONNECTION_ERROR_CODES = {
 export type AppConnectionErrorCode =
   (typeof APP_CONNECTION_ERROR_CODES)[keyof typeof APP_CONNECTION_ERROR_CODES];
 
-/** Provider App Registration metadata failures. */
-export const PROVIDER_APP_REGISTRATION_ERROR_CODES = {
-  notFound: "provider_app_registration.not_found",
-  notConfigured: "provider_app_registration.not_configured",
-  alreadyExists: "provider_app_registration.already_exists",
-} as const;
-
-export type ProviderAppRegistrationErrorCode =
-  (typeof PROVIDER_APP_REGISTRATION_ERROR_CODES)[keyof typeof PROVIDER_APP_REGISTRATION_ERROR_CODES];
-
-/** Secret Import failures (preflight client-side; create-only write server-enforced). */
-export const IMPORT_ERROR_CODES = {
-  unsupportedEnvironment: "import.unsupported_environment",
-  existingSecret: "import.existing_secret",
-  parseError: "import.parse_error",
-  duplicateVariableKey: "import.duplicate_variable_key",
-} as const;
-
-export type ImportErrorCode = (typeof IMPORT_ERROR_CODES)[keyof typeof IMPORT_ERROR_CODES];
-
 /** Local Mode client-side capability ceiling failures. */
 export const LOCAL_ERROR_CODES = {
   cloudFeatureUnavailable: "local.cloud_feature_unavailable",
@@ -321,6 +310,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   OPERATION_ERROR_CODES,
   APP_CONNECTION_ERROR_CODES,
   SECRET_SYNC_ERROR_CODES,
+  PROVIDER_ERROR_CODES,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   IMPORT_ERROR_CODES,
   BACKUP_RESTORE_ERROR_CODES,
@@ -349,6 +339,7 @@ export type KnownErrorCode =
   | OperationErrorCode
   | AppConnectionErrorCode
   | SecretSyncErrorCode
+  | ProviderErrorCode
   | ProviderAppRegistrationErrorCode
   | ImportErrorCode
   | BackupRestoreErrorCode
