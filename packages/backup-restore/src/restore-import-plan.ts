@@ -51,6 +51,35 @@ function manifestOrganizationIds(header: BackupExportHeader): string[] {
 }
 
 /**
+ * The export is not one transactional snapshot (ADR-0072): an organization deleted between
+ * enumeration and its scoped read lands in the header manifest with zero payload rows. That
+ * vanished-organization shape is tolerated as a no-op — except for the recovery-canary sentinel,
+ * which is required standing state. A NON-empty bucket missing its organizations row is still an
+ * incomplete manifest and fails closed.
+ */
+function pruneAndAssertOrganizationBuckets(organizationRows: Map<string, BackupExportRow[]>): void {
+  for (const [organizationId, bucket] of organizationRows) {
+    if (bucket.length === 0) {
+      if (organizationId === RECOVERY_CANARY_ORGANIZATION_ID) {
+        throw manifestError(
+          "backup artifact carries no rows for the recovery-canary sentinel organization",
+        );
+      }
+      organizationRows.delete(organizationId);
+      continue;
+    }
+    const hasOrganizationRow = bucket.some(
+      (row) => row.table === "organizations" && row.id === organizationId,
+    );
+    if (!hasOrganizationRow) {
+      throw manifestError(
+        "header manifest names an organization with no organizations row in the payload",
+      );
+    }
+  }
+}
+
+/**
  * Groups an opened payload into import scopes and fails closed on any manifest gap BEFORE the
  * first row is written: unknown tables (an artifact from a newer, unsupported export version),
  * rows outside the header's organization manifest, manifest organizations with no rows, and a
@@ -88,16 +117,7 @@ export function buildRestoreImportPlan(
     bucket.push(row);
   }
 
-  for (const [organizationId, bucket] of organizationRows) {
-    const hasOrganizationRow = bucket.some(
-      (row) => row.table === "organizations" && row.id === organizationId,
-    );
-    if (!hasOrganizationRow) {
-      throw manifestError(
-        "header manifest names an organization with no organizations row in the payload",
-      );
-    }
-  }
+  pruneAndAssertOrganizationBuckets(organizationRows);
 
   return {
     header,

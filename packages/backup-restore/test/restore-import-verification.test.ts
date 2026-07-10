@@ -306,9 +306,24 @@ describe("buildRestoreImportPlan", () => {
     );
   });
 
-  it("refuses a manifest organization with no organizations row in the payload", () => {
+  it("refuses a manifest organization whose rows are missing the organizations row", () => {
     const rows = fixtureRows().filter(
       (row) => !(row.table === "organizations" && row.id === OTHER_ORG_ID),
+    );
+    expect(() => buildRestoreImportPlan(headerFixture(), rows)).toThrowError(
+      expect.objectContaining({ code: BACKUP_RESTORE_ERROR_CODES.manifestIncomplete }) as Error,
+    );
+  });
+
+  it("tolerates a manifest organization with zero payload rows (deleted mid-export) as a no-op", () => {
+    const rows = fixtureRows().filter((row) => row.organization_id !== OTHER_ORG_ID);
+    const plan = buildRestoreImportPlan(headerFixture(), rows);
+    expect([...plan.organizationRows.keys()]).toEqual([RECOVERY_CANARY_ORGANIZATION_ID]);
+  });
+
+  it("still requires rows for the recovery-canary sentinel organization", () => {
+    const rows = fixtureRows().filter(
+      (row) => row.organization_id !== RECOVERY_CANARY_ORGANIZATION_ID,
     );
     expect(() => buildRestoreImportPlan(headerFixture(), rows)).toThrowError(
       expect.objectContaining({ code: BACKUP_RESTORE_ERROR_CODES.manifestIncomplete }) as Error,
