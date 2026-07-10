@@ -231,7 +231,7 @@ describe("runRunCommand profile-backed policy path", () => {
     let capturedEnv: NodeJS.ProcessEnv | undefined;
     spawnMock.mockImplementation((_executable, _args, options: { env: NodeJS.ProcessEnv }) => {
       capturedEnv = options.env;
-      expect(options.stdio).toBe("inherit");
+      expect(options.stdio).toEqual(["inherit", "pipe", "inherit"]);
       return createMockChild(0);
     });
     const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
@@ -268,12 +268,14 @@ describe("runRunCommand profile-backed policy path", () => {
       data: {
         grantId: string;
         policyId: string;
+        exitSource: string;
         injectedVariableKeys: string[];
         bindings: { variableKey: string }[];
       };
     };
     expect(parsed.ok).toBe(true);
     expect(parsed.data.policyId).toBe(POLICY_ID);
+    expect(parsed.data.exitSource).toBe("child");
     expect(parsed.data.injectedVariableKeys).toEqual(["API_KEY", "DATABASE_URL"]);
     expect(stdout).not.toContain(SENSITIVE_A);
     expect(stdout).not.toContain(SENSITIVE_B);
@@ -289,7 +291,7 @@ describe("runRunCommand profile-backed policy path", () => {
     });
     const api = createMockApi();
     spawnMock.mockImplementation((_executable, _args, options: { env: NodeJS.ProcessEnv }) => {
-      expect(options.stdio).toBe("inherit");
+      expect(options.stdio).toEqual(["inherit", "pipe", "inherit"]);
       return createMockChild(0);
     });
     const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);

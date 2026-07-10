@@ -10,7 +10,10 @@ export interface Sentinel {
 }
 
 export function mintSmokeSentinel(): Sentinel {
-  const value = `insecur-smoke-${randomUUID()}-${randomBytes(32).toString("hex")}`;
+  return sentinelForValue(`insecur-smoke-${randomUUID()}-${randomBytes(32).toString("hex")}`);
+}
+
+export function sentinelForValue(value: string): Sentinel {
   const bytes = Buffer.from(value, "utf8");
   return {
     fingerprint: createHash("sha256").update(value).digest("hex"),

@@ -11,6 +11,8 @@ export {
 export {
   BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY,
   BACKUP_LATEST_EXPORT_ARTIFACT_KEY,
+  buildBackupExportArtifactKey,
+  buildBackupExportEvidenceKey,
 } from "./artifact-refs.js";
 export {
   collectMissingBackupHeaderFields,
@@ -18,9 +20,16 @@ export {
 } from "./backup-encryption-config.js";
 export {
   MemoryBackupExportStorage,
-  writeBackupExportArtifacts,
+  serializeExportEvidence,
+  writeBackupExportArtifact,
+  writeBackupExportEvidence,
   type BackupExportStorage,
 } from "./backup-export-storage.js";
+export {
+  BackupExportPointerPublishError,
+  publishLatestBackupExport,
+  republishLatestBackupExport,
+} from "./publish-latest-backup-export.js";
 export {
   openBackupArtifact,
   sealBackupArtifact,
@@ -29,6 +38,7 @@ export {
   type SealBackupArtifactInput,
 } from "./backup-envelope.js";
 export { buildBackupExportIdempotencyKey } from "./build-backup-idempotency-key.js";
+export { hashBackupArtifact } from "./hash-backup-artifact.js";
 export {
   buildInstanceScopeJsonlLines,
   buildOrganizationScopeJsonlLines,
@@ -46,11 +56,13 @@ export { enumerateOrganizationIds } from "./enumerate-organization-ids.js";
 export { parseBackupJsonlPayload } from "./parse-backup-jsonl-payload.js";
 export { readExportTableRows } from "./read-export-table-rows.js";
 export { resolveExportInstanceId } from "./resolve-export-instance-id.js";
+export type { BackupExportStep, OnBackupExportStepCompleted } from "./backup-export-step.js";
 export {
   runBackupExport,
   type RunBackupExportInput,
   type RunBackupExportResult,
 } from "./run-backup-export.js";
+export { verifyBackupExportArtifact } from "./verify-backup-export-artifact.js";
 export {
   encodeBackupJsonlLine,
   serializeBackupRow,

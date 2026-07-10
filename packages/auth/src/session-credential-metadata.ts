@@ -1,4 +1,13 @@
-import { agentSessionId, type AgentSessionId } from "@insecur/domain";
+import {
+  agentSessionId,
+  environmentId,
+  organizationId,
+  projectId,
+  type AgentSessionId,
+  type EnvironmentId,
+  type OrganizationId,
+  type ProjectId,
+} from "@insecur/domain";
 import { INSECUR_API_TOKEN_AUDIENCE } from "./constants.js";
 import { decodeHmacToken } from "./hmac-token.js";
 import { readActorClaims } from "./token-actor.js";
@@ -13,6 +22,10 @@ export interface SessionCredentialMetadata {
   readonly derivedAgentSessionId?: AgentSessionId;
   readonly agentMarked: boolean;
   readonly harnessName?: string;
+  readonly credentialScopes?: readonly string[];
+  readonly projectId?: ProjectId;
+  readonly environmentId?: EnvironmentId;
+  readonly organizationId?: OrganizationId;
 }
 
 function readAgentMarkedClaim(claims: Record<string, unknown>, typ: string): boolean {
@@ -41,6 +54,27 @@ function readHarnessNameClaim(claims: Record<string, unknown>): string | undefin
   return trimmed === "" ? undefined : trimmed;
 }
 
+function readCredentialScopes(claims: Record<string, unknown>): readonly string[] | undefined {
+  return Array.isArray(claims.scp) && claims.scp.every((scope) => typeof scope === "string")
+    ? claims.scp
+    : undefined;
+}
+
+function readProjectIdClaim(claims: Record<string, unknown>): ProjectId | undefined {
+  const parsed = typeof claims.prj === "string" ? projectId.parse(claims.prj) : undefined;
+  return parsed?.ok === true ? parsed.value : undefined;
+}
+
+function readEnvironmentIdClaim(claims: Record<string, unknown>): EnvironmentId | undefined {
+  const parsed = typeof claims.env === "string" ? environmentId.parse(claims.env) : undefined;
+  return parsed?.ok === true ? parsed.value : undefined;
+}
+
+function readOrganizationIdClaim(claims: Record<string, unknown>): OrganizationId | undefined {
+  const parsed = typeof claims.org === "string" ? organizationId.parse(claims.org) : undefined;
+  return parsed?.ok === true ? parsed.value : undefined;
+}
+
 function readScopedAccessAudience(claims: Record<string, unknown>): string | null {
   const aud = claims.aud;
   return typeof aud === "string" ? aud : null;
@@ -53,6 +87,10 @@ function readCliSessionCredentialMetadata(
   const agentMarked = readAgentMarkedClaim(decoded, claims.typ);
   const derivedAgentSessionId = readDerivedAgentSessionId(decoded);
   const harnessName = readHarnessNameClaim(decoded);
+  const credentialScopes = readCredentialScopes(decoded);
+  const projectIdValue = readProjectIdClaim(decoded);
+  const environmentIdValue = readEnvironmentIdClaim(decoded);
+  const organizationIdValue = readOrganizationIdClaim(decoded);
 
   return {
     expiresAt: new Date(claims.exp * 1000).toISOString(),
@@ -60,6 +98,10 @@ function readCliSessionCredentialMetadata(
     agentMarked,
     ...(derivedAgentSessionId !== undefined ? { derivedAgentSessionId } : {}),
     ...(harnessName !== undefined ? { harnessName } : {}),
+    ...(credentialScopes === undefined ? {} : { credentialScopes }),
+    ...(projectIdValue === undefined ? {} : { projectId: projectIdValue }),
+    ...(environmentIdValue === undefined ? {} : { environmentId: environmentIdValue }),
+    ...(organizationIdValue === undefined ? {} : { organizationId: organizationIdValue }),
   };
 }
 

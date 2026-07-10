@@ -2,7 +2,7 @@
 title: insecur secrets
 description: Blind secret writes and metadata-only management
 section: CLI reference
-order: 19
+order: 20
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->
@@ -47,12 +47,13 @@ insecur secrets set [options] <variable-key>
 | -------------- | ----------- |
 | `variable-key` |             |
 
-| Option              | Description                                              |
-| ------------------- | -------------------------------------------------------- |
-| `--generate [mode]` | service-generate a secret value (default mode: random)   |
-| `--length <bytes>`  | random byte length for --generate random (default: `32`) |
-| `--value-stdin`     | read the secret value from stdin                         |
-| `--allow-empty`     | allow an intentionally empty secret value                |
+| Option              | Description                                                        |
+| ------------------- | ------------------------------------------------------------------ |
+| `--generate [mode]` | service-generate a secret value (default mode: random)             |
+| `--length <bytes>`  | random byte length for --generate random (default: `32`)           |
+| `--value-stdin`     | read the secret value from stdin                                   |
+| `--allow-empty`     | allow an intentionally empty secret value                          |
+| `--dry-run`         | plan the metadata-only write without collecting or sending a value |
 
 ## `insecur secrets promote`
 
@@ -71,7 +72,7 @@ insecur secrets promote [options] <draft-version-id...>
 | `--env-id <id>`                      | target environment opaque id                    |
 | `--comment <text>`                   | audit comment                                   |
 | `--impact-review-fingerprint <hash>` | resume fingerprint from prior review            |
-| `--operation-id <id>`                | resume after High-Assurance Challenge clearance |
+| `--operation <id>`                   | resume after High-Assurance Challenge clearance |
 
 ## `insecur secrets rollback`
 
@@ -91,7 +92,7 @@ insecur secrets rollback [options] <secret-id>
 | `--to-version-id <id>` | retained published secret version opaque id (required) |
 | `--promote`            | create draft and request promotion approval            |
 | `--comment <text>`     | audit comment                                          |
-| `--operation-id <id>`  | resume after High-Assurance Challenge clearance        |
+| `--operation <id>`     | resume after High-Assurance Challenge clearance        |
 
 ## Related
 

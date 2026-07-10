@@ -35,6 +35,7 @@ export interface BackupExportSuccessEvidence {
   root_key_version: number;
   organization_count: number;
   artifact_ref: string;
+  artifact_sha256: string;
   encryption_verified: boolean;
   expires_at: string;
   operation_id?: string;

@@ -20,6 +20,30 @@ export interface SecretsRollbackCommandOptions {
   readonly operationId: string | undefined;
 }
 
+function rollbackResumeArgv(input: {
+  options: SecretsRollbackCommandOptions;
+  secretId: string;
+  environmentId: string;
+  toVersionId: string;
+  operationId: string;
+}): readonly string[] {
+  return [
+    "insecur",
+    "secrets",
+    "rollback",
+    input.secretId,
+    "--env-id",
+    input.environmentId,
+    "--to-version-id",
+    input.toVersionId,
+    ...(input.options.promote ? ["--promote"] : []),
+    ...(input.options.comment === undefined ? [] : ["--comment", input.options.comment]),
+    "--operation",
+    input.operationId,
+    "--json",
+  ];
+}
+
 export async function runSecretsRollbackCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
@@ -54,5 +78,15 @@ export async function runSecretsRollbackCommand(
     flags,
     (data) =>
       `Rolled back secret ${data.secretId} to version ${String(data.versionNumber)} (${data.lifecycleState}).`,
+    {
+      resumeArgv: (resumeOperationId) =>
+        rollbackResumeArgv({
+          options: commandOptions,
+          secretId,
+          environmentId,
+          toVersionId,
+          operationId: resumeOperationId,
+        }),
+    },
   );
 }

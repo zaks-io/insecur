@@ -230,6 +230,7 @@ describe("connections CLI commands", () => {
   });
 
   it("create returns step-up exit code when high-assurance challenge is required (agent hand-off)", async () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const api = createMockApi({
       createAppConnection: vi.fn(async () => ({
         ok: false as const,
@@ -266,6 +267,21 @@ describe("connections CLI commands", () => {
       },
     );
     expect(exitCode).toBe(EXIT_STEP_UP);
+    const output = JSON.parse(String(stderr.mock.calls[0]?.[0])) as {
+      next: { id: string; actor: string; argv: string[] }[];
+    };
+    expect(output.next.at(-1)).toMatchObject({
+      id: "resume",
+      actor: "human",
+      argv: expect.arrayContaining([
+        "connections",
+        "create",
+        "cloudflare",
+        "--operation",
+        "op_00000000000000000000000001",
+      ]),
+    });
+    stderr.mockRestore();
   });
 
   it("rotate --dry-run calls the org-scoped rotate path", async () => {

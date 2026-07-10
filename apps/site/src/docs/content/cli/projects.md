@@ -2,7 +2,7 @@
 title: insecur projects
 description: Project navigation and creation
 section: CLI reference
-order: 15
+order: 16
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

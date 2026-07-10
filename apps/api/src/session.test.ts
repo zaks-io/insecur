@@ -695,7 +695,14 @@ describe("worker session routes", () => {
           Authorization: `Bearer ${minted.credential}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ harnessName: "agent.harness.claude_code" }),
+        body: JSON.stringify({
+          harnessName: "agent.harness.claude_code",
+          credentialScopes: ["secret:read", "runtime_injection:run"],
+          organizationId: "org_00000000000000000000000001",
+          projectId: "prj_00000000000000000000000001",
+          environmentId: "env_00000000000000000000000001",
+          ttlSeconds: 600,
+        }),
       },
       env,
     );
@@ -711,6 +718,9 @@ describe("worker session routes", () => {
       ok: true,
       data: {
         sessionId: "session_cli_derive",
+        credentialScopes: ["secret:read", "runtime_injection:run"],
+        projectId: "prj_00000000000000000000000001",
+        environmentId: "env_00000000000000000000000001",
       },
     });
     const parsedAgentSessionId = agentSessionId.parse(deriveBody.data.agentSessionId);
@@ -750,6 +760,11 @@ describe("worker session routes", () => {
         ok: true,
         data: {
           attribution: { tier: "derived" },
+          sessionPolicy: {
+            credentialScopes: ["secret:read", "runtime_injection:run"],
+            projectId: "prj_00000000000000000000000001",
+            environmentId: "env_00000000000000000000000001",
+          },
         },
       });
     }

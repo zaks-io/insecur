@@ -2,7 +2,7 @@
 title: insecur logout
 description: End the CLI session locally and revoke the server session
 section: CLI reference
-order: 12
+order: 13
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

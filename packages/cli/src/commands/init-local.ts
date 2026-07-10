@@ -1,4 +1,4 @@
-import { parseDisplayName, successEnvelope, type DisplayName } from "@insecur/domain";
+import { successEnvelope } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { parseCliProfileSlug } from "../config/profiles/profile-slug.js";
 import { resolveAvailableProfileSlug } from "../config/profiles/available-profile-slug.js";
@@ -11,20 +11,13 @@ import {
 import { renderSuccess } from "../output/render.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
 import { createLocalInitProfileId, persistLocalInitConfig } from "./init-local-persist.js";
-import { buildLocalInitResolvedTargets } from "./init-result.js";
-
-function displayNameOrThrow(label: string, raw: string): DisplayName {
-  const parsed = parseDisplayName(raw);
-  if (!parsed.ok) {
-    throw new Error(`${label} display name is invalid: ${raw}`);
-  }
-  return parsed.value;
-}
+import { buildLocalInitResolvedTargets, initDisplayNameOrThrow } from "./init-result.js";
+import { INIT_NEXT_ACTIONS } from "./init-next-actions.js";
 
 const LOCAL_INIT_LABELS = {
-  project: displayNameOrThrow("project", "First project"),
-  environment: displayNameOrThrow("environment", "Development"),
-  profile: displayNameOrThrow("profile", "Local development"),
+  project: initDisplayNameOrThrow("project", "First project"),
+  environment: initDisplayNameOrThrow("environment", "Development"),
+  profile: initDisplayNameOrThrow("profile", "Local development"),
 };
 
 export interface LocalInitCommandOptions {
@@ -90,6 +83,7 @@ function renderLocalInitSuccess(
         LOCAL_INIT_LABELS,
       ),
     }),
+    INIT_NEXT_ACTIONS,
   );
   renderSuccess(
     output,

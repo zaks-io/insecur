@@ -52,7 +52,11 @@ const mockContext: ResolvedCliContext = {
 };
 
 function createMockChild(exitCode: number) {
-  const child = new EventEmitter() as EventEmitter & { stdout?: unknown; stderr?: unknown };
+  const child = new EventEmitter() as EventEmitter & {
+    stdout?: { pipe: ReturnType<typeof vi.fn> };
+    stderr?: unknown;
+  };
+  child.stdout = { pipe: vi.fn() };
   queueMicrotask(() => {
     child.emit("close", exitCode, null);
   });
@@ -177,8 +181,10 @@ describe("runRunCommand", () => {
     let capturedEnv: NodeJS.ProcessEnv | undefined;
     spawnMock.mockImplementation((_executable, _args, options: { env: NodeJS.ProcessEnv }) => {
       capturedEnv = options.env;
-      expect(options.stdio).toBe("inherit");
-      return createMockChild(42);
+      expect(options.stdio).toEqual(["inherit", "pipe", "inherit"]);
+      const child = createMockChild(42);
+      expect(child.stdout?.pipe).not.toHaveBeenCalled();
+      return child;
     });
     const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
       stdout += String(chunk);
@@ -200,10 +206,16 @@ describe("runRunCommand", () => {
     expect(capturedEnv?.INSECUR_SESSION_TOKEN).toBeUndefined();
     const parsed = JSON.parse(stdout.trim()) as {
       ok: boolean;
-      data: { childExitCode: number; variableKey: string; grantId: string };
+      data: {
+        childExitCode: number;
+        exitSource: string;
+        variableKey: string;
+        grantId: string;
+      };
     };
     expect(parsed.ok).toBe(true);
     expect(parsed.data.childExitCode).toBe(42);
+    expect(parsed.data.exitSource).toBe("child");
     expect(parsed.data.variableKey).toBe("API_KEY");
     expect(parsed.data.grantId).toBe(GRANT_ID);
     expect(parsed).toMatchObject({
@@ -216,6 +228,107 @@ describe("runRunCommand", () => {
       throw new Error("Expected run command to spawn with a child environment");
     }
     expectOnlyRunChildEnvKeys(capturedEnv, "API_KEY");
+  });
+
+  it("plans a variable-key run without issuing a grant or starting the child", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi({
+      listEnvironmentSecrets: vi.fn(async () => ({
+        ok: true as const,
+        envelope: {
+          ok: true as const,
+          data: {
+            secrets: [
+              {
+                secretId: SECRET_ID as never,
+                variableKey: "API_KEY" as never,
+                displayName: "API key",
+                currentVersion: {
+                  secretVersionId: VERSION_ID as never,
+                  versionNumber: 1,
+                  lifecycleState: "live" as const,
+                  createdAt: "2026-07-01T00:00:00.000Z",
+                  descriptiveVerdicts: {
+                    valueByteLength: 32,
+                    encodingClass: "utf-8" as const,
+                    isEmpty: false,
+                    hasLeadingOrTrailingWhitespace: false,
+                    looksLikePlaceholder: false,
+                    secretShapeMatchVerdict: "no_shape_rule" as const,
+                  },
+                },
+                createdAt: "2026-07-01T00:00:00.000Z",
+              },
+            ],
+          },
+        },
+      })),
+    });
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdout += String(chunk);
+      return true;
+    });
+
+    const exitCode = await runRunCommand(flags, api, mockContext, {
+      variableKey: "API_KEY",
+      command: ["pnpm", "test"],
+      plan: true,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(api.issueInjectionGrant).not.toHaveBeenCalled();
+    expect(spawnMock).not.toHaveBeenCalled();
+    const parsed = JSON.parse(stdout.trim()) as {
+      data: { plan: { ready: boolean; variableKeys: string[]; command: string[] } };
+    };
+    expect(parsed.data.plan).toMatchObject({
+      ready: true,
+      variableKeys: ["API_KEY"],
+      command: ["pnpm", "test"],
+    });
+    stdoutSpy.mockRestore();
+  });
+
+  it("plans the prerequisite before execution when a variable has no current value", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: NON_EXPIRED_SESSION_EXPIRES_AT,
+    });
+    const api = createMockApi({
+      listEnvironmentSecrets: vi.fn(async () => ({
+        ok: true as const,
+        envelope: { ok: true as const, data: { secrets: [] } },
+      })),
+    });
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdout += String(chunk);
+      return true;
+    });
+
+    await runRunCommand(flags, api, mockContext, {
+      variableKey: "API_KEY",
+      command: ["pnpm", "test"],
+      plan: true,
+    });
+
+    const parsed = JSON.parse(stdout.trim()) as {
+      data: { plan: { ready: boolean } };
+      next: { id: string; actor: string; argv: string[] }[];
+    };
+    expect(parsed.data.plan.ready).toBe(false);
+    expect(parsed.next[0]).toEqual({
+      id: "provide-secret",
+      actor: "human",
+      kind: "execute",
+      argv: ["insecur", "secrets", "set", "API_KEY", "--value-stdin", "--json"],
+    });
+    expect(parsed.next[1]?.id).toBe("execute-run");
+    stdoutSpy.mockRestore();
   });
 
   it("excludes INSECUR_SESSION_TOKEN from the child environment even when the parent process has one", async () => {

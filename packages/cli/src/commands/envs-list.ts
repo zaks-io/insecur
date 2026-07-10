@@ -9,6 +9,7 @@ import { emptyState } from "../output/format.js";
 import { renderSuccess } from "../output/render.js";
 import { renderTable } from "../output/table.js";
 import { buildEnvelopeMeta } from "../output/target-echo.js";
+import { describeCreationNext } from "./empty-list-next.js";
 
 export async function runEnvsListCommand(
   flags: GlobalCliFlags,
@@ -30,6 +31,9 @@ export async function runEnvsListCommand(
   const output = successEnvelope(
     { environments: result.envelope.data.environments },
     buildEnvelopeMeta({ requestId: result.envelope.meta?.requestId }),
+    result.envelope.data.environments.length === 0
+      ? describeCreationNext(["envs", "create"])
+      : undefined,
   );
   renderSuccess(output, flags, (data) => {
     if (data.environments.length === 0) {

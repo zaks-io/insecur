@@ -25,6 +25,12 @@ import { unionEffectiveAccessScopes } from "./union-effective-access-scopes.js";
 export interface UserActorRef {
   type: "user";
   userId: UserId;
+  credentialScopes?: readonly string[];
+  tokenScope?: {
+    organizationId?: OrganizationId;
+    projectId?: ProjectId;
+    environmentId?: EnvironmentId;
+  };
 }
 
 export interface MachineActorRef {
@@ -111,13 +117,41 @@ async function loadMachineMembershipsForCoordinates(
 }
 
 function buildUserEffectiveAccessResult(
+  actor: UserActorRef,
   coordinate: ResourceCoordinate,
   memberships: readonly MembershipRow[],
 ): EffectiveAccessResult {
+  const insideBoundary = isInsideUserTokenBoundary(actor, coordinate);
+  const membershipScopes = insideBoundary
+    ? unionEffectiveAccessScopes(filterMembershipsForCoordinate(memberships, coordinate))
+    : [];
+  const scopes = intersectCredentialScopes(membershipScopes, actor.credentialScopes);
   return {
     organizationId: coordinate.organizationId,
-    scopes: unionEffectiveAccessScopes(filterMembershipsForCoordinate(memberships, coordinate)),
+    scopes,
   };
+}
+
+function isWithinOptionalBoundary<T>(expected: T | undefined, actual: T | undefined): boolean {
+  return expected === undefined || expected === actual;
+}
+
+function isInsideUserTokenBoundary(actor: UserActorRef, coordinate: ResourceCoordinate): boolean {
+  return (
+    isWithinOptionalBoundary(actor.tokenScope?.organizationId, coordinate.organizationId) &&
+    isWithinOptionalBoundary(actor.tokenScope?.projectId, coordinate.projectId) &&
+    isWithinOptionalBoundary(actor.tokenScope?.environmentId, coordinate.environmentId)
+  );
+}
+
+function intersectCredentialScopes(
+  membershipScopes: readonly string[],
+  credentialScopes: readonly string[] | undefined,
+): readonly string[] {
+  if (credentialScopes === undefined) {
+    return membershipScopes;
+  }
+  return membershipScopes.filter((scope) => credentialScopes.includes(scope));
 }
 
 function buildMachineEffectiveAccessResult(
@@ -136,7 +170,7 @@ function buildEmptyEffectiveAccessResult(
   coordinate: ResourceCoordinate,
 ): EffectiveAccessResult {
   if (isUserActor(actor)) {
-    return buildUserEffectiveAccessResult(coordinate, []);
+    return buildUserEffectiveAccessResult(actor, coordinate, []);
   }
   return buildMachineEffectiveAccessResult(actor, coordinate, []);
 }
@@ -150,7 +184,7 @@ async function computeUserEffectiveAccess(
   const computed = new Map<string, EffectiveAccessResult>();
   const memberships = await loadMembershipsForCoordinates(actor, uncachedCoordinates, deps);
   for (const coordinate of uncachedCoordinates) {
-    const result = buildUserEffectiveAccessResult(coordinate, memberships);
+    const result = buildUserEffectiveAccessResult(actor, coordinate, memberships);
     computed.set(coordinateCacheKey(coordinate), result);
     memo?.set(actor, coordinate, result);
   }

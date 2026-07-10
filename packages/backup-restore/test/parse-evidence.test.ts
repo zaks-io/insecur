@@ -11,6 +11,7 @@ function validExportEvidence() {
     root_key_version: 1,
     organization_count: 2,
     artifact_ref: "backup/latest-export.ibkp",
+    artifact_sha256: "F3dYxqbVd3pBfVw1S73rUNra2RfN9GqYapKawP_0xJ4",
     encryption_verified: true,
     expires_at: "2026-07-10T03:00:00.000Z",
   };
@@ -113,6 +114,8 @@ describe("parseExportSuccessEvidence", () => {
     ["organization_count", "2"],
     ["artifact_ref", ""],
     ["artifact_ref", undefined],
+    ["artifact_sha256", ""],
+    ["artifact_sha256", undefined],
     ["encryption_verified", "true"],
     ["expires_at", 1],
   ] as const)("returns null for invalid export field %s=%j", (key, replacement) => {

@@ -16,6 +16,7 @@ import {
   parseCommaSeparatedRepositories,
   rejectArgvProviderToken,
 } from "./connections-cli-input.js";
+import { connectionCreateResumeArgv } from "./resume-argv.js";
 
 export interface ConnectionsCreateCommandOptions {
   readonly provider: string;
@@ -120,5 +121,13 @@ export async function runConnectionsCreateCommand(
     }),
   });
 
-  return finishConnectionCommand(flags, result, () => `Created app connection ${appConnectionId}.`);
+  return finishConnectionCommand(
+    flags,
+    result,
+    () => `Created app connection ${appConnectionId}.`,
+    {
+      resumeActor: "human",
+      resumeArgv: (nextOperationId) => connectionCreateResumeArgv(options, nextOperationId),
+    },
+  );
 }

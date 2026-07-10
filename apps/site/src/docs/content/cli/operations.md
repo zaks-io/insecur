@@ -2,7 +2,7 @@
 title: insecur operations
 description: Poll, wait on, and cancel long-running operations
 section: CLI reference
-order: 13
+order: 14
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->
@@ -42,6 +42,23 @@ insecur operations wait [options] <operation-id>
 | Option                | Description                                    |
 | --------------------- | ---------------------------------------------- |
 | `--timeout <seconds>` | fail with operation.wait_timeout when exceeded |
+
+## `insecur operations watch`
+
+Stream operation state changes until terminal or ready to resume
+
+```sh
+insecur operations watch [options] <operation-id>
+```
+
+| Argument       | Description         |
+| -------------- | ------------------- |
+| `operation-id` | operation opaque id |
+
+| Option                | Description                                    |
+| --------------------- | ---------------------------------------------- |
+| `--timeout <seconds>` | exit with operation incomplete when exceeded   |
+| `--jsonl`             | emit one versioned JSON event per state change |
 
 ## `insecur operations cancel`
 

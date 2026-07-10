@@ -6,15 +6,34 @@ import { parseEnvironmentId, parseRuntimePolicyId } from "../config/parse-resour
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { requireProjectScope } from "./navigation-scope.js";
 import { parseOperationIdOrThrow } from "./operations-scope.js";
-import { handleApiFailure } from "./api-failure.js";
 import { CliError } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
+import { finishApiCommand } from "./finish-api-command.js";
 
 export interface RunPoliciesDisableCommandOptions {
   readonly policyId: string;
   readonly envId: string;
   readonly comment: string;
   readonly operationId: string | undefined;
+}
+
+function disableResumeArgv(
+  options: RunPoliciesDisableCommandOptions,
+  operationId: string,
+): readonly string[] {
+  return [
+    "insecur",
+    "run-policies",
+    "disable",
+    options.policyId,
+    "--env-id",
+    options.envId,
+    "--comment",
+    options.comment,
+    "--operation",
+    operationId,
+    "--json",
+  ];
 }
 
 export async function runRunPoliciesDisableCommand(
@@ -51,7 +70,9 @@ export async function runRunPoliciesDisableCommand(
     ...(operationId === undefined ? {} : { operationId }),
   });
   if (!result.ok) {
-    return handleApiFailure(result.envelope, flags);
+    return finishApiCommand(result, flags, () => "", {
+      resumeArgv: (nextOperationId) => disableResumeArgv(commandOptions, nextOperationId),
+    });
   }
 
   const data = result.envelope.data;

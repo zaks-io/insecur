@@ -29,4 +29,10 @@ export interface SessionWhoamiData {
   readonly sessionExpiresAt: string;
   readonly resolvedContext: SessionWhoamiResolvedContext;
   readonly attribution: SessionWhoamiAttribution;
+  readonly sessionPolicy?: {
+    readonly credentialScopes?: readonly string[];
+    readonly organizationId?: OrganizationId;
+    readonly projectId?: ProjectId;
+    readonly environmentId?: EnvironmentId;
+  };
 }

@@ -162,9 +162,26 @@ describe("local init", () => {
       );
       const output = JSON.parse(stdoutChunks.join("")) as {
         data: { notice: string; projectId: string };
+        next: { id: string; actor: string; argv: string[] }[];
       };
       expect(output.data.notice).toBe(LOCAL_INIT_NOTICE);
       expect(output.data.projectId).toBe(TEST_PROJECT_ID);
+      expect(output.next[0]).toEqual({
+        id: "create-proof-secret",
+        actor: "agent",
+        kind: "execute",
+        argv: [
+          "insecur",
+          "secrets",
+          "set",
+          "INSECUR_PROOF_SECRET",
+          "--generate",
+          "random",
+          "--length",
+          "32",
+          "--json",
+        ],
+      });
     } finally {
       stdoutSpy.mockRestore();
     }

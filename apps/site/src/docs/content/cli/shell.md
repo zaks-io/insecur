@@ -2,7 +2,7 @@
 title: insecur shell
 description: Start a subshell with INSECUR_SESSION_TOKEN in the environment
 section: CLI reference
-order: 20
+order: 21
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

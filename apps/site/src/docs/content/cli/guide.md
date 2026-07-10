@@ -2,7 +2,7 @@
 title: insecur guide
 description: Offline CLI guides (markdown playbooks, no auth required)
 section: CLI reference
-order: 7
+order: 8
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

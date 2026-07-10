@@ -13,19 +13,23 @@ import {
   type OperationMutationResult,
 } from "@insecur/operations";
 
-import { openBackupArtifact, sealBackupArtifact } from "./backup-envelope.js";
-import { validateBackupEncryptionConfig } from "./backup-encryption-config.js";
-import { writeBackupExportArtifacts, type BackupExportStorage } from "./backup-export-storage.js";
+import type { OnBackupExportStepCompleted } from "./backup-export-step.js";
+import type { BackupExportStorage } from "./backup-export-storage.js";
 import { buildBackupExportIdempotencyKey } from "./build-backup-idempotency-key.js";
 import {
   buildInstanceScopeJsonlLines,
   buildOrganizationScopeJsonlLines,
   concatJsonlLines,
 } from "./build-backup-jsonl-payload.js";
-import { buildExportSuccessEvidence } from "./build-export-success-evidence.js";
 import { RECOVERY_CANARY_ORGANIZATION_ID } from "./constants.js";
 import { enumerateOrganizationIds } from "./enumerate-organization-ids.js";
+import {
+  BackupExportPointerPublishError,
+  publishLatestBackupExport,
+  republishLatestBackupExport,
+} from "./publish-latest-backup-export.js";
 import { resolveExportInstanceId } from "./resolve-export-instance-id.js";
+import { sealAndStoreBackupArtifact } from "./seal-and-store-backup-artifact.js";
 import type { BackupExportOrganizationSnapshot, BackupExportSuccessEvidence } from "./types.js";
 
 export interface RunBackupExportInput {
@@ -36,6 +40,7 @@ export interface RunBackupExportInput {
   instanceId?: string;
   rootKeyVersion?: number;
   onExportFailureAlert?: () => void;
+  onStepCompleted?: OnBackupExportStepCompleted;
 }
 
 export interface RunBackupExportResult {
@@ -88,46 +93,6 @@ async function recordBackupExportAuditEvent(input: {
   });
 }
 
-async function sealAndStoreBackupArtifact(input: {
-  instanceId: string;
-  exportTimestamp: string;
-  instanceSnapshotAt: string;
-  rootKeyBytes: Uint8Array;
-  rootKeyVersion: number;
-  organizationSnapshots: BackupExportOrganizationSnapshot[];
-  jsonlPayload: Uint8Array;
-  storage: BackupExportStorage;
-  operationId: OperationId;
-}): Promise<BackupExportSuccessEvidence> {
-  const sealedArtifact = await sealBackupArtifact({
-    instanceId: input.instanceId,
-    exportTimestamp: input.exportTimestamp,
-    instanceSnapshotAt: input.instanceSnapshotAt,
-    rootKeyBytes: input.rootKeyBytes,
-    rootKeyVersion: input.rootKeyVersion,
-    jsonlPayload: input.jsonlPayload,
-    organizationSnapshots: input.organizationSnapshots,
-  });
-
-  const opened = await openBackupArtifact({
-    instanceId: input.instanceId,
-    rootKeyBytes: input.rootKeyBytes,
-    sealedBytes: sealedArtifact,
-  });
-  const encryptionCheck = validateBackupEncryptionConfig(opened.header, input.exportTimestamp);
-  const exportEvidence = buildExportSuccessEvidence({
-    instanceId: input.instanceId,
-    exportTimestamp: input.exportTimestamp,
-    rootKeyVersion: input.rootKeyVersion,
-    organizationCount: input.organizationSnapshots.length,
-    operationId: input.operationId,
-    encryptionVerified: encryptionCheck.status === "passed",
-  });
-
-  await writeBackupExportArtifacts(input.storage, { sealedArtifact, exportEvidence });
-  return exportEvidence;
-}
-
 async function markBackupExportFailed(input: {
   organizationId: OrganizationId;
   operationId?: OperationId;
@@ -164,6 +129,7 @@ async function executeBackupExport(input: {
   rootKeyVersion: number;
   storage: BackupExportStorage;
   instanceId?: string;
+  onStepCompleted?: OnBackupExportStepCompleted;
 }): Promise<RunBackupExportResult> {
   await transitionOperation({
     organizationId: input.organizationId,
@@ -179,6 +145,7 @@ async function executeBackupExport(input: {
     await buildBackupJsonlPayload(organizationIds);
 
   const exportEvidence = await sealAndStoreBackupArtifact({
+    exportIdentity: input.idempotencyKey,
     instanceId,
     exportTimestamp,
     instanceSnapshotAt,
@@ -188,6 +155,7 @@ async function executeBackupExport(input: {
     jsonlPayload,
     storage: input.storage,
     operationId: input.operationId,
+    ...(input.onStepCompleted ? { onStepCompleted: input.onStepCompleted } : {}),
   });
 
   const audit = await recordBackupExportAuditEvent({
@@ -195,6 +163,7 @@ async function executeBackupExport(input: {
     operationId: input.operationId,
     succeeded: true,
   });
+  await input.onStepCompleted?.("audit_recorded");
 
   const succeeded = await transitionOperation({
     organizationId: input.organizationId,
@@ -204,11 +173,47 @@ async function executeBackupExport(input: {
     progress: { auditEventIds: [audit.auditEventId] },
   });
 
+  // The Operation is terminal from here. A failure advancing the latest pointer must not route
+  // through markBackupExportFailed: that would record a contradictory failure audit event and
+  // attempt an illegal succeeded -> failed transition whose terminalState throw would mask the
+  // real cause. Replay of the same scheduled run re-publishes the pointer instead.
+  try {
+    await input.onStepCompleted?.("operation_succeeded");
+    await publishLatestBackupExport(input.storage, exportEvidence);
+  } catch (error) {
+    throw new BackupExportPointerPublishError(error);
+  }
+
   return {
     created: true,
     operation: succeeded.operation,
     exportEvidence,
   };
+}
+
+async function handleBackupExportFailure(input: {
+  error: unknown;
+  organizationId: OrganizationId;
+  operationId: OperationId | undefined;
+  idempotencyKey: string;
+  onExportFailureAlert?: () => void;
+}): Promise<never> {
+  if (input.error instanceof BackupExportPointerPublishError) {
+    // The export itself succeeded and is durable; only the pointer is stale. Page the operator
+    // and surface the original cause without recording a contradictory failure.
+    input.onExportFailureAlert?.();
+    throw input.error;
+  }
+  await markBackupExportFailed({
+    organizationId: input.organizationId,
+    ...(input.operationId ? { operationId: input.operationId } : {}),
+    idempotencyKey: input.idempotencyKey,
+    ...(input.onExportFailureAlert ? { onExportFailureAlert: input.onExportFailureAlert } : {}),
+  });
+  if (input.error instanceof Error) {
+    throw input.error;
+  }
+  throw new Error("backup export failed", { cause: input.error });
 }
 
 export async function runBackupExport(input: RunBackupExportInput): Promise<RunBackupExportResult> {
@@ -228,6 +233,11 @@ export async function runBackupExport(input: RunBackupExportInput): Promise<RunB
     });
 
     if (!created.created) {
+      if (created.operation.state === "succeeded") {
+        // The prior run may have failed after success but before the latest pointer was confirmed
+        // advanced; re-publishing from the durable per-run evidence repairs it idempotently.
+        await republishLatestBackupExport(input.storage, idempotencyKey);
+      }
       return { created: false, operation: created.operation };
     }
 
@@ -242,17 +252,15 @@ export async function runBackupExport(input: RunBackupExportInput): Promise<RunB
       rootKeyVersion,
       storage: input.storage,
       ...(input.instanceId ? { instanceId: input.instanceId } : {}),
+      ...(input.onStepCompleted ? { onStepCompleted: input.onStepCompleted } : {}),
     });
   } catch (error) {
-    await markBackupExportFailed({
+    return await handleBackupExportFailure({
+      error,
       organizationId,
-      ...(operationId ? { operationId } : {}),
+      operationId,
       idempotencyKey,
       ...(input.onExportFailureAlert ? { onExportFailureAlert: input.onExportFailureAlert } : {}),
     });
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error("backup export failed", { cause: error });
   }
 }

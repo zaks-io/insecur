@@ -8,6 +8,8 @@ export function buildExportSuccessEvidence(input: {
   rootKeyVersion: number;
   organizationCount: number;
   operationId: string;
+  artifactRef: string;
+  artifactHash: string;
   encryptionVerified: boolean;
 }): BackupExportSuccessEvidence {
   return {
@@ -17,7 +19,8 @@ export function buildExportSuccessEvidence(input: {
     export_timestamp: input.exportTimestamp,
     root_key_version: input.rootKeyVersion,
     organization_count: input.organizationCount,
-    artifact_ref: "backup/latest-export.ibkp",
+    artifact_ref: input.artifactRef,
+    artifact_sha256: input.artifactHash,
     encryption_verified: input.encryptionVerified,
     expires_at: computeExportExpiresAt(input.exportTimestamp),
     operation_id: input.operationId,

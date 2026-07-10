@@ -215,6 +215,7 @@ export {
   type MetadataEnvelope,
   type MetadataEnvelopeValidationReason,
   type MetadataEnvelopeMeta,
+  type NextAction,
   type ResolvedTargetEcho,
   type SuccessEnvelope,
   assertMetadataOnlyEnvelopeShape,

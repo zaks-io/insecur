@@ -41,6 +41,36 @@ describe("scoped access token", () => {
     }
   });
 
+  it("preserves derived-agent hard bounds across the private runtime hop", async () => {
+    const boundedActor: UserActor = {
+      ...actor,
+      credentialScopes: ["secret:read"],
+      tokenScope: {
+        organizationId: "org_00000000000000000000000001" as never,
+        projectId: "prj_00000000000000000000000001" as never,
+        environmentId: "env_00000000000000000000000001" as never,
+      },
+    };
+    const minted = await mintScopedAccessToken({
+      actor: boundedActor,
+      audience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+      signingSecret,
+    });
+    const verified = await verifyScopedAccessToken({
+      token: minted.token,
+      expectedAudience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+      signingSecret,
+    });
+
+    expect(verified).toMatchObject({
+      ok: true,
+      actor: {
+        credentialScopes: ["secret:read"],
+        tokenScope: boundedActor.tokenScope,
+      },
+    });
+  });
+
   it("rejects a token minted for a different audience", async () => {
     const minted = await mintScopedAccessToken({
       actor,

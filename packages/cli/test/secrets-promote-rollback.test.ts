@@ -6,6 +6,8 @@ import { runSecretsRollbackCommand } from "../src/commands/secrets-rollback.js";
 import type { ResolvedCliContext } from "../src/config/load-cli-context.js";
 import type { ApiClient } from "../src/api/types.js";
 import { clearMemorySession, setMemorySession } from "../src/session/memory-session.js";
+import { AUTH_ERROR_CODES } from "@insecur/domain";
+import { EXIT_STEP_UP } from "../src/output/exit-codes.js";
 
 const ORG_ID = "org_01TEST00000000000000000001";
 const PROJECT_ID = "prj_01TEST00000000000000000001";
@@ -146,6 +148,59 @@ describe("protected change CLI commands", () => {
         comment: "ready",
       }),
     );
+  });
+
+  it("returns the exact structured resume invocation for human step-up", async () => {
+    setMemorySession({
+      credential: "credential_test",
+      sessionId: "sess_test",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+    });
+    const operationId = "op_01TEST00000000000000000001";
+    const api = createProtectedChangeMockApi({
+      requestProtectedPromotion: vi.fn(async () => ({
+        ok: false as const,
+        httpStatus: 401,
+        envelope: {
+          ok: false as const,
+          error: {
+            code: AUTH_ERROR_CODES.highAssuranceRequired,
+            message: "Human approval required.",
+            retryable: false,
+          },
+          meta: { operationId: operationId as never },
+        },
+      })),
+    });
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    const exitCode = await runSecretsPromoteCommand(flags, api, mockContext, {
+      envId: ENV_ID,
+      draftVersionIds: ["sv_01TEST00000000000000000001"],
+      comment: "ready",
+      impactReviewFingerprint: undefined,
+      operationId: undefined,
+    });
+
+    expect(exitCode).toBe(EXIT_STEP_UP);
+    const parsed = JSON.parse(String(stderr.mock.calls[0]?.[0])) as {
+      remediation: { resume: string[] };
+      next: { id: string; argv: string[] }[];
+    };
+    expect(parsed.remediation.resume).toEqual([
+      "insecur",
+      "secrets",
+      "promote",
+      "sv_01TEST00000000000000000001",
+      "--env-id",
+      ENV_ID,
+      "--comment",
+      "ready",
+      "--operation",
+      operationId,
+      "--json",
+    ]);
+    expect(parsed.next.at(-1)?.id).toBe("resume");
   });
 
   it("rolls back a secret and can request promotion", async () => {

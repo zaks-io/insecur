@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "smoke:preview": "playwright test -c playwright.preview.config.ts --fail-on-flaky-tests",
+    "sweep:artifacts": "node --import tsx/esm src/artifact-sweep-cli.ts",
     "test": "vitest run",
     "lint": "eslint \"playwright.preview.config.ts\" \"src/**/*.ts\" \"tests/**/*.ts\" \"test/**/*.ts\" --max-warnings=0",
     "typecheck": "tsc --noEmit",

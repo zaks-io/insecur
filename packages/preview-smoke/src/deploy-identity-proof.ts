@@ -1,17 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
+import { PREVIEW_SMOKE_ARTIFACT_ROOT } from "./artifact-root.js";
 import {
   assertPreviewDeployIdentityMatchesExpected,
   type PreviewDeployIdentityCheck,
 } from "./deploy-identity.js";
 
-const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
-
 const PREVIEW_SMOKE_DEPLOY_IDENTITY_PROOF_PATH = join(
-  repoRoot,
-  "preview-smoke-artifacts",
+  PREVIEW_SMOKE_ARTIFACT_ROOT,
   "deploy-identity.json",
 );
 

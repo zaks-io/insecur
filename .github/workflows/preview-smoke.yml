@@ -120,6 +120,7 @@ jobs:
       - name: Run preview application smoke
         env:
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
+          SMOKE_ARTIFACT_CREDENTIAL_REGISTRY: ${{ runner.temp }}/preview-smoke-artifact-credentials.json
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
           SMOKE_WEB_BASE_URL: https://app.preview.insecur.cloud
           SMOKE_SITE_BASE_URL: https://preview.insecur.cloud
@@ -131,8 +132,16 @@ jobs:
           SMOKE_INVITEE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID }}
         run: pnpm smoke:preview
 
+      - name: Revoke and sweep preview smoke artifacts
+        id: artifact_sweep
+        if: ${{ always() }}
+        env:
+          SMOKE_ARTIFACT_CREDENTIAL_REGISTRY: ${{ runner.temp }}/preview-smoke-artifact-credentials.json
+          SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
+        run: pnpm --filter @insecur/preview-smoke sweep:artifacts
+
       - name: Upload preview smoke artifacts
-        if: always()
+        if: ${{ always() && steps.artifact_sweep.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: preview-smoke-artifacts

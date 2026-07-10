@@ -2,7 +2,7 @@
 title: insecur orgs
 description: Organization navigation
 section: CLI reference
-order: 14
+order: 15
 ---
 
 <!-- GENERATED — do not hand-edit. Regenerate with `pnpm docs:cli`. -->

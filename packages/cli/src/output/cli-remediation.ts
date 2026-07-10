@@ -75,11 +75,7 @@ function remediationForCliCode(code: KnownErrorCode): ErrorRemediation | undefin
 function supplementRemediationFromMeta(
   code: KnownErrorCode,
   meta: MetadataEnvelopeMeta | undefined,
-  existing: ErrorRemediation | undefined,
 ): ErrorRemediation | undefined {
-  if (existing !== undefined) {
-    return existing;
-  }
   if (code !== AUTH_ERROR_CODES.highAssuranceRequired) {
     return undefined;
   }
@@ -97,11 +93,16 @@ export function resolveCliRemediation(
   meta: MetadataEnvelopeMeta | undefined,
   envelopeRemediation: ErrorRemediation | undefined,
 ): ErrorRemediation | undefined {
-  return (
-    envelopeRemediation ??
-    supplementRemediationFromMeta(code, meta, undefined) ??
-    remediationForCliCode(code)
-  );
+  const staticRemediation = remediationForCliCode(code);
+  const supplement = supplementRemediationFromMeta(code, meta);
+  if (
+    staticRemediation === undefined &&
+    supplement === undefined &&
+    envelopeRemediation === undefined
+  ) {
+    return undefined;
+  }
+  return { ...staticRemediation, ...supplement, ...envelopeRemediation };
 }
 
 function remediationCommandLines(remediation: ErrorRemediation): string[] {

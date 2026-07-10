@@ -19,7 +19,7 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
       await use(
         await mintBearer({
           rawUserId: preview.inviteeUserId,
-          sessionId: "session_preview_smoke_invitee",
+          sessionId: `session_preview_smoke_invitee_${randomUUID()}`,
           signingSecret: preview.signingSecret,
           workosUserId: preview.inviteeWorkosUserId,
         }),
@@ -32,7 +32,7 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
       await use(
         await mintBearer({
           rawUserId: preview.noScopeUserId,
-          sessionId: "session_preview_smoke_no_scope",
+          sessionId: `session_preview_smoke_no_scope_${randomUUID()}`,
           signingSecret: preview.signingSecret,
           workosUserId: preview.noScopeWorkosUserId,
         }),
@@ -45,7 +45,7 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
       await use(
         await mintBearer({
           rawUserId: preview.ownerUserId,
-          sessionId: "session_preview_smoke_owner",
+          sessionId: `session_preview_smoke_owner_${randomUUID()}`,
           signingSecret: preview.signingSecret,
           workosUserId: preview.ownerWorkosUserId,
         }),

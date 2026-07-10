@@ -2,11 +2,34 @@ import { coordinateCacheKey } from "./coordinate-cache-key.js";
 import type { EffectiveAccessResult } from "./resolve-effective-access.js";
 import type { ActorRef, ResourceCoordinate } from "./resolve-effective-access.js";
 
+/**
+ * An unrestricted actor (no signed scope set) must never share a memo key with any bounded
+ * actor, including one whose signed scope set is empty.
+ */
+function scopeSetKey(scopes: readonly string[] | undefined): string {
+  return scopes === undefined ? "unbounded" : `scoped:${[...scopes].sort().join(",")}`;
+}
+
 function actorCacheKey(actor: ActorRef): string {
   if (actor.type === "user") {
-    return `user:${actor.userId}`;
+    return [
+      "user",
+      actor.userId,
+      actor.tokenScope?.organizationId,
+      actor.tokenScope?.projectId,
+      actor.tokenScope?.environmentId,
+      scopeSetKey(actor.credentialScopes),
+    ].join(":");
   }
-  return `machine:${actor.machineIdentityId}:${actor.tokenScope.organizationId}:${actor.tokenScope.projectId}:${actor.tokenScope.environmentId ?? ""}:${actor.tokenScope.runtimePolicyKeyId ?? ""}:${[...actor.credentialScopes].sort().join(",")}`;
+  return [
+    "machine",
+    actor.machineIdentityId,
+    actor.tokenScope.organizationId,
+    actor.tokenScope.projectId,
+    actor.tokenScope.environmentId,
+    actor.tokenScope.runtimePolicyKeyId,
+    scopeSetKey(actor.credentialScopes),
+  ].join(":");
 }
 
 /** Request-scoped Effective Access cache (never shared across requests). */
