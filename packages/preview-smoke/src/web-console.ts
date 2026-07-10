@@ -10,6 +10,9 @@ import {
 } from "./http";
 
 const INLINE_STYLE_ATTR = /<[a-z][^>]*\sstyle=["']/iu;
+const SCRIPT_OPEN_TAG = /<script\b[^>]*>/giu;
+const SCRIPT_SRC_ATTR = /\ssrc\s*=/iu;
+const SCRIPT_NONCE_ATTR = /\snonce=["']([^"']*)["']/iu;
 
 /**
  * The nonce CSP allows no `style` attribute, so server-rendered markup must not carry any. This
@@ -36,7 +39,6 @@ interface AuthedConsolePageInput {
   readonly expectation?: AuthedConsolePageExpectation;
   readonly html: string;
   readonly label: string;
-  readonly page: Page;
   readonly pageUrl: string;
   readonly response: PageResponse | null;
 }
@@ -76,8 +78,9 @@ export async function assertAuthedConsolePage(input: AuthedConsolePageInput): Pr
   if (expectation.privateDocument ?? true) {
     assertPrivateAuthedDocument(pageResponse, input.label);
   }
-  await assertCspNonceMatchesScripts(input.page, pageResponse, input.label);
-  assertSsrHtmlHasNoInlineStyle(await pageResponse.text(), input.label);
+  const ssrHtml = await pageResponse.text();
+  assertCspNonceMatchesScripts(pageResponse, ssrHtml, input.label);
+  assertSsrHtmlHasNoInlineStyle(ssrHtml, input.label);
 
   if (expectation.consoleShell === true) {
     assertConsoleShell(input.html, input.label);
@@ -110,11 +113,17 @@ function assertPrivateAuthedDocument(response: PageResponse, label: string): voi
   assertHeaderEquals(response, "vary", "Cookie", label);
 }
 
-async function assertCspNonceMatchesScripts(
-  page: Page,
+/**
+ * Runs against the raw SSR response body, never the live DOM: Cloudflare's zone-level challenge
+ * platform intermittently injects an inline script without our nonce at the edge, so a DOM-based
+ * check flags markup the app does not ship. Third-party runtime injection is outside the app's
+ * CSP posture and the browser enforces the nonce at runtime anyway (INS-602).
+ */
+function assertCspNonceMatchesScripts(
   response: PageResponse,
+  ssrHtml: string,
   label: string,
-): Promise<void> {
+): void {
   assertHeaderContains(response, "content-security-policy", "default-src", label);
   const csp = headerValue(response, "content-security-policy") ?? "";
   const nonceMatch = /'nonce-([^']+)'/u.exec(csp);
@@ -122,17 +131,17 @@ async function assertCspNonceMatchesScripts(
     throw new Error(`${label} CSP missing nonce directive`);
   }
   const nonce = nonceMatch[1] ?? "";
-  const inlineScripts = await page.evaluate((expectedNonce) => {
-    const scripts = Array.from(document.scripts).filter((script) => !script.hasAttribute("src"));
-    return {
-      count: scripts.length,
-      mismatched: scripts.filter((script) => script.nonce !== expectedNonce).length,
-    };
-  }, nonce);
-  if (inlineScripts.count === 0) {
+  const inlineScriptTags = Array.from(
+    ssrHtml.matchAll(SCRIPT_OPEN_TAG),
+    (match) => match[0],
+  ).filter((tag) => !SCRIPT_SRC_ATTR.test(tag));
+  const mismatched = inlineScriptTags.filter(
+    (tag) => SCRIPT_NONCE_ATTR.exec(tag)?.[1] !== nonce,
+  ).length;
+  if (inlineScriptTags.length === 0) {
     throw new Error(`${label} rendered no inline scripts to validate against the CSP nonce`);
   }
-  if (inlineScripts.mismatched > 0) {
+  if (mismatched > 0) {
     throw new Error(`${label} inline scripts missing matching nonce attribute`);
   }
 }
