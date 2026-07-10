@@ -20,6 +20,7 @@ import {
   IMPORT_ERROR_CODES,
   SECRET_ERROR_CODES,
   LOCAL_ERROR_CODES,
+  STORE_ERROR_CODES,
   type KnownErrorCode,
 } from "@insecur/domain";
 
@@ -166,6 +167,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [HIGH_ASSURANCE_ERROR_CODES.sessionAssuranceFailed]: EXIT_AUTH_REQUIRED,
   [HIGH_ASSURANCE_ERROR_CODES.invalidRiskReason]: EXIT_VALIDATION,
   [ABUSE_ERROR_CODES.rateLimited]: EXIT_RETRYABLE,
+  [STORE_ERROR_CODES.unavailable]: EXIT_RETRYABLE,
 };
 
 function exitCodeForPrefix(code: KnownErrorCode): number | undefined {

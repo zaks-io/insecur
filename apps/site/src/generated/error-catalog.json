@@ -567,6 +567,15 @@
     "notes": "Runtime configuration unavailable; control-plane state, not caller input."
   },
   {
+    "code": "store.unavailable",
+    "slug": "store-unavailable",
+    "typeUri": "https://insecur.dev/errors/store-unavailable",
+    "exitCode": 8,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Transient database connection-layer failure (Hyperdrive pool exhaustion, server shutdown, connection loss); safe to retry after a short delay."
+  },
+  {
     "code": "storage.gate_blocked",
     "slug": "storage-gate-blocked",
     "typeUri": "https://insecur.dev/errors/storage-gate-blocked",

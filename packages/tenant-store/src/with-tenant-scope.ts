@@ -1,5 +1,6 @@
 import { applyTenantScope } from "./apply-tenant-scope.js";
 import { getRuntimeSql } from "./db/connection.js";
+import { retryOnceOnConnectionAcquisitionFailure } from "./db/transient-connection-error.js";
 import { createTenantScopedTransaction } from "./tenant-scoped-transaction.js";
 import { toIsoTimestamp } from "./parse-db-timestamp.js";
 import type {
@@ -60,9 +61,12 @@ export async function withTenantScope<TResult>(
   const transaction = (txSql: TenantScopedSql) =>
     runTenantScopedTransaction(txSql, scope, callback, options);
   const beginOptions = transactionOptionsSql(options);
-  return (await (beginOptions
-    ? sql.begin(beginOptions, transaction)
-    : sql.begin(transaction))) as TResult;
+  // Preview/prod reach Postgres through Hyperdrive, which reports origin pool exhaustion as
+  // SQLSTATE 58000 while acquiring the transaction's connection (INS-603). Nothing has executed
+  // at that point, so one bounded retry re-enters the pool-wait queue instead of failing the RPC.
+  return (await retryOnceOnConnectionAcquisitionFailure(() =>
+    beginOptions ? sql.begin(beginOptions, transaction) : sql.begin(transaction),
+  )) as TResult;
 }
 
 export type {

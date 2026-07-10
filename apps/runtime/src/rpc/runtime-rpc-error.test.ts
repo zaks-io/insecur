@@ -3,6 +3,7 @@ import {
   CRYPTO_ERROR_CODES,
   DEFAULT_UNKNOWN_ERROR_CODE,
   INJECTION_ERROR_CODES,
+  STORE_ERROR_CODES,
   VALIDATION_ERROR_CODES,
 } from "@insecur/domain";
 import { InjectionGrantError } from "@insecur/runtime-injection";
@@ -111,5 +112,34 @@ describe("toRuntimeRpcError", () => {
     expect(mapped.code).toBe(AUTH_ERROR_CODES.insufficientScope);
     expect(mapped.message).toBe(RUNTIME_RPC_GENERIC_MESSAGE);
     expect(mapped.message).not.toContain(SENTINEL);
+  });
+
+  it.each([
+    ["58000", "Hyperdrive pool-slot exhaustion"],
+    ["57P01", "admin shutdown"],
+    ["08006", "connection failure"],
+    ["CONNECT_TIMEOUT", "postgres.js connect timeout"],
+  ])(
+    "maps a transient connection failure (%s, %s) to store.unavailable retryable without leaking the SQLSTATE",
+    (sqlstate) => {
+      const mapped = toRuntimeRpcError(
+        Object.assign(new Error("Timed out while waiting for an open slot in the pool."), {
+          code: sqlstate,
+        }),
+      );
+      expect(mapped).toEqual({
+        code: STORE_ERROR_CODES.unavailable,
+        message: RUNTIME_RPC_GENERIC_MESSAGE,
+        retryable: true,
+      });
+      expect(mapped.message).not.toContain("pool");
+    },
+  );
+
+  it("still forwards non-transient SQLSTATE-shaped codes as non-retryable", () => {
+    const mapped = toRuntimeRpcError(Object.assign(new Error(SENTINEL), { code: "23505" }));
+    expect(mapped.code).toBe("23505");
+    expect(mapped.retryable).toBe(false);
+    expect(mapped.message).toBe(RUNTIME_RPC_GENERIC_MESSAGE);
   });
 });
