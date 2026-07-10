@@ -420,7 +420,9 @@ Owns:
 - Audit Event Writer contract, audit table/event shape, denied-action coverage, and audit metadata
   safety.
 - Tamper-evident and Ed25519-signed audit export plus `audit verify`.
-- Allowlisted telemetry emission, Cloudflare Logpush/R2 raw log posture, and external sink guard.
+- Allowlisted telemetry emission, the deployed telemetry evidence surfaces bound to the configured
+  Workers observability destinations ([ADR-0085](../adr/0085-deployed-telemetry-evidence-surfaces.md)),
+  and the external sink guard.
 - Metadata-safe Webhook Subscriptions, Event Notifications, and Approval Notification delivery
   adapters: email and in-app event emission in V1; browser/mobile push via Push Device
   Registrations is post-V1 per [open-questions.md](../open-questions.md).

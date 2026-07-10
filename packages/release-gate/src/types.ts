@@ -102,7 +102,8 @@ export const SMALL_GROUP_BACKUP_RESTORE_CONTROL_IDS = [
 export const SMALL_GROUP_NO_PLAINTEXT_EXTERNAL_CONTROL_IDS = [
   "no_plaintext.r2_backup",
   "no_plaintext.worker_logs",
-  "no_plaintext.worker_traces",
+  "no_plaintext.worker_traces.axiom",
+  "no_plaintext.worker_traces.sentry",
   "no_plaintext.api_analytics",
 ] as const;
 

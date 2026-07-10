@@ -15,6 +15,9 @@
 //   (f) each deploy's live public route mounts match docs/specs/deploy-route-inventory.md in both
 //       directions (ADR-0067), and the committed inventory matches `pnpm routes:inventory`.
 //   (g) signing secrets are never declared as plaintext wrangler `vars` (INS-276).
+//   (h) every wrangler log/trace destination is bound to a no-plaintext evidence surface in the
+//       release-gate registry, and every telemetry binding maps to a configured destination
+//       (INS-561, ADR-0085). Logpush/tail consumers are unregistered egress and fail closed.
 //
 // HARD-FAILS (exit 1) on any violation. Wired into `pnpm verify`.
 
@@ -24,10 +27,13 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import {
+  collectConfigScopes,
   collectDeployRouteMounts,
   listWranglerApps,
   parseRouteInventory,
 } from "./deploy-routes.mjs";
+import { collectTelemetryEvidenceFailures } from "./telemetry-evidence-conformance-lib.mjs";
+import { NO_PLAINTEXT_EXTERNAL_SURFACES } from "../../packages/release-gate/src/no-plaintext-surface-registry.ts";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const appsDir = join(repoRoot, "apps");
@@ -88,6 +94,7 @@ function main() {
   assertRouteInventoryMatches(deploys);
   assertRouteInventoryFresh();
   assertNoPlaintextSigningSecretsInVars(deploys);
+  assertTelemetryDestinationsHaveEvidenceSurfaces(deploys);
 
   report();
 }
@@ -528,14 +535,12 @@ function assertNoPlaintextSigningSecretsInVars(deploys) {
   }
 }
 
-function collectConfigScopes(config) {
-  const scopes = [{ scope: "top-level", config }];
-  if (config && typeof config === "object" && config.env && typeof config.env === "object") {
-    for (const [envName, envConfig] of Object.entries(config.env)) {
-      scopes.push({ scope: `env.${envName}`, config: envConfig });
-    }
+// INS-561 / ADR-0085: every wrangler log/trace destination must be bound to a no-plaintext
+// evidence surface, so a new telemetry sink cannot ship without a fail-closed evidence obligation.
+function assertTelemetryDestinationsHaveEvidenceSurfaces(deploys) {
+  for (const message of collectTelemetryEvidenceFailures(deploys, NO_PLAINTEXT_EXTERNAL_SURFACES)) {
+    fail(message);
   }
-  return scopes;
 }
 
 function isFile(path) {

@@ -17,6 +17,27 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
+function hasValidQueryWindow(record: Record<string, unknown>): boolean {
+  const window = record.query_window;
+  if (!window || typeof window !== "object" || Array.isArray(window)) {
+    return false;
+  }
+  const { from, to } = window as Record<string, unknown>;
+  return isNonEmptyString(from) && isNonEmptyString(to);
+}
+
+// Telemetry-bound surfaces (ADR-0085) pin the exact provider target and require the sweep's query
+// window, so evidence produced against one provider cannot be copied to satisfy another.
+function matchesTelemetryBinding(
+  record: Record<string, unknown>,
+  expected: NoPlaintextRegistryEntry,
+): boolean {
+  if (!("telemetry" in expected)) {
+    return true;
+  }
+  return record.target_ref === expected.telemetry.targetRef && hasValidQueryWindow(record);
+}
+
 function matchesRequiredEvidence(
   record: Record<string, unknown>,
   expected: NoPlaintextRegistryEntry,
@@ -25,7 +46,8 @@ function matchesRequiredEvidence(
     record.status === "passed" &&
     record.surface === expected.surface &&
     record.evidence_adapter === expected.requiredEvidenceAdapter &&
-    record.finding_count === 0
+    record.finding_count === 0 &&
+    matchesTelemetryBinding(record, expected)
   );
 }
 
@@ -56,6 +78,9 @@ export function collectNoPlaintextExternalControls(
   return NO_PLAINTEXT_EXTERNAL_SURFACES.map((entry) => {
     const raw = readJsonFile(evidencePath(evidenceDir, entry.evidencePath));
     const docs = ["docs/adr/0069-no-plaintext-canary-gate.md"];
+    if ("telemetry" in entry) {
+      docs.push("docs/adr/0085-deployed-telemetry-evidence-surfaces.md");
+    }
     if (raw === null) {
       return missingControl(
         entry.id,

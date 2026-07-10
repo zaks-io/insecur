@@ -144,20 +144,21 @@ is not `passed`. Missing evidence is `missing_evidence` and blocks the gate.
 
 ### Skeleton control IDs
 
-| Control ID                        | Evidence artifact (relative to evidence dir) | Source                                             |
-| --------------------------------- | -------------------------------------------- | -------------------------------------------------- |
-| `supply_chain.verify`             | `verify.json`                                | `pnpm verify` CI job or local verify run           |
-| `supply_chain.dependency_scan`    | `supply-chain/dependency-scan.json`          | syft + grype job (SBOM-driven dependency CVE scan) |
-| `supply_chain.secret_scan`        | `supply-chain/secret-scan.json`              | gitleaks summary (counts and rule IDs only)        |
-| `supply_chain.sbom_vulnerability` | `supply-chain/sbom-vulnerability.json`       | syft + grype summary                               |
-| `auth.asvs_checklist`             | `security/asvs-checklist.json`               | OWASP ASVS checklist status                        |
-| `auth.api_top10_checklist`        | `security/api-top10-checklist.json`          | OWASP API Security Top 10 checklist status         |
-| `backup_restore.export_fresh`     | `backup/export-success.json`                 | Latest successful Worker export with `expires_at`  |
-| `backup_restore.drill`            | `backup/restore-drill.json`                  | Tested restore drill and canary verification       |
-| `no_plaintext.r2_backup`          | `no-plaintext/r2-backup.json`                | External scheduled R2 artifact sweep               |
-| `no_plaintext.worker_logs`        | `no-plaintext/worker-logs.json`              | External deployed Worker log query                 |
-| `no_plaintext.worker_traces`      | `no-plaintext/worker-traces.json`            | External deployed Worker trace query               |
-| `no_plaintext.api_analytics`      | `no-plaintext/api-analytics.json`            | External deployed API analytics query              |
+| Control ID                          | Evidence artifact (relative to evidence dir) | Source                                             |
+| ----------------------------------- | -------------------------------------------- | -------------------------------------------------- |
+| `supply_chain.verify`               | `verify.json`                                | `pnpm verify` CI job or local verify run           |
+| `supply_chain.dependency_scan`      | `supply-chain/dependency-scan.json`          | syft + grype job (SBOM-driven dependency CVE scan) |
+| `supply_chain.secret_scan`          | `supply-chain/secret-scan.json`              | gitleaks summary (counts and rule IDs only)        |
+| `supply_chain.sbom_vulnerability`   | `supply-chain/sbom-vulnerability.json`       | syft + grype summary                               |
+| `auth.asvs_checklist`               | `security/asvs-checklist.json`               | OWASP ASVS checklist status                        |
+| `auth.api_top10_checklist`          | `security/api-top10-checklist.json`          | OWASP API Security Top 10 checklist status         |
+| `backup_restore.export_fresh`       | `backup/export-success.json`                 | Latest successful Worker export with `expires_at`  |
+| `backup_restore.drill`              | `backup/restore-drill.json`                  | Tested restore drill and canary verification       |
+| `no_plaintext.r2_backup`            | `no-plaintext/r2-backup.json`                | External scheduled R2 artifact sweep               |
+| `no_plaintext.worker_logs`          | `no-plaintext/worker-logs.json`              | Deployed Worker log query against Axiom            |
+| `no_plaintext.worker_traces.axiom`  | `no-plaintext/worker-traces-axiom.json`      | Deployed Worker trace query against Axiom          |
+| `no_plaintext.worker_traces.sentry` | `no-plaintext/worker-traces-sentry.json`     | Deployed Worker trace query against Sentry         |
+| `no_plaintext.api_analytics`        | `no-plaintext/api-analytics.json`            | External deployed API analytics query              |
 
 Evidence files are JSON metadata only. Secret-scan artifacts must record
 `finding_count` and optional `rule_ids`; they must not include Sensitive Values,
@@ -168,6 +169,59 @@ The repository registers these non-enumerable surfaces and fails the
 `small_group_production` profile closed when their metadata-only zero-finding evidence is absent.
 The external query/download implementations are not in this repository yet. Registry entries are
 evidence requirements, not claims that executable adapters exist.
+
+### Deployed telemetry evidence surfaces
+
+This section pairs with the code-owned evidence-surface registry
+`packages/release-gate/src/no-plaintext-surface-registry.ts` and must stay in lockstep with its
+telemetry bindings; the decision record is
+[ADR-0085](adr/0085-deployed-telemetry-evidence-surfaces.md). The deploy-topology conformance gate
+(`pnpm conformance:topology`) fails when a wrangler log/trace destination lacks a registry
+binding, when a binding lacks a configured destination, or when a deploy declares `logpush` or
+`tail_consumers`.
+
+| Surface                             | Wrangler destination    | Provider target (pinned `target_ref`) | Config lookup location                                                                                                                  |
+| ----------------------------------- | ----------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `no_plaintext.worker_logs`          | `axiom-logs`            | `axiom://dataset/cloudflare`          | Cloudflare dashboard → account → Workers Observability → Destinations → `axiom-logs`                                                    |
+| `no_plaintext.worker_traces.axiom`  | `axiom-traces`          | `axiom://dataset/cloudflare`          | Cloudflare dashboard → account → Workers Observability → Destinations → `axiom-traces`                                                  |
+| `no_plaintext.worker_traces.sentry` | `sentry-traces-insecur` | `sentry://zaksio/insecur`             | Cloudflare dashboard → account → Workers Observability → Destinations → `sentry-traces-insecur`; Sentry org `zaksio`, project `insecur` |
+
+Worker log evidence requires the Axiom surface. Worker trace evidence requires BOTH trace
+surfaces; either one missing, invalid, or non-zero-finding blocks `small_group_production`.
+Cloudflare-native log/trace retention and R2 Logpush are not configured sinks and carry no
+release-evidence obligation while unconfigured.
+
+Operational parameters for the sweep adapters (INS-567 logs, INS-566 traces):
+
+- **Deployed sinks.** The Axiom dataset behind both Axiom destinations is currently `cloudflare`,
+  a shared multi-project dataset; sweeps must filter to this repo's services
+  (`service.name` / `resource.cloudflare.script_name` in `insecur-api`, `insecur-runtime`,
+  `insecur-web`, `insecur-site` and their `-preview` variants). The authoritative
+  destination-to-dataset mapping lives in the Cloudflare destination config above; if it changes,
+  update the registry's `target_ref` in the same change.
+- **Query window.** Evidence must record `query_window.from`/`query_window.to` (RFC 3339), fully
+  covering the interval from the swept canary run's first deployed request to the sweep start.
+  The release gate rejects telemetry evidence without a query window.
+- **Retention assumptions.** The query window must fall inside provider retention: the Axiom
+  dataset retention (Axiom → dataset `cloudflare` → settings) and Sentry event retention for org
+  `zaksio` (90 days on the current plan). Sweeps run promptly after the canary run, so retention
+  is never the binding constraint; a retention change below the sweep cadence invalidates the
+  control.
+- **Approved credentials (names only, never values).** Axiom queries use an API token stored as
+  the GitHub Actions repository secret `AXIOM_QUERY_TOKEN`, scoped to query/read on the
+  `cloudflare` dataset only (no ingest, no management). Sentry queries use the GitHub Actions
+  repository secret `SENTRY_QUERY_TOKEN`, an org `zaksio` auth token restricted to read scopes
+  (`org:read`, `project:read`, `event:read`); it is deliberately separate from
+  `SENTRY_AUTH_TOKEN`, whose release/source-map upload scopes exceed least privilege for reads.
+  Values live only in the approved GitHub Actions secret store.
+- **Canary correlation without sentinel exposure.** Sweeps correlate a canary run by its run ID
+  (`sentinel_run_id`), deploy identity (`DEPLOY_SHA`, `DEPLOY_RUN_ID`, `SENTRY_RELEASE`), service
+  names, and the query window. Sentinel values never appear in provider queries; sweeps download
+  candidate events for the window and match sentinels locally in the sweep process.
+- **Evidence output.** Limited to `status`, `surface`, `evidence_adapter`, `target_ref`,
+  `query_window`, `sentinel_run_id`, `finding_count`, and `checked_at`. Provider responses and
+  matching event bodies never enter evidence artifacts, CI logs, or the tracker; on findings, the
+  artifact records the count only and investigation happens directly against the provider.
 
 During the prelaunch build-out, `.github/workflows/deploy-production.yml` runs this profile with
 `--warn-only` so incomplete launch evidence is visible without preventing environment validation.
