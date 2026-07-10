@@ -11,6 +11,19 @@ import {
 
 const INLINE_STYLE_ATTR = /<[a-z][^>]*\sstyle=["']/iu;
 
+/**
+ * The nonce CSP allows no `style` attribute, so server-rendered markup must not carry any. This
+ * runs against the raw SSR response body, never the serialized live DOM: Cloudflare's zone-level
+ * challenge platform (JS detections) injects an inline script that appends a transient hidden
+ * iframe with inline styles to <body> until DOMContentLoaded, so a DOM snapshot taken at
+ * `domcontentloaded` flags edge-injected markup the app does not ship (INS-591).
+ */
+export function assertSsrHtmlHasNoInlineStyle(ssrHtml: string, label: string): void {
+  if (INLINE_STYLE_ATTR.test(ssrHtml)) {
+    throw new Error(`${label} server-rendered HTML carries an inline style attribute`);
+  }
+}
+
 interface AuthedConsolePageExpectation {
   /** When true, the page must render the console shell instead of the public site frame. */
   readonly consoleShell?: boolean;
@@ -63,7 +76,8 @@ export async function assertAuthedConsolePage(input: AuthedConsolePageInput): Pr
   if (expectation.privateDocument ?? true) {
     assertPrivateAuthedDocument(pageResponse, input.label);
   }
-  await assertCspNonceMatchesScripts(input.page, pageResponse, input.html, input.label);
+  await assertCspNonceMatchesScripts(input.page, pageResponse, input.label);
+  assertSsrHtmlHasNoInlineStyle(await pageResponse.text(), input.label);
 
   if (expectation.consoleShell === true) {
     assertConsoleShell(input.html, input.label);
@@ -99,7 +113,6 @@ function assertPrivateAuthedDocument(response: PageResponse, label: string): voi
 async function assertCspNonceMatchesScripts(
   page: Page,
   response: PageResponse,
-  html: string,
   label: string,
 ): Promise<void> {
   assertHeaderContains(response, "content-security-policy", "default-src", label);
@@ -121,9 +134,6 @@ async function assertCspNonceMatchesScripts(
   }
   if (inlineScripts.mismatched > 0) {
     throw new Error(`${label} inline scripts missing matching nonce attribute`);
-  }
-  if (INLINE_STYLE_ATTR.test(html)) {
-    throw new Error(`${label} server-rendered HTML carries an inline style attribute`);
   }
 }
 
