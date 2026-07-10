@@ -216,11 +216,11 @@ the running process does not keep. Kept here only so they are not reintroduced.
 ## House style
 
 - **insecur** is always lowercase, including at the start of a sentence. The wordmark sets
-  the truncated name in the display face (Archivo Black); the dropped "e" is left plain, not
-  decorated with a bar or a glyph.
-- The visual system is stark ink-on-paper: near-black on warm paper, one signal red used on
-  a single word at a time, hard hairline rules, no rounded corners, no dark-mode chrome, no
-  soft gradients. Big type does the work. See the Public Site (`apps/site`) for the reference.
+  the truncated name in tight-tracked semibold Geist, closed by a signal-red point; the
+  dropped "e" is left plain, not decorated with a bar or a glyph.
+- The visual system is quiet developer-tool minimalism (ADR-0083): neutral white/near-black
+  surfaces in light and dark, hairline rules, soft radii, Geist type, and one signal red used
+  on a single word at a time. See the Public Site (`apps/site`) for the reference.
 - The domain is **insecur.cloud**.
 - "insecure" (the adjective) is used deliberately and sparingly to land the thesis, never
   sloppily and never as a typo for the brand name.

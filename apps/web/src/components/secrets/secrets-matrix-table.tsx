@@ -8,14 +8,14 @@ import {
 } from "../../console/secrets-matrix.js";
 import { ActorChain } from "../actor-chain.js";
 
-const HEADER_CELL = "px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase";
+const HEADER_CELL = "px-4 py-3 text-xs font-medium tracking-widest uppercase text-muted-foreground";
 
 function EnvironmentHeader({ environment }: { environment: ConsoleEnvironment }) {
   return (
     <th className={`${HEADER_CELL} min-w-[10rem] text-left align-bottom`}>
       <div className="flex flex-col gap-1">
         <span>{environment.displayName}</span>
-        <span className="font-mono text-[0.65rem] font-normal tracking-normal text-muted-foreground normal-case">
+        <span className="font-mono text-xs font-normal tracking-normal text-muted-foreground normal-case">
           {environment.lifecycleStage}
         </span>
         {environment.isProtected ? <Badge variant="solid">Protected</Badge> : null}
@@ -71,7 +71,7 @@ function PresentCell({
   return (
     <a
       href={`/orgs/${orgId}/projects/${projectId}/envs/${environmentId}/secrets/${cell.secretId}`}
-      className="block rounded-sm transition hover:bg-ink/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      className="block rounded-sm transition hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border"
     >
       {content}
     </a>
@@ -94,12 +94,12 @@ function MatrixRow({
 
   return (
     <tr
-      className={`border-t border-ink/20 first:border-t-0 ${drift ? "bg-amber-50/60" : ""}`}
+      className={`border-t border-border first:border-t-0 ${drift ? "bg-signal/5" : ""}`}
       data-drift={drift ? "true" : "false"}
     >
       <th
         scope="row"
-        className={`sticky left-0 z-10 border-r border-ink/20 bg-background px-4 py-3 text-left align-top font-mono text-sm ${
+        className={`sticky left-0 z-10 border-r border-border bg-background px-4 py-3 text-left align-top font-mono text-sm ${
           drift ? "font-semibold" : "font-medium"
         }`}
       >
@@ -146,10 +146,10 @@ export function SecretsMatrixTable({
   projectId: string;
 }) {
   return (
-    <div className="mt-6 overflow-x-auto border-2 border-ink">
+    <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
       <table className="w-full min-w-[48rem] border-collapse text-sm">
         <thead>
-          <tr className="border-b-2 border-ink text-left">
+          <tr className="border-b border-border text-left">
             <th className={`${HEADER_CELL} sticky left-0 z-20 bg-background`}>Secret</th>
             {environments.map((environment) => (
               <EnvironmentHeader key={environment.environmentId} environment={environment} />

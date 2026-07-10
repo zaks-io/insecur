@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 
 /**
- * Shared frame for the two long-form legal pages (privacy, terms). The visual language is the same
- * ink-on-paper brutalism as the rest of the Public Site: a hairline-ruled masthead, a mono metadata
- * row that reads like the product's own secret metadata (key · env · version), and numbered clauses.
- * Numbering is real structure here, not decoration: a legal document is a sequence you cite by
- * section, so the two-digit index in the gutter earns its place. The site's root SiteShell supplies
- * the header and footer, so this renders bare article content.
+ * Shared frame for the two long-form legal pages (privacy, terms): a hairline-ruled masthead, a
+ * mono metadata row that reads like the product's own secret metadata (key · env · version), and
+ * numbered clauses. Numbering is real structure here, not decoration: a legal document is a
+ * sequence you cite by section, so the two-digit index in the gutter earns its place. The site's
+ * root SiteShell supplies the header and footer, so this renders bare article content.
  */
 
 export interface LegalClause {
@@ -34,7 +33,7 @@ export function LegalPage({
   contactEmail?: string;
 }) {
   return (
-    <article className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
+    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <Masthead
         eyebrow={eyebrow}
         title={title}
@@ -67,9 +66,11 @@ function Masthead({
   version: string;
 }) {
   return (
-    <header className="border-b-2 border-ink pb-8">
+    <header className="border-b border-border pb-8">
       <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{eyebrow}</p>
-      <h1 className="mt-3 font-display text-4xl leading-[0.95] sm:text-6xl">{title}</h1>
+      <h1 className="mt-3 text-4xl leading-[1.02] font-semibold tracking-tighter sm:text-6xl">
+        {title}
+      </h1>
       <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">{summary}</p>
       <dl className="mt-6 flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs text-muted-foreground">
         <div className="flex gap-2">
@@ -88,7 +89,9 @@ function Masthead({
 function Clause({ index, clause }: { index: number; clause: LegalClause }) {
   return (
     <NumberedRow index={index} className="py-8">
-      <h2 className="font-display text-xl leading-tight sm:text-2xl">{clause.heading}</h2>
+      <h2 className="text-lg leading-tight font-semibold tracking-tight sm:text-xl">
+        {clause.heading}
+      </h2>
       <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
         {clause.body}
       </div>
@@ -112,9 +115,12 @@ export function NumberedRow({
 }) {
   return (
     <section
-      className={`grid grid-cols-[2.5rem_1fr] gap-x-4 border-b border-ink/25 last:border-b-0 sm:grid-cols-[3.5rem_1fr] sm:gap-x-6 ${className ?? ""}`}
+      className={`grid grid-cols-[2.5rem_1fr] gap-x-4 border-b border-border last:border-b-0 sm:grid-cols-[3.5rem_1fr] sm:gap-x-6 ${className ?? ""}`}
     >
-      <p aria-hidden="true" className="font-display text-2xl leading-none text-ink/35 sm:text-3xl">
+      <p
+        aria-hidden="true"
+        className="font-mono text-xl leading-none text-muted-foreground/60 sm:text-2xl"
+      >
         {String(index + 1).padStart(2, "0")}
       </p>
       <div>{children}</div>
@@ -124,7 +130,7 @@ export function NumberedRow({
 
 function ContactLine({ email }: { email: string }) {
   return (
-    <footer className="mt-10 border-t-2 border-ink pt-6 font-mono text-xs text-muted-foreground">
+    <footer className="mt-10 border-t border-border pt-6 font-mono text-xs text-muted-foreground">
       <p>
         Questions about this page:{" "}
         <a
@@ -145,8 +151,8 @@ function ContactLine({ email }: { email: string }) {
  */
 export function StatusStamp({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <aside className="border-2 border-signal">
-      <p className="border-b-2 border-signal bg-signal px-4 py-2 font-mono text-xs uppercase tracking-widest text-paper">
+    <aside className="overflow-hidden rounded-xl border border-signal/40">
+      <p className="border-b border-signal/40 bg-signal/10 px-4 py-2 font-mono text-xs uppercase tracking-widest text-signal">
         {label}
       </p>
       <div className="flex flex-col gap-3 px-4 py-4 text-sm leading-relaxed text-foreground sm:px-5">

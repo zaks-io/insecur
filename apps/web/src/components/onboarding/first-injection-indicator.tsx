@@ -5,7 +5,7 @@ const POLL_INTERVAL_MS = 4000;
 
 function WaitingIndicator() {
   return (
-    <section aria-live="polite" className="border-b-2 border-ink px-6 py-5">
+    <section aria-live="polite" className="border-b border-border px-6 py-5">
       <p className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
         Waiting for your first run
       </p>
@@ -19,9 +19,14 @@ function WaitingIndicator() {
 
 function CelebrationIndicator() {
   return (
-    <section aria-live="polite" className="border-b-2 border-ink bg-ink px-6 py-5 text-background">
-      <p className="font-display text-xl leading-tight sm:text-2xl">First injection observed.</p>
-      <p className="mt-2 max-w-prose text-sm leading-relaxed text-background/80">
+    <section
+      aria-live="polite"
+      className="border-b border-border bg-primary px-6 py-5 text-primary-foreground"
+    >
+      <p className="text-xl leading-tight font-semibold tracking-tight sm:text-2xl">
+        First injection observed.
+      </p>
+      <p className="mt-2 max-w-prose text-sm leading-relaxed text-primary-foreground/80">
         Your CLI run consumed a Runtime Injection grant. The secret reached your process without
         ever appearing on screen here.
       </p>

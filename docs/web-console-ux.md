@@ -105,11 +105,13 @@ docs/cli-and-sync.md; the console renders them.
 
 ## Visual Direction
 
-The console adopts `@insecur/ui` (Tailwind v4 + shadcn, radix-nova, neutral base) and inherits the
-marketing site's light editorial look wholesale: one design system, one temperament, zero extra
-theming. Metadata-dense elements (IDs, versions, receipts, audit rows) use mono within that theme.
-The hand-rolled `apps/web/src/styles.css` is deleted in the adoption pass. All styling flows
-through the existing CSP nonce mechanism.
+The console adopts `@insecur/ui` (Tailwind v4 + shadcn, radix-nova, neutral base) and shares the
+public site's visual system wholesale (ADR-0083): quiet developer-tool minimalism, Geist type,
+hairline borders, soft radii, light and dark schemes stamped before first paint. The console
+topbar reuses the site header language so the site → console hop reads as one product.
+Metadata-dense elements (IDs, versions, receipts, audit rows) use mono within that theme. There is
+no app-local stylesheet. All styling flows through the existing CSP nonce mechanism, including the
+theme init script.
 
 ## Open Branches (not yet designed)
 

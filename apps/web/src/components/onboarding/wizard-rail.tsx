@@ -16,7 +16,7 @@ export function WizardRail({ currentStep }: { currentStep: OnboardingStepId }) {
   return (
     <>
       <nav aria-label="Setup steps" className="hidden sm:block">
-        <ol className="flex flex-col border-t-2 border-ink">
+        <ol className="flex flex-col border-t border-border">
           {steps.map((step) => {
             const number = onboardingStepNumber(step.id);
             const state =
@@ -26,8 +26,8 @@ export function WizardRail({ currentStep }: { currentStep: OnboardingStepId }) {
                 key={step.id}
                 aria-current={state === "current" ? "step" : undefined}
                 className={cn(
-                  "flex items-baseline gap-3 border-b border-ink/20 py-3 pr-4 pl-3 text-sm",
-                  state === "current" && "border-l-4 border-l-ink pl-2 font-medium",
+                  "flex items-baseline gap-3 border-b border-border py-3 pr-4 pl-3 text-sm",
+                  state === "current" && "border-l-4 border-l-primary pl-2 font-medium",
                   state === "ahead" && "text-muted-foreground",
                 )}
               >

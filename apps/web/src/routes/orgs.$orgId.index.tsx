@@ -30,8 +30,10 @@ function OrgHomePage() {
 
   return (
     <section className="px-5 py-8 sm:px-8 sm:py-10">
-      <header className="border-b-2 border-ink pb-6">
-        <h1 className="font-display text-3xl leading-tight sm:text-4xl">{activeOrg.displayName}</h1>
+      <header className="border-b border-border pb-6">
+        <h1 className="text-3xl font-semibold tracking-tight leading-tight sm:text-4xl">
+          {activeOrg.displayName}
+        </h1>
         <p className="mt-2 font-mono text-xs text-muted-foreground">{activeOrg.organizationId}</p>
       </header>
       <div className="mt-8 flex flex-col gap-8">

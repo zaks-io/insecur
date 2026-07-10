@@ -6,7 +6,7 @@ import { ActorChain } from "../actor-chain.js";
 
 function EvidenceRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-1 border-t border-ink/20 px-4 py-3 sm:grid-cols-[minmax(0,9rem)_1fr] sm:gap-4">
+    <div className="grid gap-1 border-t border-border px-4 py-3 sm:grid-cols-[minmax(0,9rem)_1fr] sm:gap-4">
       <dt className="font-mono text-xs text-muted-foreground">{label}</dt>
       <dd className="min-w-0 font-mono text-sm text-foreground">{children}</dd>
     </div>
@@ -15,8 +15,8 @@ function EvidenceRow({ label, children }: { label: string; children: ReactNode }
 
 function StalenessBanner() {
   return (
-    <div className="border-b-2 border-ink bg-destructive/5 px-4 py-4 sm:px-5" role="status">
-      <p className="font-display text-lg leading-tight">Impact review is stale</p>
+    <div className="border-b border-border bg-destructive/5 px-4 py-4 sm:px-5" role="status">
+      <p className="text-lg font-semibold tracking-tight leading-tight">Impact review is stale</p>
       <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
         Protected delivery facts changed since this request was staged. The requester must submit a
         fresh Approval Request before you can approve.
@@ -38,7 +38,7 @@ function DraftVersionsSection({
     );
   }
   return (
-    <ul className="divide-y divide-ink/20">
+    <ul className="divide-y divide-border">
       {draftVersions.map((draft) => (
         <li key={draft.secretVersionId} className="px-4 py-3 sm:px-5">
           <p className="font-mono text-sm">{draft.secretId}</p>
@@ -58,14 +58,14 @@ function DeliveryImpactSection({
   delivery: ConsoleApprovalRequestDetail["impactReview"]["delivery"];
 }) {
   return (
-    <div className="border-t-2 border-ink">
-      <h3 className="px-4 py-3 font-display text-lg sm:px-5">Delivery impact</h3>
+    <div className="border-t border-border">
+      <h3 className="px-4 py-3 text-lg font-semibold tracking-tight sm:px-5">Delivery impact</h3>
       {delivery.runtimeInjectionPolicies.length === 0 ? (
         <p className="px-4 pb-4 font-mono text-xs text-muted-foreground sm:px-5">
           No runtime injection policies affected.
         </p>
       ) : (
-        <ul className="divide-y divide-ink/20">
+        <ul className="divide-y divide-border">
           {delivery.runtimeInjectionPolicies.map((policy) => (
             <li key={policy.policyId} className="px-4 py-3 sm:px-5">
               <p className="font-mono text-sm">{policy.policyId}</p>
@@ -78,7 +78,7 @@ function DeliveryImpactSection({
         </ul>
       )}
       {delivery.providerSyncImpact.length > 0 ? (
-        <p className="border-t border-ink/20 px-4 py-3 font-mono text-xs text-muted-foreground sm:px-5">
+        <p className="border-t border-border px-4 py-3 font-mono text-xs text-muted-foreground sm:px-5">
           Provider sync: {delivery.providerSyncImpact.join(", ")}
         </p>
       ) : null}
@@ -118,12 +118,15 @@ export function ApprovalRequestEvidencePanel({
   const { impactReview } = request;
 
   return (
-    <section aria-labelledby="approval-request-evidence-heading" className="border-2 border-ink">
-      <header className="border-b-2 border-ink px-4 py-4 sm:px-5">
+    <section
+      aria-labelledby="approval-request-evidence-heading"
+      className="rounded-xl border border-border bg-card"
+    >
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
           <h2
             id="approval-request-evidence-heading"
-            className="font-display text-2xl leading-tight"
+            className="text-2xl font-semibold tracking-tight leading-tight"
           >
             Evidence
           </h2>
@@ -140,8 +143,10 @@ export function ApprovalRequestEvidencePanel({
 
       <RequestMetadataSection request={request} />
 
-      <div className="border-t-2 border-ink">
-        <h3 className="px-4 py-3 font-display text-lg sm:px-5">Promotion change set</h3>
+      <div className="border-t border-border">
+        <h3 className="px-4 py-3 text-lg font-semibold tracking-tight sm:px-5">
+          Promotion change set
+        </h3>
         <DraftVersionsSection draftVersions={impactReview.draftVersions} />
       </div>
 

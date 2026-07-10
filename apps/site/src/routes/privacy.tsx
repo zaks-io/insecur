@@ -15,7 +15,7 @@ const clauses: LegalClause[] = [
           that maintains the open-source insecur code. This policy covers the data that service
           holds. We keep two kinds of it, and we keep them separate.
         </p>
-        <ul className="ml-4 flex list-disc flex-col gap-1 marker:text-ink/40">
+        <ul className="ml-4 flex list-disc flex-col gap-1 marker:text-muted-foreground">
           <li>
             <strong className="text-foreground">Account data:</strong> your email, organization, the
             people and machine identities you add, and your settings. We use it to run your account

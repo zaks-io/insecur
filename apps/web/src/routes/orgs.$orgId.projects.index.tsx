@@ -25,16 +25,16 @@ function ProjectRegister({
   projects: readonly ConsoleProject[];
 }) {
   return (
-    <ul className="mt-8 border-2 border-ink">
+    <ul className="mt-8 rounded-xl border border-border bg-card">
       {projects.map((project, index) => (
-        <li key={project.projectId} className={index > 0 ? "border-t-2 border-ink" : undefined}>
+        <li key={project.projectId} className={index > 0 ? "border-t border-border" : undefined}>
           <Link
             to="/orgs/$orgId/projects/$projectId"
             params={{ orgId, projectId: project.projectId }}
-            className="group flex items-baseline justify-between gap-4 px-5 py-4 no-underline transition-colors hover:bg-ink/10 sm:px-6"
+            className="group flex items-baseline justify-between gap-4 px-5 py-4 no-underline transition-colors hover:bg-muted/60 sm:px-6"
           >
             <span className="min-w-0">
-              <span className="block truncate font-display text-lg leading-snug text-foreground">
+              <span className="block truncate text-lg font-semibold tracking-tight leading-snug text-foreground">
                 {project.displayName}
               </span>
               <span className="mt-1 block font-mono text-xs text-muted-foreground">
@@ -60,8 +60,10 @@ function ProjectsIndexPage() {
 
   return (
     <section className="px-5 py-8 sm:px-8 sm:py-10">
-      <header className="flex items-end justify-between gap-4 border-b-2 border-ink pb-6">
-        <h1 className="font-display text-3xl leading-tight sm:text-4xl">Projects</h1>
+      <header className="flex items-end justify-between gap-4 border-b border-border pb-6">
+        <h1 className="text-3xl font-semibold tracking-tight leading-tight sm:text-4xl">
+          Projects
+        </h1>
         <p className="font-mono text-xs text-muted-foreground">
           {projects.length === 1 ? "1 project" : `${String(projects.length)} projects`}
         </p>

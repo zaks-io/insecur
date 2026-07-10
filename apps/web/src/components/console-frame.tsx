@@ -6,14 +6,17 @@ import {
   ConsoleNavItem,
   ConsoleShell,
   ConsoleTopbar,
+  SiteNavLink,
   SwitcherMenu,
   SwitcherMenuItem,
   SwitcherMenuMark,
+  ThemeToggle,
   Wordmark,
 } from "@insecur/ui";
 import { Link, useLocation, useMatch } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { ApprovalPasskeyNudge } from "./approval-passkey-nudge.js";
+import { useSiteOrigin } from "./use-site-origin.js";
 import type { ConsoleOrganization } from "../console/organizations.js";
 import { activeProjectView, projectBreadcrumbs } from "../console/project-nav.js";
 import {
@@ -69,7 +72,7 @@ function ConsoleSections({
 
 function ConsoleBreadcrumbBar({ crumbs }: { crumbs: readonly ConsoleBreadcrumb[] }) {
   return (
-    <div className="border-b border-ink/20 px-5 py-3 sm:px-8">
+    <div className="border-b border-border px-5 py-3 sm:px-8">
       <Breadcrumbs>
         {/* Key by `href ?? "current"`, never by label: Display Names are user-controlled and can
             collide with fixed crumbs (an org named "Projects"). Hrefs are unique per trail level,
@@ -130,14 +133,11 @@ function ConsolePasskeyNudge({
 }
 
 function ConsoleTopbarActions() {
+  const docsUrl = `${useSiteOrigin()}/docs`;
   return (
-    <div className="flex items-center gap-4">
-      <a
-        href="https://insecur.cloud/docs"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        Docs
-      </a>
+    <div className="flex items-center gap-2">
+      <SiteNavLink href={docsUrl}>Docs</SiteNavLink>
+      <ThemeToggle />
       <form method="post" action="/logout">
         <Button type="submit" variant="outline" size="sm">
           Sign out

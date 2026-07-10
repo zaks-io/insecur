@@ -24,7 +24,7 @@ function PersonName({ displayName, userId }: { displayName: string | null; userI
     return <span className="truncate font-mono text-base text-foreground">{userId}</span>;
   }
   return (
-    <span className="truncate font-display text-lg leading-snug text-foreground">
+    <span className="truncate text-lg font-semibold tracking-tight leading-snug text-foreground">
       {displayName}
     </span>
   );
@@ -41,8 +41,8 @@ function RoleStamps({ rolePreset, projectId }: { rolePreset: string; projectId: 
 
 function RegisterHeading({ title, count }: { title: string; count: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink pb-3">
-      <h2 className="font-display text-2xl leading-tight">{title}</h2>
+    <div className="flex items-baseline justify-between gap-4 border-b border-border pb-3">
+      <h2 className="text-2xl font-semibold tracking-tight leading-tight">{title}</h2>
       <p className="font-mono text-xs text-muted-foreground">{count}</p>
     </div>
   );
@@ -50,12 +50,12 @@ function RegisterHeading({ title, count }: { title: string; count: string }) {
 
 function MemberRegister({ members }: { members: readonly ConsoleMember[] }) {
   return (
-    <ul className="mt-6 border-2 border-ink">
+    <ul className="mt-6 rounded-xl border border-border bg-card">
       {members.map((member, index) => (
         <li
           key={member.membershipId}
           className={`flex items-baseline justify-between gap-4 px-5 py-4 sm:px-6 ${
-            index > 0 ? "border-t-2 border-ink" : ""
+            index > 0 ? "border-t border-border" : ""
           }`}
         >
           <span className="min-w-0">
@@ -80,12 +80,12 @@ function MemberRegister({ members }: { members: readonly ConsoleMember[] }) {
 
 function InvitationRegister({ invitations }: { invitations: readonly ConsoleInvitation[] }) {
   return (
-    <ul className="mt-6 border-2 border-ink">
+    <ul className="mt-6 rounded-xl border border-border bg-card">
       {invitations.map((invitation, index) => (
         <li
           key={invitation.invitationId}
           className={`flex items-baseline justify-between gap-4 px-5 py-4 sm:px-6 ${
-            index > 0 ? "border-t-2 border-ink" : ""
+            index > 0 ? "border-t border-border" : ""
           }`}
         >
           <span className="min-w-0">
@@ -125,8 +125,8 @@ function PeoplePage() {
 
   return (
     <section className="px-5 py-8 sm:px-8 sm:py-10">
-      <header className="border-b-2 border-ink pb-6">
-        <h1 className="font-display text-3xl leading-tight sm:text-4xl">People</h1>
+      <header className="border-b border-border pb-6">
+        <h1 className="text-3xl font-semibold tracking-tight leading-tight sm:text-4xl">People</h1>
         <p className="mt-2 font-mono text-xs text-muted-foreground">
           {memberCount} · {invitationCount}
         </p>

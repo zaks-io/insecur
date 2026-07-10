@@ -46,21 +46,22 @@ export function ApprovalPasskeyNudge({
   }
 
   return (
-    <div
-      className="border-b border-amber-600/40 bg-amber-50 px-5 py-3 text-sm sm:px-8"
-      role="status"
-    >
+    <div className="border-b border-border bg-card px-5 py-3 text-sm sm:px-8" role="status">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-2">
-          {enrollmentError ? (
-            <p className="text-destructive" role="alert">
-              Passkey enrollment didn't complete. Try again or dismiss for now.
+        <div className="flex items-baseline gap-3">
+          <span aria-hidden className="size-1.5 shrink-0 translate-y-px bg-signal" />
+          <div className="space-y-2">
+            {enrollmentError ? (
+              <p className="text-destructive" role="alert">
+                Passkey enrollment didn't complete. Try again or dismiss for now.
+              </p>
+            ) : null}
+            <p className="text-muted-foreground">
+              <span className="font-medium text-foreground">Approval passkey not set up.</span>{" "}
+              Enroll a passkey so your first production approval is one tap, not a ceremony under
+              pressure.
             </p>
-          ) : null}
-          <p>
-            <span className="font-medium">Approval passkey not set up.</span> Enroll a passkey so
-            your first production approval is one tap, not a ceremony under pressure.
-          </p>
+          </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button asChild size="sm">

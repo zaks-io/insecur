@@ -52,7 +52,9 @@ function SecretInEnvironmentDetailPage() {
         variableKey={versions.variableKey}
       />
       <header className="mt-6">
-        <h1 className="font-display text-3xl leading-tight">{versions.variableKey}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight leading-tight">
+          {versions.variableKey}
+        </h1>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
           Version history for this secret in {environmentLabel}. Metadata only — secret values never
           appear in the console.

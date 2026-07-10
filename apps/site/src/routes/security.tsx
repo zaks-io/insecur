@@ -52,7 +52,7 @@ const CONTROLS: Control[] = [
 
 export function SecurityPage() {
   return (
-    <article className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
+    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <PostureHeader />
       <BoundarySection />
       <ControlsSection />
@@ -64,11 +64,11 @@ export function SecurityPage() {
 
 function PostureHeader() {
   return (
-    <header className="border-b-2 border-ink pb-8">
+    <header className="border-b border-border pb-8">
       <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
         Security posture
       </p>
-      <h1 className="mt-3 font-display text-4xl leading-[0.95] sm:text-6xl">
+      <h1 className="mt-3 text-4xl leading-[1.02] font-semibold tracking-tighter sm:text-6xl">
         What we claim, and what we don&rsquo;t
       </h1>
       <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
@@ -86,11 +86,14 @@ function BoundarySection() {
       <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
         The boundary
       </h2>
-      <div className="mt-5 grid gap-px border border-ink/25 bg-ink/25 sm:grid-cols-2">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {BOUNDARIES.map((b) => (
-          <div key={b.tier} className="flex flex-col gap-3 bg-paper px-5 py-6">
+          <div
+            key={b.tier}
+            className="flex flex-col gap-3 rounded-xl border border-border bg-card px-5 py-6"
+          >
             <div className="flex items-baseline justify-between gap-3">
-              <span className="font-display text-2xl leading-none">{b.tier}</span>
+              <span className="text-xl leading-none font-semibold tracking-tight">{b.tier}</span>
               <span className="font-mono text-xs uppercase tracking-wide text-signal">
                 {b.claim}
               </span>
@@ -118,7 +121,9 @@ function ControlsSection() {
       <div className="mt-5 flex flex-col">
         {CONTROLS.map((c, i) => (
           <NumberedRow key={c.head} index={i} className="py-6">
-            <h3 className="font-display text-lg leading-tight sm:text-xl">{c.head}</h3>
+            <h3 className="text-lg leading-tight font-semibold tracking-tight sm:text-xl">
+              {c.head}
+            </h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
               {c.body}
             </p>
@@ -131,8 +136,10 @@ function ControlsSection() {
 
 function VerifySection() {
   return (
-    <section className="mt-12 border-2 border-ink px-5 py-6 sm:px-6">
-      <h2 className="font-display text-xl leading-tight sm:text-2xl">Check it yourself</h2>
+    <section className="mt-12 rounded-xl border border-border bg-card px-5 py-6 sm:px-6">
+      <h2 className="text-xl leading-tight font-semibold tracking-tight sm:text-2xl">
+        Check it yourself
+      </h2>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
         The design is meant to be verified, not taken on faith. As they become public, this page
         will link the source code and the threat-model white paper that spells out the adversaries
@@ -146,7 +153,7 @@ function VerifySection() {
 
 function PostureContact() {
   return (
-    <footer className="mt-10 border-t-2 border-ink pt-6 font-mono text-xs text-muted-foreground">
+    <footer className="mt-10 border-t border-border pt-6 font-mono text-xs text-muted-foreground">
       <p>
         Questions about our security posture:{" "}
         <a

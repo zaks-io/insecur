@@ -67,7 +67,7 @@ export function ApprovalDetailPage() {
 
   return (
     <section className="px-4 py-6 sm:px-8 sm:py-10">
-      <header className="border-b-2 border-ink pb-5 sm:pb-6">
+      <header className="border-b border-border pb-5 sm:pb-6">
         <p className="font-mono text-xs text-muted-foreground">
           <a
             href={approvalInboxPath(orgId)}
@@ -78,7 +78,9 @@ export function ApprovalDetailPage() {
           <span aria-hidden="true"> / </span>
           <span>{id}</span>
         </p>
-        <h1 className="mt-2 font-display text-3xl leading-tight sm:text-4xl">Review approval</h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight leading-tight sm:text-4xl">
+          Review approval
+        </h1>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
           Metadata evidence for one pending decision. Clearing happens only in this authenticated
           view; deep links never carry approval authority.

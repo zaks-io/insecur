@@ -62,8 +62,8 @@ function LoginPage() {
 
   return (
     <SiteFrame>
-      <section className="px-5 py-10 sm:px-8 sm:py-12">
-        <Card className="max-w-md">
+      <section className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+        <Card className="mx-auto mt-6 w-full max-w-md sm:mt-14">
           <CardHeader>
             <CardTitle>Sign in</CardTitle>
             <CardDescription>Continue to the tenant console.</CardDescription>

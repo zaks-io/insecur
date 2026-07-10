@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { Slot } from "radix-ui";
 import { cn } from "#lib/utils";
 
@@ -56,26 +57,26 @@ function SwitcherTrigger({
       aria-controls={panelId}
       onClick={onToggle}
       className={cn(
-        "flex max-w-72 items-center gap-3 border-2 border-ink px-3 py-1.5 text-left transition-colors",
-        open ? "bg-ink text-paper" : "bg-background hover:bg-ink/5",
+        "flex max-w-72 items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
+        open ? "bg-muted" : "hover:bg-muted/60",
       )}
     >
       <span className="flex min-w-0 flex-col">
-        <span className="truncate text-sm leading-tight font-semibold">{label}</span>
+        <span className="truncate text-sm leading-tight font-medium">{label}</span>
         {meta ? (
-          <span className="truncate font-mono text-[0.65rem] leading-tight opacity-60">{meta}</span>
+          <span className="truncate font-mono text-xs leading-tight text-muted-foreground">
+            {meta}
+          </span>
         ) : null}
       </span>
-      <span aria-hidden className="text-[0.6rem]">
-        ▼
-      </span>
+      <ChevronsUpDownIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
     </button>
   );
 }
 
 /**
- * A disclosure-pattern switcher (APG disclosure navigation): a bordered trigger that reveals a
- * hard-edged anchored panel of links. Positioned entirely with CSS classes, no floating-ui or
+ * A disclosure-pattern switcher (APG disclosure navigation): a quiet trigger that reveals an
+ * anchored popover panel of links. Positioned entirely with CSS classes, no floating-ui or
  * popper inline styles, so it renders under the strict `style-src 'self' 'nonce-…'` CSP, which
  * blocks style attributes. Presentational only (ADR-0078); items are passed in by the caller.
  */
@@ -111,7 +112,7 @@ export function SwitcherMenu({
           onClick={() => {
             setOpen(false);
           }}
-          className="absolute top-full left-0 z-50 mt-2 min-w-60 border-2 border-ink bg-background py-1"
+          className="absolute top-full left-0 z-50 mt-1.5 min-w-60 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg"
         >
           {children}
         </div>
@@ -120,7 +121,7 @@ export function SwitcherMenu({
   );
 }
 
-/** One switcher entry. Pass `asChild` to render a router link; hover inverts to ink-on-paper. */
+/** One switcher entry. Pass `asChild` to render a router link; hover sits on a muted plate. */
 export function SwitcherMenuItem({
   selected = false,
   asChild = false,
@@ -135,9 +136,9 @@ export function SwitcherMenuItem({
       data-selected={selected || undefined}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "flex items-center gap-2.5 px-3.5 py-2.5 text-sm no-underline transition-colors",
-        "hover:bg-ink hover:text-paper focus-visible:bg-ink focus-visible:text-paper",
-        selected && "font-semibold",
+        "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm no-underline transition-colors",
+        "hover:bg-muted focus-visible:bg-muted",
+        selected && "font-medium",
         className,
       )}
       {...props}
@@ -147,13 +148,13 @@ export function SwitcherMenuItem({
   );
 }
 
-/** Selection mark for switcher entries: a filled square when selected, an outline when not. */
+/** Selection mark for switcher entries: a check on the selected entry, blank space otherwise. */
 export function SwitcherMenuMark({ selected = false }: { selected?: boolean }) {
   return (
-    <span
+    <CheckIcon
       aria-hidden
       data-slot="switcher-menu-mark"
-      className={cn("size-2 shrink-0 border border-current", selected && "bg-current")}
+      className={cn("size-4 shrink-0", selected ? "text-foreground" : "invisible")}
     />
   );
 }

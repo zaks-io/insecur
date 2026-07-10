@@ -20,14 +20,14 @@ export const Route = createFileRoute("/orgs/$orgId/projects/$projectId/")({
   errorComponent: ConsoleFramedRouteError,
 });
 
-const HEADER_CELL = "px-4 py-3 text-xs font-semibold tracking-[0.18em] uppercase";
+const HEADER_CELL = "px-4 py-3 text-xs font-medium tracking-widest uppercase text-muted-foreground";
 
 function EnvironmentsTable({ environments }: { environments: readonly ConsoleEnvironment[] }) {
   return (
-    <div className="mt-6 overflow-x-auto border-2 border-ink">
+    <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b-2 border-ink text-left">
+          <tr className="border-b border-border text-left">
             <th className={HEADER_CELL}>Environment</th>
             <th className={HEADER_CELL}>Stage</th>
             <th className={HEADER_CELL}>Protection</th>
@@ -37,7 +37,7 @@ function EnvironmentsTable({ environments }: { environments: readonly ConsoleEnv
         </thead>
         <tbody>
           {environments.map((environment) => (
-            <tr key={environment.environmentId} className="border-t border-ink/20 first:border-t-0">
+            <tr key={environment.environmentId} className="border-t border-border first:border-t-0">
               <td className="px-4 py-3 font-medium">{environment.displayName}</td>
               <td className="px-4 py-3 text-muted-foreground">{environment.lifecycleStage}</td>
               <td className="px-4 py-3">

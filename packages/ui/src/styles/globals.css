@@ -1,58 +1,88 @@
 @import "tailwindcss";
 
 /*
- * Self-hosted Archivo (grotesque superfamily). Variable weight+width for the display tension a
- * brutalist headline needs; Archivo Black for the heaviest cut. Self-hosted on purpose: a
- * secrets-custody brand should not phone a font CDN on first paint.
+ * Self-hosted Geist (sans + mono). Self-hosted on purpose: a secrets-custody brand should not
+ * phone a font CDN on first paint.
  */
-@import "@fontsource-variable/archivo/wght.css";
-@import "@fontsource/archivo-black/latin-400.css";
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";
 
 @source "../components";
 
 /*
- * @insecur/ui design tokens (ADR-0078). Presentational only. Stark ink-on-paper brutalism: no dark
- * mode, no soft surfaces, no accent gradients. One signal color, used almost nowhere. The design is
- * high contrast, hard edges, and big type; structure is drawn with hairline rules, not shadows.
+ * Dark mode is class-based: the theme init script (see #theme) stamps `.dark` on <html> before
+ * first paint from localStorage or prefers-color-scheme.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * @insecur/ui design tokens (ADR-0083). Presentational only. A quiet, high-craft neutral system:
+ * white/near-black surfaces, hairline rules, near-square corners (a bare 4px edge break; the
+ * squared-off redaction block is the brand mark), one signal red used sparingly. Light and dark
+ * are first-class; every surface color is a semantic token.
  */
 :root {
-  --radius: 0;
+  --radius: 0.25rem;
 
-  /* Paper and ink. The whole system is two colors plus one signal. */
-  --paper: oklch(0.965 0.006 95);
-  --ink: oklch(0.16 0.006 265);
-  --signal: oklch(
-    0.52 0.21 27
-  ); /* warning red; darkened to clear WCAG AA on small text over paper */
+  /* The one brand accent: signal red. Follows the destructive ramp per scheme. */
+  --signal: oklch(0.577 0.245 27.325);
 
-  --background: var(--paper);
-  --foreground: var(--ink);
-  --card: var(--paper);
-  --card-foreground: var(--ink);
-  --popover: var(--paper);
-  --popover-foreground: var(--ink);
-  --primary: var(--ink);
-  --primary-foreground: var(--paper);
-  --secondary: var(--ink);
-  --secondary-foreground: var(--paper);
-  --muted: oklch(0.965 0.006 95);
-  --muted-foreground: oklch(0.42 0.006 265);
-  --accent: var(--signal);
-  --accent-foreground: var(--paper);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
   --destructive: var(--signal);
-  --border: var(--ink);
-  --input: var(--ink);
-  --ring: var(--ink);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --signal: oklch(0.704 0.191 22.216);
+
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.185 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.185 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.245 0 0);
+  --muted-foreground: oklch(0.72 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: var(--signal);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.556 0 0);
 }
 
 @theme inline {
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
-  --radius-xl: 0;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 
-  --color-paper: var(--paper);
-  --color-ink: var(--ink);
+  /*
+   * Legacy brand aliases. Pre-ADR-0083 surfaces were written against ink/paper/signal; the
+   * aliases keep every existing `border-ink`/`text-paper`/`text-signal` usage theme-correct
+   * while those call sites migrate to semantic tokens.
+   */
+  --color-paper: var(--background);
+  --color-ink: var(--foreground);
   --color-signal: var(--signal);
 
   --color-background: var(--background);
@@ -74,13 +104,22 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Archivo Black", "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+  --font-display: var(--font-sans);
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
@@ -93,11 +132,11 @@
 
   ::selection {
     background: var(--signal);
-    color: var(--paper);
+    color: oklch(0.985 0 0);
   }
 
   :focus-visible {
-    outline: 3px solid var(--ink);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 }

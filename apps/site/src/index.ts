@@ -24,14 +24,14 @@ const handler = {
   async fetch(request: Request, env: SiteEnv, ctx: ExecutionContext): Promise<Response> {
     void ctx;
 
-    const { pathname } = new URL(request.url);
+    const { pathname, host } = new URL(request.url);
     const staticResponse = tryStaticSiteResponse(pathname, request.method, env);
     if (staticResponse !== null) {
       return staticResponse;
     }
 
     const sentry = sentryBrowserConfig(env);
-    const response = await sentryServerEntry.fetch(request, { context: { sentry } });
+    const response = await sentryServerEntry.fetch(request, { context: { sentry, host } });
     return withSecurityHeaders(response);
   },
 } satisfies ExportedHandler<SiteEnv>;

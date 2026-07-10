@@ -7,7 +7,7 @@ export function OrganizationRecap({
   onEdit: () => void;
 }) {
   return (
-    <div className="mt-5 flex items-baseline gap-4 border-y border-ink/20 py-3">
+    <div className="mt-5 flex items-baseline gap-4 border-y border-border py-3">
       <span className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
         Organization
       </span>

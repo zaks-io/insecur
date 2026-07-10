@@ -18,9 +18,11 @@ export function BlindSecretReceiptView({
   onContinue: () => void;
 }) {
   return (
-    <div className="border-2 border-ink">
-      <div className="border-b-2 border-ink px-6 py-6">
-        <h2 className="font-display text-2xl leading-tight sm:text-3xl">Secret stored.</h2>
+    <div className="rounded-xl border border-border bg-card">
+      <div className="border-b border-border px-6 py-6">
+        <h2 className="text-2xl leading-tight font-semibold tracking-tight sm:text-3xl">
+          Secret stored.
+        </h2>
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted-foreground">
           The value never left your input over TLS and does not appear below. Only metadata is
           shown.
@@ -57,7 +59,7 @@ function SecretValueField({
         onChange={(event) => {
           onValueChange(event.target.value);
         }}
-        className="border-2 border-ink bg-background px-3 py-2 font-mono text-sm"
+        className="rounded-md border border-border bg-background px-3 py-2 font-mono text-sm"
         placeholder="Paste your provider-issued value"
       />
       <p className="text-xs leading-relaxed text-muted-foreground">
@@ -101,7 +103,7 @@ function GenerateModeToggle({
         onChange={(event) => {
           onGenerateModeChange(event.target.checked);
         }}
-        className="size-4 border-2 border-ink"
+        className="size-4 border border-border"
       />
       Generate instead (value created server-side, never shown here)
     </label>

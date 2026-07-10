@@ -3,9 +3,10 @@ import { Slot } from "radix-ui";
 import { cn } from "#lib/utils";
 
 /**
- * Console frame for the tenant web console: a full-bleed two-column frame drawn with hard ink
- * rules, inheriting the Public Site's editorial brutalism (docs/web-console-ux.md §Visual
- * Direction). Presentational only; all navigation content is passed in by the caller (ADR-0078).
+ * Console frame for the tenant web console: the same sticky header language as the public site
+ * over a two-column shell, so the site → console hop reads as one product
+ * (docs/web-console-ux.md §Visual Direction). Presentational only; all navigation content is
+ * passed in by the caller (ADR-0078).
  */
 export function ConsoleShell({
   topbar,
@@ -20,13 +21,16 @@ export function ConsoleShell({
       className={cn("flex min-h-dvh flex-col bg-background text-foreground", className)}
       {...props}
     >
-      <header data-slot="console-topbar" className="border-b-2 border-ink">
+      <header
+        data-slot="console-topbar"
+        className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md"
+      >
         {topbar}
       </header>
       <div className="flex flex-1 flex-col md:flex-row">
         <aside
           data-slot="console-sidebar"
-          className="border-b-2 border-ink md:w-52 md:shrink-0 md:border-b-0 md:border-r-2"
+          className="border-b border-border md:w-56 md:shrink-0 md:border-r md:border-b-0"
         >
           {sidebar}
         </aside>
@@ -38,7 +42,7 @@ export function ConsoleShell({
   );
 }
 
-/** Topbar row: brand cell, console controls (org switcher), and right-aligned session actions. */
+/** Topbar row: brand cell, console controls (org switcher) behind a slash, session actions right. */
 export function ConsoleTopbar({
   brand,
   controls,
@@ -47,15 +51,25 @@ export function ConsoleTopbar({
   ...props
 }: ComponentProps<"div"> & { brand: ReactNode; controls?: ReactNode; actions?: ReactNode }) {
   return (
-    <div data-slot="console-topbar-row" className={cn("flex items-stretch", className)} {...props}>
-      <div className="flex items-center border-r-2 border-ink px-5 py-3 sm:px-6">{brand}</div>
-      {controls ? <div className="flex items-center px-4 py-2">{controls}</div> : null}
-      <div className="flex-1" aria-hidden />
-      {actions ? (
-        <div className="flex items-center gap-3 border-l-2 border-ink px-4 py-2 sm:px-6">
-          {actions}
-        </div>
+    <div
+      data-slot="console-topbar-row"
+      className={cn("flex h-14 items-center gap-3 px-4 sm:px-6", className)}
+      {...props}
+    >
+      <div className="flex shrink-0 items-center">{brand}</div>
+      {controls ? (
+        <>
+          <span
+            aria-hidden
+            className="text-lg font-extralight text-muted-foreground/40 select-none"
+          >
+            /
+          </span>
+          <div className="flex min-w-0 items-center">{controls}</div>
+        </>
       ) : null}
+      <div className="flex-1" aria-hidden />
+      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -80,8 +94,8 @@ export function ConsoleNav({
     >
       <ul
         className={cn(
-          "flex flex-row overflow-x-auto",
-          orientation === "vertical" && "md:flex-col md:py-3",
+          "flex flex-row gap-1 overflow-x-auto p-2",
+          orientation === "vertical" && "md:flex-col md:p-3",
         )}
       >
         {children}
@@ -91,8 +105,8 @@ export function ConsoleNav({
 }
 
 /**
- * One sidebar section. The active section inverts to a solid ink block — the console's signature
- * move. Pass `asChild` to render a router link.
+ * One sidebar section. The active section sits on a quiet muted plate. Pass `asChild` to render a
+ * router link.
  */
 export function ConsoleNavItem({
   active = false,
@@ -109,8 +123,10 @@ export function ConsoleNavItem({
         data-active={active || undefined}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "block px-5 py-3 text-xs font-semibold tracking-[0.18em] uppercase no-underline transition-colors md:px-6",
-          active ? "bg-ink text-paper" : "text-foreground hover:bg-ink/10",
+          "block rounded-md px-3 py-2 text-sm font-medium no-underline transition-colors",
+          active
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
           className,
         )}
         {...props}

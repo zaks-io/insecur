@@ -16,9 +16,11 @@ export function ConsoleUnavailableSurface({
   const sectionClassName = framed ? "px-5 py-8 sm:px-8 sm:py-10" : "px-5 py-10 sm:px-8 sm:py-12";
   const panel = (
     <section className={sectionClassName}>
-      <div className="max-w-xl border-2 border-ink px-6 py-6">
+      <div className="max-w-xl rounded-xl border border-border bg-card px-6 py-6">
         <p className="font-mono text-xs text-muted-foreground">Service unavailable</p>
-        <h1 className="mt-1 font-display text-2xl leading-tight">We couldn't reach insecur</h1>
+        <h1 className="mt-1 text-2xl leading-tight font-semibold tracking-tight">
+          We couldn't reach insecur
+        </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           Your session is still signed in. The console couldn't load data from the service right now
           — this is usually temporary. Try again in a moment.

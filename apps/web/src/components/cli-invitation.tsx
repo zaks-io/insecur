@@ -15,10 +15,10 @@ export function CliInvitation({
   hint: string;
 }) {
   return (
-    <div className="mt-8 max-w-2xl border-2 border-ink px-6 py-6">
-      <h2 className="font-display text-2xl leading-tight">{title}</h2>
+    <div className="mt-8 max-w-2xl rounded-xl border border-border bg-card px-6 py-6">
+      <h2 className="text-2xl leading-tight font-semibold tracking-tight">{title}</h2>
       <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted-foreground">{lead}</p>
-      <pre className="mt-4 overflow-x-auto border border-ink/40 bg-ink/5 px-4 py-3 font-mono text-sm">
+      <pre className="mt-4 overflow-x-auto rounded-lg border border-border bg-muted px-4 py-3 font-mono text-sm">
         <code>{command}</code>
       </pre>
       <p className="mt-3 max-w-prose text-xs leading-relaxed text-muted-foreground">{hint}</p>

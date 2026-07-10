@@ -10,7 +10,7 @@ import { ActorChain } from "../actor-chain.js";
 
 function EvidenceRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-1 border-t border-ink/20 px-4 py-3 sm:grid-cols-[minmax(0,9rem)_1fr] sm:gap-4">
+    <div className="grid gap-1 border-t border-border px-4 py-3 sm:grid-cols-[minmax(0,9rem)_1fr] sm:gap-4">
       <dt className="font-mono text-xs text-muted-foreground">{label}</dt>
       <dd className="min-w-0 font-mono text-sm text-foreground">{children}</dd>
     </div>
@@ -20,12 +20,12 @@ function EvidenceRow({ label, children }: { label: string; children: ReactNode }
 function StalenessBanner({ staleness }: { staleness: ApprovalStalenessNotice }) {
   return (
     <div
-      className={`border-b-2 border-ink px-4 py-4 sm:px-5 ${
-        staleness.tone === "warning" ? "bg-destructive/5" : "bg-ink/5"
+      className={`border-b border-border px-4 py-4 sm:px-5 ${
+        staleness.tone === "warning" ? "bg-destructive/5" : "bg-muted"
       }`}
       role="status"
     >
-      <p className="font-display text-lg leading-tight">{staleness.headline}</p>
+      <p className="text-lg font-semibold tracking-tight leading-tight">{staleness.headline}</p>
       <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
         {staleness.detail}
       </p>
@@ -67,10 +67,16 @@ export function HighAssuranceChallengeEvidencePanel({
   const staleness = approvalStalenessNotice(challenge);
 
   return (
-    <section aria-labelledby="approval-evidence-heading" className="border-2 border-ink">
-      <header className="border-b-2 border-ink px-4 py-4 sm:px-5">
+    <section
+      aria-labelledby="approval-evidence-heading"
+      className="rounded-xl border border-border bg-card"
+    >
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 id="approval-evidence-heading" className="font-display text-2xl leading-tight">
+          <h2
+            id="approval-evidence-heading"
+            className="text-2xl font-semibold tracking-tight leading-tight"
+          >
             Evidence
           </h2>
           <Badge>High-Assurance Challenge</Badge>

@@ -10,8 +10,8 @@ import { ActorChain } from "../actor-chain.js";
 
 function RegisterHeading({ title, count }: { title: string; count: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink pb-3">
-      <h2 className="font-display text-2xl leading-tight">{title}</h2>
+    <div className="flex items-baseline justify-between gap-4 border-b border-border pb-3">
+      <h2 className="text-2xl font-semibold tracking-tight leading-tight">{title}</h2>
       <p className="font-mono text-xs text-muted-foreground">{count}</p>
     </div>
   );
@@ -39,7 +39,7 @@ function DeployKeyBadges({ method }: { method: ConsoleEnvironmentDeployKeyMethod
 
 function OidcMethodRow({ method }: { method: ConsoleGitHubActionsOidcMethod }) {
   return (
-    <li className="border-t border-ink/30 pt-3 first:border-t-0 first:pt-0">
+    <li className="border-t border-border pt-3 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-center gap-2">
         <AuthMethodBadges method={method} />
       </div>
@@ -53,7 +53,7 @@ function OidcMethodRow({ method }: { method: ConsoleGitHubActionsOidcMethod }) {
 
 function DeployKeyMethodRow({ method }: { method: ConsoleEnvironmentDeployKeyMethod }) {
   return (
-    <li className="border-t border-ink/30 pt-3 first:border-t-0 first:pt-0">
+    <li className="border-t border-border pt-3 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-center gap-2">
         <DeployKeyBadges method={method} />
       </div>
@@ -93,10 +93,10 @@ function MachineIdentityAuthMethods({ identity }: { identity: ConsoleMachineIden
 
 function MachineIdentityCard({ identity }: { identity: ConsoleMachineIdentity }) {
   return (
-    <li className="border-2 border-ink px-5 py-4 sm:px-6">
+    <li className="rounded-xl border border-border bg-card px-5 py-4 sm:px-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-display text-lg leading-snug text-foreground">
+          <p className="text-lg font-semibold tracking-tight leading-snug text-foreground">
             {identity.displayName}
           </p>
           <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -123,7 +123,7 @@ function InjectionGrantRow({ grant }: { grant: ConsoleInjectionGrant }) {
   const variableKeys = grant.variableKeys.join(", ");
 
   return (
-    <li className="border-2 border-ink px-5 py-4 sm:px-6">
+    <li className="rounded-xl border border-border bg-card px-5 py-4 sm:px-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-sm text-foreground">{grant.grantId}</p>

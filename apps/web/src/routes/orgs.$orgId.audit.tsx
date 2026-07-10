@@ -35,8 +35,8 @@ function AuditPage() {
 
   return (
     <section className="px-5 py-8 sm:px-8 sm:py-10">
-      <header className="border-b-2 border-ink pb-6">
-        <h1 className="font-display text-3xl leading-tight sm:text-4xl">Audit</h1>
+      <header className="border-b border-border pb-6">
+        <h1 className="text-3xl font-semibold tracking-tight leading-tight sm:text-4xl">Audit</h1>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
           Metadata-only event log for this organization. Filter by actor, project, environment,
           event type, and time range; share the URL to preserve filters.

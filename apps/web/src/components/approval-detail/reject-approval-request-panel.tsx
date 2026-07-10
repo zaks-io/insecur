@@ -12,8 +12,8 @@ import { rejectOrgApprovalRequest } from "../../server/console-reject-approval-r
 
 function ActionMessage({ voice }: { voice: ApprovalActionVoice }) {
   return (
-    <div className="border-2 border-ink px-4 py-4 sm:px-5" role="status">
-      <p className="font-display text-lg leading-tight">{voice.headline}</p>
+    <div className="px-4 py-4 sm:px-5" role="status">
+      <p className="text-lg font-semibold tracking-tight leading-tight">{voice.headline}</p>
       <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted-foreground">
         {voice.detail}
       </p>
@@ -23,19 +23,48 @@ function ActionMessage({ voice }: { voice: ApprovalActionVoice }) {
 
 function RejectResultPanel({ orgId, voice }: { orgId: string; voice: ApprovalActionVoice }) {
   return (
-    <section aria-labelledby="reject-approval-result-heading" className="border-2 border-ink">
+    <section
+      aria-labelledby="reject-approval-result-heading"
+      className="rounded-xl border border-border bg-card"
+    >
       <h2 id="reject-approval-result-heading" className="sr-only">
         Rejection result
       </h2>
       <ActionMessage voice={voice} />
       {voice.action === "back-to-inbox" ? (
-        <div className="border-t-2 border-ink px-4 py-4 sm:px-5">
+        <div className="border-t border-border px-4 py-4 sm:px-5">
           <Button asChild variant="outline" size="sm">
             <a href={approvalInboxPath(orgId)}>Back to approvals</a>
           </Button>
         </div>
       ) : null}
     </section>
+  );
+}
+
+function ReasonField({
+  pending,
+  reason,
+  onReasonChange,
+}: {
+  pending: boolean;
+  reason: string;
+  onReasonChange: (value: string) => void;
+}) {
+  return (
+    <label className="block max-w-prose">
+      <span className="font-mono text-xs text-muted-foreground">Optional reason</span>
+      <textarea
+        className="mt-2 min-h-24 w-full resize-y border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
+        value={reason}
+        disabled={pending}
+        maxLength={500}
+        onChange={(event) => {
+          onReasonChange(event.target.value);
+        }}
+        placeholder="Why you're rejecting this request"
+      />
+    </label>
   );
 }
 
@@ -51,9 +80,15 @@ function RejectApprovalRequestForm({
   onReject: () => void;
 }) {
   return (
-    <section aria-labelledby="reject-approval-heading" className="border-2 border-ink">
-      <header className="border-b-2 border-ink px-4 py-4 sm:px-5">
-        <h2 id="reject-approval-heading" className="font-display text-2xl leading-tight">
+    <section
+      aria-labelledby="reject-approval-heading"
+      className="rounded-xl border border-border bg-card"
+    >
+      <header className="border-b border-border px-4 py-4 sm:px-5">
+        <h2
+          id="reject-approval-heading"
+          className="text-2xl font-semibold tracking-tight leading-tight"
+        >
           Reject
         </h2>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
@@ -61,19 +96,7 @@ function RejectApprovalRequestForm({
         </p>
       </header>
       <div className="space-y-4 px-4 py-4 sm:px-5">
-        <label className="block max-w-prose">
-          <span className="font-mono text-xs text-muted-foreground">Optional reason</span>
-          <textarea
-            className="mt-2 min-h-24 w-full resize-y border-2 border-ink bg-background px-3 py-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
-            value={reason}
-            disabled={pending}
-            maxLength={500}
-            onChange={(event) => {
-              onReasonChange(event.target.value);
-            }}
-            placeholder="Why you're rejecting this request"
-          />
-        </label>
+        <ReasonField pending={pending} reason={reason} onReasonChange={onReasonChange} />
         <Button
           type="button"
           variant="destructive"

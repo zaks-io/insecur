@@ -26,8 +26,10 @@ function ApprovalsPage() {
 
   return (
     <section className="px-5 py-8 sm:px-8 sm:py-10">
-      <header className="border-b-2 border-ink pb-6">
-        <h1 className="font-display text-3xl leading-tight sm:text-4xl">Approvals</h1>
+      <header className="border-b border-border pb-6">
+        <h1 className="text-3xl font-semibold tracking-tight leading-tight sm:text-4xl">
+          Approvals
+        </h1>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
           Pending High-Assurance Challenges and Approval Requests waiting on you. This inbox shows
           metadata evidence only; clearing decisions happen on the review page with passkey step-up.
