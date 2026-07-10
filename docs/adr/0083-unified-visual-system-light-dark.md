@@ -18,8 +18,9 @@ in the register of modern developer-tool minimalism (Vercel-adjacent):
 - **Type**: self-hosted Geist Sans and Geist Mono (Fontsource; no font CDN on first paint).
   Headings are tight-tracked semibold sans; there is no separate display face. `--font-display`
   remains defined and aliases the sans stack.
-- **Color**: neutral white/near-black surfaces with hairline `--border` rules and soft radii
-  (`--radius: 0.625rem`). One brand accent survives: `--signal` red, used sparingly (the wordmark
+- **Color**: neutral white/near-black surfaces with hairline `--border` rules and near-square
+  corners (`--radius: 0.25rem`, a bare edge break; the squared-off redaction block is the brand
+  mark). One brand accent survives: `--signal` red, used sparingly (the wordmark
   point, one accent word, warning treatments). All component color goes through semantic shadcn
   tokens; raw palette values are a defect.
 - **Schemes**: light and dark are both first-class. Dark mode is class-based (`.dark` on `<html>`),

@@ -7,9 +7,9 @@ import { useSyncExternalStore } from "react";
  */
 export const THEME_STORAGE_KEY = "insecur.theme";
 
-export const THEME_INIT_SCRIPT = `(function () { try { var t = localStorage.getItem(${JSON.stringify(
-  THEME_STORAGE_KEY,
-)}); var d = t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.classList.toggle("dark", d); } catch (e) {} })();`;
+// A fully static string (the storage key is written out literally, not interpolated) so no code
+// is ever constructed from a value; theme.test.ts pins it to THEME_STORAGE_KEY against drift.
+export const THEME_INIT_SCRIPT = `(function () { try { var t = localStorage.getItem("insecur.theme"); var d = t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.classList.toggle("dark", d); } catch (e) {} })();`;
 
 /** Flip the scheme and persist the choice. Returns true when the new scheme is dark. */
 export function toggleTheme(): boolean {
