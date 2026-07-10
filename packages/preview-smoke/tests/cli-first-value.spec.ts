@@ -285,14 +285,22 @@ async function runRuntimeInvariantProbe(input: {
     label: input.label,
     redactor: input.redactor,
   });
-  if (!stdout.includes(stdoutMarker)) {
-    throw new Error(`${input.label} child stdout marker was not passed through`);
+  // With `--json`, `insecur run` keeps stdout a pure control channel and
+  // routes child stdout to the CLI's stderr verbatim (product-spec.md §Product
+  // Surface: "Child output is separated from control output in JSON mode";
+  // stream detail in docs/cli-and-sync.md, INS-590). The child still owns its
+  // output; insecur never captures or stores it.
+  if (stdout.includes(stdoutMarker)) {
+    throw new Error(`${input.label} leaked child stdout into the JSON control channel`);
+  }
+  if (!stderr.includes(stdoutMarker)) {
+    throw new Error(`${input.label} child stdout marker was not passed through on stderr`);
   }
   if (!stderr.includes(stderrMarker)) {
     throw new Error(`${input.label} child stderr marker was not passed through`);
   }
 
-  const body = parseLastCliSmokeJson(stdout, input.label);
+  const body = parseCliSmokeJson(stdout, input.label);
   assertCliSmokeSuccess(body, input.label);
   assertCliRunChildExitCode(body, input.label);
   const data = asRecord(body.data, `${input.label} data`);
@@ -302,7 +310,7 @@ async function runRuntimeInvariantProbe(input: {
   const grantId = requireString(data.grantId, `${input.label} grantId`);
   assertEnvelopeDoesNotPersistChildOutput(body, input.label, [stdoutMarker, stderrMarker]);
 
-  const childProof = parseCliRunChildProof(stdout, input.label);
+  const childProof = parseCliRunChildProof(stderr, input.label);
   assertRuntimeInvariantProof(childProof, input.label);
   return { grantId, stderrMarker, stdoutMarker };
 }

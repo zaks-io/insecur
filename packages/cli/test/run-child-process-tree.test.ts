@@ -63,4 +63,29 @@ describe("runtime-injected child process cleanup", () => {
       expect(kill.mock.calls[0]?.[0]).toBeLessThan(0);
     },
   );
+
+  // Contract: in `--json` mode stdout is a pure control channel and child
+  // stdout is routed verbatim to the CLI's stderr (product-spec.md "Child
+  // output is separated from control output in JSON mode"; docs/cli-and-sync.md).
+  it.runIf(process.platform !== "win32")(
+    "routes a real child's stdout to the CLI's stderr in stdout-json mode",
+    async () => {
+      vi.spyOn(process, "kill").mockImplementation(() => true);
+      const written: string[] = [];
+      const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+        written.push(String(chunk));
+        return true;
+      });
+
+      const exitCode = await spawnCommand(
+        [process.execPath, "-e", "process.stdout.write('CHILD_STDOUT_MARKER')"],
+        { PATH: process.env.PATH },
+        { controlOutput: "stdout-json" },
+      );
+      stderrSpy.mockRestore();
+
+      expect(exitCode).toBe(0);
+      expect(written.join("")).toContain("CHILD_STDOUT_MARKER");
+    },
+  );
 });
