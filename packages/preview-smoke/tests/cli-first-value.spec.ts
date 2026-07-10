@@ -1,13 +1,18 @@
 import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
+import { basename } from "node:path";
 
 import { INJECTION_ERROR_CODES } from "@insecur/domain";
 import {
-  asRecord,
   assertEqual,
   assertEnvelopeError,
+  assertCliConfigSurfacesMetadataOnly,
+  assertCliHumanOutputMetadataOnly,
+  assertCliInitEnvelopeMetadataOnly,
   assertCliRunChildExitCode,
-  assertCliSmokeSuccess,
+  assertCliRunEnvelopeMetadataOnly,
+  assertCliSecretWriteEnvelopeMetadataOnly,
+  assertRecordedCliOutputsMetadataOnly,
   assertStatus,
   authHeaders,
   buildCliRuntimeInvariantRunArgs,
@@ -21,13 +26,16 @@ import {
   parseLastCliSmokeJson,
   PROOF_VARIABLE_KEY,
   randomUUID,
+  readCliConfigSurfaces,
   readJsonResponse,
   redactorFor,
-  requireString,
   runCliSmokeCommand,
   runCliSmokeCommandExpectFailure,
   runPlaintextSweep,
   test,
+  type CliFirstValueConfigIdentity,
+  type RecordedCliOutputSurface,
+  type SensitiveMaterial,
 } from "../src/fixtures";
 import { assertRecordsFreeOfSensitivePatterns } from "../src/audit-verification-assertions";
 import {
@@ -40,6 +48,7 @@ const EXIT_VALIDATION = 2;
 const SECRET_EMPTY_VALUE_ERROR = "secret.empty_value";
 const SECRET_VALUE_TOO_LARGE_ERROR = "secret.value_too_large";
 const GENERATED_SECRET_VARIABLE_KEY = "INSECUR_SMOKE_GENERATED_SECRET";
+const HUMAN_GENERATED_SECRET_VARIABLE_KEY = "INSECUR_SMOKE_HUMAN_SECRET";
 const EMPTY_SECRET_VARIABLE_KEY = "INSECUR_SMOKE_EMPTY_SECRET";
 const RUNTIME_RUN_PROOF = "runtime-run-invariants";
 const RUNTIME_RUN_CHILD_SCRIPT = `
@@ -69,22 +78,60 @@ interface RuntimeRunProbeResult {
   readonly stdoutMarker: string;
 }
 
+function mintRuntimeRunMarkers(): { stdoutMarker: string; stderrMarker: string } {
+  const suffix = randomUUID().replaceAll("-", "");
+  return {
+    stdoutMarker: `INSECUR_RUNTIME_RUN_STDOUT_${suffix}`,
+    stderrMarker: `INSECUR_RUNTIME_RUN_STDERR_${suffix}`,
+  };
+}
+
 test("preview CLI first-value proof @preview @happy-path @custody", async ({
   ownerBearer,
   preview,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
 
   // Inject a KNOWN sentinel so the redactor can catch the exact injected value
   // (in every encoding) if `insecur run` or the child leaks it to stdout/stderr.
   const sentinel = mintMultilineSmokeSentinel();
   const redactor = redactorFor(preview, sentinel, [ownerBearer]);
+  // The redactor only knows the RAW bearer; as named material it is also
+  // proven absent in base64/base64url/hex encodings (INS-368).
+  const bearerMaterial: SensitiveMaterial = { name: "smoke bearer credential", value: ownerBearer };
   const workspace = await createCliSmokeWorkspace();
-  let organizationId = "";
+  // The isolated workspace temp dirs are hyphenated `insecur-preview-cli-*`
+  // names that read as dense `[A-Za-z0-9_-]` runs; they legitimately appear in
+  // `configPath` and human output. Allowlist them so the (deliberately low,
+  // 16-byte-floor) secret-shaped-token scan does not flag known-safe paths.
+  const workspacePathTokens = [
+    basename(workspace.configDir),
+    basename(workspace.configHomeDir),
+    workspace.configDir,
+    workspace.configHomeDir,
+  ];
+  // Every CLI stdout/stderr surface is captured here and re-scanned at the end
+  // once ALL sensitive material is known (the file-fallback machine root key
+  // may only exist after the first CLI call).
+  const outputSurfaces: RecordedCliOutputSurface[] = [];
+  const recordOutputs = (
+    name: string,
+    channels: { readonly stdout: string; readonly stderr: string },
+    allowedTokens?: readonly string[],
+  ): void => {
+    for (const channel of ["stdout", "stderr"] as const) {
+      outputSurfaces.push({
+        name: `${name} ${channel}`,
+        text: channels[channel],
+        ...(allowedTokens === undefined ? {} : { allowedTokens }),
+      });
+    }
+  };
+  let configIdentity: CliFirstValueConfigIdentity | undefined;
 
   try {
     await test.step("cli.init", async () => {
-      const { stdout } = await runCliSmokeCommand({
+      const { stderr, stdout } = await runCliSmokeCommand({
         apiBaseUrl: preview.apiBaseUrl,
         args: ["init"],
         bearer: ownerBearer,
@@ -93,16 +140,36 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         label: "CLI init",
         redactor,
       });
+      recordOutputs("CLI init", { stderr, stdout });
       const body = parseCliSmokeJson(stdout, "CLI init");
-      assertCliSmokeSuccess(body, "CLI init");
-      organizationId = requireString(
-        asRecord(body.data, "CLI init data").organizationId,
-        "CLI init organizationId",
+      const initIdentity = assertCliInitEnvelopeMetadataOnly(body, "CLI init", workspacePathTokens);
+
+      // The files `insecur init` just wrote are metadata-only: host/profile
+      // metadata plus opaque ids, and provably free of the smoke bearer, the
+      // sentinel, machine root key material, and secret-shaped blobs.
+      const surfaces = await readCliConfigSurfaces(workspace);
+      configIdentity = assertCliConfigSurfacesMetadataOnly({
+        surfaces,
+        label: "CLI init config files",
+        apiBaseUrl: preview.apiBaseUrl,
+        redactor,
+        forbiddenMaterials: [bearerMaterial],
+      });
+      assertEqual(
+        JSON.stringify(configIdentity),
+        JSON.stringify({
+          organizationId: initIdentity.organizationId,
+          projectId: initIdentity.projectId,
+          environmentId: initIdentity.environmentId,
+          profileId: initIdentity.profileId,
+        }),
+        "CLI init config identity echo",
       );
     });
+    const organizationId = requireConfigIdentity(configIdentity).organizationId;
 
     await test.step("cli.secrets_set", async () => {
-      const { stdout } = await runCliSmokeCommand({
+      const { stderr, stdout } = await runCliSmokeCommand({
         apiBaseUrl: preview.apiBaseUrl,
         args: buildCliSecretsSetValueStdinArgs(),
         bearer: ownerBearer,
@@ -112,13 +179,13 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         redactor,
         stdinInput: sentinel.value,
       });
+      recordOutputs("CLI secrets set", { stderr, stdout });
       const body = parseCliSmokeJson(stdout, "CLI secrets set");
-      assertCliSmokeSuccess(body, "CLI secrets set");
-      assertSecretWriteMetadataOnly(body, "CLI secrets set");
+      assertCliSecretWriteEnvelopeMetadataOnly(body, "CLI secrets set", PROOF_VARIABLE_KEY);
     });
 
     await test.step("cli.secrets_set_generated", async () => {
-      const { stdout } = await runCliSmokeCommand({
+      const { stderr, stdout } = await runCliSmokeCommand({
         apiBaseUrl: preview.apiBaseUrl,
         args: buildCliSecretsSetGenerateArgs({ variableKey: GENERATED_SECRET_VARIABLE_KEY }),
         bearer: ownerBearer,
@@ -127,9 +194,42 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         label: "CLI secrets set generated",
         redactor,
       });
+      recordOutputs("CLI secrets set generated", { stderr, stdout });
       const body = parseCliSmokeJson(stdout, "CLI secrets set generated");
-      assertCliSmokeSuccess(body, "CLI secrets set generated");
-      assertSecretWriteMetadataOnly(body, "CLI secrets set generated");
+      assertCliSecretWriteEnvelopeMetadataOnly(
+        body,
+        "CLI secrets set generated",
+        GENERATED_SECRET_VARIABLE_KEY,
+      );
+    });
+
+    await test.step("cli.secrets_set_human_output", async () => {
+      // Human mode is the copyable First Value surface; its stdout must carry
+      // the metadata echo (key + no value) and nothing secret-shaped. The
+      // generated value is never known to the harness, so the secret-shaped
+      // token scan is what proves it did not print.
+      const { stderr, stdout } = await runCliSmokeCommand({
+        apiBaseUrl: preview.apiBaseUrl,
+        args: buildCliSecretsSetGenerateArgs({
+          variableKey: HUMAN_GENERATED_SECRET_VARIABLE_KEY,
+        }),
+        bearer: ownerBearer,
+        configDir: workspace.configDir,
+        configHomeDir: workspace.configHomeDir,
+        json: false,
+        label: "CLI secrets set human",
+        redactor,
+      });
+      recordOutputs("CLI secrets set human", { stderr, stdout }, workspacePathTokens);
+      assertCliHumanOutputMetadataOnly({
+        label: "CLI secrets set",
+        stdout,
+        stderr,
+        redactor,
+        forbiddenMaterials: [bearerMaterial],
+        allowedTokens: workspacePathTokens,
+        requiredStdoutSubstrings: [`Wrote secret ${HUMAN_GENERATED_SECRET_VARIABLE_KEY}`],
+      });
     });
 
     await test.step("cli.secrets_set_empty_rejects_without_opt_in", async () => {
@@ -143,6 +243,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         redactor,
         stdinInput: "",
       });
+      recordOutputs("CLI secrets set empty rejected", result);
       if (result.exitCode !== EXIT_VALIDATION) {
         throw new Error(`CLI secrets set empty rejected exited ${String(result.exitCode)}`);
       }
@@ -150,7 +251,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
     });
 
     await test.step("cli.secrets_set_empty_allow_empty", async () => {
-      const { stdout } = await runCliSmokeCommand({
+      const { stderr, stdout } = await runCliSmokeCommand({
         apiBaseUrl: preview.apiBaseUrl,
         args: buildCliSecretsSetValueStdinArgs(EMPTY_SECRET_VARIABLE_KEY, { allowEmpty: true }),
         bearer: ownerBearer,
@@ -160,9 +261,13 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         redactor,
         stdinInput: "",
       });
+      recordOutputs("CLI secrets set empty allow-empty", { stderr, stdout });
       const body = parseCliSmokeJson(stdout, "CLI secrets set empty allow-empty");
-      assertCliSmokeSuccess(body, "CLI secrets set empty allow-empty");
-      assertSecretWriteMetadataOnly(body, "CLI secrets set empty allow-empty");
+      assertCliSecretWriteEnvelopeMetadataOnly(
+        body,
+        "CLI secrets set empty allow-empty",
+        EMPTY_SECRET_VARIABLE_KEY,
+      );
     });
 
     await test.step("cli.secrets_set_generated_length_validation", async () => {
@@ -178,6 +283,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         label: "CLI secrets set oversized generated",
         redactor,
       });
+      recordOutputs("CLI secrets set oversized generated", result);
       if (result.exitCode !== EXIT_VALIDATION) {
         throw new Error(`CLI secrets set oversized generated exited ${String(result.exitCode)}`);
       }
@@ -188,6 +294,44 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
       );
     });
 
+    const humanRunMarkers = mintRuntimeRunMarkers();
+    await test.step("cli.run_human_output", async () => {
+      // In human mode `insecur run` passes child stdout through the CLI's
+      // stdout and closes with a metadata-only summary line.
+      const { stderr, stdout } = await runCliSmokeCommand({
+        apiBaseUrl: preview.apiBaseUrl,
+        args: buildCliRuntimeInvariantRunArgs({
+          absentVariableKey: GENERATED_SECRET_VARIABLE_KEY,
+          childScript: RUNTIME_RUN_CHILD_SCRIPT,
+          ...humanRunMarkers,
+        }),
+        bearer: ownerBearer,
+        configDir: workspace.configDir,
+        configHomeDir: workspace.configHomeDir,
+        json: false,
+        label: "CLI run human",
+        redactor,
+      });
+      const allowedTokens = [
+        humanRunMarkers.stdoutMarker,
+        humanRunMarkers.stderrMarker,
+        ...workspacePathTokens,
+      ];
+      recordOutputs("CLI run human", { stderr, stdout }, allowedTokens);
+      assertCliHumanOutputMetadataOnly({
+        label: "CLI run",
+        stdout,
+        stderr,
+        redactor,
+        forbiddenMaterials: [bearerMaterial],
+        allowedTokens,
+        requiredStdoutSubstrings: [humanRunMarkers.stdoutMarker, "Injected"],
+      });
+      if (!stderr.includes(humanRunMarkers.stderrMarker)) {
+        throw new Error("CLI run human child stderr marker was not passed through");
+      }
+    });
+
     await test.step("cli.run_first_value_runtime_invariants", async () => {
       const firstRun = await runRuntimeInvariantProbe({
         apiBaseUrl: preview.apiBaseUrl,
@@ -195,6 +339,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         configDir: workspace.configDir,
         configHomeDir: workspace.configHomeDir,
         label: "CLI run first",
+        recordOutputs,
         redactor,
       });
       const secondRun = await runRuntimeInvariantProbe({
@@ -203,6 +348,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         configDir: workspace.configDir,
         configHomeDir: workspace.configHomeDir,
         label: "CLI run second",
+        recordOutputs,
         redactor,
       });
       if (firstRun.grantId === secondRun.grantId) {
@@ -229,6 +375,8 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
           firstRun.stderrMarker,
           secondRun.stdoutMarker,
           secondRun.stderrMarker,
+          humanRunMarkers.stdoutMarker,
+          humanRunMarkers.stderrMarker,
           RUNTIME_RUN_PROOF,
         ],
         organizationId,
@@ -238,6 +386,52 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         type: "runtime_run.invariants",
         description:
           "fresh_one_use_grants, exact_variable_key_injection, passthrough_child_output, metadata_only_records",
+      });
+    });
+
+    await test.step("cli.config_and_output_surfaces_metadata_only", async () => {
+      // Final no-reveal sweep over every persisted config surface and every
+      // captured output surface, now that all sensitive material is known:
+      // secret writes and runs must not have widened the config files, and no
+      // surface may carry bearer, sentinel, or machine root key material.
+      const surfaces = await readCliConfigSurfaces(workspace);
+      const finalIdentity = assertCliConfigSurfacesMetadataOnly({
+        surfaces,
+        label: "CLI final config files",
+        apiBaseUrl: preview.apiBaseUrl,
+        redactor,
+        forbiddenMaterials: [bearerMaterial],
+      });
+      assertEqual(
+        JSON.stringify(finalIdentity),
+        JSON.stringify(requireConfigIdentity(configIdentity)),
+        "CLI final config identity unchanged",
+      );
+      const outputMaterials = [
+        bearerMaterial,
+        ...(surfaces.machineRootKeyMaterial === undefined ? [] : [surfaces.machineRootKeyMaterial]),
+      ];
+      const checkedOutputSurfaces = assertRecordedCliOutputsMetadataOnly({
+        surfaces: outputSurfaces,
+        redactor,
+        forbiddenMaterials: outputMaterials,
+        allowedTokens: workspacePathTokens,
+      });
+      const report = {
+        checkedConfigSurfaces: [
+          ...surfaces.configDirFiles.map((file) => `configDir/${file}`),
+          ...surfaces.configHomeFiles.map((file) => `configHome/${file}`),
+        ],
+        checkedOutputSurfaces,
+        machineRootKeyFilePresent: surfaces.machineRootKeyMaterial !== undefined,
+      };
+      await test.info().attach("cli-metadata-only-surfaces", {
+        body: JSON.stringify(report, null, 2),
+        contentType: "application/json",
+      });
+      test.info().annotations.push({
+        type: "cli.metadata_only_surfaces",
+        description: `config=${String(report.checkedConfigSurfaces.length)} output=${String(checkedOutputSurfaces.length)} machine_root_key_file=${String(report.machineRootKeyFilePresent)}`,
       });
     });
 
@@ -254,16 +448,13 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
   }
 });
 
-function assertSecretWriteMetadataOnly(body: Record<string, unknown>, label: string): void {
-  const data = body.data;
-  if (typeof data !== "object" || data === null || Array.isArray(data)) {
-    throw new Error(`${label} data must be an object`);
+function requireConfigIdentity(
+  identity: CliFirstValueConfigIdentity | undefined,
+): CliFirstValueConfigIdentity {
+  if (identity === undefined) {
+    throw new Error("CLI init did not produce a config identity");
   }
-  const record = data as Record<string, unknown>;
-  requireString(record.secretId, `${label} secretId`);
-  requireString(record.secretVersionId, `${label} secretVersionId`);
-  requireString(record.variableKey, `${label} variableKey`);
-  expect(JSON.stringify(body)).not.toMatch(/valueUtf8|encodedValueUtf8|plaintext/i);
+  return identity;
 }
 
 async function runRuntimeInvariantProbe(input: {
@@ -272,11 +463,14 @@ async function runRuntimeInvariantProbe(input: {
   readonly configDir: string;
   readonly configHomeDir: string;
   readonly label: string;
+  readonly recordOutputs: (
+    name: string,
+    channels: { readonly stdout: string; readonly stderr: string },
+    allowedTokens?: readonly string[],
+  ) => void;
   readonly redactor: (value: unknown) => string;
 }): Promise<RuntimeRunProbeResult> {
-  const suffix = randomUUID().replaceAll("-", "");
-  const stdoutMarker = `INSECUR_RUNTIME_RUN_STDOUT_${suffix}`;
-  const stderrMarker = `INSECUR_RUNTIME_RUN_STDERR_${suffix}`;
+  const { stderrMarker, stdoutMarker } = mintRuntimeRunMarkers();
   const { stderr, stdout } = await runCliSmokeCommand({
     apiBaseUrl: input.apiBaseUrl,
     args: buildCliRuntimeInvariantRunArgs({
@@ -291,6 +485,7 @@ async function runRuntimeInvariantProbe(input: {
     label: input.label,
     redactor: input.redactor,
   });
+  input.recordOutputs(input.label, { stderr, stdout }, [stdoutMarker, stderrMarker]);
   // With `--json`, `insecur run` keeps stdout a pure control channel and
   // routes child stdout to the CLI's stderr verbatim (product-spec.md §Product
   // Surface: "Child output is separated from control output in JSON mode";
@@ -307,13 +502,8 @@ async function runRuntimeInvariantProbe(input: {
   }
 
   const body = parseCliSmokeJson(stdout, input.label);
-  assertCliSmokeSuccess(body, input.label);
+  const { grantId } = assertCliRunEnvelopeMetadataOnly(body, input.label, PROOF_VARIABLE_KEY);
   assertCliRunChildExitCode(body, input.label);
-  const data = asRecord(body.data, `${input.label} data`);
-  assertEqual(data.variableKey, PROOF_VARIABLE_KEY, `${input.label} variableKey`);
-  requireString(data.secretId, `${input.label} secretId`);
-  requireString(data.secretVersionId, `${input.label} secretVersionId`);
-  const grantId = requireString(data.grantId, `${input.label} grantId`);
   assertEnvelopeDoesNotPersistChildOutput(body, input.label, [stdoutMarker, stderrMarker]);
 
   const childProof = parseCliRunChildProof(stderr, input.label);
