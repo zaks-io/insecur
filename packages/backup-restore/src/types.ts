@@ -56,6 +56,11 @@ export interface RestoreImportSuccess {
   skipped_organization_count: number;
   /** Opaque IDs of the skipped organizations, sorted; empty when none were dropped. */
   skipped_organization_ids: readonly string[];
+  /**
+   * Bootstrap operator claims dropped because their referenced organization was not in the imported
+   * set (torn export, ADR-0072). Always 0 for a production restore of a single consistent instance.
+   */
+  dropped_bootstrap_claim_count: number;
   imported_row_count: number;
   operation_id: string;
   completed_at: string;

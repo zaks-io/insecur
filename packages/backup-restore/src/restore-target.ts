@@ -146,6 +146,7 @@ export interface CompleteRestoreJournalInput {
   readonly organizationCount?: number;
   readonly manifestOrganizationCount?: number;
   readonly skippedOrganizationCount?: number;
+  readonly droppedBootstrapClaimCount?: number;
   readonly importedRowCount?: number;
 }
 
@@ -159,13 +160,15 @@ export async function completeRestoreJournal(input: CompleteRestoreJournalInput)
            organization_count = $2,
            manifest_organization_count = $3,
            skipped_organization_count = $4,
-           imported_row_count = $5
+           dropped_bootstrap_claim_count = $5,
+           imported_row_count = $6
        WHERE only_row = true AND status = 'running'`,
       [
         input.status,
         input.organizationCount ?? null,
         input.manifestOrganizationCount ?? null,
         input.skippedOrganizationCount ?? null,
+        input.droppedBootstrapClaimCount ?? null,
         input.importedRowCount ?? null,
       ],
     );

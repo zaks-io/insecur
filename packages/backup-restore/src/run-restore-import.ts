@@ -13,6 +13,7 @@ import type { BackupExportStorage } from "./backup-export-storage.js";
 import { RECOVERY_CANARY_ORGANIZATION_ID } from "./constants.js";
 import { BACKUP_ORGANIZATION_EXPORT_TABLES, type BackupExportTable } from "./export-tables.js";
 import { insertRestoreRows } from "./insert-restore-rows.js";
+import { importedOrganizationKeys, partitionInstanceRows } from "./restore-instance-partition.js";
 import { RestoreImportError } from "./restore-import-error.js";
 import {
   RESTORE_INSTANCE_TABLES_AFTER_ORGANIZATIONS,
@@ -80,12 +81,24 @@ async function importTablesInScope(
   return importedRowCount;
 }
 
+interface ImportScopesResult {
+  readonly importedRowCount: number;
+  readonly droppedBootstrapClaimCount: number;
+}
+
 async function importAllScopes(
   input: RunRestoreImportInput,
   verified: VerifiedRestoreArtifact,
   columnTypes: RestoreTargetColumnTypes,
-): Promise<number> {
-  const instanceRowsByTable = groupRowsByTable(verified.plan.instanceRows);
+): Promise<ImportScopesResult> {
+  // Drop torn-read orphan bootstrap claims BEFORE any write, using only the imported org set, so
+  // the AFTER-organizations phase never violates the composite FK to organizations.
+  const { importableRows, droppedBootstrapClaimCount } = partitionInstanceRows(
+    verified.plan.instanceRows,
+    importedOrganizationKeys(verified.plan),
+  );
+  const instanceRowsByTable = groupRowsByTable(importableRows);
+
   let importedRowCount = await withTenantScope({ kind: "service" }, ({ sql }) =>
     importTablesInScope(
       sql,
@@ -114,17 +127,16 @@ async function importAllScopes(
     );
   }
 
-  return (
-    importedRowCount +
-    (await withTenantScope({ kind: "service" }, ({ sql }) =>
-      importTablesInScope(
-        sql,
-        RESTORE_INSTANCE_TABLES_AFTER_ORGANIZATIONS,
-        instanceRowsByTable,
-        columnTypes,
-      ),
-    ))
+  importedRowCount += await withTenantScope({ kind: "service" }, ({ sql }) =>
+    importTablesInScope(
+      sql,
+      RESTORE_INSTANCE_TABLES_AFTER_ORGANIZATIONS,
+      instanceRowsByTable,
+      columnTypes,
+    ),
   );
+
+  return { importedRowCount, droppedBootstrapClaimCount };
 }
 
 /**
@@ -138,6 +150,7 @@ interface RestoreImportCounts {
   readonly organizationCount: number;
   readonly manifestOrganizationCount: number;
   readonly skippedOrganizationCount: number;
+  readonly droppedBootstrapClaimCount: number;
   readonly importedRowCount: number;
 }
 
@@ -178,6 +191,7 @@ async function recordRestoreImportEvidence(
       organization_count: counts.organizationCount,
       manifest_organization_count: counts.manifestOrganizationCount,
       skipped_organization_count: counts.skippedOrganizationCount,
+      dropped_bootstrap_claim_count: counts.droppedBootstrapClaimCount,
       imported_row_count: counts.importedRowCount,
     },
   });
@@ -226,7 +240,11 @@ export async function runRestoreImport(
   });
 
   try {
-    const importedRowCount = await importAllScopes(input, verified, columnTypes);
+    const { importedRowCount, droppedBootstrapClaimCount } = await importAllScopes(
+      input,
+      verified,
+      columnTypes,
+    );
     const skippedOrganizationIds = verified.plan.prunedOrganizationIds;
     const organizationCount = verified.plan.organizationRows.size;
     const skippedOrganizationCount = skippedOrganizationIds.length;
@@ -235,6 +253,7 @@ export async function runRestoreImport(
       organizationCount,
       manifestOrganizationCount,
       skippedOrganizationCount,
+      droppedBootstrapClaimCount,
       importedRowCount,
     };
     // Evidence ordering (ADR-0084): the success audit is written first, then the journal is marked
@@ -253,6 +272,7 @@ export async function runRestoreImport(
       manifest_organization_count: manifestOrganizationCount,
       skipped_organization_count: skippedOrganizationCount,
       skipped_organization_ids: skippedOrganizationIds,
+      dropped_bootstrap_claim_count: droppedBootstrapClaimCount,
       imported_row_count: importedRowCount,
       operation_id: String(operationId),
       completed_at: new Date().toISOString(),

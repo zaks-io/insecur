@@ -51,6 +51,32 @@ function durableRootKey(): Uint8Array {
   return root;
 }
 
+/** An org id that is deliberately absent from the export manifest (torn-read orphan target). */
+const ORPHAN_ORG_ID = "org_00000000000000000000000ORPHAN";
+
+/**
+ * Appends a `bootstrap_operator_claims` row whose composite FK `(instance_id, first_organization_id)`
+ * references an organization NOT present in the export — the exact torn-export shape ADR-0072
+ * allows (the org enumeration and the instance-scope claim read are separate transactions). The
+ * importer must drop this orphan instead of FK-failing the whole restore. `instance_id` stays on
+ * the exported instance so only the composite org FK is unsatisfiable.
+ */
+function orphanBootstrapClaimTamper(rows: BackupExportRow[]): BackupExportRow[] {
+  return [
+    ...rows,
+    {
+      table: "bootstrap_operator_claims",
+      id: "boc_00000000000000000000000ORPHAN",
+      instance_id: TEST_INSTANCE_ID,
+      first_organization_id: ORPHAN_ORG_ID,
+      status: "pending",
+      consumed_by_user_id: null,
+      consumed_at: null,
+      created_at: "2026-07-08T03:00:00.000Z",
+    },
+  ];
+}
+
 /**
  * Rewrites one org A `secrets` row's own `org_id` column to org B while leaving its
  * `organization_id` grouping key at A, so the importer still routes it into org A's scope where
@@ -216,6 +242,15 @@ async function readJournalRow(): Promise<Record<string, unknown> | undefined> {
   return await withTenantScope({ kind: "service" }, async ({ sql }) => {
     const rows = (await sql`SELECT * FROM restore_import_journal`) as Record<string, unknown>[];
     return rows[0];
+  });
+}
+
+async function bootstrapClaimExists(claimId: string): Promise<boolean> {
+  return await withTenantScope({ kind: "service" }, async ({ sql }) => {
+    const rows = (await sql`
+      SELECT 1 FROM bootstrap_operator_claims WHERE id = ${claimId}
+    `) as unknown[];
+    return rows.length > 0;
   });
 }
 
@@ -539,6 +574,38 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
       expect(await restoreImportOperationStates()).toEqual([]);
       expect(await restoreImportAuditCount("backup.restore_import_succeeded")).toBe(0);
       expect(await readJournalRow()).toMatchObject({ status: "failed" });
+    });
+  }, 120_000);
+
+  it("drops a torn-read orphan bootstrap claim instead of failing the whole restore", async () => {
+    // Regression for the CI failure: on a shared multi-instance DB the product export can capture a
+    // bootstrap_operator_claims row whose referenced organization was not exported in the same run
+    // (its composite FK to organizations(instance_id, id) is unsatisfiable). The AFTER-organizations
+    // instance phase must NOT FK-violate; the orphan is dropped and the rest of the restore lands.
+    const orphanArtifactRef = await sealTamperedArtifact(orphanBootstrapClaimTamper);
+
+    const target = scratchName("orphan-claim");
+    await provisionFreshTarget(target);
+
+    const result = await onRestoreTarget(target, () =>
+      runRestoreImport(importInput({ artifactRef: orphanArtifactRef })),
+    );
+
+    expect(result.status).toBe("succeeded");
+    // At least the injected orphan is dropped (a shared DB may carry other captured claims).
+    expect(result.dropped_bootstrap_claim_count).toBeGreaterThanOrEqual(1);
+    expect(result.organization_count).toBe(sourceCounts.organizations);
+
+    await onRestoreTarget(target, async () => {
+      // The specific orphan claim is absent; every real organization still imported.
+      expect(await bootstrapClaimExists("boc_00000000000000000000000ORPHAN")).toBe(false);
+      expect(await countRowsInScope({ kind: "service" }, "organizations")).toBe(
+        sourceCounts.organizations,
+      );
+      expect(await restoreImportOperationStates()).toEqual(["succeeded"]);
+      const journal = await readJournalRow();
+      expect(journal?.status).toBe("succeeded");
+      expect(Number(journal?.dropped_bootstrap_claim_count)).toBeGreaterThanOrEqual(1);
     });
   }, 120_000);
 });

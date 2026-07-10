@@ -27,6 +27,7 @@ export const restoreImportJournal = pgTable(
     organizationCount: integer("organization_count"),
     manifestOrganizationCount: integer("manifest_organization_count"),
     skippedOrganizationCount: integer("skipped_organization_count"),
+    droppedBootstrapClaimCount: integer("dropped_bootstrap_claim_count"),
     importedRowCount: integer("imported_row_count"),
   },
   (table) => [

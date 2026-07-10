@@ -1,5 +1,5 @@
 {
-  "id": "42d615e8-56a5-4432-b946-409aea010167",
+  "id": "99b0a170-5ff6-4c64-aba0-bc4662fca025",
   "prevId": "f193650b-23ef-455b-b264-8417e2ca450c",
   "version": "7",
   "dialect": "postgresql",
@@ -4825,6 +4825,12 @@
         },
         "skipped_organization_count": {
           "name": "skipped_organization_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dropped_bootstrap_claim_count": {
+          "name": "dropped_bootstrap_claim_count",
           "type": "integer",
           "primaryKey": false,
           "notNull": false

@@ -3099,6 +3099,13 @@
         "columnType": "PgInteger",
         "sqlType": "integer"
       },
+      "dropped_bootstrap_claim_count": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
       "imported_row_count": {
         "notNull": false,
         "primaryKey": false,
