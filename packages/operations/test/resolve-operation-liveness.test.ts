@@ -2,8 +2,7 @@ import { organizationId, operationId, projectId } from "@insecur/domain";
 import { describe, expect, it } from "vitest";
 import { OPERATION_INTENT_CODES } from "../src/operation-intent-codes.js";
 import { OPERATION_ERROR_CODES } from "../src/operation-errors.js";
-import type { OperationRow } from "../src/operation-row.js";
-import type { OperationPollResult } from "../src/operation-types.js";
+import type { OperationRecord, OperationRow } from "../src/operation-row.js";
 import {
   findActiveLeaseForOperation,
   isOperationExecutionClaimExpired,
@@ -17,13 +16,14 @@ const ORG = organizationId.brand("org_00000000000000000000000001");
 const OP = operationId.brand("op_00000000000000000000000001");
 const PRJ = projectId.brand("prj_00000000000000000000000001");
 
-function sampleOperation(overrides: Partial<OperationPollResult> = {}): OperationPollResult {
+function sampleOperation(overrides: Partial<OperationRecord> = {}): OperationRecord {
   return {
     operationId: OP,
     organizationId: ORG,
     state: "running",
     intentCode: OPERATION_INTENT_CODES.syncRun,
     progress: {},
+    revision: 1,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -31,7 +31,7 @@ function sampleOperation(overrides: Partial<OperationPollResult> = {}): Operatio
 }
 
 function operationRowFromPoll(
-  operation: OperationPollResult,
+  operation: OperationRecord,
   overrides: Partial<OperationRow> = {},
 ): OperationRow {
   return {
@@ -42,6 +42,7 @@ function operationRowFromPoll(
     idempotency_key: null,
     progress: operation.progress,
     execution_deadline: operation.executionDeadline ?? null,
+    revision: operation.revision,
     created_at: operation.createdAt,
     updated_at: operation.updatedAt,
     ...overrides,
