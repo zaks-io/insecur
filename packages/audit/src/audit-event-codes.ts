@@ -100,6 +100,7 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.machineAuthAuthorizationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.syncExecutionDenied,
   PRODUCTION_AUDIT_EVENT_CODES.syncRevalidationDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.syncPlanDenied,
   PRODUCTION_AUDIT_EVENT_CODES.cryptoDataKeyDenied,
   PRODUCTION_AUDIT_EVENT_CODES.cryptoKeyRotationDenied,
   PRODUCTION_AUDIT_EVENT_CODES.approvalActionDenied,

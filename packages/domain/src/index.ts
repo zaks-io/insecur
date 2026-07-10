@@ -173,6 +173,8 @@ export {
   type AppConnectionErrorCode,
   SECRET_SYNC_ERROR_CODES,
   type SecretSyncErrorCode,
+  PROVIDER_ERROR_CODES,
+  type ProviderErrorCode,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   type ProviderAppRegistrationErrorCode,
   IMPORT_ERROR_CODES,

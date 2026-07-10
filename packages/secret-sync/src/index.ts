@@ -19,6 +19,47 @@ export {
 } from "./disable-secret-sync-command.js";
 export { listSecretSyncsCommand } from "./list-secret-syncs-command.js";
 export {
+  planSecretSyncCommand,
+  type PlanSecretSyncCommandInput,
+  type PlanSecretSyncCommandResult,
+} from "./plan-secret-sync-command.js";
+export {
+  PROVIDER_LOOKUP_STATUSES,
+  PROVIDER_PERMISSION_STATUSES,
+  PROVIDER_TARGET_EXISTENCE,
+  hasProviderOverwriteWarning,
+  isProviderLookupStatus,
+  lookupExactDestinationSafely,
+  resolveProviderLookupPort,
+  toProviderPermissionStatus,
+  toProviderTargetExistence,
+  type ProviderDestinationLookupRequest,
+  type ProviderDestinationLookupResult,
+  type ProviderLookupStatus,
+  type ProviderPermissionStatus,
+  type ProviderTargetExistence,
+  type SecretSyncProviderLookupPort,
+  type SecretSyncProviderLookupPorts,
+} from "./provider-lookup-port.js";
+export {
+  recordSecretSyncPlanCompleted,
+  recordSecretSyncPlanDenied,
+  recordSecretSyncRevalidationDenied,
+  toPlanBindingAuditDetails,
+} from "./record-secret-sync-plan-audit.js";
+export {
+  revalidateSecretSyncPlanBeforeProviderWrites,
+  type RevalidateSecretSyncPlanInput,
+  type SecretSyncExecutionLease,
+} from "./revalidate-secret-sync-plan.js";
+export {
+  computeSecretSyncPlan,
+  type ComputeSecretSyncPlanInput,
+  type SecretSyncPlan,
+  type SecretSyncPlanBinding,
+  type SecretSyncPlanWarningCode,
+} from "./secret-sync-plan.js";
+export {
   toMetadataSafeSecretSync,
   type MetadataSafeSecretSync,
   type MetadataSafeSecretSyncBinding,

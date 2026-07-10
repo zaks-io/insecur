@@ -19,7 +19,7 @@ import {
   type UserId,
 } from "@insecur/domain";
 
-function secretSyncResource(secretSyncId: SecretSyncId): {
+export function secretSyncResource(secretSyncId: SecretSyncId): {
   type: "secret_sync";
   id: OpaqueResourceId;
 } {
@@ -42,7 +42,7 @@ export interface SecretSyncAuditScope {
  * opaque resource ID (ADR-0068), so bindings are recorded as indexed primitive
  * keys (`secretId1`/`bindingId1`, ...) plus a `bindingCount`, never CSV.
  */
-export type SecretSyncBindingAuditDetails = Readonly<Record<string, string | number>>;
+export type SecretSyncBindingAuditDetails = Readonly<Record<string, string | number | boolean>>;
 
 export async function recordSecretSyncCreated(
   input: SecretSyncAuditScope & {

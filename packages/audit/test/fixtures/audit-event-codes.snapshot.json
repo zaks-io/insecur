@@ -96,6 +96,8 @@
   "secret_sync.updated",
   "sync.execution_completed",
   "sync.execution_denied",
+  "sync.plan_completed",
+  "sync.plan_denied",
   "sync.revalidation_denied",
   "webhook.delivery_failed",
   "webhook.delivery_succeeded",
