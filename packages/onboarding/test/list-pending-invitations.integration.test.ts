@@ -2,7 +2,10 @@ import { invitationId, organizationId, userId, type InvitationId } from "@insecu
 import { closeRuntimeSql, withTenantScope } from "@insecur/tenant-store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { insertPendingInvitation, loadDefaultTeamId } from "../src/invitation-store.js";
+import {
+  insertPendingInvitationInTransaction,
+  loadDefaultTeamId,
+} from "../src/invitation-store.js";
 import { listPendingInvitations } from "../src/list-pending-invitations.js";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
@@ -37,24 +40,28 @@ describeIntegration("listPendingInvitations", () => {
     const teamId = await loadDefaultTeamId(ORG_A);
     // Sequential insert -> revoke -> insert: two live pending rows for one invitee would violate
     // the one-pending-per-invitee-org-project unique index.
-    await insertPendingInvitation({
-      invitationId: revokedId,
-      organizationId: ORG_A,
-      teamId,
-      inviteeUserId: INVITEE,
-      rolePreset: "read-only",
-      projectId: null,
+    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+      await insertPendingInvitationInTransaction(sql, {
+        invitationId: revokedId,
+        organizationId: ORG_A,
+        teamId,
+        inviteeUserId: INVITEE,
+        rolePreset: "read-only",
+        projectId: null,
+      });
     });
     await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
       await sql`UPDATE invitations SET status = ${"revoked"} WHERE id = ${revokedId}`;
     });
-    await insertPendingInvitation({
-      invitationId: pendingId,
-      organizationId: ORG_A,
-      teamId,
-      inviteeUserId: INVITEE,
-      rolePreset: "developer",
-      projectId: null,
+    await withTenantScope({ kind: "organization", organizationId: ORG_A }, async ({ sql }) => {
+      await insertPendingInvitationInTransaction(sql, {
+        invitationId: pendingId,
+        organizationId: ORG_A,
+        teamId,
+        inviteeUserId: INVITEE,
+        rolePreset: "developer",
+        projectId: null,
+      });
     });
   });
 

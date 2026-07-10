@@ -11,7 +11,12 @@ import {
 } from "@insecur/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { closeRuntimeSql, persistGuidedOrganization, withTenantScope } from "../src/index.js";
+import {
+  closeRuntimeSql,
+  persistGuidedOrganizationInTenantScope,
+  withTenantScope,
+  type PersistGuidedOrganizationInput,
+} from "../src/index.js";
 import { integrationDatabaseReady } from "./rls/integration-database-ready.js";
 import { seedTenantBaseline } from "./rls/seed.js";
 import { TEST_ENV_A_ID, TEST_INSTANCE_ID } from "./rls/test-ids.js";
@@ -53,6 +58,17 @@ interface ResourceGraphCountsRow {
   membership_count: string;
 }
 
+async function persistGuidedOrganizationForTest(
+  input: PersistGuidedOrganizationInput,
+): Promise<void> {
+  await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    async (handles) => {
+      await persistGuidedOrganizationInTenantScope(handles, input);
+    },
+  );
+}
+
 function testDisplayName(raw: string): DisplayName {
   const parsed = parseDisplayName(raw);
   if (!parsed.ok) {
@@ -71,7 +87,7 @@ async function cleanupGuidedOrganizationFixture(orgId: string): Promise<void> {
   });
 }
 
-describeIntegration("persistGuidedOrganization", () => {
+describeIntegration("persistGuidedOrganizationInTenantScope", () => {
   beforeAll(async () => {
     await seedTenantBaseline();
     await cleanupGuidedOrganizationFixture(SUCCESS_ORG_ID);
@@ -90,7 +106,7 @@ describeIntegration("persistGuidedOrganization", () => {
     const teamDisplayName = testDisplayName("Tenant Store Default Team");
     const environmentDisplayName = testDisplayName("Tenant Store Development");
 
-    await persistGuidedOrganization({
+    await persistGuidedOrganizationForTest({
       organizationId: organizationId.brand(SUCCESS_ORG_ID),
       projectId: projectId.brand(SUCCESS_PROJECT_ID),
       defaultTeamId: teamId.brand(SUCCESS_TEAM_ID),
@@ -151,7 +167,7 @@ describeIntegration("persistGuidedOrganization", () => {
 
   it("rolls back earlier resource inserts when environment creation fails", async () => {
     await expect(
-      persistGuidedOrganization({
+      persistGuidedOrganizationForTest({
         organizationId: organizationId.brand(ROLLBACK_ORG_ID),
         projectId: projectId.brand(ROLLBACK_PROJECT_ID),
         defaultTeamId: teamId.brand(ROLLBACK_TEAM_ID),

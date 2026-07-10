@@ -1,5 +1,5 @@
 import { AUTH_ERROR_CODES, invitationId, ONBOARDING_ERROR_CODES } from "@insecur/domain";
-import { isUniqueConstraintViolation } from "@insecur/tenant-store";
+import { isUniqueConstraintViolation, withTenantScope } from "@insecur/tenant-store";
 import {
   assertInvitationProjectCoordinate,
   assertInvitationRoleGrantEntitlement,
@@ -10,11 +10,11 @@ import { auditAccessDenialOnFailure, type BuiltInRolePreset } from "@insecur/acc
 import { denyInvitationCreate } from "./deny-invitation-create.js";
 import {
   recordInvitationCreateDenied,
-  recordInvitationCreated,
+  recordInvitationCreatedInTenantScope,
 } from "./membership-management-audit.js";
 import { MembershipManagementError } from "./membership-management-error.js";
 import {
-  insertPendingInvitation,
+  insertPendingInvitationInTransaction,
   loadDefaultTeamId,
   membershipExistsForGrant,
 } from "./invitation-store.js";
@@ -86,14 +86,25 @@ export async function createInvitation(
   const defaultTeamId = await loadDefaultTeamId(input.organizationId);
 
   try {
-    await insertPendingInvitation({
-      invitationId: invId,
-      organizationId: input.organizationId,
-      teamId: defaultTeamId,
-      inviteeUserId: input.inviteeUserId,
-      rolePreset,
-      projectId: projectScope,
-    });
+    await withTenantScope(
+      { kind: "organization", organizationId: input.organizationId },
+      async ({ sql }) => {
+        await insertPendingInvitationInTransaction(sql, {
+          invitationId: invId,
+          organizationId: input.organizationId,
+          teamId: defaultTeamId,
+          inviteeUserId: input.inviteeUserId,
+          rolePreset,
+          projectId: projectScope,
+        });
+        await recordInvitationCreatedInTenantScope(sql, {
+          actorUserId: input.actor.userId,
+          organizationId: input.organizationId,
+          invitationId: invId,
+          ...(input.request !== undefined ? { request: input.request } : {}),
+        });
+      },
+    );
   } catch (error) {
     if (!isUniqueConstraintViolation(error)) {
       throw error;
@@ -105,13 +116,6 @@ export async function createInvitation(
       invitationId: invId,
     });
   }
-
-  await recordInvitationCreated({
-    actorUserId: input.actor.userId,
-    organizationId: input.organizationId,
-    invitationId: invId,
-    ...(input.request !== undefined ? { request: input.request } : {}),
-  });
 
   return {
     invitationId: invId,
