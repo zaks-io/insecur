@@ -168,6 +168,9 @@ audit. The importer writes the `backup.restore_import_succeeded` audit before it
 journal in a target you then discard. Confirm a completed import by the journal row's
 `status = 'succeeded'`, and diff `manifest_organization_count` against `organization_count` /
 `skipped_organization_count` to confirm no organization silently vanished from the restore.
+`dropped_bootstrap_claim_count` should be `0` for a real single-instance restore; a non-zero value
+means the export captured a bootstrap operator claim whose organization was not in the same export
+(a torn read, ADR-0072) and the claim was dropped — investigate the source export if unexpected.
 
 Audit and evidence records include scope IDs, operation IDs, timestamps, and status only.
 
