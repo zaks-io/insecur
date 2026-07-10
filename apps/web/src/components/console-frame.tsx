@@ -1,7 +1,6 @@
 import {
   Breadcrumbs,
   BreadcrumbItem,
-  Button,
   ConsoleNav,
   ConsoleNavItem,
   ConsoleShell,
@@ -16,6 +15,7 @@ import {
 import { Link, useLocation, useMatch } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { ApprovalPasskeyNudge } from "./approval-passkey-nudge.js";
+import { SignOutButton } from "./sign-out-button.js";
 import { useSiteOrigin } from "./use-site-origin.js";
 import type { ConsoleOrganization } from "../console/organizations.js";
 import { activeProjectView, projectBreadcrumbs } from "../console/project-nav.js";
@@ -138,11 +138,7 @@ function ConsoleTopbarActions() {
     <div className="flex items-center gap-2">
       <SiteNavLink href={docsUrl}>Docs</SiteNavLink>
       <ThemeToggle />
-      <form method="post" action="/logout">
-        <Button type="submit" variant="outline" size="sm">
-          Sign out
-        </Button>
-      </form>
+      <SignOutButton />
     </div>
   );
 }

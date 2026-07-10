@@ -4,6 +4,12 @@ import { defineConfig, devices } from "@playwright/test";
 
 const artifactRoot = fileURLToPath(new URL("../../preview-smoke-artifacts", import.meta.url));
 const testDir = fileURLToPath(new URL("tests", import.meta.url));
+const deployIdentityGlobalSetup = fileURLToPath(
+  new URL("src/deploy-identity-global-setup.ts", import.meta.url),
+);
+const deployIdentityGlobalTeardown = fileURLToPath(
+  new URL("src/deploy-identity-global-teardown.ts", import.meta.url),
+);
 
 const PREVIEW_SMOKE_GLOBAL_TIMEOUT_MS = 18 * 60_000;
 
@@ -13,6 +19,8 @@ export default defineConfig({
   },
   failOnFlakyTests: true,
   forbidOnly: true,
+  globalSetup: deployIdentityGlobalSetup,
+  globalTeardown: deployIdentityGlobalTeardown,
   globalTimeout: PREVIEW_SMOKE_GLOBAL_TIMEOUT_MS,
   outputDir: `${artifactRoot}/test-results`,
   projects: [

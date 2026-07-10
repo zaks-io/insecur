@@ -98,6 +98,8 @@ function createSuccessfulPkceExchangeWorkos() {
       Promise.reject(
         new Error("authenticateSealedSession must not run in PKCE exchange metadata test"),
       ),
+    getSessionLogoutUrl: () =>
+      Promise.reject(new Error("getSessionLogoutUrl must not run in PKCE exchange metadata test")),
     refreshSealedSession: () =>
       Promise.reject(new Error("refreshSealedSession must not run in PKCE exchange metadata test")),
     listAuthFactors: () => Promise.resolve([]),

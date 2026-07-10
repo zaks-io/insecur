@@ -9,15 +9,70 @@ interface IdentityTarget {
   url: string;
 }
 
-interface IdentityResult {
-  ok: boolean;
-  message: string;
+export interface PreviewDeployIdentityResult {
+  deploy_sha: string | null;
+  matches_expected: boolean;
+  service: string;
+}
+
+export interface PreviewDeployIdentityCheck {
+  checked_at: string;
+  identities: PreviewDeployIdentityResult[];
 }
 
 const DEPLOY_IDENTITY_TIMEOUT_MS = 120_000;
+const PREVIEW_DEPLOY_IDENTITY_SERVICES = ["insecur-api", "insecur-web", "insecur-site"] as const;
+const GIT_COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/iu;
 
-export async function waitForPreviewDeployIdentity(preview: PreviewConfig): Promise<void> {
-  const targets: IdentityTarget[] = [
+export async function waitForPreviewDeployIdentity(
+  preview: PreviewConfig,
+): Promise<PreviewDeployIdentityCheck> {
+  let readyCheck: PreviewDeployIdentityCheck | undefined;
+
+  await expect
+    .poll(
+      async () => {
+        const check = await checkPreviewDeployIdentity(preview);
+        if (previewDeployIdentityMatchesExpected(check)) {
+          readyCheck = check;
+          return "ready";
+        }
+        return summarizeIdentityCheck(check);
+      },
+      {
+        intervals: [1_000, 2_000, 5_000],
+        timeout: DEPLOY_IDENTITY_TIMEOUT_MS,
+      },
+    )
+    .toBe("ready");
+
+  if (readyCheck === undefined) {
+    throw new Error("Preview deployment identity did not become ready");
+  }
+  return readyCheck;
+}
+
+export async function checkPreviewDeployIdentity(
+  preview: PreviewConfig,
+): Promise<PreviewDeployIdentityCheck> {
+  const identities = await Promise.all(
+    previewDeployIdentityTargets(preview).map((target) =>
+      checkIdentity(target, preview.expectedSha),
+    ),
+  );
+  return { checked_at: new Date().toISOString(), identities };
+}
+
+export function assertPreviewDeployIdentityMatchesExpected(
+  check: PreviewDeployIdentityCheck,
+): void {
+  if (!previewDeployIdentityMatchesExpected(check)) {
+    throw new Error(`Preview deployment identity mismatch: ${summarizeIdentityCheck(check)}`);
+  }
+}
+
+function previewDeployIdentityTargets(preview: PreviewConfig): IdentityTarget[] {
+  return [
     {
       label: "API healthz",
       service: "insecur-api",
@@ -34,32 +89,43 @@ export async function waitForPreviewDeployIdentity(preview: PreviewConfig): Prom
       url: `${preview.siteBaseUrl}/healthz`,
     },
   ];
-
-  await expect
-    .poll(async () => summarizeIdentity(targets, preview.expectedSha), {
-      intervals: [1_000, 2_000, 5_000],
-      timeout: DEPLOY_IDENTITY_TIMEOUT_MS,
-    })
-    .toBe("ready");
 }
 
-async function summarizeIdentity(targets: IdentityTarget[], expectedSha: string): Promise<string> {
-  const results = await Promise.all(targets.map((target) => checkIdentity(target, expectedSha)));
-  const pending = results.filter((result) => !result.ok).map((result) => result.message);
-  return pending.length === 0 ? "ready" : pending.join("; ");
+function previewDeployIdentityMatchesExpected(check: PreviewDeployIdentityCheck): boolean {
+  return (
+    check.identities.length === PREVIEW_DEPLOY_IDENTITY_SERVICES.length &&
+    check.identities.every((identity) => identity.matches_expected)
+  );
 }
 
-async function checkIdentity(target: IdentityTarget, expectedSha: string): Promise<IdentityResult> {
+function summarizeIdentityCheck(check: PreviewDeployIdentityCheck): string {
+  const mismatched = check.identities
+    .filter((identity) => !identity.matches_expected)
+    .map((identity) => identity.service);
+  return mismatched.length === 0 ? "ready" : `mismatched services: ${mismatched.join(", ")}`;
+}
+
+async function checkIdentity(
+  target: IdentityTarget,
+  expectedSha: string,
+): Promise<PreviewDeployIdentityResult> {
+  let deploySha: string | null = null;
   try {
     const body = await getJson(cacheBustedUrl(target.url), target.label);
+    deploySha = parseCommitSha(body.deploySha);
     assertIdentity(body, target.service, expectedSha);
-    return { message: "", ok: true };
-  } catch (error) {
+    return { deploy_sha: deploySha, matches_expected: true, service: target.service };
+  } catch {
     return {
-      message: error instanceof Error ? error.message : String(error),
-      ok: false,
+      deploy_sha: deploySha,
+      matches_expected: false,
+      service: target.service,
     };
   }
+}
+
+function parseCommitSha(value: unknown): string | null {
+  return typeof value === "string" && GIT_COMMIT_SHA_PATTERN.test(value) ? value : null;
 }
 
 function cacheBustedUrl(url: string): string {

@@ -1,6 +1,6 @@
-import { Button } from "@insecur/ui";
 import type { ReactNode } from "react";
 import { WizardRail } from "./wizard-rail.js";
+import { SignOutButton } from "../sign-out-button.js";
 import { SiteFrame } from "../site-frame.js";
 import type { OnboardingStepId } from "../../onboarding/steps.js";
 
@@ -13,15 +13,7 @@ export function OnboardingFrame({
   children: ReactNode;
 }) {
   return (
-    <SiteFrame
-      nav={
-        <form method="post" action="/logout">
-          <Button type="submit" variant="outline" size="sm">
-            Sign out
-          </Button>
-        </form>
-      }
-    >
+    <SiteFrame nav={<SignOutButton />}>
       <section className="px-5 py-10 sm:px-8 sm:py-12">
         <div className="max-w-4xl">
           <h1 className="font-mono text-xs tracking-widest text-muted-foreground uppercase">

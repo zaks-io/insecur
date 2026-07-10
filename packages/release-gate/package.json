@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
     "typecheck": "tsc --noEmit",
+    "verify-preview-smoke-identity": "node --import tsx/esm src/verify-preview-smoke-deploy-identity-evidence.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

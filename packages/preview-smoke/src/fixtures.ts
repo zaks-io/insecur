@@ -4,7 +4,6 @@ import { invitationId, membershipId, runtimePolicyId } from "@insecur/domain";
 import { expect, test as base } from "@playwright/test";
 
 import { mintBearer } from "./auth";
-import { waitForPreviewDeployIdentity } from "./deploy-identity";
 import { loadPreviewConfig, type PreviewConfig } from "./env";
 
 interface PreviewWorkerFixtures {
@@ -12,7 +11,6 @@ interface PreviewWorkerFixtures {
   noScopeBearer: string;
   ownerBearer: string;
   preview: PreviewConfig;
-  previewIdentityReady: boolean;
 }
 
 export const test = base.extend<object, PreviewWorkerFixtures>({
@@ -61,13 +59,6 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
       await use(loadPreviewConfig());
     },
     { scope: "worker" },
-  ],
-  previewIdentityReady: [
-    async ({ preview }, use) => {
-      await waitForPreviewDeployIdentity(preview);
-      await use(true);
-    },
-    { auto: true, scope: "worker" },
   ],
 });
 

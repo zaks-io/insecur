@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("production requires a successful real preview smoke for the exact deploy SHA", async () => {
+test("production requires a successful real preview smoke with exact-SHA identity proof", async () => {
   const production = await readFile(
     new URL("../../.github/workflows/deploy-production.yml", import.meta.url),
     "utf8",
@@ -14,8 +14,29 @@ test("production requires a successful real preview smoke for the exact deploy S
 
   assert.match(production, /actions\/workflows\/preview-smoke\.yml\/runs\?head_sha=\$DEPLOY_SHA/u);
   assert.match(production, /\.conclusion == "success"/u);
+  assert.match(
+    production,
+    /gh run download "\$PREVIEW_SMOKE_RUN_ID" --name preview-smoke-artifacts/u,
+  );
+  assert.match(production, /verify-preview-smoke-identity\s+\\\n\s+--evidence "\$proof_path"/u);
+  assert.match(production, /--expected-sha "\$DEPLOY_SHA"/u);
   assert.match(previewSmoke, /SMOKE_EXPECTED_DEPLOY_SHA: \$\{\{ github\.sha \}\}/u);
+  assert.match(previewSmoke, /group: preview-fleet/u);
   assert.doesNotMatch(previewSmoke, /inputs\.expected_sha/u);
+});
+
+test("preview deploy and smoke serialize access to the shared fleet", async () => {
+  const deployPreview = await readFile(
+    new URL("../../.github/workflows/deploy-preview.yml", import.meta.url),
+    "utf8",
+  );
+  const previewSmoke = await readFile(
+    new URL("../../.github/workflows/preview-smoke.yml", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(deployPreview, /group: preview-fleet\n\s+cancel-in-progress: false/u);
+  assert.match(previewSmoke, /group: preview-fleet\n\s+cancel-in-progress: false/u);
 });
 
 test("production reports incomplete launch evidence without blocking prelaunch deploys", async () => {
