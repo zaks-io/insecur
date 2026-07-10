@@ -15,6 +15,12 @@ import { staticTextResponse } from "./static-text-response.js";
 
 const MARKDOWN_CONTENT_TYPE = "text/markdown; charset=utf-8";
 const LLMS_TXT_CONTENT_TYPE = "text/plain; charset=utf-8";
+const SECURITY_TXT = `Contact: https://github.com/zaks-io/insecur/security/advisories/new
+Expires: 2027-07-09T00:00:00Z
+Preferred-Languages: en
+Canonical: https://insecur.cloud/.well-known/security.txt
+`;
+const SECURITY_TXT_CONTENT_TYPE = "text/plain; charset=utf-8";
 
 /**
  * Agent-facing documentation surface: /llms.txt is the docs index (llmstxt.org), and every docs
@@ -92,6 +98,10 @@ function tryPublishedMetadataResponse(
   method: string,
   env: SiteEnv,
 ): Response | null {
+  if (pathname === "/.well-known/security.txt") {
+    return staticTextResponse(SECURITY_TXT, SECURITY_TXT_CONTENT_TYPE, method);
+  }
+
   if (pathname === "/badges/coverage.json") {
     return badgeJsonResponse(coverageBadge, method);
   }
