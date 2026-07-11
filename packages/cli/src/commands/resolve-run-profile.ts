@@ -252,7 +252,12 @@ export function isExplicitProfilePositional(
   if (positionalProfile === undefined || positionalProfile === "") {
     return false;
   }
-  const runIndex = rawArgs.lastIndexOf("run");
+  // The `run` subcommand token can only sit before the first `--`; the child argv after the
+  // separator may legitimately contain its own `run` token (`insecur run -- npm run dev`).
+  const rawSeparatorIndex = rawArgs.indexOf("--");
+  const subcommandSearchSpace =
+    rawSeparatorIndex === -1 ? rawArgs : rawArgs.slice(0, rawSeparatorIndex);
+  const runIndex = subcommandSearchSpace.indexOf("run");
   const scopedArgs = runIndex === -1 ? rawArgs : rawArgs.slice(runIndex + 1);
   const separatorIndex = scopedArgs.indexOf("--");
   if (separatorIndex === -1) {
