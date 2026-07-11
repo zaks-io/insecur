@@ -116,11 +116,9 @@ describe("toRuntimeRpcError", () => {
 
   it.each([
     ["58000", "Hyperdrive pool-slot exhaustion"],
-    ["57P01", "admin shutdown"],
-    ["08006", "connection failure"],
     ["CONNECT_TIMEOUT", "postgres.js connect timeout"],
   ])(
-    "maps a transient connection failure (%s, %s) to store.unavailable retryable without leaking the SQLSTATE",
+    "maps an acquisition-phase connection failure (%s, %s) to store.unavailable retryable without leaking the SQLSTATE",
     (sqlstate) => {
       const mapped = toRuntimeRpcError(
         Object.assign(new Error("Timed out while waiting for an open slot in the pool."), {
@@ -133,6 +131,24 @@ describe("toRuntimeRpcError", () => {
         retryable: true,
       });
       expect(mapped.message).not.toContain("pool");
+    },
+  );
+
+  it.each([
+    ["57P01", "admin shutdown"],
+    ["08006", "connection failure"],
+    ["CONNECTION_CLOSED", "postgres.js socket close, possibly mid-COMMIT"],
+  ])(
+    "maps a mid-flight connection loss (%s, %s) to store.unavailable NON-retryable — the COMMIT fate is unknown",
+    (sqlstate) => {
+      const mapped = toRuntimeRpcError(
+        Object.assign(new Error("server closed the connection unexpectedly"), { code: sqlstate }),
+      );
+      expect(mapped).toEqual({
+        code: STORE_ERROR_CODES.unavailable,
+        message: RUNTIME_RPC_GENERIC_MESSAGE,
+        retryable: false,
+      });
     },
   );
 
