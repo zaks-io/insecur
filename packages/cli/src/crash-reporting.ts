@@ -235,5 +235,10 @@ function readNodeMajor(version: string): string {
 }
 
 function hasNoCrashReportsFlag(argv: readonly string[]): boolean {
-  return argv.slice(2).some((arg) => arg === "--no-crash-reports");
+  // Tokens after `--` belong to the child command (`insecur run -- mytool --no-crash-reports`)
+  // and must not toggle the CLI's own crash reporting.
+  const args = argv.slice(2);
+  const separatorIndex = args.indexOf("--");
+  const ownArgs = separatorIndex === -1 ? args : args.slice(0, separatorIndex);
+  return ownArgs.includes("--no-crash-reports");
 }

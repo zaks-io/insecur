@@ -166,6 +166,18 @@ describe("CLI crash reporting", () => {
     expect(init).not.toHaveBeenCalled();
   });
 
+  it("ignores a --no-crash-reports token that belongs to the child command after --", async () => {
+    const init = vi.fn();
+    const reporter = await createCliCrashReporter({
+      argv: ["node", "insecur", "run", "--variable-key", "K", "--", "mytool", "--no-crash-reports"],
+      env: { INSECUR_CRASH_REPORTS_DSN: "https://public@sentry.example/1" },
+      sentryRuntime: { init, captureException: vi.fn(), flush: vi.fn().mockResolvedValue(true) },
+      version: "0.1.0",
+    });
+
+    expect(reporter.enabled).toBe(true);
+  });
+
   it("does not let reporter initialization prevent a CLI command from running", async () => {
     const reporter = await createCliCrashReporter({
       argv: ["node", "insecur", "whoami"],
