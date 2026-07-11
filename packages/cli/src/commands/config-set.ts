@@ -1,4 +1,4 @@
-import { VALIDATION_ERROR_CODES } from "@insecur/domain";
+import { VALIDATION_ERROR_CODES, successEnvelope } from "@insecur/domain";
 import type { EnvironmentId } from "@insecur/domain";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { parseWritableProjectConfigKey } from "../config/config-keys.js";
@@ -6,6 +6,14 @@ import { loadProjectConfig, writeProjectConfig } from "../config/project-config.
 import { parseEnvironmentId } from "../config/parse-resource-id.js";
 import { setCrashReportsPreference, type CrashReportsPreference } from "../config/user-config.js";
 import { CliError } from "../output/cli-error.js";
+import { renderSuccess } from "../output/render.js";
+
+// `value` is a forbidden envelope key (Sensitive Value naming), so the envelope carries
+// configKey/configValue.
+interface ConfigSetData {
+  readonly configKey: string;
+  readonly configValue: string;
+}
 
 export async function runConfigSetCommand(
   flags: GlobalCliFlags,
@@ -13,7 +21,9 @@ export async function runConfigSetCommand(
   rawValue: string,
 ): Promise<number> {
   if (rawKey === "crash-reports") {
-    await setCrashReportsPreference(parseCrashReportsPreferenceValue(rawValue));
+    const preference = parseCrashReportsPreferenceValue(rawValue);
+    await setCrashReportsPreference(preference);
+    renderConfigSetSuccess(flags, { configKey: rawKey, configValue: preference });
     return 0;
   }
 
@@ -32,7 +42,18 @@ export async function runConfigSetCommand(
       ? { ...projectConfig, defaultEnvId: envId }
       : applyBranchEnvUpdate(projectConfig, key.branch, envId);
   await writeProjectConfig(flags.configDir, updated);
+  renderConfigSetSuccess(flags, { configKey: rawKey, configValue: envId });
   return 0;
+}
+
+// Every command emits a machine-readable envelope in --json mode; a silent success would hand a
+// stdout-parsing agent EOF instead of `{ ok: true }`.
+function renderConfigSetSuccess(flags: GlobalCliFlags, data: ConfigSetData): void {
+  renderSuccess(successEnvelope(data), flags, formatConfigSetHuman);
+}
+
+function formatConfigSetHuman(data: ConfigSetData): string {
+  return `Set ${data.configKey} to ${data.configValue}.`;
 }
 
 function parseCrashReportsPreferenceValue(rawValue: string): CrashReportsPreference {
