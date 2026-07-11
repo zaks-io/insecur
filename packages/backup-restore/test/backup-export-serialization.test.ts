@@ -204,6 +204,49 @@ describe("MemoryBackupExportStorage + immutable export writes", () => {
     expect(JSON.parse(pointer as string)).toEqual(newer);
   });
 
+  it("keeps the newer export when an older publish races the pointer advance (CAS)", async () => {
+    const storage = new MemoryBackupExportStorage();
+    const newer = successEvidence({ export_timestamp: "2026-07-08T03:00:00.000Z" });
+    const older = successEvidence({ export_timestamp: "2026-07-07T03:00:00.000Z" });
+
+    // Interleave read(A-old), read(B-new), write(B), write(A): the stale writer must lose its
+    // compare-and-swap, re-read, and land on the recency guard instead of regressing the pointer.
+    const originalGet = storage.getLatestEvidence.bind(storage);
+    let staleReads = 0;
+    storage.getLatestEvidence = async () => {
+      staleReads += 1;
+      if (staleReads === 1) {
+        const preRaceSnapshot = await originalGet();
+        await publishLatestBackupExport(storage, newer);
+        return preRaceSnapshot;
+      }
+      return originalGet();
+    };
+
+    await publishLatestBackupExport(storage, older);
+
+    const pointer = storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY);
+    expect(JSON.parse(pointer as string)).toEqual(newer);
+  });
+
+  it("throws after exhausting its compare-and-swap retries against a persistently racing writer", async () => {
+    const storage = new MemoryBackupExportStorage();
+    const evidence = successEvidence();
+
+    let putAttempts = 0;
+    // Every attempt loses its CAS (a persistently racing writer), so publish must fail closed
+    // instead of retrying forever or silently dropping the export.
+    storage.putLatestEvidence = async () => {
+      putAttempts += 1;
+      return false;
+    };
+
+    await expect(publishLatestBackupExport(storage, evidence)).rejects.toThrow(
+      /kept losing its compare-and-swap race/,
+    );
+    expect(putAttempts).toBe(4);
+  });
+
   it("advances the latest pointer to a newer export and repairs a corrupt pointer", async () => {
     const storage = new MemoryBackupExportStorage();
     storage.objects.set(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, "not json");
