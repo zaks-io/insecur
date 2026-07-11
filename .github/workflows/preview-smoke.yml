@@ -17,6 +17,10 @@ jobs:
     name: Preview Smoke
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 25
+    # Job-level so the smoke run that registers minted bearers and the sweep step that revokes
+    # and scans for them can never drift onto different registry paths (INS-586).
+    env:
+      SMOKE_ARTIFACT_CREDENTIAL_REGISTRY: ${{ runner.temp }}/preview-smoke-artifact-credentials.json
     environment:
       name: Preview
 
@@ -120,7 +124,6 @@ jobs:
       - name: Run preview application smoke
         env:
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
-          SMOKE_ARTIFACT_CREDENTIAL_REGISTRY: ${{ runner.temp }}/preview-smoke-artifact-credentials.json
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
           SMOKE_WEB_BASE_URL: https://app.preview.insecur.cloud
           SMOKE_SITE_BASE_URL: https://preview.insecur.cloud
@@ -136,7 +139,6 @@ jobs:
         id: artifact_sweep
         if: ${{ always() }}
         env:
-          SMOKE_ARTIFACT_CREDENTIAL_REGISTRY: ${{ runner.temp }}/preview-smoke-artifact-credentials.json
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
         run: pnpm --filter @insecur/preview-smoke sweep:artifacts
 

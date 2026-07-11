@@ -1,13 +1,12 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const SMOKE_ARTIFACT_CREDENTIAL_REGISTRY_ENV = "SMOKE_ARTIFACT_CREDENTIAL_REGISTRY";
+const DEFAULT_REGISTRY_FILENAME = "insecur-preview-smoke-artifact-credentials.json";
 
 export function registerSmokeArtifactCredential(credential: string): void {
   const path = registryPath();
-  if (path === undefined) {
-    return;
-  }
-
   const credentials = readCredentials(path);
   if (!credentials.includes(credential)) {
     writeFileSync(path, JSON.stringify([...credentials, credential]), { mode: 0o600 });
@@ -15,20 +14,24 @@ export function registerSmokeArtifactCredential(credential: string): void {
 }
 
 export function readSmokeArtifactCredentials(): string[] {
-  const path = registryPath();
-  return path === undefined ? [] : readCredentials(path);
+  return readCredentials(registryPath());
 }
 
 export function clearSmokeArtifactCredentials(): void {
-  const path = registryPath();
-  if (path !== undefined) {
-    rmSync(path, { force: true });
-  }
+  rmSync(registryPath(), { force: true });
 }
 
-function registryPath(): string | undefined {
+/**
+ * The registry must never silently disable itself: a minted bearer that goes unregistered is
+ * exactly the credential the artifact sweep exists to revoke and scan for (INS-586). When the env
+ * override is absent, the mint and sweep processes fall back to the same deterministic per-machine
+ * path instead of no-opping.
+ */
+function registryPath(): string {
   const path = process.env[SMOKE_ARTIFACT_CREDENTIAL_REGISTRY_ENV];
-  return path === undefined || path.trim() === "" ? undefined : path;
+  return path === undefined || path.trim() === ""
+    ? join(tmpdir(), DEFAULT_REGISTRY_FILENAME)
+    : path;
 }
 
 function readCredentials(path: string): string[] {
