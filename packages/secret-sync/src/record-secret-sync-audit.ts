@@ -6,6 +6,7 @@ import {
 import {
   AUDIT_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
+  isStableDottedCode,
   readErrorCode,
   type AuthErrorCode,
   type EnvironmentId,
@@ -163,8 +164,18 @@ export async function recordSecretSyncDisableDenied(
   });
 }
 
-export function toSecretSyncAuditReasonCode(error: unknown): KnownErrorCode | AuthErrorCode {
-  return readErrorCode(error) ?? AUDIT_ERROR_CODES.eventInvalid;
+/**
+ * Denial audits require a stable dotted reason code. `readErrorCode` passes through any string
+ * `code` (a raw SQLSTATE like `58000` included), and an invalid reasonCode would make the audit
+ * write itself throw from the catch block — masking the original error and dropping the denial
+ * record. Non-dotted codes collapse to the fallback instead.
+ */
+export function toSecretSyncAuditReasonCode(
+  error: unknown,
+  fallback: KnownErrorCode | AuthErrorCode = AUDIT_ERROR_CODES.eventInvalid,
+): KnownErrorCode | AuthErrorCode {
+  const code = readErrorCode(error);
+  return code !== undefined && isStableDottedCode(code) ? code : fallback;
 }
 
 export function toBindingAuditDetails(input: {
