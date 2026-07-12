@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -48,5 +48,30 @@ describe("smoke artifact credential registry", () => {
     registerSmokeArtifactCredential("bearer-one");
     clearSmokeArtifactCredentials();
     expect(readSmokeArtifactCredentials()).toEqual([]);
+  });
+
+  it("refuses to write a minted bearer through a symlinked registry path", () => {
+    const target = join(scratchDir, "attacker-target.json");
+    const registry = join(scratchDir, "registry.json");
+    writeFileSync(target, "[]");
+    symlinkSync(target, registry);
+    process.env[REGISTRY_ENV] = registry;
+
+    expect(() => {
+      registerSmokeArtifactCredential("bearer-one");
+    }).toThrow(/not a regular file/);
+    expect(() => {
+      readSmokeArtifactCredentials();
+    }).toThrow(/not a regular file/);
+  });
+
+  it("refuses a group- or world-accessible registry file", () => {
+    const registry = join(scratchDir, "registry.json");
+    writeFileSync(registry, "[]", { mode: 0o644 });
+    process.env[REGISTRY_ENV] = registry;
+
+    expect(() => {
+      registerSmokeArtifactCredential("bearer-one");
+    }).toThrow(/group- or world-accessible/);
   });
 });

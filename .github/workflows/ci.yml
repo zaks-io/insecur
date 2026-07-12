@@ -162,9 +162,9 @@ jobs:
           # token + signature key in that env would let it publish validly-signed artifacts
           # under hashes that post-merge builds — including production deploys — restore
           # instead of rebuilding. Trusted push/merge_group runs still write the cache.
-          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
-          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
-          TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ github.event_name != 'pull_request' && secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY || '' }}
+          TURBO_TOKEN: ${{ (github.event_name == 'push' || github.event_name == 'merge_group') && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ (github.event_name == 'push' || github.event_name == 'merge_group') && secrets.TURBO_TEAM || '' }}
+          TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ (github.event_name == 'push' || github.event_name == 'merge_group') && secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY || '' }}
         run: |
           set -euo pipefail
           cache_flags="--cache=local:rw,remote:r"

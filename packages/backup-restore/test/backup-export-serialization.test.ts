@@ -204,6 +204,11 @@ describe("MemoryBackupExportStorage + immutable export writes", () => {
     expect(JSON.parse(pointer as string)).toEqual(newer);
   });
 
+  // This asserts the publisher's CAS control flow (re-read + recency guard on conflict) against a
+  // storage double. The R2 adapter's own `onlyIf` etag precondition is a Cloudflare platform
+  // guarantee exercised only against live R2 in the preview-smoke layer, not in unit tests — R2 has
+  // no local emulator for conditional-put semantics, so there is deliberately no unit-level
+  // R2-backed concurrency test here (three-layer strategy, docs/agents/testing.md).
   it("keeps the newer export when an older publish races the pointer advance (CAS)", async () => {
     const storage = new MemoryBackupExportStorage();
     const newer = successEvidence({ export_timestamp: "2026-07-08T03:00:00.000Z" });
