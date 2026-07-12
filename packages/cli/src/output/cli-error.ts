@@ -26,7 +26,7 @@ export class CliError extends Error {
     this.code = error.code;
     this.retryable = error.retryable;
     const options = resolveCliErrorOptions(exitCodeOrOptions, legacyData);
-    this.exitCode = options.exitCode ?? exitCodeForErrorCode(error.code);
+    this.exitCode = options.exitCode ?? exitCodeForErrorCode(error.code, error.retryable);
     if (options.meta !== undefined) {
       this.meta = options.meta;
     }
