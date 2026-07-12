@@ -183,6 +183,54 @@ describe("config show and set commands", () => {
     expect(parsed.data.envId).toBe(ENV_ID_ALT);
   });
 
+  it("emits a machine-readable success envelope from config set in --json mode", async () => {
+    context = await setupTestContext();
+
+    const exitCode = await runCli([
+      "node",
+      "insecur",
+      "config",
+      "set",
+      "crash-reports",
+      "off",
+      "--json",
+      "--config-dir",
+      context.projectDir,
+    ]);
+    expect(exitCode).toBe(0);
+
+    const parsed = JSON.parse(context.stdout.value) as {
+      ok: boolean;
+      data: { configKey: string; configValue: string };
+    };
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data).toEqual({ configKey: "crash-reports", configValue: "off" });
+  });
+
+  it("emits the same machine-readable success envelope shape for the project-config branch", async () => {
+    context = await setupTestContext();
+
+    const exitCode = await runCli([
+      "node",
+      "insecur",
+      "config",
+      "set",
+      "default-env-id",
+      ENV_ID_ALT,
+      "--json",
+      "--config-dir",
+      context.projectDir,
+    ]);
+    expect(exitCode).toBe(0);
+
+    const parsed = JSON.parse(context.stdout.value) as {
+      ok: boolean;
+      data: { configKey: string; configValue: string };
+    };
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data).toEqual({ configKey: "default-env-id", configValue: ENV_ID_ALT });
+  });
+
   it("writes branch-env.main mapping to gitBranchToEnvironment", async () => {
     context = await setupTestContext();
 

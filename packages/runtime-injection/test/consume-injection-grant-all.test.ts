@@ -2,6 +2,7 @@ import { AUTHORIZATION_SCOPES, resolveEffectiveAccess } from "@insecur/access";
 import { recordRuntimeInjectionAuditInTenantScope } from "@insecur/audit";
 import { PlaintextHandle } from "@insecur/crypto";
 import {
+  AUTH_ERROR_CODES,
   environmentId,
   injectionGrantId,
   organizationId,
@@ -21,6 +22,7 @@ const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const GRANT = injectionGrantId.brand("igr_00000000000000000000000001");
 const USER = userId.brand("usr_00000000000000000000000001");
+const OTHER_USER = userId.brand("usr_00000000000000000000000002");
 const SECRET_A = secretId.brand("sec_00000000000000000000000001");
 const SECRET_B = secretId.brand("sec_00000000000000000000000002");
 const VERSION_A = secretVersionId.brand("sv_00000000000000000000000001");
@@ -151,5 +153,32 @@ describe("executeConsumeInjectionGrantAll", () => {
     expect(committed).toBe(false);
     expect(plaintextA.unwrapUtf8()).toEqual(new Uint8Array("secret-a".length));
     expect(plaintextB.unwrapUtf8()).toEqual(new Uint8Array("secret-b".length));
+  });
+
+  it("denies with insufficientScope and never touches the store when no policy grant was loaded", async () => {
+    await expect(executeConsumeInjectionGrantAll(input, undefined)).rejects.toMatchObject({
+      code: AUTH_ERROR_CODES.insufficientScope,
+    });
+
+    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
+    expect(withTenantScope).not.toHaveBeenCalled();
+    expect(tryConsumeGrantAll).not.toHaveBeenCalled();
+    expect(decryptBoundGrantSecretVersion).not.toHaveBeenCalled();
+  });
+
+  it("collapses an owner mismatch to the same insufficientScope code as a missing grant", async () => {
+    await expect(
+      executeConsumeInjectionGrantAll(
+        { ...input, actor: { type: "user", userId: OTHER_USER } },
+        loaded,
+      ),
+      // Same code as "no policy grant was loaded" above: a distinct owner-mismatch code would let a
+      // non-owner distinguish "no such grant" from "grant exists but isn't yours" (INS-181 oracle).
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+    expect(resolveEffectiveAccess).not.toHaveBeenCalled();
+    expect(withTenantScope).not.toHaveBeenCalled();
+    expect(tryConsumeGrantAll).not.toHaveBeenCalled();
+    expect(decryptBoundGrantSecretVersion).not.toHaveBeenCalled();
   });
 });

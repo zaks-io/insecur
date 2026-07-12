@@ -204,6 +204,74 @@ describe("MemoryBackupExportStorage + immutable export writes", () => {
     expect(JSON.parse(pointer as string)).toEqual(newer);
   });
 
+  it("keeps the newer export when an older publish races the pointer advance (CAS)", async () => {
+    const storage = new MemoryBackupExportStorage();
+    const newer = successEvidence({ export_timestamp: "2026-07-08T03:00:00.000Z" });
+    const older = successEvidence({ export_timestamp: "2026-07-07T03:00:00.000Z" });
+
+    // Interleave read(A-old), read(B-new), write(B), write(A): the stale writer must lose its
+    // compare-and-swap, re-read, and land on the recency guard instead of regressing the pointer.
+    const originalGet = storage.getLatestEvidence.bind(storage);
+    let staleReads = 0;
+    storage.getLatestEvidence = async () => {
+      staleReads += 1;
+      if (staleReads === 1) {
+        const preRaceSnapshot = await originalGet();
+        await publishLatestBackupExport(storage, newer);
+        return preRaceSnapshot;
+      }
+      return originalGet();
+    };
+
+    await publishLatestBackupExport(storage, older);
+
+    const pointer = storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY);
+    expect(JSON.parse(pointer as string)).toEqual(newer);
+  });
+
+  it("exposes a real CAS on MemoryBackupExportStorage.putLatestEvidence directly", async () => {
+    const storage = new MemoryBackupExportStorage();
+
+    // expected=null requires absence: a pointer must not already exist.
+    await expect(storage.putLatestEvidence("first", null)).resolves.toBe(true);
+    await expect(storage.getLatestEvidence()).resolves.toEqual({
+      body: "first",
+      version: "first",
+    });
+
+    // A stale expected snapshot must lose the CAS instead of overwriting the current pointer.
+    await expect(storage.putLatestEvidence("stale-write", null)).resolves.toBe(false);
+    await expect(
+      storage.putLatestEvidence("stale-write", { body: "not-current", version: "not-current" }),
+    ).resolves.toBe(false);
+    await expect(storage.getLatestEvidence()).resolves.toEqual({
+      body: "first",
+      version: "first",
+    });
+
+    // The current snapshot's version is accepted and advances the pointer.
+    await expect(
+      storage.putLatestEvidence("second", { body: "first", version: "first" }),
+    ).resolves.toBe(true);
+    await expect(storage.getLatestEvidence()).resolves.toEqual({
+      body: "second",
+      version: "second",
+    });
+  });
+
+  it("throws when the CAS keeps losing the race past the retry budget", async () => {
+    const storage = new MemoryBackupExportStorage();
+    const exportEvidence = successEvidence();
+
+    // Every write reports a conflict, as if a competitor always wins the race, so the recency
+    // guard's own retries never converge and the publish must fail loudly rather than hang.
+    storage.putLatestEvidence = () => Promise.resolve(false);
+
+    await expect(publishLatestBackupExport(storage, exportEvidence)).rejects.toThrow(
+      /kept losing its compare-and-swap race/,
+    );
+  });
+
   it("advances the latest pointer to a newer export and repairs a corrupt pointer", async () => {
     const storage = new MemoryBackupExportStorage();
     storage.objects.set(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, "not json");
