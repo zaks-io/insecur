@@ -219,6 +219,7 @@ export {
   type MetadataEnvelope,
   type MetadataEnvelopeValidationReason,
   type MetadataEnvelopeMeta,
+  type MissingValueRemediationEntry,
   type NextAction,
   type ResolvedTargetEcho,
   type SuccessEnvelope,

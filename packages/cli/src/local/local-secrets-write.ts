@@ -22,7 +22,8 @@ import {
   resolveValueUtf8,
   upsertManifestShape,
 } from "./local-secrets-write-helpers.js";
-import { assertLocalProjectReady, syncSecretShapesFromConfig } from "./sync-local-project.js";
+import { adoptLocalProjectFromConfig } from "./adopt-local-project.js";
+import { assertLocalProjectReady } from "./sync-local-project.js";
 
 const SECRET_WRITE_AUDIT_EVENT = "secret.non_protected_write";
 
@@ -132,8 +133,13 @@ export async function writeLocalSecretByVariableKey(input: {
   readonly write: SecretWriteInput;
 }): Promise<WriteFailureResult | WriteSuccessResult> {
   try {
+    await adoptLocalProjectFromConfig({
+      store: input.store,
+      projectConfig: input.projectConfig,
+      projectId: input.write.projectId,
+      environmentId: input.write.environmentId,
+    });
     await assertLocalProjectReady(input.store, input.write.projectId, input.write.environmentId);
-    await syncSecretShapesFromConfig(input.store, input.projectConfig, input.write.projectId);
 
     const shape = await resolveOrCreateSecretShape(input);
     const writeResult = await writeResolvedSecret({
