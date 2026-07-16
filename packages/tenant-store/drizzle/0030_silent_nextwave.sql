@@ -1,0 +1,1 @@
+ALTER TABLE "protected_change_approval_evidence" ADD COLUMN "delivery_target_fingerprint" text;

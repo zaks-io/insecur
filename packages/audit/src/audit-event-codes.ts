@@ -125,6 +125,7 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.webhookDeliveryFailed,
   PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed,
   PRODUCTION_AUDIT_EVENT_CODES.protectedChangeTransitionDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.protectedDeliveryApprovalDenied,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([
