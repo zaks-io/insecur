@@ -13,6 +13,7 @@ export {
   BACKUP_LATEST_EXPORT_ARTIFACT_KEY,
   buildBackupExportArtifactKey,
   buildBackupExportEvidenceKey,
+  parseBackupExportArtifactKey,
 } from "./artifact-refs.js";
 export {
   collectMissingBackupHeaderFields,
@@ -32,6 +33,7 @@ export {
 } from "./publish-latest-backup-export.js";
 export {
   openBackupArtifact,
+  peekBackupArtifactHeader,
   sealBackupArtifact,
   type OpenBackupArtifactInput,
   type OpenedBackupArtifact,
@@ -63,6 +65,34 @@ export {
   type RunBackupExportResult,
 } from "./run-backup-export.js";
 export { verifyBackupExportArtifact } from "./verify-backup-export-artifact.js";
+export {
+  BACKUP_RESTORE_ERROR_CODES,
+  RestoreImportError,
+  isRestoreImportError,
+  restoreNotArmedError,
+  type BackupRestoreErrorCode,
+} from "./restore-import-error.js";
+export {
+  RESTORE_INSTANCE_TABLES_AFTER_ORGANIZATIONS,
+  RESTORE_INSTANCE_TABLES_BEFORE_ORGANIZATIONS,
+  buildRestoreImportPlan,
+  type RestoreImportPlan,
+} from "./restore-import-plan.js";
+export {
+  verifyRestoreArtifact,
+  type VerifiedRestoreArtifact,
+  type VerifyRestoreArtifactInput,
+} from "./verify-restore-artifact.js";
+export {
+  RESTORE_IMPORT_JOURNAL_TABLE,
+  armRestoreTarget,
+  completeRestoreJournal,
+  type ArmRestoreTargetInput,
+  type CompleteRestoreJournalInput,
+  type RestoreTargetColumnTypes,
+} from "./restore-target.js";
+export { insertRestoreRows } from "./insert-restore-rows.js";
+export { runRestoreImport, type RunRestoreImportInput } from "./run-restore-import.js";
 export {
   encodeBackupJsonlLine,
   serializeBackupRow,
@@ -117,5 +147,6 @@ export type {
   RestoreDrillCanaryVerification,
   RestoreDrillEvidence,
   RestoreDrillRtoMetadata,
+  RestoreImportSuccess,
   TenantProjectScope,
 } from "./types.js";

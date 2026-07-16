@@ -184,6 +184,16 @@ export async function sealBackupArtifact(input: SealBackupArtifactInput): Promis
   return concatBytes(BACKUP_MAGIC, headerLength, headerBytes, payloadCiphertext);
 }
 
+/**
+ * Parse the cleartext header without opening the envelope. ADVISORY ONLY (ADR-0084): these fields
+ * exist to fail fast with a precise error before the AEAD open; a passing peek confers no trust.
+ * Trust derives solely from the GCM open succeeding under the AAD-bound instance ID.
+ */
+export function peekBackupArtifactHeader(sealedBytes: Uint8Array): BackupExportHeader {
+  const { headerBytes } = readSealedBackupLayout(sealedBytes);
+  return parseHeaderJson(headerBytes);
+}
+
 export async function openBackupArtifact(
   input: OpenBackupArtifactInput,
 ): Promise<OpenedBackupArtifact> {

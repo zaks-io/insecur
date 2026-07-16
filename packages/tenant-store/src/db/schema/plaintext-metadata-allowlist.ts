@@ -11,6 +11,7 @@ import { PLAINTEXT_METADATA_ALLOWLIST_PROTECTED_CHANGES } from "./plaintext-meta
 import { PLAINTEXT_METADATA_ALLOWLIST_APPROVALS } from "./plaintext-metadata-allowlist-approvals.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS } from "./plaintext-metadata-allowlist-webhooks.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_SECRET_SYNCS } from "./plaintext-metadata-allowlist-secret-syncs.js";
+import { PLAINTEXT_METADATA_ALLOWLIST_RESTORE_IMPORT } from "./plaintext-metadata-allowlist-restore-import.js";
 
 export const PLAINTEXT_METADATA_CATEGORIES = [
   "opaque-id",
@@ -246,6 +247,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
     is_default: { category: "flag" },
     org_id: { category: "opaque-id" },
   },
+  ...PLAINTEXT_METADATA_ALLOWLIST_RESTORE_IMPORT,
   ...PLAINTEXT_METADATA_ALLOWLIST_INSTANCE_BOOTSTRAP,
   ...PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS,
   ...PLAINTEXT_METADATA_ALLOWLIST_SECRET_SYNCS,

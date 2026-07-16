@@ -302,3 +302,21 @@ $$;
 REVOKE USAGE ON SCHEMA app FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION app.tenant_visible(text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION app.enforce_environment_lifecycle_immutable() FROM PUBLIC;
+
+-- Restore-import ordering (ADR-0084, INS-565). The backup export registry orders tables so FK
+-- parents import before children, but four constraints form cycles or forward references that no
+-- single ordering can satisfy (secrets<->secret_versions, app_connections<->provider_credentials,
+-- runtime_injection_policies<->runtime_injection_policy_versions, sync_target_leases->operations).
+-- Marking them DEFERRABLE INITIALLY IMMEDIATE changes nothing for normal traffic (still checked per
+-- statement) while letting the restore importer run SET CONSTRAINTS ALL DEFERRED inside each
+-- atomic per-scope import transaction so the checks move to COMMIT. Re-runnable.
+ALTER TABLE secrets
+  ALTER CONSTRAINT secrets_org_id_id_current_version_id_fkey DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE app_connections
+  ALTER CONSTRAINT app_connections_org_id_active_credential_id_fkey DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE runtime_injection_policies
+  ALTER CONSTRAINT runtime_injection_policies_org_id_id_active_version_id_fkey
+  DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE sync_target_leases
+  ALTER CONSTRAINT sync_target_leases_held_by_operation_id_operations_id_fk
+  DEFERRABLE INITIALLY IMMEDIATE;

@@ -16,6 +16,8 @@
   "backup.export_succeeded",
   "backup.restore_drill_failed",
   "backup.restore_drill_succeeded",
+  "backup.restore_import_failed",
+  "backup.restore_import_succeeded",
   "bootstrap.instance_operator_granted",
   "bootstrap.operator_claim_denied",
   "bootstrap.owner_membership_granted",

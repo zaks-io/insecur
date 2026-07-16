@@ -29,6 +29,7 @@ import * as tenantSecretSyncsSchema from "../src/db/schema/tenant-secret-syncs.j
 import * as tenantProtectedChangesSchema from "../src/db/schema/tenant-protected-changes.js";
 import * as tenantApprovalRequestsSchema from "../src/db/schema/tenant-approval-requests.js";
 import * as tenantWebhooksSchema from "../src/db/schema/tenant-webhooks.js";
+import * as restoreImportSchema from "../src/db/schema/restore-import.js";
 import { environments } from "../src/db/schema/tenant-hierarchy.js";
 import { secrets } from "../src/db/schema/tenant-secrets.js";
 import { materializePgTableExtraConfigs } from "./helpers/materialize-pg-table-extra-config.js";
@@ -46,6 +47,7 @@ const USER_SCHEMA_MODULES = {
   "./tenant-protected-changes.js": tenantProtectedChangesSchema,
   "./tenant-approval-requests.js": tenantApprovalRequestsSchema,
   "./tenant-webhooks.js": tenantWebhooksSchema,
+  "./restore-import.js": restoreImportSchema,
 } as const satisfies Record<
   (typeof USER_SCHEMA_TABLE_MODULE_PATHS)[number],
   Record<string, unknown>
