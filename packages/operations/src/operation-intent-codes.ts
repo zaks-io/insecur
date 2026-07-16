@@ -6,6 +6,7 @@ export const OPERATION_INTENT_CODES = {
   syncRun: "sync.run",
   providerReauth: "provider.reauth",
   backupExport: "backup.export",
+  backupRestoreImport: "backup.restore_import",
   runtimeInjectionPolicyChange: "runtime_injection_policy.change",
   protectedPromotionRequest: "protected_promotion.request",
   protectedRollbackRequest: "protected_rollback.request",

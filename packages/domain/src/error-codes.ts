@@ -10,10 +10,20 @@ import {
 } from "./provider-error-codes.js";
 import { IMPORT_ERROR_CODES, type ImportErrorCode } from "./import-error-codes.js";
 import { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
+import {
+  BACKUP_RESTORE_ERROR_CODES,
+  type BackupRestoreErrorCode,
+} from "./backup-restore-error-codes.js";
+import { CLI_ERROR_CODES, type CliErrorCode } from "./cli-error-codes.js";
 
 export * from "./import-error-codes.js";
 export * from "./provider-error-codes.js";
 export { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
+export {
+  BACKUP_RESTORE_ERROR_CODES,
+  type BackupRestoreErrorCode,
+} from "./backup-restore-error-codes.js";
+export { CLI_ERROR_CODES, type CliErrorCode } from "./cli-error-codes.js";
 
 export const VALIDATION_ERROR_CODES = {
   invalidOpaqueResourceId: "validation.invalid_opaque_resource_id",
@@ -230,22 +240,6 @@ export const APP_CONNECTION_ERROR_CODES = {
 export type AppConnectionErrorCode =
   (typeof APP_CONNECTION_ERROR_CODES)[keyof typeof APP_CONNECTION_ERROR_CODES];
 
-/** Client-side CLI resolution and selector failures. */
-export const CLI_ERROR_CODES = {
-  profileNotFound: "cli.profile_not_found",
-  displayNameNotFound: "cli.display_name_not_found",
-  displayNameAmbiguous: "cli.display_name_ambiguous",
-  parentScopeUnresolved: "cli.parent_scope_unresolved",
-  destructiveIdRequired: "cli.destructive_id_required",
-  profileSlugInUse: "cli.profile_slug_in_use",
-  invalidProfileSlug: "validation.invalid_profile_slug",
-  scopedSelectorNotFound: "cli.scoped_selector_not_found",
-  validationError: "cli.validation_error",
-  unexpectedError: "cli.unexpected_error",
-} as const;
-
-export type CliErrorCode = (typeof CLI_ERROR_CODES)[keyof typeof CLI_ERROR_CODES];
-
 /** Local Mode client-side capability ceiling failures. */
 export const LOCAL_ERROR_CODES = {
   cloudFeatureUnavailable: "local.cloud_feature_unavailable",
@@ -319,6 +313,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   PROVIDER_ERROR_CODES,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   IMPORT_ERROR_CODES,
+  BACKUP_RESTORE_ERROR_CODES,
   CLI_ERROR_CODES,
   LOCAL_ERROR_CODES,
   NOTIFICATION_ERROR_CODES,
@@ -347,6 +342,7 @@ export type KnownErrorCode =
   | ProviderErrorCode
   | ProviderAppRegistrationErrorCode
   | ImportErrorCode
+  | BackupRestoreErrorCode
   | CliErrorCode
   | LocalErrorCode
   | NotificationErrorCode

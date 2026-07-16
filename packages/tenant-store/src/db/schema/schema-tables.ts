@@ -19,6 +19,7 @@ export const USER_SCHEMA_TABLE_MODULE_PATHS = [
   "./tenant-webhooks.js",
   "./tenant-protected-changes.js",
   "./tenant-approval-requests.js",
+  "./restore-import.js",
 ] as const;
 
 /**
