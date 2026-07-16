@@ -74,20 +74,34 @@ export default {
     if (request.method !== "POST" || url.pathname !== "/restore-import") {
       return new Response("not found", { status: 404 });
     }
+    const invalidInput = () =>
+      new Response(JSON.stringify({ ok: false, error: { code: "validation.invalid_command_input" } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
     let input;
     try {
       input = await request.json();
     } catch {
-      return new Response(JSON.stringify({ ok: false, error: { code: "validation.invalid_command_input" } }), {
-        status: 400,
-        headers: { "content-type": "application/json" },
-      });
+      return invalidInput();
     }
-    const result = await env.RUNTIME_RESTORE.restoreImport({
-      artifactRef: String(input.artifactRef ?? ""),
-      expectedInstanceId: String(input.expectedInstanceId ?? ""),
-      expectedRootKeyVersion: Number(input.expectedRootKeyVersion ?? 0),
-    });
+    // JSON.parse accepts \`null\` and other non-object bodies; reading fields off those would
+    // throw and surface as an opaque 500 instead of a structured envelope.
+    if (input === null || typeof input !== "object" || Array.isArray(input)) {
+      return invalidInput();
+    }
+    let result;
+    try {
+      result = await env.RUNTIME_RESTORE.restoreImport({
+        artifactRef: String(input.artifactRef ?? ""),
+        expectedInstanceId: String(input.expectedInstanceId ?? ""),
+        expectedRootKeyVersion: Number(input.expectedRootKeyVersion ?? 0),
+      });
+    } catch {
+      // A rejected RPC (binding unavailable, serialization failure) must stay metadata-only:
+      // a fixed reason code, never the thrown error's message or stack.
+      result = { ok: false, error: { code: "backup_restore.import_failed" } };
+    }
     return new Response(JSON.stringify(result), {
       status: result.ok ? 200 : 409,
       headers: { "content-type": "application/json" },
