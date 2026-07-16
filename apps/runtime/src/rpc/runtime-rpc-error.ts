@@ -6,7 +6,11 @@ import {
 } from "@insecur/domain";
 import { InjectionGrantError, RuntimeInjectionPolicyError } from "@insecur/runtime-injection";
 import { SecretWriteError } from "@insecur/secret-store";
-import { RuntimeConfigMissingError, isTransientConnectionError } from "@insecur/tenant-store";
+import {
+  RuntimeConfigMissingError,
+  isConnectionAcquisitionFailure,
+  isTransientConnectionError,
+} from "@insecur/tenant-store";
 import { RootKeyNotConfiguredError } from "@insecur/crypto";
 import { GuidedOrganizationProvisionError, MembershipManagementError } from "@insecur/onboarding";
 import { OperationStoreError } from "@insecur/operations";
@@ -124,14 +128,18 @@ export function toRuntimeRpcError(error: unknown): RuntimeRpcError {
     return misconfiguration;
   }
   // A transient connection-layer failure (Hyperdrive pool exhaustion surfaces SQLSTATE 58000,
-  // server shutdown, connection loss) is retryable and must not leak the raw SQLSTATE as the
-  // public error code (INS-603). This must run before the structural `{ code }` fallback, which
-  // would otherwise forward the SQLSTATE verbatim as a non-retryable code.
+  // server shutdown, connection loss) must not leak the raw SQLSTATE as the public error code
+  // (INS-603). This must run before the structural `{ code }` fallback, which would otherwise
+  // forward the SQLSTATE verbatim. Retryable only when the failure happened at connection
+  // acquisition, before any statement ran: a mid-flight loss (CONNECTION_CLOSED, 08006, ...) can
+  // follow a COMMIT whose ack was lost, and blind writes carry no idempotency key, so a client
+  // honoring `retryable: true` there could double-apply the write — the same reason 08007 stays
+  // non-retryable.
   if (isTransientConnectionError(error)) {
     return {
       code: STORE_ERROR_CODES.unavailable,
       message: runtimeRpcMessage(error, STORE_ERROR_CODES.unavailable),
-      retryable: true,
+      retryable: isConnectionAcquisitionFailure(error),
     };
   }
   // resolveKnownErrorCode preserves a structural `{ code }` (e.g. the insufficient-scope denial

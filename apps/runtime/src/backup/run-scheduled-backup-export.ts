@@ -25,8 +25,14 @@ function createR2BackupExportStorage(bucket: R2Bucket): BackupExportStorage {
         throw new Error(`immutable backup evidence already exists at ${key}`);
       }
     },
-    async putLatestEvidence(body) {
-      await bucket.put(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, body);
+    async putLatestEvidence(body, expected) {
+      // Conditional put keeps the publisher's read-guard-write a real compare-and-swap: a
+      // concurrent publisher that advanced the pointer since our read fails this precondition
+      // instead of being silently overwritten by older evidence.
+      const written = await bucket.put(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, body, {
+        onlyIf: expected === null ? { etagDoesNotMatch: "*" } : { etagMatches: expected.version },
+      });
+      return written !== null;
     },
     async getEvidence(key) {
       const object = await bucket.get(key);
@@ -34,7 +40,7 @@ function createR2BackupExportStorage(bucket: R2Bucket): BackupExportStorage {
     },
     async getLatestEvidence() {
       const object = await bucket.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY);
-      return object === null ? null : await object.text();
+      return object === null ? null : { body: await object.text(), version: object.etag };
     },
   };
 }

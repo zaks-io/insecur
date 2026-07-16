@@ -3,7 +3,6 @@ import {
   OPERATION_ERROR_CODES,
   PROVIDER_ERROR_CODES,
   SECRET_SYNC_ERROR_CODES,
-  readErrorCode,
   type EnvironmentId,
   type KnownErrorCode,
   type OperationId,
@@ -18,6 +17,7 @@ import {
   type ProviderLookupStatus,
   type SecretSyncProviderLookupPorts,
 } from "./provider-lookup-port.js";
+import { toSecretSyncAuditReasonCode } from "./record-secret-sync-audit.js";
 import { recordSecretSyncRevalidationDenied } from "./record-secret-sync-plan-audit.js";
 import { SecretSyncError } from "./secret-sync-error.js";
 import { computeSecretSyncPlanInTenantScope, type SecretSyncPlan } from "./secret-sync-plan.js";
@@ -131,7 +131,7 @@ export async function revalidateSecretSyncPlanBeforeProviderWrites(
       environmentId: input.environmentId,
       secretSyncId: input.secretSyncId,
       operationId: input.lease.operationId,
-      reasonCode: readErrorCode(error) ?? PROVIDER_ERROR_CODES.unavailable,
+      reasonCode: toSecretSyncAuditReasonCode(error, PROVIDER_ERROR_CODES.unavailable),
       request: { requestId: input.requestId },
     });
     throw error;

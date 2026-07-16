@@ -58,12 +58,14 @@ function readMessage(error: unknown): string {
 }
 
 /**
- * True when the error is a transient database connection-layer failure that a caller may safely
- * retry: enumerated connection exceptions (class 08), external system errors such as Hyperdrive
- * pool exhaustion (58000/58030), server shutdown (57P01/57P02/57P03), or postgres.js connect
- * timeouts and unexpected socket closes. Data, constraint, and authorization SQLSTATEs — and
- * ambiguous or persistent faults like 08007/08P01/58P01/58P02 — never match, so real errors keep
- * failing closed.
+ * True when the error is a transient database connection-layer failure: enumerated connection
+ * exceptions (class 08), external system errors such as Hyperdrive pool exhaustion (58000/58030),
+ * server shutdown (57P01/57P02/57P03), or postgres.js connect timeouts and unexpected socket
+ * closes. Matching means "map to a generic unavailable code, do not leak the SQLSTATE" — NOT
+ * "safe to retry": mid-flight losses (CONNECTION_CLOSED, 08000/08003/08006) can follow a COMMIT
+ * whose ack was lost, so only `isConnectionAcquisitionFailure` decides retryability. Data,
+ * constraint, and authorization SQLSTATEs — and ambiguous or persistent faults like
+ * 08007/08P01/58P01/58P02 — never match, so real errors keep failing closed.
  */
 export function isTransientConnectionError(error: unknown): boolean {
   const code = readCode(error);

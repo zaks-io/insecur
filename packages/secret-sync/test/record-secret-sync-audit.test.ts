@@ -1,6 +1,7 @@
 import * as audit from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
+  PROVIDER_ERROR_CODES,
   environmentId,
   organizationId,
   projectId,
@@ -16,6 +17,7 @@ import {
   recordSecretSyncDisabled,
   recordSecretSyncUpdated,
   toBindingAuditDetails,
+  toSecretSyncAuditReasonCode,
 } from "../src/record-secret-sync-audit.js";
 
 const ORG = organizationId.brand("org_00000000000000000000000001");
@@ -176,5 +178,16 @@ describe("recordSecretSync audit details", () => {
     expect(writeSpy.mock.calls[0]?.[0]).not.toEqual(
       expect.objectContaining({ denial: { reasonCode: AUTH_ERROR_CODES.insufficientScope } }),
     );
+  });
+
+  it("collapses non-dotted error codes (raw SQLSTATEs) to the fallback reason code", () => {
+    const sqlstateError = Object.assign(new Error("connection failure"), { code: "58000" });
+    expect(toSecretSyncAuditReasonCode(sqlstateError)).toBe("audit.event_invalid");
+    expect(toSecretSyncAuditReasonCode(sqlstateError, PROVIDER_ERROR_CODES.unavailable)).toBe(
+      PROVIDER_ERROR_CODES.unavailable,
+    );
+    expect(toSecretSyncAuditReasonCode(new Error("no code"))).toBe("audit.event_invalid");
+    const dottedError = Object.assign(new Error("denied"), { code: "auth.insufficient_scope" });
+    expect(toSecretSyncAuditReasonCode(dottedError)).toBe("auth.insufficient_scope");
   });
 });

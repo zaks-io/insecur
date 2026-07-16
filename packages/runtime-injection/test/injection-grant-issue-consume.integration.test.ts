@@ -1,4 +1,5 @@
 import {
+  AUTH_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
   INJECTION_ERROR_CODES,
   membershipId,
@@ -61,7 +62,9 @@ describeInjectionGrantIntegration("Runtime Injection Grant issue and consume", (
           variableKey,
           actor: { type: "user", userId: otherUserId },
         }),
-      ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+        // Owner mismatch collapses to the missing-grant code so consume is not a grant-existence
+        // oracle (INS-181).
+      ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
       await expect(
         consumeInjectionGrant({
