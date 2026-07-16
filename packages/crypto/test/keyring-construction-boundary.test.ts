@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ESLint } from "eslint";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import {
   KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS,
@@ -54,9 +54,25 @@ const NEWLY_COVERED_KEYRING_CONSTRUCTORS = [
   "StaticRootKeyProvider",
 ] as const;
 const ESLINT_BOUNDARY_TIMEOUT_MS = 30_000;
+// The config lints with projectService type information, so the first lint of a real source
+// module builds a full TypeScript program. Batching every target into one lintFiles call keeps
+// that cost to a single generously budgeted beforeAll instead of racing per-test 30s timeouts
+// on contended CI runners (INS-610).
+const ESLINT_BATCH_TIMEOUT_MS = 120_000;
 const KEYRING_BOUNDARY_MESSAGE =
   "Keyring construction is confined to apps/runtime/src/** (ADR-0064/0077)";
 const eslint = new ESLint({ cwd: repoRoot });
+const lintTargets = [
+  negativeFixture,
+  negativeDeepPathFixture,
+  negativeDeepNamespaceFixture,
+  negativeDynamicFixture,
+  negativeKeyringValueFixture,
+  positiveKeyringTypeFixture,
+  positiveConstructorTypeFixture,
+  typeOnlyConsumerModule,
+] as const;
+const lintResultsByPath = new Map<string, ESLint.LintResult>();
 
 interface LintConfigWithRules {
   rules?: Record<string, unknown>;
@@ -79,27 +95,29 @@ function formatLintOutput(results: ESLint.LintResult[]): string {
     .join("\n");
 }
 
-async function runEslint(filePath: string): Promise<string> {
-  const lintTarget = path.relative(repoRoot, filePath);
-  const results = await eslint.lintFiles([lintTarget]);
-  const errorCount = results.reduce((total, result) => total + result.errorCount, 0);
-  const warningCount = results.reduce((total, result) => total + result.warningCount, 0);
-  const output = formatLintOutput(results);
-
-  if (errorCount > 0 || warningCount > 0) {
-    throw new Error(`eslint failed for ${lintTarget}\n${output}`);
+function lintResultFor(filePath: string): ESLint.LintResult {
+  const result = lintResultsByPath.get(filePath);
+  if (!result) {
+    throw new Error(`no cached lint result for ${path.relative(repoRoot, filePath)}`);
   }
-
-  return output;
+  return result;
 }
 
-async function runEslintExpectFailure(filePath: string): Promise<string> {
-  try {
-    await runEslint(filePath);
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+function expectLintClean(filePath: string): void {
+  const result = lintResultFor(filePath);
+  if (result.errorCount > 0 || result.warningCount > 0) {
+    throw new Error(
+      `eslint failed for ${path.relative(repoRoot, filePath)}\n${formatLintOutput([result])}`,
+    );
   }
-  throw new Error(`expected eslint to fail for ${filePath}`);
+}
+
+function expectLintFailure(filePath: string): string {
+  const result = lintResultFor(filePath);
+  if (result.errorCount === 0 && result.warningCount === 0) {
+    throw new Error(`expected eslint to fail for ${path.relative(repoRoot, filePath)}`);
+  }
+  return formatLintOutput([result]);
 }
 
 async function readLintConfigFor(filePath: string): Promise<LintConfigWithRules> {
@@ -116,6 +134,15 @@ function readEslintConfigSource(): string {
 }
 
 describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
+  beforeAll(async () => {
+    const results = await eslint.lintFiles(
+      lintTargets.map((target) => path.relative(repoRoot, target)),
+    );
+    for (const result of results) {
+      lintResultsByPath.set(result.filePath, result);
+    }
+  }, ESLINT_BATCH_TIMEOUT_MS);
+
   it("drives eslint from the shared crypto denylist constant", () => {
     const source = readEslintConfigSource();
     expect(source).toContain("KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS");
@@ -125,78 +152,50 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
     expect(source).not.toMatch(/importNames:\s*\[[\s\S]*?"createKeyringFromDevEnvRootKey"/);
   });
 
-  it(
-    "fails lint for unallowlisted keyring constructor imports",
-    async () => {
-      const output = await runEslintExpectFailure(negativeFixture);
-      expect(output).toMatch(/no-restricted-imports/);
-      for (const importName of NEWLY_COVERED_KEYRING_CONSTRUCTORS) {
-        expect(output).toContain(importName);
-      }
-    },
-    ESLINT_BOUNDARY_TIMEOUT_MS,
-  );
+  it("fails lint for unallowlisted keyring constructor imports", () => {
+    const output = expectLintFailure(negativeFixture);
+    expect(output).toMatch(/no-restricted-imports/);
+    for (const importName of NEWLY_COVERED_KEYRING_CONSTRUCTORS) {
+      expect(output).toContain(importName);
+    }
+  });
 
-  it(
-    "fails lint for unallowlisted deep-path keyring constructor imports",
-    async () => {
-      const output = await runEslintExpectFailure(negativeDeepPathFixture);
-      expect(output).toMatch(/no-restricted-imports/);
-      expect(output).toContain("createKeyring");
-    },
-    ESLINT_BOUNDARY_TIMEOUT_MS,
-  );
+  it("fails lint for unallowlisted deep-path keyring constructor imports", () => {
+    const output = expectLintFailure(negativeDeepPathFixture);
+    expect(output).toMatch(/no-restricted-imports/);
+    expect(output).toContain("createKeyring");
+  });
 
-  it(
-    "fails lint for unallowlisted deep-path namespace keyring imports",
-    async () => {
-      const output = await runEslintExpectFailure(negativeDeepNamespaceFixture);
-      expect(output).toMatch(/no-restricted-imports/);
-      expect(output).toMatch(/keyring\.js/);
-    },
-    ESLINT_BOUNDARY_TIMEOUT_MS,
-  );
+  it("fails lint for unallowlisted deep-path namespace keyring imports", () => {
+    const output = expectLintFailure(negativeDeepNamespaceFixture);
+    expect(output).toMatch(/no-restricted-imports/);
+    expect(output).toMatch(/keyring\.js/);
+  });
 
-  it(
-    "fails lint for unallowlisted dynamic deep-path keyring imports",
-    async () => {
-      const output = await runEslintExpectFailure(negativeDynamicFixture);
-      expect(output).toMatch(/no-restricted-syntax/);
-      expect(output).toMatch(/Keyring construction is confined to apps\/runtime\/src/);
-    },
-    ESLINT_BOUNDARY_TIMEOUT_MS,
-  );
+  it("fails lint for unallowlisted dynamic deep-path keyring imports", () => {
+    const output = expectLintFailure(negativeDynamicFixture);
+    expect(output).toMatch(/no-restricted-syntax/);
+    expect(output).toMatch(/Keyring construction is confined to apps\/runtime\/src/);
+  });
 
   it("lists Keyring on the shared crypto denylist", () => {
     expect(KEYRING_CONSTRUCTION_RESTRICTED_CRYPTO_IMPORTS).toContain("Keyring");
   });
 
-  it(
-    "fails lint for unallowlisted Keyring value imports from the package index",
-    async () => {
-      const output = await runEslintExpectFailure(negativeKeyringValueFixture);
-      expect(output).toMatch(/no-restricted-imports|no-restricted-syntax/);
-      expect(output).toContain("Keyring");
-    },
-    ESLINT_BOUNDARY_TIMEOUT_MS,
-  );
+  it("fails lint for unallowlisted Keyring value imports from the package index", () => {
+    const output = expectLintFailure(negativeKeyringValueFixture);
+    expect(output).toMatch(/no-restricted-imports|no-restricted-syntax/);
+    expect(output).toContain("Keyring");
+  });
 
-  it(
-    "allows type-only constructor imports outside runtime",
-    async () => {
-      await runEslint(positiveConstructorTypeFixture);
-    },
-    ESLINT_BOUNDARY_TIMEOUT_MS,
-  );
+  it("allows type-only constructor imports outside runtime", () => {
+    expectLintClean(positiveConstructorTypeFixture);
+  });
 
-  it(
-    "allows type-only Keyring imports outside runtime",
-    async () => {
-      await runEslint(positiveKeyringTypeFixture);
-      await runEslint(typeOnlyConsumerModule);
-    },
-    ESLINT_BOUNDARY_TIMEOUT_MS,
-  );
+  it("allows type-only Keyring imports outside runtime", () => {
+    expectLintClean(positiveKeyringTypeFixture);
+    expectLintClean(typeOnlyConsumerModule);
+  });
 
   it(
     "does not apply the keyring boundary to tenant-keyring composition helpers",
