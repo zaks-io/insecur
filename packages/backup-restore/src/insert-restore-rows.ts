@@ -37,8 +37,11 @@ function rowColumnEntries(
 
 function bindValue(value: unknown, udtName: string | undefined): unknown {
   // json/jsonb round-trips through the JSONL export as parsed values; re-serialize the whole
-  // value (including top-level strings) so the server-side cast sees valid JSON text.
-  if (value !== null && udtName !== undefined && JSON_UDT_NAMES.has(udtName)) {
+  // value (including top-level strings and JSON null) so the server-side cast sees valid JSON
+  // text. The export driver parses json columns, so a stored JSON null and SQL NULL both arrive
+  // here as `null`; re-serializing to JSON null preserves the JSON-valued reading instead of
+  // collapsing every stored JSON null to SQL NULL.
+  if (udtName !== undefined && JSON_UDT_NAMES.has(udtName)) {
     return JSON.stringify(value);
   }
   return value;

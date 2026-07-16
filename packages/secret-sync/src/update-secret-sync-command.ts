@@ -10,6 +10,7 @@ import {
 } from "@insecur/domain";
 import type { SecretSyncMappingBehavior } from "@insecur/domain";
 
+import { resolveSecretSyncManageAccess } from "./assert-secret-sync-access.js";
 import { assertProtectedSecretSyncActionApproved } from "./assert-secret-sync-delivery-approval.js";
 import type { MetadataSafeSecretSync } from "./metadata-safe-secret-sync.js";
 import {
@@ -94,6 +95,16 @@ export async function updateSecretSyncCommand(
   });
 
   try {
+    // Authorization runs before the protected-delivery gate, matching create and revalidate, so a
+    // no-access in-tenant actor gets the access denial instead of probing whether the environment
+    // is protected or generating denied protected-delivery audit rows (INS-611). The scoped
+    // mutation below resolves the same manage access again as defense in depth.
+    await resolveSecretSyncManageAccess(input.actor, {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+    });
+
     // Reconfiguring a protected-environment sync is a protected delivery configuration change and
     // needs current approval evidence before the mutation runs (INS-87). The scoped mutation below
     // only proceeds when the sync really lives at this exact coordinate, so gating on the requested
