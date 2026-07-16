@@ -194,6 +194,8 @@ export {
   type CliErrorCode,
   LOCAL_ERROR_CODES,
   type LocalErrorCode,
+  MIGRATE_ERROR_CODES,
+  type MigrateErrorCode,
   NOTIFICATION_ERROR_CODES,
   type NotificationErrorCode,
   PROTECTED_CHANGE_ERROR_CODES,

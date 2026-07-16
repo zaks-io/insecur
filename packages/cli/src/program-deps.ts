@@ -96,8 +96,20 @@ function buildResolveApi(options: ProgramDepsOptions): ProgramDeps["resolveApi"]
 export interface ProgramDeps {
   readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
   readonly resolveApi: (flags: GlobalCliFlags) => Promise<ResolvedApi>;
+  /**
+   * HTTP client for an explicit Hosted Instance, regardless of the resolved project host.
+   * `projects migrate` needs this: its project config says `"local"` while its target is a
+   * cloud host, so the host-driven `resolveApi` seam cannot serve it.
+   */
+  readonly createHostedApi: (host: string) => ApiClient;
 }
 
 export function createProgramDeps(options: ProgramDepsOptions = {}): ProgramDeps {
-  return { globalFlags, resolveApi: buildResolveApi(options) };
+  const httpOptions =
+    options.traceHeaders === undefined ? {} : { traceHeaders: options.traceHeaders };
+  return {
+    globalFlags,
+    resolveApi: buildResolveApi(options),
+    createHostedApi: (host) => createHttpApiClientForHost(host, httpOptions),
+  };
 }

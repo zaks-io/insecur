@@ -36,6 +36,21 @@ insecur projects create [options]
 | `--project-id <id>`    | client-minted project opaque id  |
 | `--display-name-stdin` | read the Display Name from stdin |
 
+## `insecur projects migrate`
+
+Migrate this Local Mode project to a Hosted Instance (one-way, verified-then-clean)
+
+```sh
+insecur projects migrate [options]
+```
+
+| Option                      | Description                                                                    |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| `--org-id <id>`             | target organization opaque id                                                  |
+| `--confirm-migrate`         | scoped confirmation: verify every value remotely, then delete local copies     |
+| `--yes`                     | answers ordinary prompts only; it cannot confirm a migration                   |
+| `--skip-key <variable-key>` | keep the remote value for a diverged Variable Key (repeatable) (default: `[]`) |
+
 ## Related
 
 - [CLI overview and global flags](/docs/cli)

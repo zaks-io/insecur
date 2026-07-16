@@ -1,22 +1,12 @@
-import type { Command, Command as CommanderCommand } from "commander";
-import { runOrgsListCommand } from "./commands/orgs-list.js";
-import type { GlobalCliFlags } from "./cli-options.js";
+import type { Command } from "commander";
 import { registerEnvsCommands } from "./register-envs-commands.js";
 import {
   registerOrgsCommands,
   registerProjectsCommands,
+  type NavigationDeps,
 } from "./register-orgs-projects-commands.js";
 
-export function registerNavigationCommands(
-  program: Command,
-  deps: {
-    readonly globalFlags: (command: CommanderCommand) => GlobalCliFlags;
-    readonly resolveApi: (flags: GlobalCliFlags) => Promise<{
-      api: Parameters<typeof runOrgsListCommand>[1];
-      context: Parameters<typeof runOrgsListCommand>[2];
-    }>;
-  },
-): void {
+export function registerNavigationCommands(program: Command, deps: NavigationDeps): void {
   registerOrgsCommands(program, deps);
   registerProjectsCommands(program, deps);
   registerEnvsCommands(program, deps);

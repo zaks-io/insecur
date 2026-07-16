@@ -27,6 +27,7 @@ const HOSTED_NAVIGATION_STUBS = {
   pollCliDeviceToken: unsupportedLocalApi("Hosted device login polling"),
   provisionPersonalOrganization: unsupportedLocalApi("Hosted organization provisioning"),
   listEnvironmentSecrets: unsupportedLocalApi("Hosted secret listing"),
+  checkSecretPossession: unsupportedLocalApi("Hosted possession check"),
   listSecretVersions: unsupportedLocalApi("Hosted secret version listing"),
   consumeInjectionGrantAll: unsupportedLocalApi("Profile-backed injection of all variables"),
   listSessionOrganizations: unsupportedLocalApi("Organization listing"),

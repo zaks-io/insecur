@@ -38,6 +38,15 @@ function firstDefined<T>(...values: readonly (T | undefined)[]): T | undefined {
   return undefined;
 }
 
+/**
+ * The Hosted Instance a Local Mode migrate targets: explicit `--host` / `INSECUR_HOST`, else the
+ * default cloud host. Deliberately skips the project config and profile hosts — for a Local Mode
+ * project those say `"local"`, and migrate is the one command whose target is never local.
+ */
+export function resolveHostedMigrateHost(flags: GlobalCliFlags): string {
+  return parseApiHost(firstDefined(flags.host, readEnv("INSECUR_HOST")) ?? DEFAULT_HOST);
+}
+
 export function resolveCliScope(
   flags: GlobalCliFlags,
   projectConfig: InsecurProjectConfig | null,

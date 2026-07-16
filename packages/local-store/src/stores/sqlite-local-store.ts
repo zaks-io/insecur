@@ -86,6 +86,10 @@ export class SqliteLocalStore
     return this.projectsStore.listSecretShapes(...args);
   }
 
+  deleteProject(...args: Parameters<LocalProjectMetadataStore["deleteProject"]>) {
+    return this.projectsStore.deleteProject(...args);
+  }
+
   replaceCurrentVersion(...args: Parameters<LocalSecretVersionStore["replaceCurrentVersion"]>) {
     return this.secretVersionsStore.replaceCurrentVersion(...args);
   }

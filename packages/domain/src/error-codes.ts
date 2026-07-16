@@ -15,8 +15,10 @@ import {
   type BackupRestoreErrorCode,
 } from "./backup-restore-error-codes.js";
 import { CLI_ERROR_CODES, type CliErrorCode } from "./cli-error-codes.js";
+import { MIGRATE_ERROR_CODES, type MigrateErrorCode } from "./migrate-error-codes.js";
 
 export * from "./import-error-codes.js";
+export { MIGRATE_ERROR_CODES, type MigrateErrorCode } from "./migrate-error-codes.js";
 export * from "./provider-error-codes.js";
 export { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
 export {
@@ -77,6 +79,8 @@ export const SECRET_ERROR_CODES = {
    * environment exists, mirroring `injection.grant_denied`.
    */
   coordinateInvalid: "secret.coordinate_invalid",
+  /** Possession-check verdict: candidate does not match the stored Current Version (ADR-0080). */
+  possessionMismatch: "secret.possession_mismatch",
 } as const;
 
 export type SecretErrorCode = (typeof SECRET_ERROR_CODES)[keyof typeof SECRET_ERROR_CODES];
@@ -316,6 +320,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   BACKUP_RESTORE_ERROR_CODES,
   CLI_ERROR_CODES,
   LOCAL_ERROR_CODES,
+  MIGRATE_ERROR_CODES,
   NOTIFICATION_ERROR_CODES,
   PROTECTED_CHANGE_ERROR_CODES,
   APPROVAL_ERROR_CODES,
@@ -345,6 +350,7 @@ export type KnownErrorCode =
   | BackupRestoreErrorCode
   | CliErrorCode
   | LocalErrorCode
+  | MigrateErrorCode
   | NotificationErrorCode
   | ProtectedChangeErrorCode
   | ApprovalErrorCode
