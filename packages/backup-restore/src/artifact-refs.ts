@@ -21,3 +21,15 @@ export function buildBackupExportEvidenceKey(exportIdentity: string): string {
   assertBackupExportIdentity(exportIdentity);
   return `backup/exports/${exportIdentity}/export-success.json`;
 }
+
+const ARTIFACT_KEY_PATTERN = /^backup\/exports\/([^/]+)\/artifact\.ibkp$/;
+
+/** Recover the export identity from an immutable artifact key, or null for foreign shapes. */
+export function parseBackupExportArtifactKey(artifactRef: string): string | null {
+  const match = ARTIFACT_KEY_PATTERN.exec(artifactRef);
+  const exportIdentity = match?.[1];
+  if (exportIdentity === undefined || !isMetadataSafeOpaqueTokenString(exportIdentity)) {
+    return null;
+  }
+  return exportIdentity;
+}

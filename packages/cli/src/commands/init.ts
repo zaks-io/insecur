@@ -3,12 +3,13 @@ import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import { parseCliProfileSlug } from "../config/profiles/profile-slug.js";
 import { resolveAvailableProfileSlug } from "../config/profiles/available-profile-slug.js";
-import { isLocalModeHost, LOCAL_MODE_HOST } from "../config/local-mode.js";
+import { isLocalModeHost } from "../config/local-mode.js";
 import { tryResolveSessionCredential } from "../auth/try-session.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
 import { persistInitConfig } from "./init-persist.js";
 import { runLocalInitCommand, type LocalInitCommandOptions } from "./init-local.js";
+import { runLocalInitAdoptCommand } from "./init-local-adopt.js";
 import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { CliError } from "../output/cli-error.js";
 import { LOGIN_REMEDIATION } from "../output/cli-remediation.js";
@@ -31,12 +32,22 @@ function requestedHostedInit(flags: GlobalCliFlags): boolean {
   return flags.host !== undefined && !isLocalModeHost(flags.host);
 }
 
+function wantsLocalInit(flags: GlobalCliFlags, context: ResolvedCliContext): boolean {
+  return flags.host === undefined
+    ? isLocalModeHost(context.scope.host)
+    : isLocalModeHost(flags.host);
+}
+
 export async function runInitCommand(
   flags: GlobalCliFlags,
   api: ApiClient,
   context: ResolvedCliContext,
   commandOptions: InitCommandOptions,
 ): Promise<number> {
+  const localAdoptExit = await tryLocalAdoptPath(flags, context, commandOptions);
+  if (localAdoptExit !== undefined) {
+    return localAdoptExit;
+  }
   const session = await tryResolveSessionCredential(context.scope.host);
   if (session === undefined) {
     if (requestedHostedInit(flags)) {
@@ -52,10 +63,7 @@ export async function runInitCommand(
     return runLocalInitCommand(flags, commandOptions);
   }
 
-  if (isLocalModeHost(flags.host ?? LOCAL_MODE_HOST) && flags.host !== undefined) {
-    return runLocalInitCommand(flags, commandOptions);
-  }
-  if (flags.host === undefined && isLocalModeHost(context.scope.host)) {
+  if (wantsLocalInit(flags, context)) {
     return runLocalInitCommand(flags, commandOptions);
   }
 
@@ -65,6 +73,33 @@ export async function runInitCommand(
     context,
     commandOptions,
     session,
+  });
+}
+
+/**
+ * Re-running init against a committed local project config never mints new
+ * IDs: it adopts the committed records on this machine and reports which
+ * manifest keys still need values here (ADR-0080 second-machine decision).
+ */
+async function tryLocalAdoptPath(
+  flags: GlobalCliFlags,
+  context: ResolvedCliContext,
+  commandOptions: InitCommandOptions,
+): Promise<number | undefined> {
+  const projectConfig = context.projectConfig;
+  if (
+    projectConfig === null ||
+    !isLocalModeHost(projectConfig.host) ||
+    requestedHostedInit(flags)
+  ) {
+    return undefined;
+  }
+  const provision = commandOptions.provision;
+  return runLocalInitAdoptCommand(flags, projectConfig, {
+    store: {
+      ...(provision?.configHome === undefined ? {} : { configHome: provision.configHome }),
+      ...(provision?.keyStore === undefined ? {} : { keyStore: provision.keyStore }),
+    },
   });
 }
 
