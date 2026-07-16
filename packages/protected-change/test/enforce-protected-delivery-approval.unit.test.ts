@@ -12,6 +12,7 @@ const accessMocks = vi.hoisted(() => ({
 const storeMocks = vi.hoisted(() => ({
   getById: vi.fn(),
   getApprovalEvidence: vi.fn(),
+  consumeApprovalEvidence: vi.fn(),
 }));
 const auditMocks = vi.hoisted(() => ({
   recordProtectedDeliveryApprovalAudit: vi.fn(),
@@ -38,7 +39,11 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
 
 vi.mock("../src/tenant-protected-change-store.js", () => ({
   TenantProtectedChangeStore: vi.fn(function MockStore() {
-    return { getById: storeMocks.getById, getApprovalEvidence: storeMocks.getApprovalEvidence };
+    return {
+      getById: storeMocks.getById,
+      getApprovalEvidence: storeMocks.getApprovalEvidence,
+      consumeApprovalEvidence: storeMocks.consumeApprovalEvidence,
+    };
   }),
 }));
 
@@ -94,11 +99,15 @@ const APPROVED_RECORD: ProtectedChangeRecord = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
+const EVIDENCE_ID = "aud_00000000000000000000000001";
+
 /** The authoritative approval-evidence row: the delivery-target fingerprint is SERVER state. */
 async function approvedEvidence(overrides: Record<string, unknown> = {}) {
   return {
+    evidenceId: EVIDENCE_ID,
     impactReviewFingerprint: FINGERPRINT,
     deliveryTargetFingerprint: await computeDeliveryTargetFingerprint(TARGET),
+    consumedAt: null,
     ...overrides,
   };
 }
@@ -120,6 +129,9 @@ describe("enforceProtectedDeliveryApproval", () => {
     accessMocks.authorizeScopeOrThrow.mockResolvedValue(undefined);
     storeMocks.getById.mockResolvedValue(APPROVED_RECORD);
     storeMocks.getApprovalEvidence.mockResolvedValue(await approvedEvidence());
+    storeMocks.consumeApprovalEvidence.mockResolvedValue(
+      await approvedEvidence({ consumedAt: "2026-01-01T00:00:00.000Z" }),
+    );
     recomputeMocks.recomputeProtectedChangeImpactFingerprint.mockResolvedValue(FINGERPRINT);
     auditMocks.recordProtectedDeliveryApprovalAudit.mockResolvedValue(undefined);
   });
@@ -135,6 +147,68 @@ describe("enforceProtectedDeliveryApproval", () => {
     const auditArg = auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls.at(-1)?.[0];
     expect(auditArg).toMatchObject({ outcome: "success", target: TARGET });
     expect(auditArg.reasonCode).toBeUndefined();
+  });
+
+  it("consumes the approval evidence as part of authorization (single-use, INS-607)", async () => {
+    await enforceProtectedDeliveryApproval(enforceInput());
+
+    expect(storeMocks.consumeApprovalEvidence).toHaveBeenCalledTimes(1);
+    expect(storeMocks.consumeApprovalEvidence).toHaveBeenCalledWith({
+      organizationId: ORG,
+      protectedChangeId: PROTECTED_CHANGE_ID,
+      evidenceId: EVIDENCE_ID,
+    });
+  });
+
+  it.each([
+    "delivery_config",
+    "secret_sync_enable",
+    "secret_sync_run",
+    "cloudflare_worker_secret_deploy",
+  ] as const)(
+    "fails closed with approval_not_authorized when replaying consumed evidence for %s",
+    async (kind) => {
+      const target: ProtectedDeliveryTarget = { ...TARGET, kind };
+      storeMocks.getApprovalEvidence.mockResolvedValue(
+        await approvedEvidence({
+          deliveryTargetFingerprint: await computeDeliveryTargetFingerprint(target),
+          consumedAt: "2026-01-01T00:00:00.000Z",
+        }),
+      );
+
+      await expect(
+        enforceProtectedDeliveryApproval(enforceInput({ target })),
+      ).rejects.toMatchObject({ code: PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized });
+      expect(storeMocks.consumeApprovalEvidence).not.toHaveBeenCalled();
+      expect(auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls.at(-1)?.[0]).toMatchObject({
+        outcome: "denied",
+        reasonCode: PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized,
+      });
+    },
+  );
+
+  it("fails closed with approval_not_authorized when the consume compare-and-set loses the race", async () => {
+    // A concurrent execution consumed the evidence between the read and the CAS: the losing caller
+    // must be denied — there is no window where one approval authorizes two executions.
+    storeMocks.consumeApprovalEvidence.mockResolvedValue(null);
+
+    await expect(enforceProtectedDeliveryApproval(enforceInput())).rejects.toMatchObject({
+      code: PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized,
+    });
+    expect(auditMocks.recordProtectedDeliveryApprovalAudit.mock.calls.at(-1)?.[0]).toMatchObject({
+      outcome: "denied",
+      reasonCode: PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized,
+    });
+  });
+
+  it("does not consume evidence when enforcement denies before the consume step", async () => {
+    await expect(
+      enforceProtectedDeliveryApproval(
+        enforceInput({ target: { ...TARGET, targetId: OTHER_SYNC } }),
+      ),
+    ).rejects.toMatchObject({ code: PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch });
+
+    expect(storeMocks.consumeApprovalEvidence).not.toHaveBeenCalled();
   });
 
   it("fails closed with missing_evidence when no protected change record exists", async () => {
