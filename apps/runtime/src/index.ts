@@ -5,6 +5,9 @@ import { runScheduledBackupExport } from "./backup/run-scheduled-backup-export.j
 import type { RuntimeEnv } from "./env.js";
 
 export { RuntimeService } from "./runtime-service.js";
+// Restore-only entrypoint (ADR-0084). Reachable ONLY over a window-scoped operator coordinator
+// binding with `entrypoint: RuntimeRestoreService`; API/Web bind RuntimeService and cannot see it.
+export { RuntimeRestoreService } from "./restore/runtime-restore-service.js";
 
 /**
  * The Runtime Worker has no public product routes (ADR-0077). It is reached only over the private

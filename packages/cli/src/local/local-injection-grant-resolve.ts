@@ -1,6 +1,5 @@
 import {
   INJECTION_ERROR_CODES,
-  LOCAL_ERROR_CODES,
   type EnvironmentId,
   type ProjectId,
   type SecretId,
@@ -9,6 +8,7 @@ import {
 } from "@insecur/domain";
 import type { LocalStore } from "@insecur/local-store";
 import { CliError } from "../output/cli-error.js";
+import { buildLocalValueReport, valueMissingOnMachineError } from "./local-value-report.js";
 
 export const GRANT_ISSUED_EVENT = "runtime_injection.grant_issued";
 export const GRANT_ISSUE_DENIED_EVENT = "runtime_injection.grant_issue_denied";
@@ -31,10 +31,14 @@ export function mapConsumeFailure(
   return INJECTION_ERROR_CODES.grantDenied;
 }
 
-function valueMissingRemediation(variableKey: VariableKey) {
-  return {
-    secretsSet: ["insecur", "secrets", "set", variableKey],
-  };
+async function throwValueMissingOnMachine(
+  store: LocalStore,
+  projectId: ProjectId,
+  environmentId: EnvironmentId,
+  variableKey: VariableKey,
+): Promise<never> {
+  const report = await buildLocalValueReport(store, projectId, environmentId);
+  throw valueMissingOnMachineError(variableKey, report);
 }
 
 export async function resolveVariableKeyBinding(
@@ -53,28 +57,14 @@ export async function resolveVariableKeyBinding(
   }
   const current = await store.secretVersions.getCurrentWrappedVersion(projectId, shape.secretId);
   if (current === null) {
-    throw new CliError(
-      {
-        code: LOCAL_ERROR_CODES.valueMissingOnMachine,
-        message: `Variable key ${variableKey} has no local value on this machine.`,
-        retryable: false,
-      },
-      { remediation: valueMissingRemediation(variableKey) },
-    );
+    return throwValueMissingOnMachine(store, projectId, environmentId, variableKey);
   }
   const metadata = await store.secretVersions.listSecretMetadata(projectId, environmentId);
   const hasCurrent = metadata.some(
     (entry) => entry.secretId === shape.secretId && entry.hasCurrentVersion,
   );
   if (!hasCurrent) {
-    throw new CliError(
-      {
-        code: LOCAL_ERROR_CODES.valueMissingOnMachine,
-        message: `Variable key ${variableKey} has no local value on this machine.`,
-        retryable: false,
-      },
-      { remediation: valueMissingRemediation(variableKey) },
-    );
+    return throwValueMissingOnMachine(store, projectId, environmentId, variableKey);
   }
   return {
     secretId: shape.secretId,

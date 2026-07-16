@@ -2,6 +2,7 @@ import {
   AUDIT_ERROR_CODES,
   ABUSE_ERROR_CODES,
   AUTH_ERROR_CODES,
+  BACKUP_RESTORE_ERROR_CODES,
   BOOTSTRAP_ERROR_CODES,
   CLI_ERROR_CODES,
   CRYPTO_ERROR_CODES,
@@ -175,6 +176,20 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [HIGH_ASSURANCE_ERROR_CODES.invalidRiskReason]: EXIT_VALIDATION,
   [ABUSE_ERROR_CODES.rateLimited]: EXIT_RETRYABLE,
   [STORE_ERROR_CODES.unavailable]: EXIT_RETRYABLE,
+  // Restore-import failures (ADR-0084) are operator surface, not CLI product surface; the exit
+  // codes exist to keep the docs/cli-and-sync.md registry lockstep total over KnownErrorCode.
+  [BACKUP_RESTORE_ERROR_CODES.notArmed]: EXIT_UNEXPECTED,
+  [BACKUP_RESTORE_ERROR_CODES.targetIsLive]: EXIT_UNEXPECTED,
+  [BACKUP_RESTORE_ERROR_CODES.targetNotFresh]: EXIT_CONFLICT,
+  [BACKUP_RESTORE_ERROR_CODES.importConflict]: EXIT_CONFLICT,
+  [BACKUP_RESTORE_ERROR_CODES.artifactNotFound]: EXIT_NOT_FOUND,
+  [BACKUP_RESTORE_ERROR_CODES.artifactInvalid]: EXIT_VALIDATION,
+  [BACKUP_RESTORE_ERROR_CODES.headerMismatch]: EXIT_VALIDATION,
+  [BACKUP_RESTORE_ERROR_CODES.exportOperationMismatch]: EXIT_CONFLICT,
+  [BACKUP_RESTORE_ERROR_CODES.manifestIncomplete]: EXIT_VALIDATION,
+  [BACKUP_RESTORE_ERROR_CODES.unsupportedTable]: EXIT_VALIDATION,
+  [BACKUP_RESTORE_ERROR_CODES.schemaMismatch]: EXIT_CONFLICT,
+  [BACKUP_RESTORE_ERROR_CODES.importFailed]: EXIT_UNEXPECTED,
 };
 
 function exitCodeForPrefix(code: KnownErrorCode): number | undefined {
