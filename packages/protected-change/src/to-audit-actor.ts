@@ -1,7 +1,7 @@
 import type { ActorRef } from "@insecur/access";
-import type { recordApprovalAudit } from "@insecur/audit";
+import type { AuditActorRef } from "@insecur/audit";
 
-export function toAuditActor(actor: ActorRef): Parameters<typeof recordApprovalAudit>[0]["actor"] {
+export function toAuditActor(actor: ActorRef): AuditActorRef {
   if (actor.type === "user") {
     return { type: "user", userId: actor.userId };
   }

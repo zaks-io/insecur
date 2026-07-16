@@ -1241,6 +1241,9 @@ importers:
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
+      '@insecur/protected-change':
+        specifier: workspace:*
+        version: link:../protected-change
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store

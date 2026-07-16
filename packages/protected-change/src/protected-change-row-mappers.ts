@@ -33,6 +33,7 @@ export interface ApprovalEvidenceRow {
   audit_event_id: string;
   operation_id: string | null;
   impact_review_fingerprint: string;
+  delivery_target_fingerprint: string | null;
   created_at: Date | string;
 }
 
@@ -100,6 +101,7 @@ export function toApprovalEvidence(row: ApprovalEvidenceRow): ProtectedChangeApp
         ? null
         : (row.operation_id as ProtectedChangeApprovalEvidence["operationId"]),
     impactReviewFingerprint: row.impact_review_fingerprint,
+    deliveryTargetFingerprint: row.delivery_target_fingerprint,
     createdAt: toIsoTimestamp(row.created_at),
   };
 }
