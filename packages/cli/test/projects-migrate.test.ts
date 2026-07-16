@@ -117,10 +117,33 @@ function createFakeCloud(options: { readonly organizations?: number } = {}) {
       ? [{ organizationId: OTHER_ORG_ID, displayName: "Second" as DisplayName }]
       : []),
   ];
+  // Secret state is namespaced by the full org/project/environment coordinate, like the real
+  // route, so a migration hitting the wrong coordinate cannot pass by cross-environment leakage.
+  const secretsByCoordinate = new Map<string, Map<string, FakeRemoteSecret>>();
+  function secretsAt(input: {
+    readonly organizationId: string;
+    readonly projectId: string;
+    readonly environmentId: string;
+  }): Map<string, FakeRemoteSecret> {
+    const key = `${input.organizationId}/${input.projectId}/${input.environmentId}`;
+    const existing = secretsByCoordinate.get(key);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const created = new Map<string, FakeRemoteSecret>();
+    secretsByCoordinate.set(key, created);
+    return created;
+  }
+
   const state = {
     projects: new Map<string, string>(),
     environments: new Map<string, { projectId: string; isProtected: boolean }>(),
-    secrets: new Map<string, FakeRemoteSecret>(),
+    /** The canonical migrate coordinate's secrets; other coordinates stay empty and isolated. */
+    secrets: secretsAt({
+      organizationId: ORG_ID,
+      projectId: LOCAL_PROJECT_ID,
+      environmentId: LOCAL_ENV_ID,
+    }),
     mutations: [] as string[],
     failWritesAfter: Number.POSITIVE_INFINITY,
     writesThisRun: 0,
@@ -194,11 +217,11 @@ function createFakeCloud(options: { readonly organizations?: number } = {}) {
         }),
       );
     },
-    listEnvironmentSecrets: () => {
+    listEnvironmentSecrets: (input) => {
       const raceWriter = state.afterPresenceLoad;
       state.afterPresenceLoad = undefined;
       const listed = ok({
-        secrets: [...state.secrets.entries()].map(([variableKey, secret]) => ({
+        secrets: [...secretsAt(input).entries()].map(([variableKey, secret]) => ({
           secretId: secret.secretId,
           variableKey: variableKey as VariableKey,
           displayName: variableKey,
@@ -224,7 +247,8 @@ function createFakeCloud(options: { readonly organizations?: number } = {}) {
       if (state.writesThisRun > state.failWritesAfter) {
         return Promise.resolve(fail("store.unavailable", 503));
       }
-      const existing = state.secrets.get(input.variableKey);
+      const secrets = secretsAt(input);
+      const existing = secrets.get(input.variableKey);
       if (input.createOnly === true && existing !== undefined) {
         return Promise.resolve(fail("import.existing_secret", 409));
       }
@@ -233,7 +257,7 @@ function createFakeCloud(options: { readonly organizations?: number } = {}) {
       }
       const secretId = input.secretId ?? existing?.secretId ?? secretIdBrand.generate();
       state.mutations.push(`writeSecret:${input.variableKey}`);
-      state.secrets.set(input.variableKey, { secretId, value: decode(input.valueUtf8) });
+      secrets.set(input.variableKey, { secretId, value: decode(input.valueUtf8) });
       return Promise.resolve(
         ok({
           secretId,
@@ -245,7 +269,7 @@ function createFakeCloud(options: { readonly organizations?: number } = {}) {
       );
     },
     checkSecretPossession: (input) => {
-      const secret = state.secrets.get(input.variableKey);
+      const secret = secretsAt(input).get(input.variableKey);
       if (secret === undefined || secret.value === null) {
         return Promise.resolve(fail("secret.coordinate_invalid", 404));
       }
@@ -375,11 +399,12 @@ describe("insecur projects migrate", () => {
     fake: FakeCloud,
     overrides: Partial<Parameters<typeof runProjectsMigrateCommand>[2]> = {},
     confirm: (prompt: string) => Promise<boolean> = () => Promise.resolve(false),
+    flagOverrides: Partial<typeof baseFlags> = {},
   ) {
     fake.state.writesThisRun = 0;
     const context = await loadContext();
     return runProjectsMigrateCommand(
-      { ...baseFlags, configDir: projectDir, host: HOST },
+      { ...baseFlags, configDir: projectDir, host: HOST, ...flagOverrides },
       context,
       {
         orgId: undefined,
@@ -651,19 +676,27 @@ describe("insecur projects migrate", () => {
     await expectLocalStateIntact();
   });
 
-  it("never prompts in non-interactive modes: json mode fails fast without opening the confirm seam", async () => {
+  it("never prompts in non-interactive modes: --json and --quiet fail fast without opening the confirm seam", async () => {
     const context = await setupLocalProject();
     await setAllManifestKeys(context);
     const fake = createFakeCloud();
-    const confirm = vi.fn(() => Promise.resolve(true));
 
-    // baseFlags run with --json: even a confirm seam that would answer yes must never be reached.
-    const thrown = await runMigrate(fake, { confirmMigrate: false }, confirm).catch(
-      (error: unknown) => error,
-    );
-    expect(thrown).toBeInstanceOf(CliError);
-    expect((thrown as CliError).code).toBe("cli.validation_error");
-    expect(confirm).not.toHaveBeenCalled();
+    for (const flagOverrides of [
+      { json: true, quiet: false },
+      { json: false, quiet: true },
+    ]) {
+      // Even a confirm seam that would answer yes must never be reached in these modes.
+      const confirm = vi.fn(() => Promise.resolve(true));
+      const thrown = await runMigrate(
+        fake,
+        { confirmMigrate: false },
+        confirm,
+        flagOverrides,
+      ).catch((error: unknown) => error);
+      expect(thrown).toBeInstanceOf(CliError);
+      expect((thrown as CliError).code).toBe("cli.validation_error");
+      expect(confirm).not.toHaveBeenCalled();
+    }
     expect(fake.state.mutations).toHaveLength(0);
     await expectLocalStateIntact();
   });
@@ -705,6 +738,19 @@ describe("insecur projects migrate", () => {
     };
     await expect(runMigrate(sameValueFake)).resolves.toBe(0);
     expect(sameValueFake.state.secrets.get("SERVICE_TOKEN")?.value).toBe(localValue);
+    // Convergence completes the migration: verified-then-clean ran and the config flipped.
+    expect(lastStdoutJson()).toMatchObject({ ok: true, data: { status: "migrated" } });
+    const store = openStore();
+    try {
+      expect(await store.projects.getProject(LOCAL_PROJECT_ID)).toBeNull();
+      expect(await store.projects.listSecretShapes(LOCAL_PROJECT_ID)).toHaveLength(0);
+    } finally {
+      store.close();
+    }
+    const config = await readCommittedConfig();
+    expect(config.host).toBe(HOST);
+    expect(config.orgId).toBe(ORG_ID);
+    expect(config.secretShapes).toBeUndefined();
   });
 
   it("fails loud on a half-created remote shape with the exact hosted overwrite command", async () => {
