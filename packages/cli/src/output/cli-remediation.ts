@@ -107,6 +107,9 @@ export function resolveCliRemediation(
 
 function remediationCommandLines(remediation: ErrorRemediation): string[] {
   const lines: string[] = [];
+  for (const missing of remediation.missingValues ?? []) {
+    lines.push(remediationStep("Set secret", sanitizeDisplayText(missing.argv.join(" "))));
+  }
   const commandFields: readonly {
     readonly value: readonly string[] | undefined;
     readonly connective: string;
