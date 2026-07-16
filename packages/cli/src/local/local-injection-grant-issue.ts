@@ -8,7 +8,9 @@ import {
 } from "@insecur/domain";
 import type { LocalStore } from "@insecur/local-store";
 import type { IssueInjectionGrantData } from "../api/runtime-injection-api-types.js";
+import type { InsecurProjectConfig } from "../config/project-config.js";
 import { CliError } from "../output/cli-error.js";
+import { adoptLocalProjectFromConfig } from "./adopt-local-project.js";
 import {
   computeGrantExpiresAt,
   GRANT_ISSUED_EVENT,
@@ -93,8 +95,15 @@ export async function issueLocalVariableKeyInjectionGrant(input: {
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
   readonly variableKey: VariableKey;
+  readonly projectConfig?: InsecurProjectConfig | null;
 }): Promise<IssueFailureResult | IssueSuccessResult> {
   try {
+    await adoptLocalProjectFromConfig({
+      store: input.store,
+      projectConfig: input.projectConfig ?? null,
+      projectId: input.projectId,
+      environmentId: input.environmentId,
+    });
     const binding = await resolveVariableKeyBinding(
       input.store,
       input.projectId,

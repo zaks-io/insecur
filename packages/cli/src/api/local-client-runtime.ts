@@ -58,6 +58,7 @@ export function createLocalRuntimeInjectionApi(input: {
         projectId: request.projectId,
         environmentId: request.environmentId,
         variableKey: request.variableKey,
+        projectConfig: input.context.projectConfig,
       });
     },
     consumeInjectionGrant: async (request) =>
