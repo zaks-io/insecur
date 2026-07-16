@@ -32,6 +32,8 @@ const PROJECT = projectId.brand("prj_00000000000000000000000001");
 const ENV = environmentId.brand("env_00000000000000000000000001");
 const GRANT = injectionGrantId.brand("igr_00000000000000000000000001");
 const VERSION = secretVersionId.brand("sv_00000000000000000000000001");
+const VERSION_B = secretVersionId.brand("sv_00000000000000000000000002");
+const VERSION_C = secretVersionId.brand("sv_00000000000000000000000003");
 const REQUEST = { requestId: requestId.brand("req_00000000000000000000000001") };
 const OPERATION = { operationId: operationId.brand("op_00000000000000000000000001") };
 
@@ -127,7 +129,7 @@ describe("recordRuntimeInjectionAudit", () => {
       projectId: PROJECT,
       environmentId: ENV,
       grantId: GRANT,
-      deliveredSecretVersionId: VERSION,
+      deliveredSecretVersionIds: [VERSION],
       request: REQUEST,
       operation: OPERATION,
     });
@@ -144,6 +146,47 @@ describe("recordRuntimeInjectionAudit", () => {
       request: REQUEST,
       operation: OPERATION,
     });
+  });
+
+  it("records every delivered secret version for multi-binding consumption", async () => {
+    writeMock.mockClear();
+
+    await recordRuntimeInjectionAudit({
+      ...baseInput("consume", "success"),
+      projectId: PROJECT,
+      environmentId: ENV,
+      grantId: GRANT,
+      deliveredSecretVersionIds: [VERSION, VERSION_B, VERSION_C],
+    });
+
+    expect(writeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        relatedResource: { type: "secret_version", id: VERSION },
+        details: {
+          deliveredSecretVersionCount: 3,
+          deliveredSecretVersionId1: VERSION,
+          deliveredSecretVersionId2: VERSION_B,
+          deliveredSecretVersionId3: VERSION_C,
+        },
+      }),
+    );
+  });
+
+  it("keeps the single-delivery audit shape free of version details", async () => {
+    writeMock.mockClear();
+
+    await recordRuntimeInjectionAudit({
+      ...baseInput("consume", "success"),
+      grantId: GRANT,
+      deliveredSecretVersionIds: [VERSION],
+    });
+
+    const event = writeMock.mock.calls[0]?.[0];
+    expect(event).toBeDefined();
+    expect(event).toMatchObject({
+      relatedResource: { type: "secret_version", id: VERSION },
+    });
+    expect(event).not.toHaveProperty("details");
   });
 
   it("records denied with reasonCode", async () => {
@@ -197,7 +240,7 @@ describe("recordRuntimeInjectionAudit", () => {
 
     await recordRuntimeInjectionAudit({
       ...baseInput("consume", "success"),
-      deliveredSecretVersionId: VERSION,
+      deliveredSecretVersionIds: [VERSION],
     });
 
     const event = writeMock.mock.calls[0]?.[0];
@@ -237,12 +280,14 @@ describe("recordRuntimeInjectionAudit", () => {
     expect(event).not.toHaveProperty("resource");
   });
 
-  it("omits secret version related resource when deliveredSecretVersionId is malformed", async () => {
+  it("omits secret version related resource when the delivered version ID is malformed", async () => {
     writeMock.mockClear();
 
     await recordRuntimeInjectionAudit({
       ...baseInput("run", "success"),
-      deliveredSecretVersionId: brandValue<string, "SecretVersionId">("sv_not-a-valid-version-id"),
+      deliveredSecretVersionIds: [
+        brandValue<string, "SecretVersionId">("sv_not-a-valid-version-id"),
+      ],
     });
 
     const event = writeMock.mock.calls[0]?.[0];
