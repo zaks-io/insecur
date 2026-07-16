@@ -81,6 +81,22 @@ describe("audit metadata allowlist", () => {
       },
     },
     {
+      name: "multi-binding grant consume success with the full delivered version set",
+      event: {
+        eventCode: FIRST_VALUE_AUDIT_EVENT_CODES.injectionGrantConsumed,
+        outcome: "success",
+        actor: { type: "user", userId: USER },
+        organizationId: ORG,
+        resource: { type: "injection_grant", id: GRANT },
+        relatedResource: { type: "secret_version", id: VERSION },
+        details: {
+          deliveredSecretVersionCount: 2,
+          deliveredSecretVersionId1: VERSION,
+          deliveredSecretVersionId2: secretVersionId.brand("sv_00000000000000000000000002"),
+        },
+      },
+    },
+    {
       name: "metadata-only successful secret write events",
       event: SECRET_WRITE_EVENT,
     },
