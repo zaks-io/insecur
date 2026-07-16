@@ -3016,6 +3016,119 @@
     ],
     "primaryKeys": []
   },
+  "restore_import_journal": {
+    "columns": {
+      "only_row": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": true,
+        "columnType": "PgBoolean",
+        "sqlType": "boolean"
+      },
+      "instance_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "artifact_ref": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "source_export_operation_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "source_export_timestamp": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "status": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "started_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "completed_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "organization_count": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "manifest_organization_count": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "skipped_organization_count": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "dropped_bootstrap_claim_count": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "imported_row_count": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      }
+    },
+    "checks": [
+      {
+        "name": "restore_import_journal_only_row_check",
+        "sql": "\"restore_import_journal\".\"only_row\" = true"
+      },
+      {
+        "name": "restore_import_journal_status_check",
+        "sql": "\"restore_import_journal\".\"status\" IN ('running', 'succeeded', 'failed')"
+      }
+    ],
+    "uniqueConstraints": [],
+    "indexes": [],
+    "foreignKeys": [],
+    "primaryKeys": []
+  },
   "revoked_cli_sessions": {
     "columns": {
       "instance_id": {

@@ -18,6 +18,9 @@
 //   (h) every wrangler log/trace destination is bound to a no-plaintext evidence surface in the
 //       release-gate registry, and every telemetry binding maps to a configured destination
 //       (INS-561, ADR-0085). Logpush/tail consumers are unregistered egress and fail closed.
+//   (i) NO checked-in deploy declares a RESTORE_DB Hyperdrive binding or a Service Binding with
+//       entrypoint RuntimeRestoreService (ADR-0084: restore arming and the operator coordinator
+//       are window-scoped operator config, never part of the standing fleet).
 //
 // HARD-FAILS (exit 1) on any violation. Wired into `pnpm verify`.
 
@@ -44,6 +47,10 @@ const API_BINDING = "API";
 const RUNTIME_BINDING = "RUNTIME";
 const RUNTIME_SCRIPT_NAME = "insecur-runtime";
 const RUNTIME_ENTRYPOINT = "RuntimeService";
+// ADR-0084: restore arming is window-scoped operator config. The standing fleet has exactly one
+// DB path, and only a window-scoped (never checked-in) coordinator may bind the restore entrypoint.
+const RESTORE_DB_BINDING = "RESTORE_DB";
+const RESTORE_ENTRYPOINT = "RuntimeRestoreService";
 const INVENTORY_DOC = join(repoRoot, "docs", "specs", "deploy-route-inventory.md");
 const INVENTORY_SIDECAR = join(repoRoot, "docs", "specs", "deploy-route-inventory.sidecar.json");
 // INS-278: pre-tenant public-edge abuse controls on @insecur/api (production + preview deploys).
@@ -95,6 +102,7 @@ function main() {
   assertRouteInventoryFresh();
   assertNoPlaintextSigningSecretsInVars(deploys);
   assertTelemetryDestinationsHaveEvidenceSurfaces(deploys);
+  assertNoRestoreArmingCheckedIn(deploys);
 
   report();
 }
@@ -540,6 +548,31 @@ function assertNoPlaintextSigningSecretsInVars(deploys) {
 function assertTelemetryDestinationsHaveEvidenceSurfaces(deploys) {
   for (const message of collectTelemetryEvidenceFailures(deploys, NO_PLAINTEXT_EXTERNAL_SURFACES)) {
     fail(message);
+  }
+}
+
+// ADR-0084 / INS-565: the restore entrypoint and its RESTORE_DB arming binding must never appear
+// in a checked-in deploy config; both exist only inside an operator-managed restore window.
+function assertNoRestoreArmingCheckedIn(deploys) {
+  for (const deploy of deploys) {
+    for (const { scope, config } of collectConfigScopes(deploy.config)) {
+      const hyperdrives = Array.isArray(config?.hyperdrive) ? config.hyperdrive : [];
+      for (const binding of hyperdrives) {
+        if (binding?.binding === RESTORE_DB_BINDING) {
+          fail(
+            `deploy '${deploy.name}' ${scope} declares the ${RESTORE_DB_BINDING} Hyperdrive binding (ADR-0084: restore arming is window-scoped operator config, never checked in)`,
+          );
+        }
+      }
+      const services = Array.isArray(config?.services) ? config.services : [];
+      for (const binding of services) {
+        if (binding?.entrypoint === RESTORE_ENTRYPOINT) {
+          fail(
+            `deploy '${deploy.name}' ${scope} declares a Service Binding with entrypoint ${RESTORE_ENTRYPOINT} (ADR-0084: only a window-scoped operator coordinator may hold one, never a checked-in deploy)`,
+          );
+        }
+      }
+    }
   }
 }
 

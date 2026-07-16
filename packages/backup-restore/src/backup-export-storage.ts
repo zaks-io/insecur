@@ -21,6 +21,7 @@ export interface BackupExportStorage {
    * so the publisher's recency guard cannot be raced into regressing the pointer.
    */
   putLatestEvidence(body: string, expected: LatestEvidenceSnapshot | null): Promise<boolean>;
+  getArtifact(key: string): Promise<Uint8Array | null>;
   getEvidence(key: string): Promise<string | null>;
   getLatestEvidence(): Promise<LatestEvidenceSnapshot | null>;
 }
@@ -52,6 +53,11 @@ export class MemoryBackupExportStorage implements BackupExportStorage {
     }
     this.objects.set(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY, body);
     return Promise.resolve(true);
+  }
+
+  getArtifact(key: string): Promise<Uint8Array | null> {
+    const value = this.objects.get(key);
+    return Promise.resolve(value instanceof Uint8Array ? value : null);
   }
 
   getEvidence(key: string): Promise<string | null> {
