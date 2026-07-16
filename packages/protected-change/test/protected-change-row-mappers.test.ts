@@ -108,6 +108,7 @@ describe("toApprovalEvidence", () => {
       audit_event_id: "aud_00000000000000000000000002",
       operation_id: "op_00000000000000000000000001",
       impact_review_fingerprint: "impact-fingerprint-v1",
+      delivery_target_fingerprint: "sha256:delivery-fingerprint-v1",
       created_at: "2026-01-01T00:00:00.000Z",
       ...overrides,
     };
@@ -122,6 +123,7 @@ describe("toApprovalEvidence", () => {
     expect(evidence.auditEventId).toBe("aud_00000000000000000000000002");
     expect(evidence.operationId).toBe("op_00000000000000000000000001");
     expect(evidence.impactReviewFingerprint).toBe("impact-fingerprint-v1");
+    expect(evidence.deliveryTargetFingerprint).toBe("sha256:delivery-fingerprint-v1");
     expect(evidence.createdAt).toBe("2026-01-01T00:00:00.000Z");
   });
 
@@ -129,5 +131,11 @@ describe("toApprovalEvidence", () => {
     const evidence = toApprovalEvidence(evidenceRow({ operation_id: null }));
 
     expect(evidence.operationId).toBeNull();
+  });
+
+  it("preserves a null delivery-target fingerprint (promotion-only approval)", () => {
+    const evidence = toApprovalEvidence(evidenceRow({ delivery_target_fingerprint: null }));
+
+    expect(evidence.deliveryTargetFingerprint).toBeNull();
   });
 });

@@ -10,6 +10,7 @@ import {
 } from "@insecur/domain";
 import type { SecretSyncMappingBehavior } from "@insecur/domain";
 
+import { assertProtectedSecretSyncActionApproved } from "./assert-secret-sync-delivery-approval.js";
 import type { MetadataSafeSecretSync } from "./metadata-safe-secret-sync.js";
 import {
   persistSecretSyncUpdate,
@@ -41,6 +42,8 @@ export interface UpdateSecretSyncCommandInput {
   readonly cloudflareTarget?: { readonly workerScriptName: string };
   readonly requestId: RequestId;
   readonly keyring: Keyring;
+  /** Approved Protected Change authorizing this configuration change when the environment is protected (INS-87). */
+  readonly protectedChangeId?: RequestId;
 }
 
 export interface UpdateSecretSyncCommandResult {
@@ -91,6 +94,12 @@ export async function updateSecretSyncCommand(
   });
 
   try {
+    // Reconfiguring a protected-environment sync is a protected delivery configuration change and
+    // needs current approval evidence before the mutation runs (INS-87). The scoped mutation below
+    // only proceeds when the sync really lives at this exact coordinate, so gating on the requested
+    // coordinate cannot be bypassed by naming a non-protected environment.
+    await assertProtectedSecretSyncActionApproved("secret_sync_enable", input, input.secretSyncId);
+
     const updated = await runScopedSecretSyncMutation({
       actor: input.actor,
       organizationId: input.organizationId,

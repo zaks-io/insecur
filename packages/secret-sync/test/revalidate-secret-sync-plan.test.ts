@@ -2,6 +2,7 @@ import * as audit from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
   OPERATION_ERROR_CODES,
+  PROTECTED_CHANGE_ERROR_CODES,
   PROVIDER_ERROR_CODES,
   SECRET_SYNC_ERROR_CODES,
   operationId,
@@ -12,6 +13,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/assert-secret-sync-access.js", () => ({
   resolveSecretSyncRunAccess: vi.fn(async () => undefined),
+}));
+
+vi.mock("../src/assert-secret-sync-delivery-approval.js", () => ({
+  assertProtectedSecretSyncActionApproved: vi.fn(async () => undefined),
 }));
 
 vi.mock("../src/assert-secret-sync-bindings.js", () => ({
@@ -45,6 +50,7 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
 
 import { resolveSecretSyncRunAccess } from "../src/assert-secret-sync-access.js";
 import { assertSecretSyncBindings } from "../src/assert-secret-sync-bindings.js";
+import { assertProtectedSecretSyncActionApproved } from "../src/assert-secret-sync-delivery-approval.js";
 import {
   PROVIDER_LOOKUP_STATUSES,
   type ProviderLookupStatus,
@@ -244,6 +250,40 @@ describe("revalidateSecretSyncPlanBeforeProviderWrites", () => {
     });
     expect(auditSpy).toHaveBeenCalledWith(
       expect.objectContaining({ reasonCode: AUTH_ERROR_CODES.insufficientScope }),
+    );
+  });
+
+  it("gates a run through the protected delivery approval seam before provider writes", async () => {
+    spyRecordSyncAudit();
+    const plan = await planWith(PROVIDER_LOOKUP_STATUSES.found);
+
+    await revalidate(plan, PROVIDER_LOOKUP_STATUSES.found);
+
+    expect(assertProtectedSecretSyncActionApproved).toHaveBeenCalledWith(
+      "secret_sync_run",
+      expect.objectContaining({ organizationId: ORG, environmentId: ENV, secretSyncId: SYNC }),
+      SYNC,
+    );
+  });
+
+  it("fails closed and audits when protected run approval evidence is missing", async () => {
+    const auditSpy = spyRecordSyncAudit();
+    const plan = await planWith(PROVIDER_LOOKUP_STATUSES.found);
+    vi.mocked(assertProtectedSecretSyncActionApproved).mockRejectedValueOnce(
+      Object.assign(new Error("missing approval evidence"), {
+        code: PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
+      }),
+    );
+
+    await expect(revalidate(plan, PROVIDER_LOOKUP_STATUSES.found)).rejects.toMatchObject({
+      code: PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
+    });
+    expect(auditSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: "revalidation",
+        outcome: "denied",
+        reasonCode: PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
+      }),
     );
   });
 

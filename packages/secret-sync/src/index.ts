@@ -8,6 +8,14 @@ export {
 export { assertSecretSyncConnection } from "./assert-secret-sync-connection.js";
 export { assertSecretSyncExecutable } from "./assert-secret-sync-executable.js";
 export {
+  assertProtectedSecretSyncActionApproved,
+  assertSecretSyncDeliveryApproval,
+  type AssertSecretSyncDeliveryApprovalInput,
+  type ProtectedSecretSyncAction,
+  type ProtectedSecretSyncGateScope,
+  type SecretSyncDeliveryCoordinate,
+} from "./assert-secret-sync-delivery-approval.js";
+export {
   createSecretSyncCommand,
   type CreateSecretSyncCommandInput,
   type CreateSecretSyncCommandResult,

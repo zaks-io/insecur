@@ -45,6 +45,13 @@ export interface ProtectedChangeApprovalEvidence {
   readonly auditEventId: AuditEventId;
   readonly operationId: OperationId | null;
   readonly impactReviewFingerprint: string;
+  /**
+   * The Approval-time delivery-target fingerprint (metadata-only sha256 over the exact tenant,
+   * project, Protected Environment, operation kind, and target id). Null for a promotion approval
+   * that authorizes no delivery target. This is the ONLY authoritative source enforcement reads for
+   * the exact-target match; it is never accepted from the caller (INS-87).
+   */
+  readonly deliveryTargetFingerprint: string | null;
   readonly createdAt: string;
 }
 
@@ -75,4 +82,6 @@ export interface RecordProtectedChangeApprovalEvidenceInput {
   readonly auditEventId: AuditEventId;
   readonly operationId?: OperationId;
   readonly impactReviewFingerprint: string;
+  /** Approval-time delivery-target fingerprint; omitted for a promotion-only approval (INS-87). */
+  readonly deliveryTargetFingerprint?: string;
 }

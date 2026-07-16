@@ -146,7 +146,8 @@ export class TenantProtectedChangeStore {
         approver_user_id,
         audit_event_id,
         operation_id,
-        impact_review_fingerprint
+        impact_review_fingerprint,
+        delivery_target_fingerprint
       )
       VALUES (
         ${input.evidenceId},
@@ -155,7 +156,8 @@ export class TenantProtectedChangeStore {
         ${input.approverUserId},
         ${input.auditEventId},
         ${input.operationId ?? null},
-        ${input.impactReviewFingerprint}
+        ${input.impactReviewFingerprint},
+        ${input.deliveryTargetFingerprint ?? null}
       )
       RETURNING *
     `;
@@ -178,6 +180,7 @@ export class TenantProtectedChangeStore {
       FROM protected_change_approval_evidence
       WHERE org_id = ${organizationId}
         AND protected_change_id = ${protectedChangeId}
+      ORDER BY created_at DESC
       LIMIT 1
     `;
     const row = rows[0];
