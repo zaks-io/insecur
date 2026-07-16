@@ -9,4 +9,6 @@ export const PROTECTED_CHANGE_AUDIT_EVENT_CODES = {
   protectedChangeExecutionSucceeded: "protected_change.execution_succeeded",
   protectedChangeExecutionFailed: "protected_change.execution_failed",
   protectedChangeTransitionDenied: "protected_change.transition_denied",
+  protectedDeliveryApprovalAuthorized: "protected_change.delivery_approval_authorized",
+  protectedDeliveryApprovalDenied: "protected_change.delivery_approval_denied",
 } as const;

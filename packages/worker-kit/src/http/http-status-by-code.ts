@@ -143,6 +143,8 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [PROTECTED_CHANGE_ERROR_CODES.missingEvidence, 400],
   [PROTECTED_CHANGE_ERROR_CODES.requesterMismatch, 403],
   [PROTECTED_CHANGE_ERROR_CODES.nonProtectedEnvironment, 403],
+  [PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized, 403],
+  [PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch, 403],
   [APPROVAL_ERROR_CODES.requestNotFound, 404],
   [APPROVAL_ERROR_CODES.requestNotPending, 409],
   [APPROVAL_ERROR_CODES.invalidDraftSelection, 400],

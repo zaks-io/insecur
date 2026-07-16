@@ -1494,6 +1494,24 @@
     "notes": "Protected Changes require a Protected Environment."
   },
   {
+    "code": "protected_change.approval_not_authorized",
+    "slug": "protected-change-approval-not-authorized",
+    "typeUri": "https://insecur.dev/errors/protected-change-approval-not-authorized",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Protected delivery execution has no current authorizing approval evidence (rejected, canceled, stale-closed, or not yet approved)."
+  },
+  {
+    "code": "protected_change.delivery_target_mismatch",
+    "slug": "protected-change-delivery-target-mismatch",
+    "typeUri": "https://insecur.dev/errors/protected-change-delivery-target-mismatch",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Approval evidence was issued for a different tenant, project, Protected Environment, operation, or target than the requested protected delivery execution."
+  },
+  {
     "code": "provider.reauth_required",
     "slug": "provider-reauth-required",
     "typeUri": "https://insecur.dev/errors/provider-reauth-required",

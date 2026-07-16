@@ -12,6 +12,7 @@ import {
   type SecretSyncId,
 } from "@insecur/domain";
 import { resolveSecretSyncRunAccess } from "./assert-secret-sync-access.js";
+import { assertProtectedSecretSyncActionApproved } from "./assert-secret-sync-delivery-approval.js";
 import {
   PROVIDER_LOOKUP_STATUSES,
   type ProviderLookupStatus,
@@ -42,6 +43,8 @@ export interface RevalidateSecretSyncPlanInput {
   readonly lookupPorts: SecretSyncProviderLookupPorts;
   readonly lease: SecretSyncExecutionLease;
   readonly requestId: RequestId;
+  /** Approved Protected Change authorizing this run when the environment is protected (INS-87). */
+  readonly protectedChangeId?: RequestId;
 }
 
 const BLOCKING_LOOKUP_REASON_CODES: Partial<Record<ProviderLookupStatus, KnownErrorCode>> = {
@@ -96,6 +99,11 @@ async function revalidateOrThrow(input: RevalidateSecretSyncPlanInput): Promise<
     projectId: input.projectId,
     environmentId: input.environmentId,
   });
+
+  // Protected Secret Sync run gate (INS-87): runs under the acquired lease, immediately before
+  // provider writes. The fresh plan compute below fails closed on any coordinate mismatch, so a
+  // requested non-protected environment cannot smuggle a protected sync past this gate.
+  await assertProtectedSecretSyncActionApproved("secret_sync_run", input, input.secretSyncId);
 
   const fresh = await computeSecretSyncPlanInTenantScope({
     organizationId: input.organizationId,

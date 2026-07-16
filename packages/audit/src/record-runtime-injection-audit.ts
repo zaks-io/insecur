@@ -14,7 +14,13 @@ import {
   recordScopedAuditInTenantScope,
   type RecordScopedAuditInput,
 } from "./record-scoped-audit.js";
-import type { AuditActorRef, AuditOperationRef, AuditRequestRef } from "./audit-types.js";
+import type {
+  AuditActorRef,
+  AuditEventDetailValue,
+  AuditEventDetails,
+  AuditOperationRef,
+  AuditRequestRef,
+} from "./audit-types.js";
 import type { AuditEventResult } from "./write-audit-event.js";
 import {
   injectionGrantAuditResource,
@@ -31,7 +37,8 @@ export interface RecordRuntimeInjectionAuditInput {
   projectId?: ProjectId;
   environmentId?: EnvironmentId;
   grantId?: InjectionGrantId;
-  deliveredSecretVersionId?: SecretVersionId;
+  /** Every delivered Secret Version in binding order; ADR-0016 delivery forensics. */
+  deliveredSecretVersionIds?: readonly SecretVersionId[];
   childExitCode?: number;
   request?: AuditRequestRef;
   operation?: AuditOperationRef;
@@ -54,19 +61,53 @@ function eventCodeFor(input: RecordRuntimeInjectionAuditInput): AuditEventCode {
     : FIRST_VALUE_AUDIT_EVENT_CODES.injectionRunDenied;
 }
 
+/**
+ * Multi-binding deliveries record the full version set as indexed detail keys
+ * (binding order) because audit details permit only primitive values; single
+ * deliveries keep the relatedResource-only shape.
+ */
+function deliveredVersionDetails(
+  deliveredSecretVersionIds: readonly SecretVersionId[] | undefined,
+): AuditEventDetails {
+  if (deliveredSecretVersionIds === undefined || deliveredSecretVersionIds.length <= 1) {
+    return {};
+  }
+  const details: Record<string, AuditEventDetailValue> = {
+    deliveredSecretVersionCount: deliveredSecretVersionIds.length,
+  };
+  deliveredSecretVersionIds.forEach((secretVersionId, index) => {
+    details[`deliveredSecretVersionId${String(index + 1)}`] = secretVersionId;
+  });
+  return details;
+}
+
+function deliveredVersionRelatedResource(
+  deliveredSecretVersionIds: readonly SecretVersionId[] | undefined,
+): ReturnType<typeof secretVersionAuditRelatedResource> {
+  const firstDeliveredSecretVersionId = deliveredSecretVersionIds?.[0];
+  return firstDeliveredSecretVersionId !== undefined
+    ? secretVersionAuditRelatedResource(firstDeliveredSecretVersionId)
+    : {};
+}
+
+function runtimeInjectionAuditDetails(
+  input: RecordRuntimeInjectionAuditInput,
+): AuditEventDetails | undefined {
+  const detailEntries: AuditEventDetails = {
+    ...(input.phase === "run" && input.childExitCode !== undefined
+      ? { childExitCode: input.childExitCode }
+      : {}),
+    ...deliveredVersionDetails(input.deliveredSecretVersionIds),
+  };
+  return Object.keys(detailEntries).length > 0 ? detailEntries : undefined;
+}
+
 function toRuntimeInjectionScopedInput(
   input: RecordRuntimeInjectionAuditInput,
 ): RecordScopedAuditInput {
   const grantResource =
     input.grantId !== undefined ? injectionGrantAuditResource(input.grantId) : {};
-  const versionResource =
-    input.deliveredSecretVersionId !== undefined
-      ? secretVersionAuditRelatedResource(input.deliveredSecretVersionId)
-      : {};
-  const runDetails =
-    input.phase === "run" && input.childExitCode !== undefined
-      ? { details: { childExitCode: input.childExitCode } as const }
-      : {};
+  const versionResource = deliveredVersionRelatedResource(input.deliveredSecretVersionIds);
 
   return {
     eventCode: eventCodeFor(input),
@@ -81,7 +122,7 @@ function toRuntimeInjectionScopedInput(
       requestId: input.request?.requestId,
       operationId: input.operation?.operationId,
       reasonCode: input.reasonCode,
-      details: runDetails.details,
+      details: runtimeInjectionAuditDetails(input),
     }),
   };
 }

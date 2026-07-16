@@ -69,6 +69,19 @@ export { recomputeProtectedChangeImpactFingerprint } from "./recompute-protected
 export { parsePromoteDraftSelection } from "./parse-promote-draft-selection.js";
 export { gateProtectedSecretMutation } from "./gate-protected-secret-mutation.js";
 export {
+  PROTECTED_DELIVERY_TARGET_KINDS,
+  computeDeliveryTargetFingerprint,
+  type ProtectedDeliveryTarget,
+  type ProtectedDeliveryTargetKind,
+} from "./protected-delivery-target.js";
+export {
+  enforceProtectedDeliveryApproval,
+  type EnforceProtectedDeliveryApprovalInput,
+  type ProtectedDeliveryApprovalVerdict,
+} from "./enforce-protected-delivery-approval.js";
+export { recordProtectedDeliveryApprovalAudit } from "./record-protected-delivery-approval-audit.js";
+export { toAuditActor } from "./to-audit-actor.js";
+export {
   requestProtectedPromotion,
   type RequestProtectedPromotionInput,
   type RequestProtectedPromotionResult,
