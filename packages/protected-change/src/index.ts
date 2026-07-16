@@ -80,6 +80,7 @@ export {
   type ProtectedDeliveryApprovalVerdict,
 } from "./enforce-protected-delivery-approval.js";
 export { recordProtectedDeliveryApprovalAudit } from "./record-protected-delivery-approval-audit.js";
+export { toAuditActor } from "./to-audit-actor.js";
 export {
   requestProtectedPromotion,
   type RequestProtectedPromotionInput,

@@ -1,8 +1,17 @@
 import type { ActorRef, AuthorizeScopeDeps } from "@insecur/access";
-import type { AuditActorRef } from "@insecur/audit";
-import type { RequestId } from "@insecur/domain";
+import {
+  PROTECTED_CHANGE_ERROR_CODES,
+  type EnvironmentId,
+  type OrganizationId,
+  type ProjectId,
+  type RequestId,
+  type SecretSyncId,
+} from "@insecur/domain";
 import {
   enforceProtectedDeliveryApproval,
+  ProtectedChangeError,
+  recordProtectedDeliveryApprovalAudit,
+  toAuditActor,
   type ProtectedDeliveryTarget,
 } from "@insecur/protected-change";
 import {
@@ -19,24 +28,58 @@ import {
  */
 export type ProtectedSecretSyncAction = "secret_sync_enable" | "secret_sync_run";
 
+/**
+ * The metadata-only coordinate of the Secret Sync being enabled or run. A `SecretSyncRow`
+ * satisfies this; the create path passes the coordinate directly because the row does not exist
+ * yet when the gate runs.
+ */
+export type SecretSyncDeliveryCoordinate = Pick<
+  SecretSyncRow,
+  "id" | "organizationId" | "projectId" | "environmentId"
+>;
+
 export interface AssertSecretSyncDeliveryApprovalInput {
   readonly action: ProtectedSecretSyncAction;
-  readonly sync: SecretSyncRow;
+  readonly sync: SecretSyncDeliveryCoordinate;
   readonly actor: ActorRef;
-  readonly auditActor: AuditActorRef;
   readonly requestId: RequestId;
-  /** The Protected Change / Approval Request authorizing this exact sync execution. */
-  readonly protectedChangeId: RequestId;
+  /**
+   * The Protected Change / Approval Request authorizing this exact sync execution. Optional at the
+   * command layer so non-protected development syncs need none; a protected execution without one
+   * fails closed with `missing_evidence`.
+   */
+  readonly protectedChangeId?: RequestId;
   readonly deps?: AuthorizeScopeDeps;
 }
 
-async function isProtectedEnvironment(sync: SecretSyncRow): Promise<boolean> {
+async function isProtectedEnvironment(sync: SecretSyncDeliveryCoordinate): Promise<boolean> {
   const environment = await withTenantScope(
     { kind: "organization", organizationId: sync.organizationId },
     ({ db }) =>
       new TenantEnvironmentLifecycleStore(db).getById(sync.organizationId, sync.environmentId),
   );
   return environment?.isProtected ?? false;
+}
+
+async function missingProtectedChangeDenial(
+  actor: ActorRef,
+  target: ProtectedDeliveryTarget,
+): Promise<ProtectedChangeError> {
+  const denial = new ProtectedChangeError(
+    PROTECTED_CHANGE_ERROR_CODES.missingEvidence,
+    "protected secret sync execution requires an approved protected change reference",
+  );
+  try {
+    await recordProtectedDeliveryApprovalAudit({
+      outcome: "denied",
+      actor: toAuditActor(actor),
+      target,
+      reasonCode: denial.code,
+    });
+  } catch {
+    // Preserve the fail-closed denial; audit availability must not change the enforcement result.
+  }
+  return denial;
 }
 
 /**
@@ -61,12 +104,51 @@ export async function assertSecretSyncDeliveryApproval(
     targetId: input.sync.id,
   };
 
+  if (input.protectedChangeId === undefined) {
+    throw await missingProtectedChangeDenial(input.actor, target);
+  }
+
   await enforceProtectedDeliveryApproval({
     target,
     protectedChangeId: input.protectedChangeId,
     actor: input.actor,
-    auditActor: input.auditActor,
+    auditActor: toAuditActor(input.actor),
     requestId: input.requestId,
     ...(input.deps === undefined ? {} : { deps: input.deps }),
+  });
+}
+
+/**
+ * The slice of a secret-sync command input the approval gate needs. Every command input
+ * (create/update/revalidate) satisfies this structurally, so call sites pass their input directly.
+ */
+export interface ProtectedSecretSyncGateScope {
+  readonly actor: ActorRef;
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly requestId: RequestId;
+  readonly protectedChangeId?: RequestId;
+}
+
+/** Command-layer shorthand for {@link assertSecretSyncDeliveryApproval}. */
+export async function assertProtectedSecretSyncActionApproved(
+  action: ProtectedSecretSyncAction,
+  scope: ProtectedSecretSyncGateScope,
+  secretSyncId: SecretSyncId,
+): Promise<void> {
+  await assertSecretSyncDeliveryApproval({
+    action,
+    sync: {
+      id: secretSyncId,
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      environmentId: scope.environmentId,
+    },
+    actor: scope.actor,
+    requestId: scope.requestId,
+    ...(scope.protectedChangeId === undefined
+      ? {}
+      : { protectedChangeId: scope.protectedChangeId }),
   });
 }

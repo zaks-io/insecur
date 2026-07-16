@@ -16,6 +16,7 @@ import type { SecretSyncKind, SecretSyncMappingBehavior } from "@insecur/domain"
 import { withTenantScope } from "@insecur/tenant-store";
 
 import { assertSecretSyncBindings } from "./assert-secret-sync-bindings.js";
+import { assertProtectedSecretSyncActionApproved } from "./assert-secret-sync-delivery-approval.js";
 import { resolveSecretSyncManageAccess } from "./assert-secret-sync-access.js";
 import { persistNewSecretSync } from "./persist-new-secret-sync.js";
 import type { MetadataSafeSecretSync } from "./metadata-safe-secret-sync.js";
@@ -54,6 +55,8 @@ export interface CreateSecretSyncCommandInput {
   readonly requestId: RequestId;
   readonly keyring: Keyring;
   readonly secretSyncId?: SecretSyncId;
+  /** Approved Protected Change authorizing this enable when the environment is protected (INS-87). */
+  readonly protectedChangeId?: RequestId;
 }
 
 export interface CreateSecretSyncCommandResult {
@@ -109,6 +112,11 @@ async function executeCreateSecretSync(
   secretSyncIdValue: SecretSyncId,
 ) {
   const validated = await validateCreateSecretSyncInput(input);
+
+  // Creating a sync makes it active, so a protected-environment create is a protected enable and
+  // needs current approval evidence for this exact sync id before anything persists (INS-87).
+  await assertProtectedSecretSyncActionApproved("secret_sync_enable", input, secretSyncIdValue);
+
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ db }) =>
