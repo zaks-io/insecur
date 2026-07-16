@@ -16,7 +16,10 @@ const MIGRATED_AUDIT_EVENT = "local.project_migrated";
 /**
  * Verified-then-clean (ADR-0080): every key is already accounted for remotely when this runs.
  * Local rows and wrapped material go first (schema cascades, audit rows survive with a nulled
- * project reference), the committed config flips to the cloud host last.
+ * project reference), then the profile, and the committed `.insecur.json` flips to the cloud
+ * host strictly last. Every interruption point leaves the config on `"local"`, and a re-run
+ * converges: adopt re-creates metadata from the committed manifest, every key classifies as
+ * remote-present, and the finish sequence runs again.
  */
 export async function cleanLocalAndFlipConfig(input: {
   readonly flags: GlobalCliFlags;
@@ -41,16 +44,6 @@ export async function cleanLocalAndFlipConfig(input: {
     },
   });
   await input.store.projects.deleteProject(input.snapshot.projectId);
-  const configPath = await writeProjectConfig(input.flags.configDir, {
-    host: input.target.host,
-    orgId: input.target.organizationId,
-    projectId: input.config.projectId,
-    defaultEnvId: input.config.defaultEnvId,
-    profileId: input.config.profileId,
-    ...(input.config.gitBranchToEnvironment === undefined
-      ? {}
-      : { gitBranchToEnvironment: input.config.gitBranchToEnvironment }),
-  });
   const profile = input.context.userConfig.profiles[input.config.profileId];
   if (
     profile !== undefined &&
@@ -63,7 +56,16 @@ export async function cleanLocalAndFlipConfig(input: {
       orgId: input.target.organizationId,
     });
   }
-  return configPath;
+  return writeProjectConfig(input.flags.configDir, {
+    host: input.target.host,
+    orgId: input.target.organizationId,
+    projectId: input.config.projectId,
+    defaultEnvId: input.config.defaultEnvId,
+    profileId: input.config.profileId,
+    ...(input.config.gitBranchToEnvironment === undefined
+      ? {}
+      : { gitBranchToEnvironment: input.config.gitBranchToEnvironment }),
+  });
 }
 
 function keyDisposition(outcome: MigrateReconcileResult, variableKey: VariableKey): string {

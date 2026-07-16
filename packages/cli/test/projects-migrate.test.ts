@@ -16,7 +16,11 @@ import {
   type SecretId,
   type VariableKey,
 } from "@insecur/domain";
-import { createFakeKeyStore } from "@insecur/local-store";
+import {
+  createFakeKeyStore,
+  decryptLocalSecretForMigration,
+  LOCAL_MODE_ORGANIZATION_ID,
+} from "@insecur/local-store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "../src/api/types.js";
 import { createLocalApiClient } from "../src/api/local-client.js";
@@ -120,6 +124,8 @@ function createFakeCloud(options: { readonly organizations?: number } = {}) {
     mutations: [] as string[],
     failWritesAfter: Number.POSITIVE_INFINITY,
     writesThisRun: 0,
+    /** Fires once after a presence load, to simulate a writer racing the write-after-check window. */
+    afterPresenceLoad: undefined as (() => void) | undefined,
   };
 
   const decode = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
@@ -188,28 +194,31 @@ function createFakeCloud(options: { readonly organizations?: number } = {}) {
         }),
       );
     },
-    listEnvironmentSecrets: () =>
-      Promise.resolve(
-        ok({
-          secrets: [...state.secrets.entries()].map(([variableKey, secret]) => ({
-            secretId: secret.secretId,
-            variableKey: variableKey as VariableKey,
-            displayName: variableKey,
-            createdAt: "2026-07-16T00:00:00.000Z",
-            ...(secret.value === null
-              ? {}
-              : {
-                  currentVersion: {
-                    secretVersionId: secretVersionId.brand("sv_01TESTMIGRATE0000000000001"),
-                    versionNumber: 1,
-                    lifecycleState: "live" as const,
-                    createdAt: "2026-07-16T00:00:00.000Z",
-                    descriptiveVerdicts: DUMMY_VERDICTS,
-                  },
-                }),
-          })),
-        }),
-      ),
+    listEnvironmentSecrets: () => {
+      const raceWriter = state.afterPresenceLoad;
+      state.afterPresenceLoad = undefined;
+      const listed = ok({
+        secrets: [...state.secrets.entries()].map(([variableKey, secret]) => ({
+          secretId: secret.secretId,
+          variableKey: variableKey as VariableKey,
+          displayName: variableKey,
+          createdAt: "2026-07-16T00:00:00.000Z",
+          ...(secret.value === null
+            ? {}
+            : {
+                currentVersion: {
+                  secretVersionId: secretVersionId.brand("sv_01TESTMIGRATE0000000000001"),
+                  versionNumber: 1,
+                  lifecycleState: "live" as const,
+                  createdAt: "2026-07-16T00:00:00.000Z",
+                  descriptiveVerdicts: DUMMY_VERDICTS,
+                },
+              }),
+        })),
+      });
+      raceWriter?.();
+      return Promise.resolve(listed);
+    },
     writeSecretByVariableKey: (input) => {
       state.writesThisRun += 1;
       if (state.writesThisRun > state.failWritesAfter) {
@@ -365,6 +374,7 @@ describe("insecur projects migrate", () => {
   async function runMigrate(
     fake: FakeCloud,
     overrides: Partial<Parameters<typeof runProjectsMigrateCommand>[2]> = {},
+    confirm: (prompt: string) => Promise<boolean> = () => Promise.resolve(false),
   ) {
     fake.state.writesThisRun = 0;
     const context = await loadContext();
@@ -381,7 +391,7 @@ describe("insecur projects migrate", () => {
       {
         openStore,
         createCloudApi: () => fake.api,
-        confirm: () => Promise.resolve(false),
+        confirm,
       },
     );
   }
@@ -395,6 +405,37 @@ describe("insecur projects migrate", () => {
   async function readCommittedConfig(): Promise<Record<string, unknown>> {
     const raw = await readFile(path.join(projectDir, PROJECT_CONFIG_FILE), "utf8");
     return JSON.parse(raw) as Record<string, unknown>;
+  }
+
+  /** Test-only readback of a local value, to stage a same-value concurrent writer in the fake. */
+  async function decryptLocalValue(variableKey: string): Promise<string> {
+    const store = openStore();
+    try {
+      const shape = await store.projects.getSecretShape(LOCAL_PROJECT_ID, variableKey);
+      if (shape === null) {
+        throw new Error(`no local shape for ${variableKey}`);
+      }
+      const wrapped = await store.secretVersions.getCurrentWrappedVersion(
+        LOCAL_PROJECT_ID,
+        shape.secretId,
+      );
+      if (wrapped === null) {
+        throw new Error(`no local value for ${variableKey}`);
+      }
+      const plaintext = await decryptLocalSecretForMigration(
+        store.keyring,
+        {
+          organizationId: LOCAL_MODE_ORGANIZATION_ID,
+          projectId: LOCAL_PROJECT_ID,
+          environmentId: LOCAL_ENV_ID,
+          secretId: shape.secretId,
+        },
+        wrapped.wrapped,
+      );
+      return new TextDecoder().decode(plaintext.unwrapUtf8());
+    } finally {
+      store.close();
+    }
   }
 
   async function localShapeSecretIds(): Promise<ReadonlyMap<string, SecretId>> {
@@ -608,6 +649,129 @@ describe("insecur projects migrate", () => {
     expect((yesError as CliError).message).toContain("--yes cannot confirm");
     expect(fake.state.mutations).toHaveLength(0);
     await expectLocalStateIntact();
+  });
+
+  it("never prompts in non-interactive modes: json mode fails fast without opening the confirm seam", async () => {
+    const context = await setupLocalProject();
+    await setAllManifestKeys(context);
+    const fake = createFakeCloud();
+    const confirm = vi.fn(() => Promise.resolve(true));
+
+    // baseFlags run with --json: even a confirm seam that would answer yes must never be reached.
+    const thrown = await runMigrate(fake, { confirmMigrate: false }, confirm).catch(
+      (error: unknown) => error,
+    );
+    expect(thrown).toBeInstanceOf(CliError);
+    expect((thrown as CliError).code).toBe("cli.validation_error");
+    expect(confirm).not.toHaveBeenCalled();
+    expect(fake.state.mutations).toHaveLength(0);
+    await expectLocalStateIntact();
+  });
+
+  it("never overwrites a value that appears in the write-after-check window (server createOnly)", async () => {
+    const context = await setupLocalProject();
+    await setAllManifestKeys(context);
+    const fake = createFakeCloud();
+    fake.state.projects.set(LOCAL_PROJECT_ID, "First project");
+    fake.state.environments.set(LOCAL_ENV_ID, { projectId: LOCAL_PROJECT_ID, isProtected: false });
+    // A concurrent writer lands SERVICE_TOKEN after the presence read but before the write.
+    fake.state.afterPresenceLoad = () => {
+      fake.state.secrets.set("SERVICE_TOKEN", {
+        secretId: secretIdBrand.generate(),
+        value: REMOTE_DIVERGENT_VALUE,
+      });
+    };
+
+    const thrown = await runMigrate(fake).catch((error: unknown) => error);
+    expect(thrown).toBeInstanceOf(CliError);
+    expect((thrown as CliError).code).toBe("migrate.remote_diverged");
+    // The concurrently written remote value survives untouched; nothing was deleted locally.
+    expect(fake.state.secrets.get("SERVICE_TOKEN")?.value).toBe(REMOTE_DIVERGENT_VALUE);
+    await expectLocalStateIntact();
+
+    // A racing writer that landed the SAME value converges via the possession verdict instead.
+    const sameValueFake = createFakeCloud();
+    sameValueFake.state.projects.set(LOCAL_PROJECT_ID, "First project");
+    sameValueFake.state.environments.set(LOCAL_ENV_ID, {
+      projectId: LOCAL_PROJECT_ID,
+      isProtected: false,
+    });
+    const localValue = await decryptLocalValue("SERVICE_TOKEN");
+    sameValueFake.state.afterPresenceLoad = () => {
+      sameValueFake.state.secrets.set("SERVICE_TOKEN", {
+        secretId: secretIdBrand.generate(),
+        value: localValue,
+      });
+    };
+    await expect(runMigrate(sameValueFake)).resolves.toBe(0);
+    expect(sameValueFake.state.secrets.get("SERVICE_TOKEN")?.value).toBe(localValue);
+  });
+
+  it("fails loud on a half-created remote shape with the exact hosted overwrite command", async () => {
+    const context = await setupLocalProject();
+    await setAllManifestKeys(context);
+    const fake = createFakeCloud();
+    fake.state.projects.set(LOCAL_PROJECT_ID, "First project");
+    fake.state.environments.set(LOCAL_ENV_ID, { projectId: LOCAL_PROJECT_ID, isProtected: false });
+    // Remote shape exists with no Current Version: the state a server-side crash can leave behind.
+    fake.state.secrets.set("SERVICE_TOKEN", { secretId: secretIdBrand.generate(), value: null });
+
+    const thrown = await runMigrate(fake).catch((error: unknown) => error);
+    expect(thrown).toBeInstanceOf(CliError);
+    const cliError = thrown as CliError;
+    expect(cliError.code).toBe("import.existing_secret");
+    expect(cliError.remediation?.secretsSet).toEqual([
+      "insecur",
+      "secrets",
+      "set",
+      "SERVICE_TOKEN",
+      "--value-stdin",
+      "--host",
+      HOST,
+      "--org-id",
+      ORG_ID,
+      "--project-id",
+      LOCAL_PROJECT_ID,
+      "--env-id",
+      LOCAL_ENV_ID,
+    ]);
+    // The half-created shape is never written without the no-overwrite guard.
+    expect(fake.state.secrets.get("SERVICE_TOKEN")?.value).toBeNull();
+    await expectLocalStateIntact();
+  });
+
+  it("converges when the finish is interrupted after local deletion but before the config flip", async () => {
+    const context = await setupLocalProject();
+    await setAllManifestKeys(context);
+    const fake = createFakeCloud();
+    await expect(runMigrate(fake)).resolves.toBe(0);
+
+    // Simulate a crash between local deletion and the config flip: the committed config (with its
+    // secretShapes manifest) is still the Local Mode version while the local store is empty.
+    await writeFile(
+      path.join(projectDir, PROJECT_CONFIG_FILE),
+      JSON.stringify(COMMITTED_CONFIG, null, 2),
+      "utf8",
+    );
+    const writesBefore = fake.state.mutations.filter((entry) =>
+      entry.startsWith("writeSecret:"),
+    ).length;
+
+    await expect(runMigrate(fake)).resolves.toBe(0);
+
+    const config = await readCommittedConfig();
+    expect(config.host).toBe(HOST);
+    expect(config.orgId).toBe(ORG_ID);
+    // Convergence is metadata-only: nothing is rewritten remotely.
+    expect(fake.state.mutations.filter((entry) => entry.startsWith("writeSecret:"))).toHaveLength(
+      writesBefore,
+    );
+    const store = openStore();
+    try {
+      expect(await store.projects.getProject(LOCAL_PROJECT_ID)).toBeNull();
+    } finally {
+      store.close();
+    }
   });
 
   it("requires --org-id when the session belongs to multiple organizations", async () => {

@@ -166,7 +166,7 @@ insecur login
 insecur projects migrate --org-id org_01JZ8E2QYQ6M7F4K9A2B3C4D5E --confirm-migrate
 ```
 
-`--confirm-migrate` is a scoped confirmation; generic `--yes` cannot satisfy it (see [Global Flags](#global-flags)). `--org-id` may be omitted when the caller belongs to exactly one organization (the Personal Organization); it is required otherwise. A diverged key is resolved by re-running with `--skip-key <VARIABLE_KEY>` (the remote value is kept) or by an explicit `insecur secrets set` overwrite as a separate human act.
+`--confirm-migrate` is a scoped confirmation; generic `--yes` cannot satisfy it (see [Global Flags](#global-flags)). `--org-id` may be omitted when the caller belongs to exactly one organization (the Personal Organization); it is required otherwise. A diverged key is resolved by re-running with `--skip-key <VARIABLE_KEY>` (the remote value is kept) or by an explicit overwrite as a separate human act that must target the Hosted Instance — `.insecur.json` still points at Local Mode until migration completes, so a bare `insecur secrets set` would edit the local candidate instead. The `migrate.remote_diverged` remediation carries the exact hosted-target command: `insecur secrets set <VARIABLE_KEY> --value-stdin --host <instance-url> --org-id <org-id> --project-id <project-id> --env-id <env-id>`.
 
 Reconcile semantics:
 

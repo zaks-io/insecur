@@ -1,13 +1,16 @@
-import type { VariableKey } from "@insecur/domain";
+import { IMPORT_ERROR_CODES, SECRET_ERROR_CODES, type VariableKey } from "@insecur/domain";
 import type { LocalStore } from "@insecur/local-store";
-import { cliErrorFromEnvelope } from "../output/cli-error.js";
+import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
 import {
   decryptLocalMigrateCandidate,
   type LocalMigrateSnapshot,
   type MigrateKeyCandidate,
 } from "../local/migrate-local-snapshot.js";
 import { buildLocalValueReport, valueMissingOnMachineError } from "../local/local-value-report.js";
-import { remoteDivergedError } from "./projects-migrate-diverged-error.js";
+import {
+  halfCreatedRemoteShapeError,
+  remoteDivergedError,
+} from "./projects-migrate-diverged-error.js";
 import {
   ensureRemoteEnvironment,
   ensureRemoteProject,
@@ -125,19 +128,48 @@ async function classifyKeys(input: ClassifyInput): Promise<ClassifiedKeys> {
   };
 }
 
-/**
- * Writes one absent key remotely, replaying the local client-minted Secret id, then proves the
- * write with a fresh possession check. `createOnly` guards against overwriting a value that
- * appeared concurrently; it is dropped only when the remote shape already exists without a
- * Current Version (a half-created remote from a previous crash) so re-runs converge.
- */
-async function writeAndVerifyKey(input: {
+interface WriteKeyInput {
   readonly target: MigrateCloudTarget;
   readonly snapshot: LocalMigrateSnapshot;
   readonly store: LocalStore;
   readonly key: MigrateKeyCandidate;
-  readonly remoteShapeExists: boolean;
-}): Promise<void> {
+}
+
+/**
+ * The server rejected `createOnly` because a Secret Shape appeared (or already existed) for this
+ * key. Never retry without the guard — that is the overwrite race. Instead let the possession
+ * check decide: a concurrent writer with the same value converges, a different value is the
+ * divergence path, and a shape with no Current Version (half-created remote) needs an explicit
+ * hosted write until the server offers a version-absent conditional (INS-609).
+ */
+async function resolveCreateOnlyConflict(input: WriteKeyInput): Promise<void> {
+  let verdict: "match" | "mismatch";
+  try {
+    verdict = await checkPossession(input.target, input.snapshot, input.store, input.key);
+  } catch (error) {
+    if (error instanceof CliError && error.code === SECRET_ERROR_CODES.coordinateInvalid) {
+      throw halfCreatedRemoteShapeError(input.target, input.snapshot, input.key.variableKey);
+    }
+    throw error;
+  }
+  if (verdict !== "match") {
+    throw remoteDivergedError(
+      input.target,
+      input.snapshot,
+      [input.key.variableKey],
+      "post_write_verify",
+    );
+  }
+}
+
+/**
+ * Writes one absent key remotely, replaying the local client-minted Secret id, then proves the
+ * write with a fresh possession check. `createOnly` is always sent, so the no-overwrite guard is
+ * enforced by the server inside the write itself — a Current Version that appears between the
+ * presence read and the write can never be overwritten (the TOCTOU CodeRabbit flagged); the
+ * resulting conflict is resolved by possession verdict instead.
+ */
+async function writeAndVerifyKey(input: WriteKeyInput): Promise<void> {
   const valueUtf8 = await decryptLocalMigrateCandidate(
     input.store,
     input.snapshot,
@@ -151,9 +183,12 @@ async function writeAndVerifyKey(input: {
     secretId: input.key.secretId,
     valueUtf8,
     allowEmpty: true,
-    ...(input.remoteShapeExists ? {} : { createOnly: true }),
+    createOnly: true,
   });
   if (!written.ok) {
+    if (written.envelope.error.code === IMPORT_ERROR_CODES.existingSecret) {
+      return resolveCreateOnlyConflict(input);
+    }
     throw cliErrorFromEnvelope(written.envelope);
   }
   const verdict = await checkPossession(input.target, input.snapshot, input.store, input.key);
@@ -189,7 +224,6 @@ export async function reconcileProjectToCloud(input: {
       snapshot: input.snapshot,
       store: input.store,
       key,
-      remoteShapeExists: presence.get(key.variableKey)?.shapeExists === true,
     });
   }
   return {

@@ -111,7 +111,6 @@ export async function ensureRemoteEnvironment(
 }
 
 export interface RemotePresence {
-  readonly shapeExists: boolean;
   readonly hasCurrentVersion: boolean;
 }
 
@@ -130,7 +129,7 @@ export async function loadRemotePresence(
   return new Map(
     listed.envelope.data.secrets.map((secret) => [
       secret.variableKey,
-      { shapeExists: true, hasCurrentVersion: secret.currentVersion !== undefined },
+      { hasCurrentVersion: secret.currentVersion !== undefined },
     ]),
   );
 }

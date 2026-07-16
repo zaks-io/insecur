@@ -86,10 +86,13 @@ export async function requireMigrateConfirmation(
   if (options.confirmMigrate) {
     return;
   }
-  if (!flags.json && !flags.quiet) {
+  // Non-interactive modes (--json/--quiet; the prompt itself refuses a non-TTY stdin) must never
+  // open an interactive confirmation: fail fast with the stable confirmation-required error.
+  const interactive = !flags.json && !flags.quiet;
+  if (interactive) {
     process.stderr.write(`${previewLines(preview)}\n`);
   }
-  if (!options.yes) {
+  if (interactive && !options.yes) {
     const confirmed = await confirm(
       `Migrate ${preview.projectId} to ${preview.host} and delete local copies after remote verification? [y/N] `,
     );
