@@ -1,4 +1,5 @@
 import {
+  AUTH_ERROR_CODES,
   PROTECTED_CHANGE_ERROR_CODES,
   appConnectionId,
   environmentId,
@@ -155,6 +156,7 @@ describe("secret sync commands", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(assertProtectedSecretSyncActionApproved).mockResolvedValue(undefined);
+    vi.mocked(resolveSecretSyncManageAccess).mockResolvedValue(undefined as never);
   });
 
   it("creates a secret sync and records audit success", async () => {
@@ -215,6 +217,36 @@ describe("secret sync commands", () => {
       "secret_sync_enable",
       expect.objectContaining({ organizationId: ORG, environmentId: ENV, secretSyncId: SYNC }),
       SYNC,
+    );
+    expect(vi.mocked(resolveSecretSyncManageAccess).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(assertProtectedSecretSyncActionApproved).mock.invocationCallOrder[0] ?? -1,
+    );
+  });
+
+  it("denies a no-access actor on update before the protected delivery gate runs", async () => {
+    const accessDenial = Object.assign(new Error("secret sync manage scope required"), {
+      code: AUTH_ERROR_CODES.insufficientScope,
+    });
+    vi.mocked(resolveSecretSyncManageAccess).mockRejectedValue(accessDenial);
+
+    await expect(
+      updateSecretSyncCommand({
+        actor: ACTOR,
+        organizationId: ORG,
+        projectId: PROJECT,
+        environmentId: ENV,
+        secretSyncId: SYNC,
+        displayName: displayName("renamed"),
+        requestId: requestId.generate(),
+        keyring: KEYRING,
+      }),
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
+
+    expect(assertProtectedSecretSyncActionApproved).not.toHaveBeenCalled();
+    expect(runScopedSecretSyncMutation).not.toHaveBeenCalled();
+    expect(persistSecretSyncUpdate).not.toHaveBeenCalled();
+    expect(recordSecretSyncUpdateDenied).toHaveBeenCalledWith(
+      expect.objectContaining({ reasonCode: AUTH_ERROR_CODES.insufficientScope }),
     );
   });
 
