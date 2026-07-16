@@ -70,14 +70,23 @@ function writeBackupEvidence(evidenceDir: string): void {
 
 function writeNoPlaintextExternalEvidence(evidenceDir: string): void {
   for (const entry of NO_PLAINTEXT_EXTERNAL_SURFACES) {
+    const telemetry = "telemetry" in entry ? entry.telemetry : undefined;
     writeEvidence(evidenceDir, entry.evidencePath, {
       status: "passed",
       checked_at: "2026-07-04T00:00:05.000Z",
       surface: entry.surface,
       evidence_adapter: entry.requiredEvidenceAdapter,
-      target_ref: `external-system://${entry.surface}`,
+      target_ref: telemetry?.targetRef ?? `external-system://${entry.surface}`,
       sentinel_run_id: "canary_run_000000000000000000000001",
       finding_count: 0,
+      ...(telemetry
+        ? {
+            query_window: {
+              from: "2026-07-04T00:00:00.000Z",
+              to: "2026-07-04T00:00:05.000Z",
+            },
+          }
+        : {}),
     });
   }
 }
@@ -204,6 +213,70 @@ describe("assembleSecurityEvidenceBundle", () => {
         .filter((control) => control.id.startsWith("no_plaintext."))
         .every((control) => control.status === "missing_evidence"),
     ).toBe(true);
+  });
+
+  it("blocks small_group_production when one trace provider's evidence is copied to the other (ADR-0085)", () => {
+    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-release-gate-"));
+    writePassingEvidenceSet(evidenceDir);
+    writeBackupEvidence(evidenceDir);
+    writeNoPlaintextExternalEvidence(evidenceDir);
+    // A provider copy must not silently reduce coverage: Axiom trace evidence rewritten to the
+    // Sentry artifact path carries the wrong pinned target_ref and must block.
+    writeEvidence(evidenceDir, "no-plaintext/worker-traces-sentry.json", {
+      status: "passed",
+      checked_at: "2026-07-04T00:00:05.000Z",
+      surface: "worker_traces",
+      evidence_adapter: "deployed_worker_trace_query",
+      target_ref: "axiom://dataset/cloudflare",
+      sentinel_run_id: "canary_run_000000000000000000000001",
+      finding_count: 0,
+      query_window: {
+        from: "2026-07-04T00:00:00.000Z",
+        to: "2026-07-04T00:00:05.000Z",
+      },
+    });
+
+    const bundle = assembleSecurityEvidenceBundle({
+      evidenceDir,
+      profile: "small_group_production",
+    });
+
+    expect(bundle.ok).toBe(false);
+    const sentryControl = bundle.controls.find(
+      (control) => control.id === "no_plaintext.worker_traces.sentry",
+    );
+    expect(sentryControl?.status).toBe("blocked");
+    const axiomControl = bundle.controls.find(
+      (control) => control.id === "no_plaintext.worker_traces.axiom",
+    );
+    expect(axiomControl?.status).toBe("passed");
+  });
+
+  it("blocks small_group_production when telemetry evidence omits its query window (ADR-0085)", () => {
+    const evidenceDir = mkdtempSync(join(tmpdir(), "insecur-release-gate-"));
+    writePassingEvidenceSet(evidenceDir);
+    writeBackupEvidence(evidenceDir);
+    writeNoPlaintextExternalEvidence(evidenceDir);
+    writeEvidence(evidenceDir, "no-plaintext/worker-logs.json", {
+      status: "passed",
+      checked_at: "2026-07-04T00:00:05.000Z",
+      surface: "worker_logs",
+      evidence_adapter: "deployed_worker_log_query",
+      target_ref: "axiom://dataset/cloudflare",
+      sentinel_run_id: "canary_run_000000000000000000000001",
+      finding_count: 0,
+    });
+
+    const bundle = assembleSecurityEvidenceBundle({
+      evidenceDir,
+      profile: "small_group_production",
+    });
+
+    expect(bundle.ok).toBe(false);
+    const logsControl = bundle.controls.find(
+      (control) => control.id === "no_plaintext.worker_logs",
+    );
+    expect(logsControl?.status).toBe("blocked");
   });
 
   it("blocks small_group_production when backup evidence is missing", () => {

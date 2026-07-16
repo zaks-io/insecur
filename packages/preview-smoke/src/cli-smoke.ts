@@ -10,12 +10,15 @@ export {
   buildCliAuditExportArgs,
   buildCliAuditTailArgs,
   buildCliAuditVerifyArgs,
+  buildCliConnectionsListArgs,
+  buildCliConnectionsStatusArgs,
   buildCliFirstValueRunArgs,
   buildCliOperationsGetArgs,
   buildCliOperationsWaitArgs,
   buildCliRunPoliciesCreateArgs,
   buildCliRunPoliciesDisableArgs,
   buildCliRunPoliciesShowArgs,
+  buildCliRuntimeInvariantRunArgs,
   buildCliSecretsSetGenerateArgs,
   buildCliSecretsSetValueStdinArgs,
   buildCliSecretsVersionsArgs,
@@ -76,9 +79,10 @@ export function parseCliSmokeJson(stdout: string, label: string): Record<string,
 }
 
 /**
- * The `run` command inherits the child's stdio, so the child's proof JSON is
- * emitted first and the CLI `--json` envelope is the LAST well-formed JSON
- * object on stdout. Walk lines from the end and return the first that parses.
+ * Some channels carry the CLI envelope alongside other lines (for example
+ * error envelopes on stderr next to remediation prose). The envelope is the
+ * LAST well-formed JSON object. Walk lines from the end and return the first
+ * that parses.
  */
 export function parseLastCliSmokeJson(output: string, label: string): Record<string, unknown> {
   const object = firstParsableObject(outputLines(output).reverse());
@@ -89,13 +93,16 @@ export function parseLastCliSmokeJson(output: string, label: string): Record<str
 }
 
 /**
- * The child proof JSON precedes the CLI envelope, so it is the FIRST
- * well-formed JSON object on stdout. Walk lines from the start.
+ * In `--json` mode `insecur run` routes child stdout to the CLI's stderr so
+ * stdout stays a pure control channel (docs/cli-and-sync.md, "Machine
+ * output"). The child's proof JSON therefore arrives on the run's stderr,
+ * interleaved with the child's own stderr lines; it is the FIRST well-formed
+ * JSON object there. Walk lines from the start.
  */
-export function parseCliRunChildProof(stdout: string, label: string): Record<string, unknown> {
-  const object = firstParsableObject(outputLines(stdout));
+export function parseCliRunChildProof(childOutput: string, label: string): Record<string, unknown> {
+  const object = firstParsableObject(outputLines(childOutput));
   if (object === undefined) {
-    throw new Error(`${label} child emitted no JSON proof on stdout`);
+    throw new Error(`${label} child emitted no JSON proof in routed child output`);
   }
   return object;
 }

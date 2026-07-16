@@ -33,6 +33,18 @@ export function listWranglerApps(appsDir, { onParseError } = {}) {
   return deploys;
 }
 
+// Flattens a wrangler config into its top-level scope plus every env.* override scope, so gates
+// can assert an invariant across all deploy environments uniformly.
+export function collectConfigScopes(config) {
+  const scopes = [{ scope: "top-level", config }];
+  if (config && typeof config === "object" && config.env && typeof config.env === "object") {
+    for (const [envName, envConfig] of Object.entries(config.env)) {
+      scopes.push({ scope: `env.${envName}`, config: envConfig });
+    }
+  }
+  return scopes;
+}
+
 export function collectDeployRouteEntries(appPath, appName) {
   const mounts = new Map();
 

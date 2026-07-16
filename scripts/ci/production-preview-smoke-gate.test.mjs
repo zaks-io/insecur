@@ -18,7 +18,13 @@ test("production requires a successful real preview smoke with exact-SHA identit
     production,
     /gh run download "\$PREVIEW_SMOKE_RUN_ID" --name preview-smoke-artifacts/u,
   );
-  assert.match(production, /verify-preview-smoke-identity\s+\\\n\s+--evidence "\$proof_path"/u);
+  // pnpm --filter runs the verifier with cwd=packages/release-gate, so a relative
+  // evidence path resolves inside the package and fails against real evidence (INS-601).
+  assert.match(
+    production,
+    /verify-preview-smoke-identity\s+\\\n\s+--evidence "\$GITHUB_WORKSPACE\/\$proof_path"/u,
+  );
+  assert.doesNotMatch(production, /--evidence "\$proof_path"/u);
   assert.match(production, /--expected-sha "\$DEPLOY_SHA"/u);
   assert.match(previewSmoke, /SMOKE_EXPECTED_DEPLOY_SHA: \$\{\{ github\.sha \}\}/u);
   assert.match(previewSmoke, /group: preview-fleet/u);
@@ -47,7 +53,7 @@ test("production reports incomplete launch evidence without blocking prelaunch d
 
   assert.match(
     production,
-    /release-gate:bundle -- --profile small_group_production --evidence-dir evidence --warn-only/u,
+    /release-gate:bundle -- --profile small_group_production --evidence-dir "\$GITHUB_WORKSPACE\/evidence" --warn-only/u,
   );
   assert.match(production, /::warning::Small-group production evidence is advisory/u);
   assert.doesNotMatch(production, /continue-on-error:\s*true/u);

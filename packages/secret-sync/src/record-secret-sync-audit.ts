@@ -6,6 +6,7 @@ import {
 import {
   AUDIT_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
+  isStableDottedCode,
   readErrorCode,
   type AuthErrorCode,
   type EnvironmentId,
@@ -19,7 +20,7 @@ import {
   type UserId,
 } from "@insecur/domain";
 
-function secretSyncResource(secretSyncId: SecretSyncId): {
+export function secretSyncResource(secretSyncId: SecretSyncId): {
   type: "secret_sync";
   id: OpaqueResourceId;
 } {
@@ -37,11 +38,12 @@ export interface SecretSyncAuditScope {
   readonly request?: AuditRequestRef;
 }
 
-export interface SecretSyncBindingAuditDetails {
-  readonly bindingCount: number;
-  readonly secretIdsCsv: string;
-  readonly bindingIdsCsv: string;
-}
+/**
+ * Guard-compatible binding details: audit detail strings must each be a single
+ * opaque resource ID (ADR-0068), so bindings are recorded as indexed primitive
+ * keys (`secretId1`/`bindingId1`, ...) plus a `bindingCount`, never CSV.
+ */
+export type SecretSyncBindingAuditDetails = Readonly<Record<string, string | number | boolean>>;
 
 export async function recordSecretSyncCreated(
   input: SecretSyncAuditScope & {
@@ -57,11 +59,7 @@ export async function recordSecretSyncCreated(
     projectId: input.projectId,
     environmentId: input.environmentId,
     resource: secretSyncResource(input.secretSyncId),
-    details: {
-      bindingCount: input.bindings.bindingCount,
-      secretIdsCsv: input.bindings.secretIdsCsv,
-      bindingIdsCsv: input.bindings.bindingIdsCsv,
-    },
+    details: input.bindings,
     ...(input.request !== undefined ? { request: input.request } : {}),
   });
   return { auditEventId: result.auditEventId };
@@ -118,15 +116,7 @@ export async function recordSecretSyncUpdated(
     projectId: input.projectId,
     environmentId: input.environmentId,
     resource: secretSyncResource(input.secretSyncId),
-    ...(input.bindings !== undefined
-      ? {
-          details: {
-            bindingCount: input.bindings.bindingCount,
-            secretIdsCsv: input.bindings.secretIdsCsv,
-            bindingIdsCsv: input.bindings.bindingIdsCsv,
-          },
-        }
-      : {}),
+    ...(input.bindings !== undefined ? { details: input.bindings } : {}),
     ...(input.request !== undefined ? { request: input.request } : {}),
   });
   return { auditEventId: result.auditEventId };
@@ -174,8 +164,22 @@ export async function recordSecretSyncDisableDenied(
   });
 }
 
-export function toSecretSyncAuditReasonCode(error: unknown): KnownErrorCode | AuthErrorCode {
-  return readErrorCode(error) ?? AUDIT_ERROR_CODES.eventInvalid;
+/**
+ * Denial audits require a stable dotted reason code. `readErrorCode` passes through any string
+ * `code` (a raw SQLSTATE like `58000` included), and an invalid reasonCode would make the audit
+ * write itself throw from the catch block — masking the original error and dropping the denial
+ * record. `KnownErrorCode`/`AuthErrorCode` are structurally just strings, so the caller-supplied
+ * fallback is validated too; an unstable one collapses to `audit.event_invalid`.
+ */
+export function toSecretSyncAuditReasonCode(
+  error: unknown,
+  fallback: KnownErrorCode | AuthErrorCode = AUDIT_ERROR_CODES.eventInvalid,
+): KnownErrorCode | AuthErrorCode {
+  const code = readErrorCode(error);
+  if (code !== undefined && isStableDottedCode(code)) {
+    return code;
+  }
+  return isStableDottedCode(fallback) ? fallback : AUDIT_ERROR_CODES.eventInvalid;
 }
 
 export function toBindingAuditDetails(input: {
@@ -184,9 +188,13 @@ export function toBindingAuditDetails(input: {
     readonly secretId: SecretId;
   }[];
 }): SecretSyncBindingAuditDetails {
-  return {
+  const details: Record<string, string | number> = {
     bindingCount: input.bindings.length,
-    secretIdsCsv: input.bindings.map((binding) => binding.secretId).join(","),
-    bindingIdsCsv: input.bindings.map((binding) => binding.id).join(","),
   };
+  input.bindings.forEach((binding, index) => {
+    const ordinal = String(index + 1);
+    details[`secretId${ordinal}`] = binding.secretId;
+    details[`bindingId${ordinal}`] = binding.id;
+  });
+  return details;
 }

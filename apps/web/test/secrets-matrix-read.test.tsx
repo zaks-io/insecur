@@ -2,6 +2,7 @@ import { apiClientFor } from "@insecur/worker-kit/api-client";
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { resolveBrowserActor } from "../src/auth/resolve-browser-actor.js";
+import { ProjectSecretsView } from "../src/components/secrets/project-secrets-view.js";
 import { SecretsMatrixTable } from "../src/components/secrets/secrets-matrix-table.js";
 import type { ConsoleEnvironment } from "../src/console/projects.js";
 import {
@@ -199,6 +200,47 @@ describe("SecretsMatrixTable render", () => {
     );
     expect(html).toContain("staging");
     expect(html).not.toContain("Drift");
+  });
+});
+
+describe("ProjectSecretsView SSR marker", () => {
+  // Preview smoke asserts data-slot="project-secrets" on the SSR page for the /secrets sub-view
+  // (packages/preview-smoke/tests/web-console.spec.ts, "Web project secrets"). The marker must
+  // render in every state because whether a preview workspace has secret rows is data-dependent
+  // (INS-600). Renaming or dropping it breaks that smoke assertion.
+  const MARKER = 'data-slot="project-secrets"';
+
+  it("renders the marker with matrix rows", () => {
+    const html = renderToStaticMarkup(
+      <ProjectSecretsView matrix={DRIFT_MATRIX} orgId={ORG_ID} projectId={PROJECT_ID} />,
+    );
+    expect(html).toContain(MARKER);
+    expect(html).toContain(">Secret<");
+    expect(html).toContain("DATABASE_URL");
+  });
+
+  it("renders the marker with an empty Secret Shape", () => {
+    const html = renderToStaticMarkup(
+      <ProjectSecretsView
+        matrix={{ environments: [ENV_STAGING], rows: [] }}
+        orgId={ORG_ID}
+        projectId={PROJECT_ID}
+      />,
+    );
+    expect(html).toContain(MARKER);
+    expect(html).toContain("No secrets yet");
+  });
+
+  it("renders the marker with no environments", () => {
+    const html = renderToStaticMarkup(
+      <ProjectSecretsView
+        matrix={{ environments: [], rows: [] }}
+        orgId={ORG_ID}
+        projectId={PROJECT_ID}
+      />,
+    );
+    expect(html).toContain(MARKER);
+    expect(html).toContain("No environments yet");
   });
 });
 

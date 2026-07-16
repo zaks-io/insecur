@@ -47,6 +47,11 @@ deploy-topology conformance gate (INS-199) asserts this deploy holds the key and
 - Runtime-side Effective Access resolution, run inside the same call that decrypts (ADR-0034).
 - Secret Sync when it lands: runs **inline** here (ADR-0057), triggered synchronously from the API
   Worker over the binding. No sync worker, no Queues/DOs.
+- Backup export (scheduled cron, ADR-0072) and restore import (ADR-0084). Restore import runs
+  behind the dedicated restore-only `RuntimeRestoreService` entrypoint — separate from
+  `RuntimeService`, unreachable from the API/Web bindings — armed by a temporary `RESTORE_DB`
+  Hyperdrive binding for the restore window only. This deploy is the sole root-key holder for
+  backup and restore; there is no second key-bearing backup or restore Worker.
 
 ## Does Not Own
 

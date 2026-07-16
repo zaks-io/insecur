@@ -16,10 +16,12 @@ import {
   APPROVAL_ERROR_CODES,
   APP_CONNECTION_ERROR_CODES,
   SECRET_SYNC_ERROR_CODES,
+  PROVIDER_ERROR_CODES,
   PROVIDER_APP_REGISTRATION_ERROR_CODES,
   IMPORT_ERROR_CODES,
   SECRET_ERROR_CODES,
   LOCAL_ERROR_CODES,
+  STORE_ERROR_CODES,
   type KnownErrorCode,
 } from "@insecur/domain";
 
@@ -126,6 +128,12 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [SECRET_SYNC_ERROR_CODES.resourceConflict]: EXIT_CONFLICT,
   [SECRET_SYNC_ERROR_CODES.connectionNotEligible]: EXIT_ACTION_REQUIRED,
   [SECRET_SYNC_ERROR_CODES.displayNameInUse]: EXIT_CONFLICT,
+  [SECRET_SYNC_ERROR_CODES.stalePlan]: EXIT_ACTION_REQUIRED,
+  [SECRET_SYNC_ERROR_CODES.overwriteStatusUnknown]: EXIT_VALIDATION,
+  [PROVIDER_ERROR_CODES.lookupNotFound]: EXIT_ACTION_REQUIRED,
+  [PROVIDER_ERROR_CODES.permissionDenied]: EXIT_ACTION_REQUIRED,
+  [PROVIDER_ERROR_CODES.boundaryMismatch]: EXIT_VALIDATION,
+  [PROVIDER_ERROR_CODES.unavailable]: EXIT_ACTION_REQUIRED,
   [NOTIFICATION_ERROR_CODES.invalidEventCode]: EXIT_VALIDATION,
   [NOTIFICATION_ERROR_CODES.subscriptionNotFound]: EXIT_NOT_FOUND,
   [NOTIFICATION_ERROR_CODES.deliveryFailed]: EXIT_UNEXPECTED,
@@ -166,6 +174,7 @@ const EXACT_EXIT_CODE_BY_ERROR: Partial<Record<KnownErrorCode, number>> = {
   [HIGH_ASSURANCE_ERROR_CODES.sessionAssuranceFailed]: EXIT_AUTH_REQUIRED,
   [HIGH_ASSURANCE_ERROR_CODES.invalidRiskReason]: EXIT_VALIDATION,
   [ABUSE_ERROR_CODES.rateLimited]: EXIT_RETRYABLE,
+  [STORE_ERROR_CODES.unavailable]: EXIT_RETRYABLE,
 };
 
 function exitCodeForPrefix(code: KnownErrorCode): number | undefined {
@@ -184,6 +193,13 @@ function exitCodeForPrefix(code: KnownErrorCode): number | undefined {
   return undefined;
 }
 
-export function exitCodeForErrorCode(code: KnownErrorCode): number {
-  return EXACT_EXIT_CODE_BY_ERROR[code] ?? exitCodeForPrefix(code) ?? EXIT_UNEXPECTED;
+export function exitCodeForErrorCode(code: KnownErrorCode, retryable?: boolean): number {
+  const exact = EXACT_EXIT_CODE_BY_ERROR[code];
+  // Some codes (store.unavailable in particular) are retryable-by-default but the server can mark a
+  // specific occurrence non-retryable — e.g. a mid-flight connection loss whose COMMIT fate is
+  // unknown. Honor that flag so exit-code-driven retry loops match the JSON envelope's retryable.
+  if (exact === EXIT_RETRYABLE && retryable === false) {
+    return EXIT_UNEXPECTED;
+  }
+  return exact ?? exitCodeForPrefix(code) ?? EXIT_UNEXPECTED;
 }

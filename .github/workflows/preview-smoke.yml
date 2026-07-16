@@ -38,6 +38,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Set the registry path once for every later step (the smoke run that registers minted
+      # bearers and the sweep that revokes and scans for them) so they can never drift onto
+      # different files (INS-586). `runner` context is unavailable in job-level env, so publish
+      # $RUNNER_TEMP through $GITHUB_ENV here instead.
+      - name: Resolve smoke artifact registry path
+        run: echo "SMOKE_ARTIFACT_CREDENTIAL_REGISTRY=$RUNNER_TEMP/preview-smoke-artifact-credentials.json" >> "$GITHUB_ENV"
+
       - name: Validate preview smoke inputs
         env:
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
@@ -120,7 +127,6 @@ jobs:
       - name: Run preview application smoke
         env:
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
-          SMOKE_ARTIFACT_CREDENTIAL_REGISTRY: ${{ runner.temp }}/preview-smoke-artifact-credentials.json
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
           SMOKE_WEB_BASE_URL: https://app.preview.insecur.cloud
           SMOKE_SITE_BASE_URL: https://preview.insecur.cloud
@@ -136,7 +142,6 @@ jobs:
         id: artifact_sweep
         if: ${{ always() }}
         env:
-          SMOKE_ARTIFACT_CREDENTIAL_REGISTRY: ${{ runner.temp }}/preview-smoke-artifact-credentials.json
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
         run: pnpm --filter @insecur/preview-smoke sweep:artifacts
 

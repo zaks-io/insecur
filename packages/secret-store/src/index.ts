@@ -3,6 +3,10 @@ export { assertSecretProtectedDraftWriteAccess } from "./assert-secret-protected
 export { assertEnvironmentAllowsNonProtectedWrite } from "./assert-environment-allows-non-protected-write.js";
 export { assertEnvironmentAllowsProtectedDraftWrite } from "./assert-environment-allows-protected-draft-write.js";
 export {
+  type AssertSecretPossessionCoordinateInput,
+  assertSecretPossessionCoordinate,
+} from "./assert-secret-possession-coordinate.js";
+export {
   type AssertSecretWriteCoordinateInput,
   type SecretWriteCoordinate,
   assertSecretWriteCoordinate,

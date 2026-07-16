@@ -27,6 +27,10 @@ export {
   type RuntimeConnectionOptions,
   RuntimeConfigMissingError,
 } from "./db/connection.js";
+export {
+  isConnectionAcquisitionFailure,
+  isTransientConnectionError,
+} from "./db/transient-connection-error.js";
 export * from "./readiness/index.js";
 
 export * from "./data-keys/index.js";

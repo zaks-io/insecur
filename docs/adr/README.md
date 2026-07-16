@@ -87,6 +87,8 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0081: CLI Positional Arguments For The Primary Resource, Flags For Everything Else](0081-cli-positional-argument-grammar.md)
 - [ADR-0082: CLI Error Remediation Follows RFC 9457 Problem Details](0082-cli-error-shape-follows-rfc-9457.md)
 - [ADR-0083: One Visual System Across Site, Docs, and Console, Light and Dark](0083-unified-visual-system-light-dark.md)
+- [ADR-0084: Runtime-Only Restore Import Boundary](0084-runtime-only-restore-import-boundary.md)
+- [ADR-0085: Deployed Telemetry Evidence Surfaces For No-Plaintext Controls](0085-deployed-telemetry-evidence-surfaces.md)
 
 ## Superseded
 
@@ -99,4 +101,4 @@ Use this index for traceability and rationale after locating the relevant spec s
 These surfaced while grilling infrastructure (ADR-0027 through ADR-0030) and were deferred, not decided.
 
 - **Rate-limit primitive.** Deferred with public onboarding. Postgres counter rows suffice for V1's few unauthenticated endpoints; a dedicated primitive (Durable Object or external) is only forced when broad public signup and its abuse controls land.
-- **External telemetry sink specifics.** ADR-0030 fixes the hybrid shape and the allowlist contract but not the vendor. Axiom is the lean choice for the metadata-only stream; Sentry is permitted only with default PII, request-data, breadcrumb, and local-variable capture disabled. Final sink selection and its subprocessor review are open.
+- **External telemetry sink specifics.** Sink selection is decided: [ADR-0085](0085-deployed-telemetry-evidence-surfaces.md) records the configured destinations (logs to Axiom; traces to Axiom and Sentry, org/project `zaksio/insecur`) as the authoritative deployed telemetry surfaces. Sentry remains permitted only with default PII, request-data, breadcrumb, and local-variable capture disabled (ADR-0030). The subprocessor/residency review stays open under [ADR-0046](0046-us-residency-claim-scoped-to-data-at-rest.md).

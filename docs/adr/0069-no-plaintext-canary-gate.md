@@ -4,6 +4,10 @@ Date: 2026-06-12
 
 Status: Accepted
 
+Amended: 2026-07-10 (deployed Worker log/trace evidence surfaces are bound to the configured
+telemetry destinations, with traces split into per-provider controls; see
+[ADR-0085](0085-deployed-telemetry-evidence-surfaces.md))
+
 No Plaintext Persistence and Secret-Free Logging are the most-restated invariants in the corpus,
 and every restatement defers to canary tests that exist nowhere as a named gate. The "No plaintext
 persistence" readiness control in [docs/storage-security-gate.md](../storage-security-gate.md)
@@ -81,6 +85,10 @@ Implementation note: the gate contract is defined here; the harness lives in
   checked-in evidence requirement when they land. R2 backups, deployed Worker logs, traces, and API
   analytics are registered now and block `small_group_production` without metadata-only,
   zero-finding evidence. The provider query/download implementations remain external and missing.
+  [ADR-0085](0085-deployed-telemetry-evidence-surfaces.md) binds the Worker log and trace surfaces
+  to the configured telemetry destinations (logs: Axiom; traces: Axiom AND Sentry as separate
+  blocking controls) and adds the deploy-topology conformance rule that a wrangler log/trace
+  destination cannot exist without a registry binding.
 - **Honest evidence scope.** The gate proves exactly: Postgres columns (including operation
   records and audit rows), in-process captured console output, and serialized First Value HTTP/RPC
   egress with the `delivery.encodedValueUtf8` allowance above. It does not prove deployed Worker

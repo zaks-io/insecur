@@ -239,7 +239,7 @@ describe("executeConsumeInjectionGrant", () => {
           },
         },
       ),
-    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
     expect(tryConsumeGrant).not.toHaveBeenCalled();
     expect(decryptBoundGrantSecretVersion).not.toHaveBeenCalled();
@@ -266,7 +266,9 @@ describe("executeConsumeInjectionGrant", () => {
         { ...baseInput, actor: { type: "user", userId: OTHER_USER } },
         loadedBinding,
       ),
-    ).rejects.toMatchObject({ code: INJECTION_ERROR_CODES.grantDenied });
+      // Same code as a missing grant: a distinct owner-mismatch code would be a grant-existence
+      // oracle (INS-181).
+    ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.insufficientScope });
 
     expect(tryConsumeGrant).not.toHaveBeenCalled();
     expect(decryptBoundGrantSecretVersion).not.toHaveBeenCalled();

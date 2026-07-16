@@ -21,7 +21,6 @@ export function buildCliSecretsSetValueStdinArgs(
   return [
     "secrets",
     "set",
-    "--variable-key",
     variableKey,
     "--value-stdin",
     ...(input.allowEmpty === true ? ["--allow-empty"] : []),
@@ -35,7 +34,6 @@ export function buildCliSecretsSetGenerateArgs(input: {
   return [
     "secrets",
     "set",
-    "--variable-key",
     input.variableKey,
     "--generate",
     "random",
@@ -126,6 +124,14 @@ export function buildCliRunPoliciesDisableArgs(input: {
   ];
 }
 
+export function buildCliConnectionsListArgs(): readonly string[] {
+  return ["connections", "list"];
+}
+
+export function buildCliConnectionsStatusArgs(connectionId: string): readonly string[] {
+  return ["connections", "status", connectionId];
+}
+
 export function buildCliAgentEnvArgs(): readonly string[] {
   return ["agent", "env"];
 }
@@ -134,6 +140,27 @@ export function buildCliAgentRegisterArgs(): readonly string[] {
   return ["agent", "register"];
 }
 
-export function buildCliWhoamiArgs(): readonly string[] {
-  return ["whoami"];
+export function buildCliWhoamiArgs(agentTag?: string): readonly string[] {
+  return agentTag === undefined ? ["whoami"] : ["whoami", "--agent", agentTag];
+}
+
+export function buildCliRuntimeInvariantRunArgs(input: {
+  readonly childScript: string;
+  readonly stdoutMarker: string;
+  readonly stderrMarker: string;
+  readonly absentVariableKey: string;
+}): readonly string[] {
+  return [
+    "run",
+    "--variable-key",
+    PROOF_VARIABLE_KEY,
+    "--",
+    process.execPath,
+    "--input-type=module",
+    "--eval",
+    input.childScript,
+    input.stdoutMarker,
+    input.stderrMarker,
+    input.absentVariableKey,
+  ];
 }

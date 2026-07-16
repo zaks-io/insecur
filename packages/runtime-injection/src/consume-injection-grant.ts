@@ -7,7 +7,6 @@ import {
 import type { ActorRef } from "@insecur/access";
 import {
   AUTH_ERROR_CODES,
-  INJECTION_ERROR_CODES,
   environmentId,
   projectId,
   type EnvironmentId,
@@ -157,9 +156,11 @@ export async function executeConsumeInjectionGrant(
       "injection grant consume denied",
     );
   }
+  // Owner mismatch must collapse to the same code as "grant absent": a distinct code here would
+  // confirm to a non-owner that the probed grant id exists (the INS-181 oracle again).
   if (!actorMatchesGrantOwner(input.actor, loaded.issuedTo)) {
     throw new InjectionGrantError(
-      INJECTION_ERROR_CODES.grantDenied,
+      AUTH_ERROR_CODES.insufficientScope,
       "injection grant consume denied",
     );
   }

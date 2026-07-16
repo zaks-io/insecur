@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { AUTH_ERROR_CODES, ONBOARDING_ERROR_CODES, VALIDATION_ERROR_CODES } from "@insecur/domain";
+import {
+  AUTH_ERROR_CODES,
+  ONBOARDING_ERROR_CODES,
+  STORE_ERROR_CODES,
+  VALIDATION_ERROR_CODES,
+} from "@insecur/domain";
 import {
   EXIT_ACTION_REQUIRED,
   EXIT_AUTH_REQUIRED,
@@ -24,5 +29,13 @@ describe("exitCodeForErrorCode", () => {
     expect(exitCodeForErrorCode(VALIDATION_ERROR_CODES.invalidDisplayName)).toBe(EXIT_VALIDATION);
     expect(exitCodeForErrorCode(AUTH_ERROR_CODES.expired)).toBe(EXIT_AUTH_REQUIRED);
     expect(exitCodeForErrorCode("unknown.error")).toBe(EXIT_UNEXPECTED);
+  });
+
+  it("downgrades a retryable-by-default code to unexpected when the occurrence is non-retryable", () => {
+    // A mid-flight connection loss surfaces store.unavailable with retryable:false; the exit code
+    // must not tell an exit-code-driven retry loop to re-run a possibly-committed write.
+    expect(exitCodeForErrorCode(STORE_ERROR_CODES.unavailable)).toBe(8);
+    expect(exitCodeForErrorCode(STORE_ERROR_CODES.unavailable, true)).toBe(8);
+    expect(exitCodeForErrorCode(STORE_ERROR_CODES.unavailable, false)).toBe(EXIT_UNEXPECTED);
   });
 });

@@ -567,6 +567,15 @@
     "notes": "Runtime configuration unavailable; control-plane state, not caller input."
   },
   {
+    "code": "store.unavailable",
+    "slug": "store-unavailable",
+    "typeUri": "https://insecur.dev/errors/store-unavailable",
+    "exitCode": 8,
+    "httpStatus": 503,
+    "remediationRequired": false,
+    "notes": "Transient database connection-layer failure (Hyperdrive pool exhaustion, server shutdown, connection loss); safe to retry after a short delay."
+  },
+  {
     "code": "storage.gate_blocked",
     "slug": "storage-gate-blocked",
     "typeUri": "https://insecur.dev/errors/storage-gate-blocked",
@@ -1456,6 +1465,15 @@
     "httpStatus": "n/a (client-side)",
     "remediationRequired": false,
     "notes": "Retryable lease contention."
+  },
+  {
+    "code": "sync.stale_plan",
+    "slug": "sync-stale-plan",
+    "typeUri": "https://insecur.dev/errors/sync-stale-plan",
+    "exitCode": 7,
+    "httpStatus": "n/a (client-side)",
+    "remediationRequired": false,
+    "notes": "Sync Execution Revalidation found the plan no longer matches current sync configuration, App Connection state, or Explicit Provider Lookup status; re-plan before execution. No provider write starts."
   },
   {
     "code": "sync.overwrite_status_unknown",
