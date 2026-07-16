@@ -117,10 +117,19 @@ describe("executeConsumeInjectionGrantAll", () => {
         phase: "consume",
         outcome: "success",
         grantId: GRANT,
-        deliveredSecretVersionId: VERSION_A,
+        deliveredSecretVersionIds: [VERSION_A, VERSION_B],
       }),
     );
     expect(withTenantScope).toHaveBeenCalledTimes(1);
+  });
+
+  it("audits every delivered binding version in binding order", async () => {
+    await executeConsumeInjectionGrantAll(input, loaded);
+
+    const auditInput = vi.mocked(recordRuntimeInjectionAuditInTenantScope).mock.calls[0]?.[1];
+    expect(auditInput?.deliveredSecretVersionIds).toEqual(
+      loaded.bindings.map((binding) => binding.secretVersionId),
+    );
   });
 
   it("rolls back consume-all and clears every plaintext when success audit insertion fails", async () => {
