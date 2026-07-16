@@ -191,6 +191,12 @@ export class SqliteLocalProjectMetadataStore implements LocalProjectMetadataStor
     };
   }
 
+  deleteProject(projectIdValue: ProjectId): Promise<boolean> {
+    assertOpaqueId(projectIdValue, "projectId");
+    const result = this.database.prepare(`DELETE FROM projects WHERE id = ?`).run(projectIdValue);
+    return Promise.resolve(Number(result.changes) > 0);
+  }
+
   private mapSecretShapeRow(row: SecretShapeDbRow): LocalSecretShapeRow {
     return {
       projectId: projectId.brand(row.project_id),

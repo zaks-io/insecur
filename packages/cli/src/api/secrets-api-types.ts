@@ -72,6 +72,14 @@ export interface ListSecretVersionsData {
   readonly versions: readonly SecretVersionMetadataItemData[];
 }
 
+/** Metadata-only possession verdict: exactly `match` or `mismatch`, no digest, length, or position. */
+export interface CheckSecretPossessionData {
+  readonly secretId: SecretId;
+  readonly variableKey: VariableKey;
+  readonly verdict: "match" | "mismatch";
+  readonly auditEventId: string;
+}
+
 export interface SecretsApiClient {
   writeSecretByVariableKey(
     input: {
@@ -81,6 +89,8 @@ export interface SecretsApiClient {
       readonly projectId: ProjectId;
       readonly environmentId: EnvironmentId;
       readonly variableKey: VariableKey;
+      /** Client-minted Secret opaque id to replay when the write creates the Secret Shape. */
+      readonly secretId?: SecretId;
       readonly allowEmpty?: boolean;
       readonly createOnly?: boolean;
     } & (
@@ -116,6 +126,23 @@ export interface SecretsApiClient {
     readonly secretId: SecretId;
   }): Promise<
     | { ok: true; envelope: ApiSuccess<ListSecretVersionsData> }
+    | { ok: false; envelope: ApiFailure; httpStatus: number }
+  >;
+  /**
+   * Server-side possession check for one Secret's Current Version (INS-403). The candidate value
+   * travels only in the request body; the response is a metadata-only `match`/`mismatch` verdict.
+   */
+  checkSecretPossession(input: {
+    readonly host: string;
+    readonly bearerCredential: string;
+    readonly organizationId: OrganizationId;
+    readonly projectId: ProjectId;
+    readonly environmentId: EnvironmentId;
+    readonly variableKey: VariableKey;
+    readonly secretId?: SecretId;
+    readonly candidateUtf8: Uint8Array;
+  }): Promise<
+    | { ok: true; envelope: ApiSuccess<CheckSecretPossessionData> }
     | { ok: false; envelope: ApiFailure; httpStatus: number }
   >;
 }

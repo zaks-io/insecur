@@ -15,8 +15,12 @@ import {
   type BackupRestoreErrorCode,
 } from "./backup-restore-error-codes.js";
 import { CLI_ERROR_CODES, type CliErrorCode } from "./cli-error-codes.js";
+import { MIGRATE_ERROR_CODES, type MigrateErrorCode } from "./migrate-error-codes.js";
+import { SECRET_ERROR_CODES, type SecretErrorCode } from "./secret-error-codes.js";
 
 export * from "./import-error-codes.js";
+export { MIGRATE_ERROR_CODES, type MigrateErrorCode } from "./migrate-error-codes.js";
+export { SECRET_ERROR_CODES, type SecretErrorCode } from "./secret-error-codes.js";
 export * from "./provider-error-codes.js";
 export { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
 export {
@@ -63,23 +67,6 @@ export const AUTH_ERROR_CODES = {
 } as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
-
-/** Scaffolding for secret-write error codes (implementation in secrets slice). */
-export const SECRET_ERROR_CODES = {
-  invalidEncoding: "secret.invalid_encoding",
-  invalidInputMode: "secret.invalid_input_mode",
-  emptyValue: "secret.empty_value",
-  inputRequired: "secret.input_required",
-  valueTooLarge: "secret.value_too_large",
-  /**
-   * The URL environment does not belong to the URL project (or does not exist). Collapses
-   * not-found and not-owned into one 404 so the write path cannot reveal whether a foreign
-   * environment exists, mirroring `injection.grant_denied`.
-   */
-  coordinateInvalid: "secret.coordinate_invalid",
-} as const;
-
-export type SecretErrorCode = (typeof SECRET_ERROR_CODES)[keyof typeof SECRET_ERROR_CODES];
 
 /** Scaffolding for runtime injection error codes. */
 export const INJECTION_ERROR_CODES = {
@@ -318,6 +305,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   BACKUP_RESTORE_ERROR_CODES,
   CLI_ERROR_CODES,
   LOCAL_ERROR_CODES,
+  MIGRATE_ERROR_CODES,
   NOTIFICATION_ERROR_CODES,
   PROTECTED_CHANGE_ERROR_CODES,
   APPROVAL_ERROR_CODES,
@@ -347,6 +335,7 @@ export type KnownErrorCode =
   | BackupRestoreErrorCode
   | CliErrorCode
   | LocalErrorCode
+  | MigrateErrorCode
   | NotificationErrorCode
   | ProtectedChangeErrorCode
   | ApprovalErrorCode

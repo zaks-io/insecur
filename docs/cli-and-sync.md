@@ -166,7 +166,7 @@ insecur login
 insecur projects migrate --org-id org_01JZ8E2QYQ6M7F4K9A2B3C4D5E --confirm-migrate
 ```
 
-`--confirm-migrate` is a scoped confirmation; generic `--yes` cannot satisfy it (see [Global Flags](#global-flags)).
+`--confirm-migrate` is a scoped confirmation; generic `--yes` cannot satisfy it (see [Global Flags](#global-flags)). `--org-id` may be omitted when the caller belongs to exactly one organization (the Personal Organization); it is required otherwise. A diverged key is resolved by re-running with `--skip-key <VARIABLE_KEY>` (the remote value is kept) or by an explicit overwrite as a separate human act that must target the Hosted Instance — `.insecur.json` still points at Local Mode until migration completes, so a bare `insecur secrets set` would edit the local candidate instead. The `migrate.remote_diverged` remediation carries the exact hosted-target command: `insecur secrets set <VARIABLE_KEY> --value-stdin --host <instance-url> --org-id <org-id> --project-id <project-id> --env-id <env-id>`.
 
 Reconcile semantics:
 
@@ -1002,7 +1002,7 @@ Rules:
 - Protected Environment secret values are never copied into another Environment.
 - Development values must be set as Environment Defaults or generated through explicit non-protected workflows.
 - Environment inheritance is not supported.
-- `projects migrate` is one-way Local Mode→cloud reconciliation only; semantics are normative in [Local Mode](#local-mode). Requires authentication, `--org-id`, and scoped `--confirm-migrate`; generic `--yes` is rejected.
+- `projects migrate` is one-way Local Mode→cloud reconciliation only; semantics are normative in [Local Mode](#local-mode). Requires authentication and the scoped `--confirm-migrate`; generic `--yes` is rejected. When `--org-id` is omitted the target defaults to the caller's sole organization (the Personal Organization); with more than one organization the flag is required.
 
 ### Shared Secret Sources
 

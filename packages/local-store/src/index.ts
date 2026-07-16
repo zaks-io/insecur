@@ -34,7 +34,10 @@ export {
   type CreateLocalStoreOptions,
   type LocalStore,
 } from "./create-local-store.js";
-export { decryptLocalSecretForInjection } from "./decrypt-local-secret-for-injection.js";
+export {
+  decryptLocalSecretForInjection,
+  decryptLocalSecretForMigration,
+} from "./decrypt-local-secret-for-injection.js";
 export { encryptLocalSecretValue } from "./crypto/encrypt-local-secret.js";
 export { LOCAL_MODE_ORGANIZATION_ID } from "./crypto/local-organization.js";
 export { createLocalKeyring } from "./crypto/local-keyring.js";

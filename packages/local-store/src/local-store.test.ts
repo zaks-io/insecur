@@ -266,6 +266,39 @@ describe("SqliteLocalStore", () => {
     expect(auditDetailsRows.join("")).not.toContain(plaintextLiteral);
   });
 
+  it("deleteProject removes project metadata, shapes, and wrapped versions but keeps audit rows", async () => {
+    await seedProjectAndEnvironment(harness);
+    await harness.projects.upsertSecretShape({
+      projectId: PROJECT_A,
+      variableKey: brandValue<string, "VariableKey">("INSECUR_PROOF_SECRET"),
+      secretId: SECRET_A,
+    });
+    await writeWrappedCurrentVersion(harness, {
+      secretVersionIdValue: VERSION_A,
+      plaintext: SENSITIVE_PLAINTEXT,
+    });
+    await harness.audit.writeEvent({
+      eventCode: "local.project_migrated",
+      outcome: "success",
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+    });
+
+    await expect(harness.projects.deleteProject(PROJECT_A)).resolves.toBe(true);
+
+    await expect(harness.projects.getProject(PROJECT_A)).resolves.toBeNull();
+    await expect(harness.projects.getEnvironment(PROJECT_A, ENV_A)).resolves.toBeNull();
+    await expect(harness.projects.listSecretShapes(PROJECT_A)).resolves.toHaveLength(0);
+    await expect(
+      harness.secretVersions.getCurrentWrappedVersion(PROJECT_A, SECRET_A),
+    ).resolves.toBeNull();
+    expect(harness.sqlite.countCurrentSecretVersionRows()).toBe(0);
+    // Audit rows survive with the project reference nulled (ON DELETE SET NULL).
+    expect(harness.sqlite.readAuditDetailsJsonRows()).toHaveLength(1);
+
+    await expect(harness.projects.deleteProject(PROJECT_A)).resolves.toBe(false);
+  });
+
   it("does not write plaintext sensitive values into the sqlite file bytes", async () => {
     await seedProjectAndEnvironment(harness);
     await writeWrappedCurrentVersion(harness, {

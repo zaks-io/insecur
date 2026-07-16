@@ -42,7 +42,7 @@ import {
   requestProtectedRollback,
 } from "./http-client-protected-change.js";
 import { listEnvironmentSecrets, listSecretVersions } from "./http-client-secrets-read.js";
-import { writeSecretByVariableKey } from "./http-client-secrets-write.js";
+import { checkSecretPossession, writeSecretByVariableKey } from "./http-client-secrets-write.js";
 import { sessionWhoami } from "./http-client-whoami.js";
 import { deriveAgentSession, registerAgentSession } from "./http-client-agent-session.js";
 import type { HttpClientOptions } from "./http-client-envelope.js";
@@ -57,6 +57,7 @@ type HttpSessionApi = Pick<
   | "pollCliDeviceToken"
   | "provisionPersonalOrganization"
   | "writeSecretByVariableKey"
+  | "checkSecretPossession"
   | "listEnvironmentSecrets"
   | "listSecretVersions"
   | "issueInjectionGrant"
@@ -93,6 +94,7 @@ function createHttpSessionApi(base: string, options: HttpClientOptions): HttpSes
       provisionPersonalOrganization(requestHost(input), input, options),
     writeSecretByVariableKey: (input) =>
       writeSecretByVariableKey(requestHost(input), input, options),
+    checkSecretPossession: (input) => checkSecretPossession(requestHost(input), input, options),
     listEnvironmentSecrets: (input) => listEnvironmentSecrets(requestHost(input), input, options),
     listSecretVersions: (input) => listSecretVersions(requestHost(input), input, options),
     issueInjectionGrant: (input) => issueInjectionGrant(requestHost(input), input, options),
