@@ -2,7 +2,6 @@ import type { Keyring, PlaintextHandle } from "@insecur/crypto";
 import { recordRuntimeInjectionAuditInTenantScope } from "@insecur/audit";
 import {
   AUTH_ERROR_CODES,
-  INJECTION_ERROR_CODES,
   environmentId,
   projectId,
   type InjectionGrantId,
@@ -176,9 +175,11 @@ export async function executeConsumeInjectionGrantAll(
   loaded: LoadedPolicyGrantBindings | undefined,
 ): Promise<ConsumeInjectionGrantAllCoreResult> {
   const policyGrant = requireLoadedPolicyGrant(loaded);
+  // Owner mismatch must collapse to the same code as "grant absent": a distinct code here would
+  // confirm to a non-owner that the probed grant id exists (the INS-181 oracle again).
   if (!actorMatchesGrantOwner(input.actor, policyGrant.issuedTo)) {
     throw new InjectionGrantError(
-      INJECTION_ERROR_CODES.grantDenied,
+      AUTH_ERROR_CODES.insufficientScope,
       "injection grant consume denied",
     );
   }

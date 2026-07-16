@@ -208,6 +208,13 @@ function exitCodeForPrefix(code: KnownErrorCode): number | undefined {
   return undefined;
 }
 
-export function exitCodeForErrorCode(code: KnownErrorCode): number {
-  return EXACT_EXIT_CODE_BY_ERROR[code] ?? exitCodeForPrefix(code) ?? EXIT_UNEXPECTED;
+export function exitCodeForErrorCode(code: KnownErrorCode, retryable?: boolean): number {
+  const exact = EXACT_EXIT_CODE_BY_ERROR[code];
+  // Some codes (store.unavailable in particular) are retryable-by-default but the server can mark a
+  // specific occurrence non-retryable — e.g. a mid-flight connection loss whose COMMIT fate is
+  // unknown. Honor that flag so exit-code-driven retry loops match the JSON envelope's retryable.
+  if (exact === EXIT_RETRYABLE && retryable === false) {
+    return EXIT_UNEXPECTED;
+  }
+  return exact ?? exitCodeForPrefix(code) ?? EXIT_UNEXPECTED;
 }

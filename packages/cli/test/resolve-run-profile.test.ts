@@ -287,6 +287,18 @@ describe("isExplicitProfilePositional", () => {
     ).toBe(false);
   });
 
+  it("is false when the child command after -- contains its own run token", () => {
+    expect(
+      isExplicitProfilePositional(["node", "insecur", "run", "--", "npm", "run", "dev"], "npm"),
+    ).toBe(false);
+    expect(
+      isExplicitProfilePositional(
+        ["node", "insecur", "run", "--variable-key", "K", "--", "npm", "run", "test"],
+        "npm",
+      ),
+    ).toBe(false);
+  });
+
   it("is true when the positional was typed before the -- separator", () => {
     expect(
       isExplicitProfilePositional(

@@ -10,6 +10,8 @@ export {
   buildCliAuditExportArgs,
   buildCliAuditTailArgs,
   buildCliAuditVerifyArgs,
+  buildCliConnectionsListArgs,
+  buildCliConnectionsStatusArgs,
   buildCliFirstValueRunArgs,
   buildCliOperationsGetArgs,
   buildCliOperationsWaitArgs,

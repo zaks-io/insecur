@@ -7,7 +7,7 @@ import { renderEnvelope } from "../output/render.js";
 export function handleApiFailure(envelope: ErrorEnvelope, flags: GlobalCliFlags): number {
   if (flags.json) {
     renderEnvelope(cliErrorFromEnvelope(envelope).toErrorEnvelope(), flags, () => "");
-    return exitCodeForErrorCode(envelope.error.code);
+    return exitCodeForErrorCode(envelope.error.code, envelope.error.retryable);
   }
   throw cliErrorFromEnvelope(envelope);
 }

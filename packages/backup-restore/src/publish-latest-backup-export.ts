@@ -28,22 +28,34 @@ function parseSerializedEvidence(serialized: string | null): BackupExportSuccess
   }
 }
 
+/** CAS conflicts mean another publisher is racing; each retry re-reads and re-guards, so a few
+ * attempts always converge on the newest export. */
+const MAX_POINTER_PUBLISH_ATTEMPTS = 4;
+
 /**
  * Advances the latest-export pointer, refusing to regress it to an older export: overlapping
  * schedulers and replays may publish out of order, and "latest" must always mean the most recent
- * complete run. ISO-8601 UTC timestamps compare lexicographically. An unparseable current pointer
- * is treated as absent so valid evidence can repair it.
+ * complete run. The recency check and the write form one compare-and-swap — an unconditional put
+ * after the check could still land an older export last. ISO-8601 UTC timestamps compare
+ * lexicographically. An unparseable current pointer is treated as absent so valid evidence can
+ * repair it.
  */
 export async function publishLatestBackupExport(
   storage: BackupExportStorage,
   exportEvidence: BackupExportSuccessEvidence,
 ): Promise<void> {
   assertBackupRestoreEvidenceIsMetadataSafe(exportEvidence);
-  const current = parseSerializedEvidence(await storage.getLatestEvidence());
-  if (current !== null && current.export_timestamp > exportEvidence.export_timestamp) {
-    return;
+  for (let attempt = 0; attempt < MAX_POINTER_PUBLISH_ATTEMPTS; attempt += 1) {
+    const snapshot = await storage.getLatestEvidence();
+    const current = parseSerializedEvidence(snapshot?.body ?? null);
+    if (current !== null && current.export_timestamp > exportEvidence.export_timestamp) {
+      return;
+    }
+    if (await storage.putLatestEvidence(serializeExportEvidence(exportEvidence), snapshot)) {
+      return;
+    }
   }
-  await storage.putLatestEvidence(serializeExportEvidence(exportEvidence));
+  throw new Error("latest-export pointer publish kept losing its compare-and-swap race");
 }
 
 /**
