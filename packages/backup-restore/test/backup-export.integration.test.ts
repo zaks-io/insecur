@@ -33,6 +33,17 @@ import {
 const describeIntegration = integrationDatabaseReady ? describe : describe.skip;
 const SNAPSHOT_TEST_ENVIRONMENT_ID = "env_00000000000000000000000099";
 
+// Scheduled instants must be unique per suite run: the shared local Postgres keeps Operation
+// rows across runs, and a reused idempotency key replays (created: false) against a fresh
+// MemoryBackupExportStorage that has no durable evidence to republish.
+// Ascending within the run (the latest-pointer only advances forward), unique across runs.
+const scheduledAtBase = Date.now() - 1_000 * 3_600_000;
+let scheduledAtCounter = 0;
+function uniqueScheduledAt(): Date {
+  scheduledAtCounter += 1;
+  return new Date(scheduledAtBase + scheduledAtCounter * 3_600_000);
+}
+
 function durableRootKey(): Uint8Array {
   const root = new Uint8Array(32);
   for (let index = 0; index < root.byteLength; index += 1) {
@@ -195,7 +206,7 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
   });
 
   it("seals a multi-org artifact and reports export freshness", async () => {
-    const scheduledAt = new Date("2026-07-08T03:00:00.000Z");
+    const scheduledAt = uniqueScheduledAt();
     const first = await runBackupExport({
       scheduledAt,
       rootKeyBytes,
@@ -248,30 +259,30 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
   it("does not advance the latest pointer when a run fails after artifact_stored", async () => {
     await assertFailureDoesNotAdvanceLatestPointer({
       step: "artifact_stored",
-      priorScheduledAt: new Date("2026-07-12T01:00:00.000Z"),
-      failedScheduledAt: new Date("2026-07-12T02:00:00.000Z"),
+      priorScheduledAt: uniqueScheduledAt(),
+      failedScheduledAt: uniqueScheduledAt(),
     });
   });
 
   it("does not advance the latest pointer when a run fails after evidence_stored", async () => {
     await assertFailureDoesNotAdvanceLatestPointer({
       step: "evidence_stored",
-      priorScheduledAt: new Date("2026-07-12T03:00:00.000Z"),
-      failedScheduledAt: new Date("2026-07-12T04:00:00.000Z"),
+      priorScheduledAt: uniqueScheduledAt(),
+      failedScheduledAt: uniqueScheduledAt(),
     });
   });
 
   it("does not advance the latest pointer when a run fails after audit_recorded", async () => {
     await assertFailureDoesNotAdvanceLatestPointer({
       step: "audit_recorded",
-      priorScheduledAt: new Date("2026-07-12T05:00:00.000Z"),
-      failedScheduledAt: new Date("2026-07-12T06:00:00.000Z"),
+      priorScheduledAt: uniqueScheduledAt(),
+      failedScheduledAt: uniqueScheduledAt(),
     });
   });
 
   it("keeps a run succeeded and repairs the pointer on replay when the final publish fails", async () => {
     const storage = new MemoryBackupExportStorage();
-    const scheduledAt = new Date("2026-07-12T09:00:00.000Z");
+    const scheduledAt = uniqueScheduledAt();
     const onExportFailureAlert = vi.fn();
     const publishFailure = new Error("simulated transient latest-pointer put failure");
 
@@ -318,8 +329,8 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
 
   it("does not cross-link immutable artifacts when scheduled runs share storage", async () => {
     const sharedStorage = new MemoryBackupExportStorage();
-    const firstScheduledAt = new Date("2026-07-12T07:00:00.000Z");
-    const secondScheduledAt = new Date("2026-07-12T08:00:00.000Z");
+    const firstScheduledAt = uniqueScheduledAt();
+    const secondScheduledAt = uniqueScheduledAt();
     const first = await runBackupExport({
       scheduledAt: firstScheduledAt,
       rootKeyBytes,
@@ -422,22 +433,24 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
     // Replay shares the storage bucket with the original run, mirroring production where every
     // scheduler invocation targets the same R2 bucket holding the durable per-run evidence.
     const sharedStorage = new MemoryBackupExportStorage();
+    const replayedScheduledAt = uniqueScheduledAt();
+    const distinctScheduledAt = uniqueScheduledAt();
     const firstRun = await runBackupExport({
-      scheduledAt: new Date("2026-07-09T03:00:00.000Z"),
+      scheduledAt: replayedScheduledAt,
       rootKeyBytes,
       storage: sharedStorage,
       organizationId: recoveryOrg,
       instanceId: TEST_INSTANCE_ID,
     });
     const replay = await runBackupExport({
-      scheduledAt: new Date("2026-07-09T03:00:00.000Z"),
+      scheduledAt: replayedScheduledAt,
       rootKeyBytes,
       storage: sharedStorage,
       organizationId: recoveryOrg,
       instanceId: TEST_INSTANCE_ID,
     });
     const secondRun = await runBackupExport({
-      scheduledAt: new Date("2026-07-10T03:00:00.000Z"),
+      scheduledAt: distinctScheduledAt,
       rootKeyBytes,
       storage: sharedStorage,
       organizationId: recoveryOrg,
@@ -461,7 +474,7 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
 
     await expect(
       runBackupExport({
-        scheduledAt: new Date("2026-07-11T03:00:00.000Z"),
+        scheduledAt: uniqueScheduledAt(),
         rootKeyBytes,
         storage: new MemoryBackupExportStorage(),
         organizationId: unseededOrg,

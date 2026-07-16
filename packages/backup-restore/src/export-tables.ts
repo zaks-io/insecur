@@ -50,8 +50,14 @@ export const BACKUP_ORGANIZATION_EXPORT_TABLES = [
   "protected_change_approval_evidence",
 ] as const;
 
-/** Schema tables intentionally omitted from disaster-recovery exports. Every omission needs review. */
-export const BACKUP_EXPORT_EXCLUDED_TABLES = [] as const;
+/**
+ * Schema tables intentionally omitted from disaster-recovery exports. Every omission needs review.
+ *
+ * - `restore_import_journal` (ADR-0084) is restore-target-local state: the fresh-target proof
+ *   requires it present-but-empty, and its singleton row is the once-ever import marker for that
+ *   specific target. Exporting it would round-trip a stale marker into the next restore.
+ */
+export const BACKUP_EXPORT_EXCLUDED_TABLES = ["restore_import_journal"] as const;
 
 type BackupInstanceExportTable = (typeof BACKUP_INSTANCE_EXPORT_TABLES)[number];
 type BackupOrganizationExportTable = (typeof BACKUP_ORGANIZATION_EXPORT_TABLES)[number];
