@@ -1,5 +1,5 @@
 {
-  "id": "a0f45143-5224-44d4-ab17-9a81672837e2",
+  "id": "99b0a170-5ff6-4c64-aba0-bc4662fca025",
   "prevId": "f193650b-23ef-455b-b264-8417e2ca450c",
   "version": "7",
   "dialect": "postgresql",
@@ -2968,12 +2968,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "delivery_target_fingerprint": {
-          "name": "delivery_target_fingerprint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -4759,6 +4753,108 @@
         "secret_syncs_cloudflare_target_check": {
           "name": "secret_syncs_cloudflare_target_check",
           "value": "\"secret_syncs\".\"kind\" <> 'cloudflare-worker-secret' OR \"secret_syncs\".\"target_repo_id\" IS NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.restore_import_journal": {
+      "name": "restore_import_journal",
+      "schema": "",
+      "columns": {
+        "only_row": {
+          "name": "only_row",
+          "type": "boolean",
+          "primaryKey": true,
+          "notNull": true,
+          "default": true
+        },
+        "instance_id": {
+          "name": "instance_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "artifact_ref": {
+          "name": "artifact_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_export_operation_id": {
+          "name": "source_export_operation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_export_timestamp": {
+          "name": "source_export_timestamp",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization_count": {
+          "name": "organization_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manifest_organization_count": {
+          "name": "manifest_organization_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skipped_organization_count": {
+          "name": "skipped_organization_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dropped_bootstrap_claim_count": {
+          "name": "dropped_bootstrap_claim_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imported_row_count": {
+          "name": "imported_row_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "restore_import_journal_only_row_check": {
+          "name": "restore_import_journal_only_row_check",
+          "value": "\"restore_import_journal\".\"only_row\" = true"
+        },
+        "restore_import_journal_status_check": {
+          "name": "restore_import_journal_status_check",
+          "value": "\"restore_import_journal\".\"status\" IN ('running', 'succeeded', 'failed')"
         }
       },
       "isRLSEnabled": false
