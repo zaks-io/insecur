@@ -1,4 +1,9 @@
-import { ENVIRONMENT_ERROR_CODES, type OrganizationId, type VariableKey } from "@insecur/domain";
+import {
+  ENVIRONMENT_ERROR_CODES,
+  type OrganizationId,
+  type SecretId,
+  type VariableKey,
+} from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import { CliError, cliErrorFromEnvelope } from "../output/cli-error.js";
 import type { LocalMigrateSnapshot } from "../local/migrate-local-snapshot.js";
@@ -111,6 +116,8 @@ export async function ensureRemoteEnvironment(
 }
 
 export interface RemotePresence {
+  /** The remote Secret Shape id, so a half-created shape is completed rather than re-minted. */
+  readonly secretId: SecretId;
   readonly hasCurrentVersion: boolean;
 }
 
@@ -129,7 +136,7 @@ export async function loadRemotePresence(
   return new Map(
     listed.envelope.data.secrets.map((secret) => [
       secret.variableKey,
-      { hasCurrentVersion: secret.currentVersion !== undefined },
+      { secretId: secret.secretId, hasCurrentVersion: secret.currentVersion !== undefined },
     ]),
   );
 }

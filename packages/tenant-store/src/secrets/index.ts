@@ -3,7 +3,11 @@ export {
   encodeInlineCiphertextStorageRef,
   INLINE_CIPHERTEXT_STORAGE_PREFIX,
 } from "./ciphertext-storage-ref.js";
-export { SecretVersionStoreConflictError, SecretVersionStoreNotFoundError } from "./errors.js";
+export {
+  SecretVersionStoreConflictError,
+  SecretVersionStoreCurrentVersionExistsError,
+  SecretVersionStoreNotFoundError,
+} from "./errors.js";
 export { TenantSecretVersionStore } from "./tenant-secret-version-store.js";
 export { TenantSecretMatrixMetadataStore } from "./tenant-secret-matrix-metadata-store.js";
 export type {

@@ -118,6 +118,13 @@ interface WriteSecretRpcInputBase {
   readonly allowEmpty?: boolean;
   /** Reject writes when the Secret already exists (create-only import semantics). */
   readonly createOnly?: boolean;
+  /**
+   * Version-conditional write guard (INS-609): reject with `import.existing_secret` when a Current
+   * Version already exists at write time. Unlike `createOnly` it completes a half-created Secret
+   * Shape, and it is enforced atomically inside the append transaction so a concurrent write can
+   * never be silently superseded.
+   */
+  readonly ifCurrentVersionAbsent?: boolean;
   readonly actorToken: string;
   /** API-minted request id, threaded into the Runtime audit row for the write. */
   readonly requestId: RequestId;

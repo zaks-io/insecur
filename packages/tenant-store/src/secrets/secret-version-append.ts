@@ -4,7 +4,11 @@ import { and, eq, max } from "drizzle-orm";
 import { secretVersions, secrets } from "../db/schema/tenant-secrets.js";
 import type { TenantScopedDb } from "../tenant-scoped-db.js";
 import { encodeInlineCiphertextStorageRef } from "./ciphertext-storage-ref.js";
-import { SecretVersionStoreConflictError, SecretVersionStoreNotFoundError } from "./errors.js";
+import {
+  SecretVersionStoreConflictError,
+  SecretVersionStoreCurrentVersionExistsError,
+  SecretVersionStoreNotFoundError,
+} from "./errors.js";
 import {
   SECRET_VERSION_LIFECYCLE_STATES,
   type SecretVersionLifecycleState,
@@ -139,6 +143,12 @@ export async function insertVersionAndMakeLive(
     .from(secrets)
     .where(and(eq(secrets.id, input.secretId), eq(secrets.orgId, input.organizationId)))
     .limit(1);
+
+  if (input.ifCurrentVersionAbsent === true && currentSecret?.currentVersionId) {
+    throw new SecretVersionStoreCurrentVersionExistsError(
+      "secret already has a current version; version-conditional write rejected",
+    );
+  }
 
   if (currentSecret?.currentVersionId) {
     await retainCurrentLiveVersion(

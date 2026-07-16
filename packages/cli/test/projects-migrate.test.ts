@@ -252,6 +252,15 @@ function createFakeCloud(options: { readonly organizations?: number } = {}) {
       if (input.createOnly === true && existing !== undefined) {
         return Promise.resolve(fail("import.existing_secret", 409));
       }
+      // Version-conditional guard (INS-609): reject only when a Current Version exists, so a
+      // half-created shape (value null) is completed while a concurrent value is never superseded.
+      if (
+        input.ifCurrentVersionAbsent === true &&
+        existing !== undefined &&
+        existing.value !== null
+      ) {
+        return Promise.resolve(fail("import.existing_secret", 409));
+      }
       if (!("valueUtf8" in input) || input.valueUtf8 === undefined) {
         return Promise.resolve(fail("secret.invalid_input_mode", 400));
       }
@@ -701,7 +710,7 @@ describe("insecur projects migrate", () => {
     await expectLocalStateIntact();
   });
 
-  it("never overwrites a value that appears in the write-after-check window (server createOnly)", async () => {
+  it("never overwrites a value that appears in the write-after-check window (version-conditional write)", async () => {
     const context = await setupLocalProject();
     await setAllManifestKeys(context);
     const fake = createFakeCloud();
@@ -718,8 +727,10 @@ describe("insecur projects migrate", () => {
     const thrown = await runMigrate(fake).catch((error: unknown) => error);
     expect(thrown).toBeInstanceOf(CliError);
     expect((thrown as CliError).code).toBe("migrate.remote_diverged");
-    // The concurrently written remote value survives untouched; nothing was deleted locally.
+    // The concurrently written remote value survives untouched; the mutation log proves the
+    // conditional write never landed for the raced key, and nothing was deleted locally.
     expect(fake.state.secrets.get("SERVICE_TOKEN")?.value).toBe(REMOTE_DIVERGENT_VALUE);
+    expect(fake.state.mutations).not.toContain("writeSecret:SERVICE_TOKEN");
     await expectLocalStateIntact();
 
     // A racing writer that landed the SAME value converges via the possession verdict instead.
@@ -753,36 +764,49 @@ describe("insecur projects migrate", () => {
     expect(config.secretShapes).toBeUndefined();
   });
 
-  it("fails loud on a half-created remote shape with the exact hosted overwrite command", async () => {
+  it("completes a half-created remote shape under the version-conditional guard, adopting its id", async () => {
     const context = await setupLocalProject();
     await setAllManifestKeys(context);
     const fake = createFakeCloud();
     fake.state.projects.set(LOCAL_PROJECT_ID, "First project");
     fake.state.environments.set(LOCAL_ENV_ID, { projectId: LOCAL_PROJECT_ID, isProtected: false });
     // Remote shape exists with no Current Version: the state a server-side crash can leave behind.
-    fake.state.secrets.set("SERVICE_TOKEN", { secretId: secretIdBrand.generate(), value: null });
+    const halfCreatedShapeId = secretIdBrand.generate();
+    fake.state.secrets.set("SERVICE_TOKEN", { secretId: halfCreatedShapeId, value: null });
+
+    await expect(runMigrate(fake)).resolves.toBe(0);
+    // The write completed the existing shape (remote id preserved, never re-minted) with the
+    // local value, still under the no-overwrite guard.
+    const completed = fake.state.secrets.get("SERVICE_TOKEN");
+    expect(completed?.secretId).toBe(halfCreatedShapeId);
+    expect(completed?.value).not.toBeNull();
+    expect(fake.state.mutations).toContain("writeSecret:SERVICE_TOKEN");
+    expect(lastStdoutJson()).toMatchObject({ ok: true, data: { status: "migrated" } });
+  });
+
+  it("surfaces divergence when a value lands on a half-created shape between preflight and write", async () => {
+    const context = await setupLocalProject();
+    await setAllManifestKeys(context);
+    const fake = createFakeCloud();
+    fake.state.projects.set(LOCAL_PROJECT_ID, "First project");
+    fake.state.environments.set(LOCAL_ENV_ID, { projectId: LOCAL_PROJECT_ID, isProtected: false });
+    // Half-created shape at preflight; a concurrent writer completes it inside the TOCTOU window.
+    const halfCreatedShapeId = secretIdBrand.generate();
+    fake.state.secrets.set("SERVICE_TOKEN", { secretId: halfCreatedShapeId, value: null });
+    fake.state.afterPresenceLoad = () => {
+      fake.state.secrets.set("SERVICE_TOKEN", {
+        secretId: halfCreatedShapeId,
+        value: REMOTE_DIVERGENT_VALUE,
+      });
+    };
 
     const thrown = await runMigrate(fake).catch((error: unknown) => error);
     expect(thrown).toBeInstanceOf(CliError);
-    const cliError = thrown as CliError;
-    expect(cliError.code).toBe("import.existing_secret");
-    expect(cliError.remediation?.secretsSet).toEqual([
-      "insecur",
-      "secrets",
-      "set",
-      "SERVICE_TOKEN",
-      "--value-stdin",
-      "--host",
-      HOST,
-      "--org-id",
-      ORG_ID,
-      "--project-id",
-      LOCAL_PROJECT_ID,
-      "--env-id",
-      LOCAL_ENV_ID,
-    ]);
-    // The half-created shape is never written without the no-overwrite guard.
-    expect(fake.state.secrets.get("SERVICE_TOKEN")?.value).toBeNull();
+    expect((thrown as CliError).code).toBe("migrate.remote_diverged");
+    // The concurrent value is never superseded: the conditional write never landed for the raced
+    // key, the remote value is intact, and nothing was deleted locally (re-runnable).
+    expect(fake.state.secrets.get("SERVICE_TOKEN")?.value).toBe(REMOTE_DIVERGENT_VALUE);
+    expect(fake.state.mutations).not.toContain("writeSecret:SERVICE_TOKEN");
     await expectLocalStateIntact();
   });
 
