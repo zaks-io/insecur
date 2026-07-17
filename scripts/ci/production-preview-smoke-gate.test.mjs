@@ -56,7 +56,7 @@ test("Preview deployment and smoke are exact-SHA reusable stages", async () => {
   assert.match(previewSmoke, /SMOKE_EXPECTED_DEPLOY_SHA: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(deployPreview, /group: preview-fleet\n\s+cancel-in-progress: false/u);
   assert.match(previewSmoke, /group: preview-fleet\n\s+cancel-in-progress: false/u);
-  assert.match(previewSmokeConfig, /workers: 4/u);
+  assert.match(previewSmokeConfig, /^\s*workers\s*:\s*4\s*(?:,|$)/mu);
 });
 
 test("production consumes same-run Preview proof before mutation", async () => {
