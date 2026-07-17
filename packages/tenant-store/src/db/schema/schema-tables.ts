@@ -16,6 +16,7 @@ export const USER_SCHEMA_TABLE_MODULE_PATHS = [
   "./tenant-feedback.js",
   "./tenant-secrets.js",
   "./tenant-secret-syncs.js",
+  "./tenant-delivery-policy.js",
   "./tenant-webhooks.js",
   "./tenant-protected-changes.js",
   "./tenant-approval-requests.js",

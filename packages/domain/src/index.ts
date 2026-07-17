@@ -46,6 +46,8 @@ export {
   type InAppEventNotificationId,
   type SecretSyncId,
   type SecretSyncBindingId,
+  type DeliveryRiskPolicyId,
+  type PreviewAutomationOptInId,
   organizationId,
   projectId,
   environmentId,
@@ -78,7 +80,10 @@ export {
   inAppEventNotificationId,
   secretSyncId,
   secretSyncBindingId,
+  deliveryRiskPolicyId,
+  previewAutomationOptInId,
 } from "./resource-ids.js";
+export * from "./delivery-risk-policy.js";
 export { type ApprovalRequestImpactDeliveryMetadata } from "./approval-request-impact-metadata.js";
 export {
   RECOVERY_CANARY_ORGANIZATION_ID,
@@ -202,6 +207,8 @@ export {
   type ProtectedChangeErrorCode,
   APPROVAL_ERROR_CODES,
   type ApprovalErrorCode,
+  DELIVERY_POLICY_ERROR_CODES,
+  type DeliveryPolicyErrorCode,
 } from "./error-codes.js";
 export {
   DEFAULT_UNKNOWN_ERROR_CODE,

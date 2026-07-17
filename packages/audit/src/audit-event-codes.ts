@@ -13,6 +13,7 @@ import { APPROVALS_AUDIT_EVENT_CODES } from "./codes/approvals.js";
 import { BACKUP_AUDIT_EVENT_CODES } from "./codes/backup.js";
 import { CONNECTION_AUDIT_EVENT_CODES } from "./codes/connection.js";
 import { CRYPTO_AUDIT_EVENT_CODES } from "./codes/crypto.js";
+import { DELIVERY_POLICY_AUDIT_EVENT_CODES } from "./codes/delivery-policy.js";
 import { HIGH_ASSURANCE_AUDIT_EVENT_CODES } from "./codes/high-assurance.js";
 import { MACHINE_ACCESS_AUDIT_EVENT_CODES } from "./codes/machine-access.js";
 import { NOTIFICATIONS_AUDIT_EVENT_CODES } from "./codes/notifications.js";
@@ -52,6 +53,7 @@ export const PRODUCTION_AUDIT_EVENT_CODES = assembleAuditEventCodes(
   RUNTIME_INJECTION_POLICY_AUDIT_EVENT_CODES,
   NOTIFICATIONS_AUDIT_EVENT_CODES,
   PROTECTED_CHANGE_AUDIT_EVENT_CODES,
+  DELIVERY_POLICY_AUDIT_EVENT_CODES,
 );
 
 /** All supported tenant-qualified audit event codes. */
@@ -126,6 +128,10 @@ export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventC
   PRODUCTION_AUDIT_EVENT_CODES.approvalNotificationFailed,
   PRODUCTION_AUDIT_EVENT_CODES.protectedChangeTransitionDenied,
   PRODUCTION_AUDIT_EVENT_CODES.protectedDeliveryApprovalDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.deliveryPolicyPresetSelectionDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.deliveryPolicyPreviewOptInEnableDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.deliveryPolicyPreviewOptInRevokeDenied,
+  PRODUCTION_AUDIT_EVENT_CODES.deliveryPolicyAutomationDenied,
 ]);
 
 export const DENIED_AUDIT_EVENT_CODES = new Set<AuditEventCode>([

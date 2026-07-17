@@ -6,6 +6,7 @@ export { BACKUP_AUDIT_EVENT_CODES } from "./backup.js";
 export { BOOTSTRAP_AUDIT_EVENT_CODES } from "./bootstrap.js";
 export { CONNECTION_AUDIT_EVENT_CODES } from "./connection.js";
 export { CRYPTO_AUDIT_EVENT_CODES } from "./crypto.js";
+export { DELIVERY_POLICY_AUDIT_EVENT_CODES } from "./delivery-policy.js";
 export { HIGH_ASSURANCE_AUDIT_EVENT_CODES } from "./high-assurance.js";
 export { MACHINE_ACCESS_AUDIT_EVENT_CODES } from "./machine-access.js";
 export { NOTIFICATIONS_AUDIT_EVENT_CODES } from "./notifications.js";

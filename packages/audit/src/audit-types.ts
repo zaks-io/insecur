@@ -60,7 +60,8 @@ export type AuditResourceType =
   | "organization_data_key"
   | "project_data_key"
   | "machine_identity"
-  | "machine_auth_method";
+  | "machine_auth_method"
+  | "delivery_risk_policy";
 
 export interface AuditResourceRef {
   type: AuditResourceType;

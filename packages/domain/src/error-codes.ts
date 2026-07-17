@@ -11,6 +11,14 @@ import {
 import { IMPORT_ERROR_CODES, type ImportErrorCode } from "./import-error-codes.js";
 import { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
 import {
+  DELIVERY_POLICY_ERROR_CODES,
+  type DeliveryPolicyErrorCode,
+} from "./delivery-policy-error-codes.js";
+import {
+  RUNTIME_POLICY_ERROR_CODES,
+  type RuntimePolicyErrorCode,
+} from "./runtime-policy-error-codes.js";
+import {
   BACKUP_RESTORE_ERROR_CODES,
   type BackupRestoreErrorCode,
 } from "./backup-restore-error-codes.js";
@@ -23,6 +31,8 @@ export { MIGRATE_ERROR_CODES, type MigrateErrorCode } from "./migrate-error-code
 export { SECRET_ERROR_CODES, type SecretErrorCode } from "./secret-error-codes.js";
 export * from "./provider-error-codes.js";
 export { SECRET_SYNC_ERROR_CODES, type SecretSyncErrorCode } from "./secret-sync-error-codes.js";
+export * from "./delivery-policy-error-codes.js";
+export * from "./runtime-policy-error-codes.js";
 export {
   BACKUP_RESTORE_ERROR_CODES,
   type BackupRestoreErrorCode,
@@ -74,22 +84,6 @@ export const INJECTION_ERROR_CODES = {
   grantExpired: "injection.grant_expired",
   decryptFailed: "injection.decrypt_failed",
 } as const;
-
-/** Runtime Injection Policy metadata validation and access failures. */
-export const RUNTIME_POLICY_ERROR_CODES = {
-  notFound: "runtime_policy.not_found",
-  displayNameInUse: "runtime_policy.display_name_in_use",
-  invalidBindings: "runtime_policy.invalid_bindings",
-  patternBindingRejected: "runtime_policy.pattern_binding_rejected",
-  secretBindingNotFound: "runtime_policy.secret_binding_not_found",
-  secretBindingEnvironmentMismatch: "runtime_policy.secret_binding_environment_mismatch",
-  versionImmutable: "runtime_policy.version_immutable",
-  protectedUseBlocked: "runtime_policy.protected_use_blocked",
-  disabled: "runtime_policy.disabled",
-} as const;
-
-export type RuntimePolicyErrorCode =
-  (typeof RUNTIME_POLICY_ERROR_CODES)[keyof typeof RUNTIME_POLICY_ERROR_CODES];
 
 export type InjectionErrorCode = (typeof INJECTION_ERROR_CODES)[keyof typeof INJECTION_ERROR_CODES];
 
@@ -309,6 +303,7 @@ export const ALL_ERROR_CODE_CATALOGS = [
   NOTIFICATION_ERROR_CODES,
   PROTECTED_CHANGE_ERROR_CODES,
   APPROVAL_ERROR_CODES,
+  DELIVERY_POLICY_ERROR_CODES,
 ] as const;
 
 export type KnownErrorCode =
@@ -339,4 +334,5 @@ export type KnownErrorCode =
   | NotificationErrorCode
   | ProtectedChangeErrorCode
   | ApprovalErrorCode
+  | DeliveryPolicyErrorCode
   | (string & {});

@@ -48,6 +48,8 @@ export const BACKUP_ORGANIZATION_EXPORT_TABLES = [
   "promotion_change_set_draft_versions",
   "protected_changes",
   "protected_change_approval_evidence",
+  "delivery_risk_policies",
+  "preview_automation_opt_ins",
 ] as const;
 
 /**

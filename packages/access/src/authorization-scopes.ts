@@ -27,6 +27,7 @@ export const AUTHORIZATION_SCOPES = {
   syncRun: "sync:run",
   webhookRead: "webhook:read",
   webhookManage: "webhook:manage",
+  deliveryPolicyManage: "delivery_policy:manage",
 } as const;
 
 export type AuthorizationScope = (typeof AUTHORIZATION_SCOPES)[keyof typeof AUTHORIZATION_SCOPES];
