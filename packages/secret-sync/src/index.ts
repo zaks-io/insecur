@@ -63,28 +63,47 @@ export {
   assertGitHubDestinationNameValid,
   createGitHubActionsSyncAdapter,
   type GitHubActionsSyncAdapter,
-  type GitHubDestinationNameResolver,
 } from "./github-actions-sync-adapter.js";
+export {
+  CLOUDFLARE_PROVIDER_CALL_RESULTS,
+  createUnconfiguredCloudflareWorkerSecretsClient,
+  type CloudflareProviderCallAck,
+  type CloudflareProviderCallResult,
+  type CloudflareStagedVersionResult,
+  type CloudflareWorkerDestinationRef,
+  type CloudflareWorkerSecretsClient,
+} from "./cloudflare-worker-provider-client.js";
+export {
+  CLOUDFLARE_WORKER_PROVIDER_VALUE_SIZE_LIMIT_BYTES,
+  assertCloudflareDestinationNameValid,
+  createCloudflareWorkerSyncAdapter,
+  type CloudflareWorkerScriptNameResolver,
+  type CloudflareWorkerSyncAdapter,
+} from "./cloudflare-worker-sync-adapter.js";
 export { sealSecretForGitHub } from "./github-sealed-box.js";
 export {
   PROVIDER_WRITE_STATUSES,
+  commitStagedWritesSafely,
   isActionRequiredWriteStatus,
   isProviderWriteStatus,
   resolveProviderWritePort,
   writeExactDestinationSafely,
   type ProviderSecretWriteRequest,
   type ProviderSecretWriteResult,
+  type ProviderStagedCommitRequest,
   type ProviderWriteStatus,
   type SecretSyncProviderWritePort,
   type SecretSyncProviderWritePorts,
 } from "./provider-sync-write-port.js";
 export {
   createSecretSyncDestinationNameDecryptor,
+  createSecretSyncWorkerScriptNameDecryptor,
   createSecretSyncWriteMaterialsDecryptor,
 } from "./decrypt-secret-sync-write-materials.js";
 export type {
   ResolveSecretSyncWriteMaterialsInput,
   SecretSyncBindingWriteMaterial,
+  SecretSyncDestinationNameResolver,
   SecretSyncWriteMaterialsResolver,
 } from "./secret-sync-write-materials.js";
 export {
@@ -110,7 +129,9 @@ export {
 } from "./revalidate-secret-sync-plan.js";
 export {
   computeSecretSyncPlan,
+  syncDeployImpact,
   type ComputeSecretSyncPlanInput,
+  type SecretSyncDeployImpact,
   type SecretSyncPlan,
   type SecretSyncPlanBinding,
   type SecretSyncPlanWarningCode,

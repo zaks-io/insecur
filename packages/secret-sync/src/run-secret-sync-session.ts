@@ -2,6 +2,7 @@ import type { UserActorRef } from "@insecur/access";
 import {
   PROVIDER_ERROR_CODES,
   SECRET_SYNC_ERROR_CODES,
+  SECRET_SYNC_KINDS,
   isStableDottedCode,
   readErrorCode,
   type KnownErrorCode,
@@ -69,6 +70,18 @@ export function emptyCounters(totalBindings: number): RunCounters {
   return { totalBindings, writtenCount: 0, failedCount: 0, verifiedCount: 0 };
 }
 
+/**
+ * Resolves the opaque Sync Target Serialization identity. GitHub serializes
+ * on the pinned provider repo id. Cloudflare serializes on the App
+ * Connection id: the Worker script name is Sensitive Metadata and may never
+ * appear in lease keys, and the connection pins one account plus allowed
+ * script boundary (ADR-0039), so per-connection serialization conservatively
+ * covers per-script serialization for the one-deploy-per-run write path.
+ */
+function syncTargetIdentity(sync: SecretSyncRow): string | null {
+  return sync.kind === SECRET_SYNC_KINDS.githubActions ? sync.targetRepoId : sync.appConnectionId;
+}
+
 export function syncTargetKey(
   sync: SecretSyncRow,
   providerKindGuard: (value: string) => boolean,
@@ -79,7 +92,7 @@ export function syncTargetKey(
       "secret sync kind is not a supported sync provider",
     );
   }
-  const targetIdentity = sync.kind === "github-actions" ? sync.targetRepoId : null;
+  const targetIdentity = syncTargetIdentity(sync);
   if (targetIdentity === null || targetIdentity.length === 0) {
     throw new SecretSyncError(
       SECRET_SYNC_ERROR_CODES.invalidDestination,
@@ -106,7 +119,7 @@ export async function auditRunDenied(
     operationId: session.operationId,
     reasonCode,
     ...(records !== undefined && counters !== undefined
-      ? { details: toRunBindingAuditDetails(records, { ...counters }) }
+      ? { details: toRunBindingAuditDetails(records, { ...counters }, session.sync.kind) }
       : {}),
   });
   return audit.auditEventId;

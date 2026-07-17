@@ -10,6 +10,7 @@ import {
   type SecretSyncId,
   type SecretSyncKind,
 } from "@insecur/domain";
+import type { ProtectedDeliveryTargetKind } from "@insecur/protected-change";
 import {
   withTenantScope,
   type AppConnectionRow,
@@ -45,6 +46,21 @@ export interface SecretSyncPlanBinding {
 
 export type SecretSyncPlanWarningCode = typeof SECRET_SYNC_ERROR_CODES.overwriteStatusUnknown;
 
+const CLOUDFLARE_WORKER_DEPLOY_IMPACT =
+  "cloudflare_worker_secret_deploy" satisfies ProtectedDeliveryTargetKind;
+
+export type SecretSyncDeployImpact = typeof CLOUDFLARE_WORKER_DEPLOY_IMPACT;
+
+/**
+ * Metadata-only provider deploy-impact label. A Cloudflare Worker secret
+ * write is a production deploy (ADR-0039), so plan, approval, and audit
+ * output name that impact with the protected-delivery vocabulary token —
+ * never the Worker script name, which is Sensitive Metadata.
+ */
+export function syncDeployImpact(kind: SecretSyncKind): SecretSyncDeployImpact | null {
+  return kind === SECRET_SYNC_KINDS.cloudflareWorkerSecret ? CLOUDFLARE_WORKER_DEPLOY_IMPACT : null;
+}
+
 /**
  * Metadata-only Secret Sync plan. Contains opaque IDs, normalized statuses,
  * and warnings; never Sensitive Values, provider destination names, or raw
@@ -63,6 +79,8 @@ export interface SecretSyncPlan {
   readonly bindings: readonly SecretSyncPlanBinding[];
   readonly overwriteWarningCount: number;
   readonly warningCodes: readonly SecretSyncPlanWarningCode[];
+  /** Non-null when every write in this plan is provider-side production deploy impact (ADR-0039). */
+  readonly deployImpact: SecretSyncDeployImpact | null;
   readonly fingerprint: string;
 }
 
@@ -211,6 +229,7 @@ export async function computeSecretSyncPlan(
     bindings: planBindings,
     overwriteWarningCount: planBindings.filter((binding) => binding.overwriteWarning).length,
     warningCodes: hasUnknownOverwriteStatus ? [SECRET_SYNC_ERROR_CODES.overwriteStatusUnknown] : [],
+    deployImpact: syncDeployImpact(context.sync.kind),
     fingerprint,
   };
 }

@@ -4,6 +4,7 @@ import {
   organizationId,
   parseDisplayName,
   projectId,
+  providerCredentialId,
   secretId,
   secretSyncBindingId,
   secretSyncId,
@@ -74,6 +75,29 @@ export function createActiveGitHubSync(overrides: Partial<SecretSyncRow> = {}): 
     updatedAt: NOW,
     ...overrides,
   };
+}
+
+export function createCloudflareConnection(
+  overrides: Partial<AppConnectionRow> = {},
+): AppConnectionRow {
+  return createGitHubConnection({
+    provider: "cloudflare",
+    connectionMethod: "scoped-api-token",
+    displayName: displayName("cloudflare"),
+    // The scoped-token method requires a stored credential to be sync-eligible.
+    activeCredentialId: providerCredentialId.brand("pcred_00000000000000000000000001"),
+    ...overrides,
+  });
+}
+
+export function createActiveCloudflareSync(overrides: Partial<SecretSyncRow> = {}): SecretSyncRow {
+  return createActiveGitHubSync({
+    kind: "cloudflare-worker-secret",
+    githubProviderScope: null,
+    targetRepoId: null,
+    targetGithubEnvironmentId: null,
+    ...overrides,
+  });
 }
 
 export function createBindingRow(

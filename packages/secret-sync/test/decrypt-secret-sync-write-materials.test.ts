@@ -41,6 +41,7 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
 
 import {
   createSecretSyncDestinationNameDecryptor,
+  createSecretSyncWorkerScriptNameDecryptor,
   createSecretSyncWriteMaterialsDecryptor,
 } from "../src/decrypt-secret-sync-write-materials.js";
 import { BINDING, ENV, ORG, PROJECT, SECRET, SYNC } from "./helpers/secret-sync-test-fixtures.js";
@@ -144,5 +145,45 @@ describe("createSecretSyncDestinationNameDecryptor", () => {
         fieldKey: "provider_destination",
       }),
     );
+  });
+});
+
+describe("createSecretSyncWorkerScriptNameDecryptor", () => {
+  it("resolves the exact worker script target name from sensitive metadata", async () => {
+    decryptSensitiveMetadataForAuthorizedReadMock.mockResolvedValue(
+      new PlaintextHandle(new TextEncoder().encode("my-api-production")),
+    );
+    const resolver = createSecretSyncWorkerScriptNameDecryptor({
+      keyring: KEYRING,
+      projectId: PROJECT,
+    });
+
+    const name = await resolver.resolveWorkerScriptName({
+      organizationId: ORG,
+      secretSyncId: SYNC,
+    });
+
+    expect(name).toBe("my-api-production");
+    expect(getField).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: ORG,
+        scopeProjectId: PROJECT,
+        metadataType: "secret_sync.target",
+        fieldKey: "worker_script",
+      }),
+    );
+  });
+
+  it("fails closed when the worker script target is not configured", async () => {
+    getField.mockResolvedValue(null);
+    const resolver = createSecretSyncWorkerScriptNameDecryptor({
+      keyring: KEYRING,
+      projectId: PROJECT,
+    });
+
+    await expect(
+      resolver.resolveWorkerScriptName({ organizationId: ORG, secretSyncId: SYNC }),
+    ).rejects.toMatchObject({ code: SECRET_SYNC_ERROR_CODES.invalidDestination });
+    expect(decryptSensitiveMetadataForAuthorizedReadMock).not.toHaveBeenCalled();
   });
 });

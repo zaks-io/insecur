@@ -1,16 +1,19 @@
 import { PRODUCTION_AUDIT_EVENT_CODES, writeAuditEvent } from "@insecur/audit";
-import type { KnownErrorCode, OperationId, SecretSyncId } from "@insecur/domain";
+import type { KnownErrorCode, OperationId, SecretSyncId, SecretSyncKind } from "@insecur/domain";
 
 import {
   secretSyncResource,
   type SecretSyncAuditScope,
   type SecretSyncBindingAuditDetails,
 } from "./record-secret-sync-audit.js";
+import { syncDeployImpact } from "./secret-sync-plan.js";
 
 /**
  * Indexed metadata-only run summary (ADR-0068 guard-compatible): opaque
- * binding/secret ids, stable dotted per-binding write statuses, and counts.
- * Never Sensitive Values, provider destination names, or raw provider bodies.
+ * binding/secret ids, stable dotted per-binding write statuses, counts, and
+ * the provider deploy-impact label where the write set is a production
+ * deploy. Never Sensitive Values, provider destination names, Worker script
+ * names, or raw provider bodies.
  */
 export function toRunBindingAuditDetails(
   results: readonly {
@@ -19,10 +22,13 @@ export function toRunBindingAuditDetails(
     readonly writeStatus: string;
   }[],
   counters: Readonly<Record<string, number>>,
+  syncKind?: SecretSyncKind,
 ): SecretSyncBindingAuditDetails {
+  const deployImpact = syncKind !== undefined ? syncDeployImpact(syncKind) : null;
   const details: Record<string, string | number | boolean> = {
     bindingCount: results.length,
     ...counters,
+    ...(deployImpact !== null ? { deployImpact } : {}),
   };
   results.forEach((result, index) => {
     const ordinal = String(index + 1);
