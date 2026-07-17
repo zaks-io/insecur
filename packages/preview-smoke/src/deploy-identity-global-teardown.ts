@@ -1,4 +1,7 @@
-import { readSmokeArtifactCredentials } from "./artifact-credential-registry.js";
+import {
+  assertSmokeArtifactCredentialRegistryValid,
+  readSmokeArtifactCredentialRegistry,
+} from "./artifact-credential-registry.js";
 import { revokeSmokeCredentials } from "./artifact-credential-revocation.js";
 import { checkPreviewDeployIdentity } from "./deploy-identity.js";
 import { writePostSuiteDeployIdentityProof } from "./deploy-identity-proof.js";
@@ -12,6 +15,8 @@ export default async function globalTeardown(): Promise<void> {
       await checkPreviewDeployIdentity(preview),
     );
   } finally {
-    await revokeSmokeCredentials(preview.apiBaseUrl, readSmokeArtifactCredentials());
+    const registry = readSmokeArtifactCredentialRegistry();
+    await revokeSmokeCredentials(preview.apiBaseUrl, registry.credentials);
+    assertSmokeArtifactCredentialRegistryValid(registry);
   }
 }

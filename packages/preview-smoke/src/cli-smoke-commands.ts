@@ -2,14 +2,19 @@ const PROOF_VARIABLE_KEY = "INSECUR_PROOF_SECRET";
 
 export { PROOF_VARIABLE_KEY };
 
-export function buildCliFirstValueRunArgs(verifyScript: string): readonly string[] {
+export function buildCliFirstValueRunArgs(
+  verifyScript: string,
+  variableKey = PROOF_VARIABLE_KEY,
+): readonly string[] {
   return [
     "run",
     "--variable-key",
-    PROOF_VARIABLE_KEY,
+    variableKey,
     "--",
     process.execPath,
     verifyScript,
+    "--variable-key",
+    variableKey,
     "--json",
   ];
 }

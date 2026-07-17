@@ -7,6 +7,10 @@ import config from "../playwright.preview.config";
 import { PREVIEW_SMOKE_ARTIFACT_ROOT } from "../src/artifact-root";
 
 describe("preview smoke diagnostics", () => {
+  it("uses all four release-runner CPUs", () => {
+    expect(config.workers).toBe(4);
+  });
+
   it("keeps safe failure diagnostics while disabling credential-bearing traces", () => {
     expect(config.use?.trace).toBe("off");
     expect(config.use?.screenshot).toBe("only-on-failure");

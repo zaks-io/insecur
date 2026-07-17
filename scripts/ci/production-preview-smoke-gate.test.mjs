@@ -40,6 +40,10 @@ test("daily release owns the timezone-aware serialized release train", async () 
 test("Preview deployment and smoke are exact-SHA reusable stages", async () => {
   const deployPreview = await workflow("deploy-preview.yml");
   const previewSmoke = await workflow("preview-smoke.yml");
+  const previewSmokeConfig = await readFile(
+    new URL("../../packages/preview-smoke/playwright.preview.config.ts", import.meta.url),
+    "utf8",
+  );
 
   for (const source of [deployPreview, previewSmoke]) {
     assert.match(source, /workflow_call:\n\s+inputs:\n\s+deploy_sha:/u);
@@ -52,6 +56,7 @@ test("Preview deployment and smoke are exact-SHA reusable stages", async () => {
   assert.match(previewSmoke, /SMOKE_EXPECTED_DEPLOY_SHA: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(deployPreview, /group: preview-fleet\n\s+cancel-in-progress: false/u);
   assert.match(previewSmoke, /group: preview-fleet\n\s+cancel-in-progress: false/u);
+  assert.match(previewSmokeConfig, /^\s*workers\s*:\s*4\s*(?:,|$)/mu);
 });
 
 test("production consumes same-run Preview proof before mutation", async () => {
