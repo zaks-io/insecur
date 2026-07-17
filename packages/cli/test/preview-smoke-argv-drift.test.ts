@@ -8,7 +8,6 @@ import {
   buildCliAuditTailArgs,
   buildCliAuditVerifyArgs,
   buildCliConnectionsListArgs,
-  buildCliConnectionsStatusArgs,
   buildCliFirstValueRunArgs,
   buildCliOperationsGetArgs,
   buildCliOperationsWaitArgs,
@@ -214,7 +213,6 @@ const SMOKE_ARGVS: readonly (readonly [string, readonly string[]])[] = [
   ["agent env", buildCliAgentEnvArgs()],
   ["agent register", buildCliAgentRegisterArgs()],
   ["connections list", buildCliConnectionsListArgs()],
-  ["connections status", buildCliConnectionsStatusArgs("conn_0000000000000000000000AB")],
 ];
 
 describe("preview-smoke CLI argv builders match the registered CLI surface", () => {

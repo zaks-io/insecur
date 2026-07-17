@@ -11,7 +11,6 @@ export {
   buildCliAuditTailArgs,
   buildCliAuditVerifyArgs,
   buildCliConnectionsListArgs,
-  buildCliConnectionsStatusArgs,
   buildCliFirstValueRunArgs,
   buildCliOperationsGetArgs,
   buildCliOperationsWaitArgs,

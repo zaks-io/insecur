@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { appConnectionId, invitationId, membershipId, runtimePolicyId } from "@insecur/domain";
+import { invitationId, membershipId, runtimePolicyId } from "@insecur/domain";
 import { expect, test as base } from "@playwright/test";
 
 import { mintBearer } from "./auth";
@@ -62,7 +62,7 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
   ],
 });
 
-export { appConnectionId, expect, invitationId, membershipId, randomUUID, runtimePolicyId };
+export { expect, invitationId, membershipId, randomUUID, runtimePolicyId };
 export * from "./audit-export-artifact";
 export * from "./audit-verification";
 export * from "./auth";

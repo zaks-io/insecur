@@ -133,10 +133,6 @@ export function buildCliConnectionsListArgs(): readonly string[] {
   return ["connections", "list"];
 }
 
-export function buildCliConnectionsStatusArgs(connectionId: string): readonly string[] {
-  return ["connections", "status", connectionId];
-}
-
 export function buildCliAgentEnvArgs(): readonly string[] {
   return ["agent", "env"];
 }

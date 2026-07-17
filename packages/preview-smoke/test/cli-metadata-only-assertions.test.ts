@@ -217,6 +217,24 @@ describe("assertSurfaceTextMetadataOnly", () => {
     }).toThrow(/secret-shaped/);
   });
 
+  it("can skip only the unknown secret-shape heuristic", () => {
+    assertSurfaceTextMetadataOnly({
+      label: "controlled child output",
+      text: DUMMY_SHORT_GENERATED_SECRET_BASE64URL,
+      redactor: identityRedactor,
+      scanSecretShapes: false,
+    });
+    expect(() => {
+      assertSurfaceTextMetadataOnly({
+        label: "controlled child output",
+        text: DUMMY_BEARER,
+        redactor: identityRedactor,
+        forbiddenMaterials: [{ name: "smoke bearer credential", value: DUMMY_BEARER }],
+        scanSecretShapes: false,
+      });
+    }).toThrow(/smoke bearer credential/);
+  });
+
   it("catches named material in url-percent-encoded and JSON-unicode-escaped forms", () => {
     // A value with url/json-special chars so these encodings differ from raw.
     const material = { name: "sensitive value", value: "s3cret value/with?special&chars" };
@@ -562,6 +580,27 @@ describe("human output assertions", () => {
     }).toThrow(/secret-shaped/);
   });
 
+  it("accepts controlled run output while retaining exact material checks", () => {
+    assertCliHumanOutputMetadataOnly({
+      label: "CLI run",
+      stdout: "runtime-run-invariants\nInjected INSECUR_PROOF_SECRET\n",
+      stderr: "",
+      redactor: identityRedactor,
+      scanSecretShapes: false,
+      requiredStdoutSubstrings: ["Injected INSECUR_PROOF_SECRET"],
+    });
+    expect(() => {
+      assertCliHumanOutputMetadataOnly({
+        label: "CLI run",
+        stdout: DUMMY_BEARER,
+        stderr: "",
+        redactor: identityRedactor,
+        forbiddenMaterials: [{ name: "smoke bearer credential", value: DUMMY_BEARER }],
+        scanSecretShapes: false,
+      });
+    }).toThrow(/smoke bearer credential/);
+  });
+
   it("permits child output markers while re-scanning recorded surfaces", () => {
     const marker = `INSECUR_RUNTIME_RUN_STDOUT_${"a1b2c3d4".repeat(4)}`;
     const proof = "runtime-run-invariants";
@@ -592,5 +631,18 @@ describe("human output assertions", () => {
         forbiddenMaterials: [{ name: "smoke bearer credential", value: DUMMY_BEARER }],
       }),
     ).toThrow(/smoke bearer credential \(raw encoding\)/);
+    expect(
+      assertRecordedCliOutputsMetadataOnly({
+        surfaces: [
+          {
+            name: "CLI run stdout",
+            text: DUMMY_SHORT_GENERATED_SECRET_BASE64URL,
+            scanSecretShapes: false,
+          },
+        ],
+        redactor: identityRedactor,
+        forbiddenMaterials: [],
+      }),
+    ).toEqual(["CLI run stdout"]);
   });
 });

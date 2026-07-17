@@ -139,6 +139,8 @@ export interface SurfaceTextScanInput {
   readonly forbiddenMaterials?: readonly SensitiveMaterial[];
   /** Expected long tokens (for example child output markers) the shape scan must not flag. */
   readonly allowedTokens?: readonly string[];
+  /** Disable only when the surface cannot contain an unknown generated secret. */
+  readonly scanSecretShapes?: boolean;
 }
 
 interface MaterialEncodingVariant {
@@ -195,6 +197,13 @@ export function assertSurfaceTextMetadataOnly(input: SurfaceTextScanInput): void
         throw new Error(`${input.label} contains ${material.name} (${variant.encoding} encoding)`);
       }
     }
+  }
+  assertNoSecretShapedToken(input);
+}
+
+function assertNoSecretShapedToken(input: SurfaceTextScanInput): void {
+  if (input.scanSecretShapes === false) {
+    return;
   }
   const hit = findSecretShapedToken(input.text, input.allowedTokens);
   if (hit !== null) {
