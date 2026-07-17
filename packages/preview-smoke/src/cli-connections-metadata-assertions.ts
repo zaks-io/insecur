@@ -95,11 +95,6 @@ export function assertCliConnectionStatusNotFound(input: {
   readonly stderr: string;
   readonly stdout: string;
 }): void {
-  if (input.exitCode !== CLI_CONNECTION_NOT_FOUND_EXIT_CODE) {
-    throw new Error(
-      `${input.label} expected exit code ${String(CLI_CONNECTION_NOT_FOUND_EXIT_CODE)}, got ${String(input.exitCode)}`,
-    );
-  }
   if (input.stdout.trim() !== "") {
     throw new Error(`${input.label} must not write success JSON to stdout for a not-found status`);
   }
@@ -114,4 +109,9 @@ export function assertCliConnectionStatusNotFound(input: {
   const error = asRecord(body.error, `${input.label} error`);
   assertEqual(error.code, APP_CONNECTION_ERROR_CODES.notFound, `${input.label} error.code`);
   assertJsonTreeMetadataOnly(body, `${input.label} envelope`);
+  if (input.exitCode !== CLI_CONNECTION_NOT_FOUND_EXIT_CODE) {
+    throw new Error(
+      `${input.label} expected exit code ${String(CLI_CONNECTION_NOT_FOUND_EXIT_CODE)}, got ${String(input.exitCode)}`,
+    );
+  }
 }

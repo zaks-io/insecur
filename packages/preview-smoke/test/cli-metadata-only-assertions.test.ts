@@ -564,15 +564,27 @@ describe("human output assertions", () => {
 
   it("permits child output markers while re-scanning recorded surfaces", () => {
     const marker = `INSECUR_RUNTIME_RUN_STDOUT_${"a1b2c3d4".repeat(4)}`;
+    const proof = "runtime-run-invariants";
     const checked = assertRecordedCliOutputsMetadataOnly({
       surfaces: [
         { name: "CLI run stdout", text: `{"ok":true}`, allowedTokens: [marker] },
-        { name: "CLI run stderr", text: `${marker}\n`, allowedTokens: [marker] },
+        {
+          name: "CLI run stderr",
+          text: `${marker}\n${proof}\n`,
+          allowedTokens: [marker, proof],
+        },
       ],
       redactor: identityRedactor,
       forbiddenMaterials: [{ name: "smoke bearer credential", value: DUMMY_BEARER }],
     });
     expect(checked).toEqual(["CLI run stdout", "CLI run stderr"]);
+    expect(() =>
+      assertRecordedCliOutputsMetadataOnly({
+        surfaces: [{ name: "CLI run stderr", text: "AbCdEfGhIjKlMnOpQrStUv" }],
+        redactor: identityRedactor,
+        forbiddenMaterials: [],
+      }),
+    ).toThrow(/secret-shaped/);
     expect(() =>
       assertRecordedCliOutputsMetadataOnly({
         surfaces: [{ name: "CLI init stderr", text: `debug bearer=${DUMMY_BEARER}` }],

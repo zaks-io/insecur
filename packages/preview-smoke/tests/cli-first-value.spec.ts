@@ -315,6 +315,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
       const allowedTokens = [
         humanRunMarkers.stdoutMarker,
         humanRunMarkers.stderrMarker,
+        RUNTIME_RUN_PROOF,
         ...workspacePathTokens,
       ];
       recordOutputs("CLI run human", { stderr, stdout }, allowedTokens);
@@ -485,7 +486,11 @@ async function runRuntimeInvariantProbe(input: {
     label: input.label,
     redactor: input.redactor,
   });
-  input.recordOutputs(input.label, { stderr, stdout }, [stdoutMarker, stderrMarker]);
+  input.recordOutputs(input.label, { stderr, stdout }, [
+    stdoutMarker,
+    stderrMarker,
+    RUNTIME_RUN_PROOF,
+  ]);
   // With `--json`, `insecur run` keeps stdout a pure control channel and
   // routes child stdout to the CLI's stderr verbatim (product-spec.md §Product
   // Surface: "Child output is separated from control output in JSON mode";
