@@ -824,6 +824,12 @@ The production deploy uses the same Sentry release/source-map path as Preview an
 `SENTRY_AUTH_TOKEN` in the approved GitHub Actions secret store (repository secret by default;
 environment-scoped override optional).
 
+After the production fleet and Sentry source maps are verified, the workflow syncs the full deploy
+SHA to Linear with `LINEAR_ACCESS_KEY`. Its recursive `include_paths` filter covers the deployed
+Workers (`apps/api`, `apps/runtime`, `apps/web`, and `apps/site`) and their transitive workspace
+package dependencies. It intentionally excludes the standalone CLI package and unrelated apps, so
+CLI-only changes remain in the separate CLI release.
+
 The identity that executes this deploy is the CI machine token. The operator's personal credentials
 are never the deploy credential (ADR-0029 amendment, ADR-0004). The Cloudflare token must be able
 to write Worker scripts and upload Worker assets. It must not need Secrets Store write access or
@@ -836,8 +842,15 @@ Trigger: `workflow_dispatch` only. CLI releases are manual while the release-att
 being tightened. A manual dispatch first verifies that the selected commit is current `main` or a
 `main` ancestor (GitHub compare status `identical` or `behind`; anything else fails closed), then
 verifies that the commit has a completed successful `CI` run, before it builds release assets, runs
-repo security attestation, attaches the attestation bundle, and prepares the draft release. A
-CI-green non-main branch therefore cannot create, retarget, or replace a CLI draft.
+repo security attestation, attaches the attestation bundle, and prepares the draft release. After
+the draft is created or updated, the workflow syncs the package version to Linear using the isolated
+`CLI_LINEAR_ACCESS_KEY` secret. The pinned action uses the recursive monorepo filter
+`include_paths` for `packages/cli/**` and every transitive workspace package in the CLI dependency
+graph: `access`, `agent-attribution`, `audit`, `auth`, `crypto`, `custody-contracts`, `domain`,
+`instance-bootstrap`, `local-store`, `observability`, `onboarding`, `operations`,
+`runtime-injection-issue`, `secret-store-contracts`, `tenant-store`, `token-signing`, and
+`worker-kit`. It attaches the generated CLI notes and GitHub release link. A CI-green non-main
+branch therefore cannot create, retarget, or replace a CLI draft.
 
 The manual trigger is an operator pause on automatic releases, not a bypass of the release security
 gate. The workflow must continue to fail if source CI is not green or if release attestation fails.
