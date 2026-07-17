@@ -70,15 +70,16 @@ describe("smoke artifact credential registry", () => {
   it("returns recoverable credentials while retaining malformed worker evidence", () => {
     const registry = join(scratchDir, "registry");
     mkdirSync(registry, { mode: 0o700 });
-    writeFileSync(join(registry, "artifact-credentials-123.jsonl"), '"bearer-one"\n', {
-      mode: 0o600,
-    });
-    writeFileSync(join(registry, "artifact-credentials-456.jsonl"), '"partial', { mode: 0o600 });
+    writeFileSync(
+      join(registry, "artifact-credentials-123.jsonl"),
+      '"bearer-one"\n"bearer-two"\n"partial',
+      { mode: 0o600 },
+    );
     process.env[REGISTRY_ENV] = registry;
 
     const snapshot = readSmokeArtifactCredentialRegistry();
-    expect(snapshot.credentials).toEqual(["bearer-one"]);
-    expect(snapshot.invalidFiles).toEqual(["artifact-credentials-456.jsonl"]);
+    expect(snapshot.credentials).toEqual(["bearer-one", "bearer-two"]);
+    expect(snapshot.invalidFiles).toEqual(["artifact-credentials-123.jsonl"]);
     expect(() => {
       assertSmokeArtifactCredentialRegistryValid(snapshot);
     }).toThrow(/contains invalid files/);

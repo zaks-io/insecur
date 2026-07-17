@@ -40,7 +40,11 @@ export function readSmokeArtifactCredentialRegistry(): SmokeArtifactCredentialRe
   const invalidFiles: string[] = [];
   for (const filename of readdirSync(dir).filter(isRegistryFilename)) {
     try {
-      credentials.push(...readCredentials(join(dir, filename)));
+      const workerRegistry = readCredentials(join(dir, filename));
+      credentials.push(...workerRegistry.credentials);
+      if (!workerRegistry.valid) {
+        invalidFiles.push(filename);
+      }
     } catch {
       invalidFiles.push(filename);
     }
@@ -111,23 +115,35 @@ function openRegistryFile(path: string, flags: number): number {
   return fd;
 }
 
-function readCredentials(path: string): string[] {
+function readCredentials(path: string): {
+  readonly credentials: string[];
+  readonly valid: boolean;
+} {
   const fd = openRegistryFile(path, constants.O_RDONLY);
   try {
-    const credentials = readFileSync(fd, "utf8")
-      .split(/\r?\n/u)
-      .filter((line) => line !== "")
-      .map((line) => JSON.parse(line) as unknown);
-    for (const credential of credentials) {
-      if (typeof credential !== "string" || credential === "") {
-        throw new Error("invalid");
+    const contents = readFileSync(fd, "utf8");
+    const credentials: string[] = [];
+    let valid = contents === "" || contents.endsWith("\n");
+    for (const line of contents.split(/\r?\n/u).filter((candidate) => candidate !== "")) {
+      const credential = parseCredential(line);
+      if (credential === undefined) {
+        valid = false;
+        continue;
       }
+      credentials.push(credential);
     }
-    return [...new Set(credentials as string[])];
-  } catch {
-    throw new Error("Preview smoke artifact credential registry is invalid");
+    return { credentials: [...new Set(credentials)], valid };
   } finally {
     closeSync(fd);
+  }
+}
+
+function parseCredential(line: string): string | undefined {
+  try {
+    const credential = JSON.parse(line) as unknown;
+    return typeof credential === "string" && credential !== "" ? credential : undefined;
+  } catch {
+    return undefined;
   }
 }
 

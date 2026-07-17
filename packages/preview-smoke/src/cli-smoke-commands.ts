@@ -6,7 +6,17 @@ export function buildCliFirstValueRunArgs(
   verifyScript: string,
   variableKey = PROOF_VARIABLE_KEY,
 ): readonly string[] {
-  return ["run", "--variable-key", variableKey, "--", process.execPath, verifyScript, "--json"];
+  return [
+    "run",
+    "--variable-key",
+    variableKey,
+    "--",
+    process.execPath,
+    verifyScript,
+    "--variable-key",
+    variableKey,
+    "--json",
+  ];
 }
 
 export function buildCliSecretsSetValueStdinArgs(

@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -33,11 +36,24 @@ const NOT_OBSERVED_PROOF = {
 
 describe("run-step output parsing", () => {
   it("targets an isolated proof variable when provided", () => {
-    expect(buildCliFirstValueRunArgs("verify.mjs", "INSECUR_PROOF_SECRET_AUDIT")).toContain(
-      "INSECUR_PROOF_SECRET_AUDIT",
-    );
-  });
+    const variableKey = "INSECUR_PROOF_SECRET_AUDIT";
+    expect(buildCliFirstValueRunArgs("verify.mjs", variableKey)).toContain(variableKey);
 
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        resolve(process.cwd(), "../../examples/first-value-proof/verify.mjs"),
+        "--variable-key",
+        variableKey,
+      ],
+      { encoding: "utf8", env: { ...process.env, [variableKey]: "x".repeat(32) } },
+    );
+    expect(JSON.parse(stdout)).toEqual({
+      checked: variableKey,
+      ok: true,
+      proof: "hmac-challenge",
+    });
+  });
   it("parses the CLI envelope as the LAST JSON object in mixed output", () => {
     const body = parseLastCliSmokeJson(
       `remediation prose line\n${JSON.stringify(CLI_RUN_ENVELOPE)}\n`,

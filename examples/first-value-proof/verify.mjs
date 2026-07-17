@@ -1,6 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const variableName = "INSECUR_PROOF_SECRET";
+const variableKeyIndex = process.argv.indexOf("--variable-key");
+const variableName =
+  variableKeyIndex === -1 ? "INSECUR_PROOF_SECRET" : process.argv[variableKeyIndex + 1];
+if (typeof variableName !== "string" || variableName === "") {
+  console.error(JSON.stringify({ ok: false, reason: "missing_variable_key" }));
+  process.exit(1);
+}
 const value = process.env[variableName];
 
 function fail(reason) {
