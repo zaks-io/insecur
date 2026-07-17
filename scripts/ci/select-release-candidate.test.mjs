@@ -36,6 +36,18 @@ test("selects the newest successful main push and excludes failed or non-main ru
   assert.equal(selected.id, 22);
 });
 
+test("keeps the newest successful rerun for the selected commit", () => {
+  const selected = selectNewestSuccessfulMainRun(
+    [
+      run({ id: 21, updated_at: "2026-07-17T11:00:00Z" }),
+      run({ id: 23, updated_at: "2026-07-17T13:00:00Z" }),
+      run({ id: 22, updated_at: "2026-07-17T12:00:00Z" }),
+    ],
+    [NEW_SHA],
+  );
+  assert.equal(selected.id, 23);
+});
+
 test("fails closed when no successful main run exists", () => {
   assert.throws(
     () => selectNewestSuccessfulMainRun([run({ conclusion: "failure" })], [NEW_SHA]),

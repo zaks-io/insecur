@@ -12,6 +12,10 @@ on:
         description: Exact Preview-proven main commit to deploy
         required: true
         type: string
+      orchestrator_sha:
+        description: Exact Daily Release revision that owns post-deploy verification
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -38,6 +42,12 @@ jobs:
         with:
           ref: ${{ env.RELEASE_ID }}
           fetch-depth: 0
+
+      - name: Checkout release orchestration
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.orchestrator_sha }}
+          path: .release-orchestrator
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -244,7 +254,9 @@ jobs:
         run: node scripts/sentry-verify-release-sourcemaps.mjs
 
       - name: Verify production fleet identity
-        run: node scripts/ci/verify-production-health.mjs "${{ env.RELEASE_ID }}"
+        run: >-
+          node .release-orchestrator/scripts/ci/verify-production-health.mjs
+          "${{ env.RELEASE_ID }}"
 
       - name: Sync production release to Linear
         uses: linear/linear-release-action@c0cb8354a362c24c6d3e0948f37fd66d07588e3f # v0.14.5

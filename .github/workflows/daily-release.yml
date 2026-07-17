@@ -85,6 +85,7 @@ jobs:
     with:
       ci_run_id: ${{ needs.select.outputs.ci_run_id }}
       deploy_sha: ${{ needs.select.outputs.deploy_sha }}
+      orchestrator_sha: ${{ github.workflow_sha }}
     secrets: inherit
 
   finalize:

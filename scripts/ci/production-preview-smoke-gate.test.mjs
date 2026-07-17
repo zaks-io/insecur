@@ -15,7 +15,10 @@ test("daily release owns the timezone-aware serialized release train", async () 
   assert.match(daily, /node scripts\/ci\/select-release-candidate\.mjs/u);
   assert.match(daily, /preview:[\s\S]*needs: select[\s\S]*deploy_sha:/u);
   assert.match(daily, /smoke:[\s\S]*- preview[\s\S]*deploy_sha:/u);
-  assert.match(daily, /production:[\s\S]*- smoke[\s\S]*ci_run_id:[\s\S]*deploy_sha:/u);
+  assert.match(
+    daily,
+    /production:[\s\S]*- smoke[\s\S]*ci_run_id:[\s\S]*deploy_sha:[\s\S]*orchestrator_sha: \$\{\{ github\.workflow_sha \}\}/u,
+  );
   assert.match(
     daily,
     /needs\.select\.outputs\.action == 'deploy' && needs\.production\.result == 'success'/u,
@@ -50,6 +53,10 @@ test("production consumes same-run Preview proof before mutation", async () => {
   assert.match(production, /RELEASE_ID: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(
     production,
+    /ref: \$\{\{ inputs\.orchestrator_sha \}\}\n\s+path: \.release-orchestrator/u,
+  );
+  assert.match(
+    production,
     /actions\/download-artifact@[0-9a-f]{40} # v8[\s\S]*name: preview-smoke-artifacts/u,
   );
   assert.match(
@@ -82,7 +89,7 @@ test("production verifies live identity and uses one release identity for Sentry
   assert.match(production, /SENTRY_RELEASE: \$\{\{ env\.RELEASE_ID \}\}/u);
   assert.match(
     production,
-    /node scripts\/ci\/verify-production-health\.mjs "\$\{\{ env\.RELEASE_ID \}\}"/u,
+    /node \.release-orchestrator\/scripts\/ci\/verify-production-health\.mjs\n\s+"\$\{\{ env\.RELEASE_ID \}\}"/u,
   );
   assert.match(production, /uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.14\.5/u);
   assert.match(production, /access_key: \$\{\{ secrets\.LINEAR_ACCESS_KEY \}\}/u);

@@ -86,7 +86,10 @@ export function selectNewestSuccessfulMainRun(runs, mainHistory = []) {
   if (candidates.length === 0) {
     throw new Error("No completed successful CI run was found for main.");
   }
-  const newestBySha = new Map(candidates.map((run) => [run.head_sha, run]));
+  const newestBySha = new Map();
+  for (const run of candidates) {
+    if (!newestBySha.has(run.head_sha)) newestBySha.set(run.head_sha, run);
+  }
   for (const sha of mainHistory) {
     const run = newestBySha.get(sha);
     if (run) return run;
