@@ -46,16 +46,21 @@ export interface SecretSyncPlanBinding {
 
 export type SecretSyncPlanWarningCode = typeof SECRET_SYNC_ERROR_CODES.overwriteStatusUnknown;
 
+// Audit detail strings must be stable dotted codes (ADR-0068); the bare kind
+// vocabulary ("cloudflare_worker_secret_deploy") is not dotted and the real
+// audit layer rejects it, so the label uses the same `delivery_target.` dotted
+// form as the protected-delivery approval audits.
 const CLOUDFLARE_WORKER_DEPLOY_IMPACT =
-  "cloudflare_worker_secret_deploy" satisfies ProtectedDeliveryTargetKind;
+  `delivery_target.${"cloudflare_worker_secret_deploy" satisfies ProtectedDeliveryTargetKind}` as const;
 
 export type SecretSyncDeployImpact = typeof CLOUDFLARE_WORKER_DEPLOY_IMPACT;
 
 /**
  * Metadata-only provider deploy-impact label. A Cloudflare Worker secret
  * write is a production deploy (ADR-0039), so plan, approval, and audit
- * output name that impact with the protected-delivery vocabulary token —
- * never the Worker script name, which is Sensitive Metadata.
+ * output name that impact with a stable dotted code derived from the
+ * protected-delivery vocabulary — never the Worker script name, which is
+ * Sensitive Metadata.
  */
 export function syncDeployImpact(kind: SecretSyncKind): SecretSyncDeployImpact | null {
   return kind === SECRET_SYNC_KINDS.cloudflareWorkerSecret ? CLOUDFLARE_WORKER_DEPLOY_IMPACT : null;

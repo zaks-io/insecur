@@ -289,7 +289,7 @@ describe("runSecretSyncCommand with the cloudflare worker adapter", () => {
         eventCode: "sync.execution_completed",
         outcome: "success",
         details: expect.objectContaining({
-          deployImpact: "cloudflare_worker_secret_deploy",
+          deployImpact: "delivery_target.cloudflare_worker_secret_deploy",
         }) as object,
       }),
     );
@@ -333,7 +333,7 @@ describe("runSecretSyncCommand with the cloudflare worker adapter", () => {
         details: expect.objectContaining({
           writeStatus1: "provider_write.retryable_unavailable",
           writeStatus2: "provider_write.retryable_unavailable",
-          deployImpact: "cloudflare_worker_secret_deploy",
+          deployImpact: "delivery_target.cloudflare_worker_secret_deploy",
         }) as object,
       }),
     );
