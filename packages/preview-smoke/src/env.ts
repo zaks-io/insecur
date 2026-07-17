@@ -50,7 +50,7 @@ const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const localEnvFiles = [".env.preview", ".env.local"] as const;
 const assignmentPattern = /^(\s*)(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/;
 
-function loadLocalEnvFiles(): void {
+export function loadLocalEnvFiles(): void {
   loadEnvFiles(localEnvFiles.map((name) => `${repoRoot}/${name}`));
 }
 
