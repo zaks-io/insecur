@@ -6,9 +6,39 @@ import test from "node:test";
 
 import {
   normalizePreviewDeployEnv,
+  previewDeployCommands,
   validatePreviewDeployEnv,
   writePreviewSecretFiles,
 } from "./preview-deploy.mjs";
+
+test("deploys Runtime before migration and excludes it from the remaining fleet deploy", () => {
+  const commands = previewDeployCommands();
+
+  assert.deepEqual(
+    commands.map(({ args }) => args),
+    [
+      [
+        "exec",
+        "turbo",
+        "run",
+        "deploy:preview:dry-run",
+        "--cache=local:rw,remote:r",
+        "--filter=!./packages/*",
+      ],
+      ["--filter", "@insecur/runtime", "deploy:preview"],
+      ["migrate:preview"],
+      [
+        "exec",
+        "turbo",
+        "run",
+        "deploy:preview",
+        "--cache=local:rw,remote:r",
+        "--filter=!./packages/*",
+        "--filter=!@insecur/runtime",
+      ],
+    ],
+  );
+});
 
 test("normalizes GitHub preview environment names for the CI deploy", () => {
   const env = normalizePreviewDeployEnv(completeGithubPreviewEnv());
