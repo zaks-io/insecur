@@ -232,6 +232,13 @@
       "when": 1784940000000,
       "tag": "0032_eager_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1784950000000,
+      "tag": "0033_delivery_risk_policy",
+      "breakpoints": true
     }
   ]
 }

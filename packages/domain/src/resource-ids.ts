@@ -37,6 +37,8 @@ export type WebhookSigningSecretId = Brand<string, "WebhookSigningSecretId">;
 export type InAppEventNotificationId = Brand<string, "InAppEventNotificationId">;
 export type SecretSyncId = Brand<string, "SecretSyncId">;
 export type SecretSyncBindingId = Brand<string, "SecretSyncBindingId">;
+export type DeliveryRiskPolicyId = Brand<string, "DeliveryRiskPolicyId">;
+export type PreviewAutomationOptInId = Brand<string, "PreviewAutomationOptInId">;
 
 type ParseBrandedIdResult<T> =
   { ok: true; value: T } | { ok: false; code: "validation.invalid_opaque_resource_id" };
@@ -102,3 +104,5 @@ export const webhookSigningSecretId = createResourceIdHelpers("whsec", "WebhookS
 export const inAppEventNotificationId = createResourceIdHelpers("inev", "InAppEventNotificationId");
 export const secretSyncId = createResourceIdHelpers("sync", "SecretSyncId");
 export const secretSyncBindingId = createResourceIdHelpers("sbind", "SecretSyncBindingId");
+export const deliveryRiskPolicyId = createResourceIdHelpers("drp", "DeliveryRiskPolicyId");
+export const previewAutomationOptInId = createResourceIdHelpers("pao", "PreviewAutomationOptInId");

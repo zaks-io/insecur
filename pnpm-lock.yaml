@@ -777,6 +777,43 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(@vitest/coverage-v8@4.1.10)(vite@8.1.3(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.0)(yaml@2.9.0))
 
+  packages/delivery-policy:
+    dependencies:
+      '@insecur/access':
+        specifier: workspace:*
+        version: link:../access
+      '@insecur/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@insecur/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@insecur/high-assurance':
+        specifier: workspace:*
+        version: link:../high-assurance
+      '@insecur/operations':
+        specifier: workspace:*
+        version: link:../operations
+      '@insecur/protected-change':
+        specifier: workspace:*
+        version: link:../protected-change
+      '@insecur/tenant-store':
+        specifier: workspace:*
+        version: link:../tenant-store
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.2
+      eslint:
+        specifier: 'catalog:'
+        version: 10.6.0(jiti@2.7.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(@vitest/coverage-v8@4.1.10)(vite@8.1.3(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.0)(yaml@2.9.0))
+
   packages/domain:
     devDependencies:
       '@types/node':
@@ -1030,6 +1067,9 @@ importers:
       '@insecur/auth':
         specifier: workspace:*
         version: link:../auth
+      '@insecur/backup-restore':
+        specifier: workspace:*
+        version: link:../backup-restore
       '@insecur/domain':
         specifier: workspace:*
         version: link:../domain
@@ -1037,6 +1077,9 @@ importers:
         specifier: 'catalog:'
         version: 3.4.9
     devDependencies:
+      '@insecur/release-gate':
+        specifier: workspace:*
+        version: link:../release-gate
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.61.1

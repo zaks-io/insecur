@@ -50,6 +50,7 @@ const EXPLICIT_SCOPE_CATEGORIES = {
   [AUTHORIZATION_SCOPES.syncRun]: "sync",
   [AUTHORIZATION_SCOPES.webhookRead]: "read",
   [AUTHORIZATION_SCOPES.webhookManage]: "configuration",
+  [AUTHORIZATION_SCOPES.deliveryPolicyManage]: "configuration",
 } as const satisfies Partial<Record<AuthorizationScope, AuthorizationScopeCategory>>;
 
 const ADR_0004_MACHINE_FORBIDDEN_SCOPES = [
@@ -61,6 +62,7 @@ const ADR_0004_MACHINE_FORBIDDEN_SCOPES = [
   AUTHORIZATION_SCOPES.metadataDetailRead,
   AUTHORIZATION_SCOPES.connectionManage,
   AUTHORIZATION_SCOPES.syncManage,
+  AUTHORIZATION_SCOPES.deliveryPolicyManage,
 ] as const satisfies readonly AuthorizationScope[];
 
 const METADATA_VIEWER_FORBIDDEN_CATEGORIES = [

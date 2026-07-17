@@ -1656,6 +1656,96 @@
     "notes": "Remote Secret exists but possession check failed during migrate reconcile; nothing written."
   },
   {
+    "code": "delivery_policy.not_configured",
+    "slug": "delivery-policy-not-configured",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-not-configured",
+    "exitCode": 7,
+    "httpStatus": 409,
+    "remediationRequired": false,
+    "notes": "No Delivery Risk Policy record exists for the Project; automation resolution fails closed until one is selected (ADR-0043)."
+  },
+  {
+    "code": "delivery_policy.preset_invalid",
+    "slug": "delivery-policy-preset-invalid",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-preset-invalid",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Preset is not one of `strict`, `balanced`, `automation_friendly`."
+  },
+  {
+    "code": "delivery_policy.preset_version_unsupported",
+    "slug": "delivery-policy-preset-version-unsupported",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-preset-version-unsupported",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Preset template version is missing or not supported by this build; automation fails closed."
+  },
+  {
+    "code": "delivery_policy.actor_invalid",
+    "slug": "delivery-policy-actor-invalid",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-actor-invalid",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Delivery Risk Policy configuration requires an authenticated human actor; machine and missing actors are denied (ADR-0043)."
+  },
+  {
+    "code": "delivery_policy.scope_invalid",
+    "slug": "delivery-policy-scope-invalid",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-scope-invalid",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Tenant, project, or environment scope is missing or inconsistent for the delivery policy action."
+  },
+  {
+    "code": "delivery_policy.preview_automation_opt_in_required",
+    "slug": "delivery-policy-preview-automation-opt-in-required",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-preview-automation-opt-in-required",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Balanced preset allows preview automation only after explicit Preview Automation Opt-In for the exact preview Environment."
+  },
+  {
+    "code": "delivery_policy.preview_automation_not_allowed",
+    "slug": "delivery-policy-preview-automation-not-allowed",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-preview-automation-not-allowed",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Strict preset requires human review for preview delivery; preview automation is denied regardless of opt-in records."
+  },
+  {
+    "code": "delivery_policy.protected_approval_required",
+    "slug": "delivery-policy-protected-approval-required",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-protected-approval-required",
+    "exitCode": 4,
+    "httpStatus": 403,
+    "remediationRequired": false,
+    "notes": "Protected Environments always require protected delivery approval evidence; no preset grants automation there."
+  },
+  {
+    "code": "delivery_policy.opt_in_environment_invalid",
+    "slug": "delivery-policy-opt-in-environment-invalid",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-opt-in-environment-invalid",
+    "exitCode": 2,
+    "httpStatus": 400,
+    "remediationRequired": false,
+    "notes": "Preview Automation Opt-In applies only to non-protected preview Environments."
+  },
+  {
+    "code": "delivery_policy.opt_in_not_found",
+    "slug": "delivery-policy-opt-in-not-found",
+    "typeUri": "https://insecur.dev/errors/delivery-policy-opt-in-not-found",
+    "exitCode": 5,
+    "httpStatus": 404,
+    "remediationRequired": false,
+    "notes": "No active Preview Automation Opt-In exists for the Environment."
+  },
+  {
     "code": "secret.possession_mismatch",
     "slug": "secret-possession-mismatch",
     "typeUri": "https://insecur.dev/errors/secret-possession-mismatch",

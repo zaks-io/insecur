@@ -138,6 +138,23 @@ jobs:
           SMOKE_INVITEE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID }}
         run: pnpm smoke:preview
 
+      # Real R2 backup no-plaintext sweep (INS-562, ADR-0069 external evidence): writes a fresh
+      # canary through the live preview API, drives the existing scheduled export on the deployed
+      # Runtime Worker, and scans the sealed artifact bytes for every sentinel encoding. Emits
+      # no-plaintext/r2-backup.json into the uploaded artifact tree for the release gate.
+      - name: R2 backup no-plaintext sweep
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PREVIEW_RUNTIME_BACKUPS_BUCKET_NAME: ${{ vars.PREVIEW_RUNTIME_BACKUPS_BUCKET_NAME }}
+          PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
+          SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
+          SMOKE_EXPECTED_DEPLOY_SHA: ${{ github.sha }}
+          SMOKE_SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
+          SMOKE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_ADMITTED_USER_ID }}
+          SMOKE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_WORKOS_USER_ID }}
+        run: pnpm --filter @insecur/preview-smoke sweep:r2-backup
+
       - name: Revoke and sweep preview smoke artifacts
         id: artifact_sweep
         if: ${{ always() }}

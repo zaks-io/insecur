@@ -50,7 +50,7 @@ export function redactorForPreview(
   ]);
 }
 
-function createRedactor(patterns: string[]): (value: unknown) => string {
+export function createRedactor(patterns: string[]): (value: unknown) => string {
   const ordered = [...new Set(patterns.filter(Boolean))].sort(
     (left, right) => right.length - left.length,
   );

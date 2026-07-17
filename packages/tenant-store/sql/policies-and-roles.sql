@@ -246,6 +246,18 @@ CREATE POLICY sensitive_metadata_fields_tenant_isolation ON sensitive_metadata_f
   USING (app.tenant_visible(org_id))
   WITH CHECK (app.tenant_visible(org_id));
 
+DROP POLICY IF EXISTS delivery_risk_policies_tenant_isolation ON delivery_risk_policies;
+CREATE POLICY delivery_risk_policies_tenant_isolation ON delivery_risk_policies
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
+DROP POLICY IF EXISTS preview_automation_opt_ins_tenant_isolation ON preview_automation_opt_ins;
+CREATE POLICY preview_automation_opt_ins_tenant_isolation ON preview_automation_opt_ins
+  FOR ALL
+  USING (app.tenant_visible(org_id))
+  WITH CHECK (app.tenant_visible(org_id));
+
 DO $$
 DECLARE
   tenant_table text;
@@ -288,7 +300,9 @@ BEGIN
         'protected_changes',
         'protected_change_approval_evidence',
         'approval_requests',
-        'promotion_change_set_draft_versions'
+        'promotion_change_set_draft_versions',
+        'delivery_risk_policies',
+        'preview_automation_opt_ins'
       )
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tenant_table);

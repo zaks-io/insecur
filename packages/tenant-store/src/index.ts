@@ -44,6 +44,7 @@ export * from "./sensitive-metadata/index.js";
 export * from "./cli-sessions/index.js";
 export * from "./user-admissions/index.js";
 export * from "./environments/index.js";
+export * from "./delivery-policy/index.js";
 export * from "./projects/index.js";
 export * from "./hierarchy/index.js";
 export * from "./guided-organization/index.js";

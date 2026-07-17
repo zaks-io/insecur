@@ -12,6 +12,7 @@ import { PLAINTEXT_METADATA_ALLOWLIST_APPROVALS } from "./plaintext-metadata-all
 import { PLAINTEXT_METADATA_ALLOWLIST_WEBHOOKS } from "./plaintext-metadata-allowlist-webhooks.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_SECRET_SYNCS } from "./plaintext-metadata-allowlist-secret-syncs.js";
 import { PLAINTEXT_METADATA_ALLOWLIST_RESTORE_IMPORT } from "./plaintext-metadata-allowlist-restore-import.js";
+import { PLAINTEXT_METADATA_ALLOWLIST_DELIVERY_POLICY } from "./plaintext-metadata-allowlist-delivery-policy.js";
 
 export const PLAINTEXT_METADATA_CATEGORIES = [
   "opaque-id",
@@ -45,6 +46,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST = {
   ...PLAINTEXT_METADATA_ALLOWLIST_AGENT_SESSIONS,
   ...PLAINTEXT_METADATA_ALLOWLIST_PROTECTED_CHANGES,
   ...PLAINTEXT_METADATA_ALLOWLIST_APPROVALS,
+  ...PLAINTEXT_METADATA_ALLOWLIST_DELIVERY_POLICY,
   audit_events: {
     actor_machine_identity_id: { category: "actor-id" },
     actor_type: { category: "type-code" },

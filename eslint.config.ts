@@ -198,6 +198,8 @@ export default tseslint.config(
       "packages/secret-sync/test/**/*.ts",
       "packages/secret-sync/vitest.config.ts",
       "packages/secret-sync/vitest.rls.config.ts",
+      "packages/delivery-policy/test/**/*.ts",
+      "packages/delivery-policy/vitest.config.ts",
       "packages/instance-bootstrap/test/**/*.ts",
       "packages/instance-bootstrap/vitest.config.ts",
       "packages/instance-bootstrap/vitest.rls.config.ts",

@@ -712,6 +712,128 @@
     ],
     "primaryKeys": []
   },
+  "delivery_risk_policies": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "preset_key": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "preset_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "policy_version": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgInteger",
+        "sqlType": "integer"
+      },
+      "selected_by_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "selected_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "delivery_risk_policies_policy_version_check",
+        "sql": "\"delivery_risk_policies\".\"policy_version\" >= 1"
+      },
+      {
+        "name": "delivery_risk_policies_preset_key_check",
+        "sql": "\"delivery_risk_policies\".\"preset_key\" IN ('strict', 'balanced', 'automation_friendly')"
+      },
+      {
+        "name": "delivery_risk_policies_preset_version_check",
+        "sql": "\"delivery_risk_policies\".\"preset_version\" >= 1"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "delivery_risk_policies_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "delivery_risk_policies_org_id_project_id_key",
+        "columns": ["org_id", "project_id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "delivery_risk_policies_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "delivery_risk_policies_org_project_fkey",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
+      }
+    ],
+    "primaryKeys": []
+  },
   "environments": {
     "columns": {
       "id": {
@@ -2326,6 +2448,127 @@
         "columns": ["instance_id"],
         "foreignTable": "instances",
         "foreignColumns": ["id"]
+      }
+    ],
+    "primaryKeys": []
+  },
+  "preview_automation_opt_ins": {
+    "columns": {
+      "id": {
+        "notNull": true,
+        "primaryKey": true,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "org_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "project_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "environment_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "enabled_by_user_id": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "enabled_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "revoked_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
+      "revoked_by_user_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "created_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      },
+      "updated_at": {
+        "notNull": true,
+        "primaryKey": false,
+        "hasDefault": true,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true,
+        "defaultSql": "now()"
+      }
+    },
+    "checks": [
+      {
+        "name": "preview_automation_opt_ins_revocation_pair_check",
+        "sql": "(\"preview_automation_opt_ins\".\"revoked_at\" IS NULL AND \"preview_automation_opt_ins\".\"revoked_by_user_id\" IS NULL) OR (\"preview_automation_opt_ins\".\"revoked_at\" IS NOT NULL AND \"preview_automation_opt_ins\".\"revoked_by_user_id\" IS NOT NULL)"
+      }
+    ],
+    "uniqueConstraints": [
+      {
+        "name": "preview_automation_opt_ins_org_id_environment_id_key",
+        "columns": ["org_id", "environment_id"],
+        "nullsNotDistinct": false
+      },
+      {
+        "name": "preview_automation_opt_ins_org_id_id_key",
+        "columns": ["org_id", "id"],
+        "nullsNotDistinct": false
+      }
+    ],
+    "indexes": [],
+    "foreignKeys": [
+      {
+        "name": "preview_automation_opt_ins_org_env_fkey",
+        "columns": ["org_id", "environment_id"],
+        "foreignTable": "environments",
+        "foreignColumns": ["org_id", "id"]
+      },
+      {
+        "name": "preview_automation_opt_ins_org_id_organizations_id_fk",
+        "columns": ["org_id"],
+        "foreignTable": "organizations",
+        "foreignColumns": ["id"]
+      },
+      {
+        "name": "preview_automation_opt_ins_org_project_fkey",
+        "columns": ["org_id", "project_id"],
+        "foreignTable": "projects",
+        "foreignColumns": ["org_id", "id"]
       }
     ],
     "primaryKeys": []

@@ -9,6 +9,7 @@ export const HIGH_ASSURANCE_RISK_REASON_CODES = {
   protectedSecretSync: "high_assurance.risk.protected_secret_sync",
   protectedRuntimeInjectionPolicy: "high_assurance.risk.protected_runtime_injection_policy",
   appConnectionChange: "high_assurance.risk.app_connection_change",
+  deliveryRiskPolicyChange: "high_assurance.risk.delivery_risk_policy_change",
   sensitiveDetailGate: "high_assurance.risk.sensitive_detail_gate",
   agentStepUp: "high_assurance.risk.agent_step_up",
 } as const;

@@ -41,4 +41,5 @@ export * from "./tenant-protected-changes.js";
 export * from "./tenant-approval-requests.js";
 export * from "./tenant-secrets.js";
 export * from "./tenant-secret-syncs.js";
+export * from "./tenant-delivery-policy.js";
 export * from "./restore-import.js";
