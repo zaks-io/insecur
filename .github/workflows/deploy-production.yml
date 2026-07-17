@@ -25,6 +25,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 25
+    env:
+      RELEASE_ID: ${{ github.event.workflow_run.head_sha || github.sha }}
     environment:
       name: Production
       url: ${{ steps.deploy.outputs.base_url }}
@@ -33,7 +35,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ env.RELEASE_ID }}
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -57,7 +60,7 @@ jobs:
         id: source_ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DEPLOY_SHA: ${{ env.RELEASE_ID }}
         run: |
           set -euo pipefail
 
@@ -100,7 +103,7 @@ jobs:
         id: preview_smoke
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DEPLOY_SHA: ${{ env.RELEASE_ID }}
         run: |
           set -euo pipefail
 
@@ -138,7 +141,7 @@ jobs:
 
       - name: Require verified preview fleet identity
         env:
-          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DEPLOY_SHA: ${{ env.RELEASE_ID }}
           GH_TOKEN: ${{ github.token }}
           PREVIEW_SMOKE_RUN_ID: ${{ steps.preview_smoke.outputs.preview_smoke_run_id }}
         run: |
@@ -268,14 +271,14 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
           TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
-          INSECUR_DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          INSECUR_DEPLOY_SHA: ${{ env.RELEASE_ID }}
           INSECUR_DEPLOY_RUN_ID: ${{ github.run_id }}
           INSECUR_DEPLOYED_AT: ${{ steps.deploy_identity.outputs.deployed_at }}
           INSECUR_REQUIRE_SENTRY_SOURCEMAPS: "true"
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: zaksio
           SENTRY_PROJECT: insecur
-          SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SENTRY_RELEASE: ${{ env.RELEASE_ID }}
           INSECUR_INSTANCE_ID: ${{ vars.PRODUCTION_INSTANCE_ID }}
           INSECUR_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY: ${{ vars.PRODUCTION_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY }}
           INSECUR_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
@@ -322,5 +325,12 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: zaksio
           SENTRY_PROJECT: insecur
-          SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SENTRY_RELEASE: ${{ env.RELEASE_ID }}
         run: node scripts/sentry-verify-release-sourcemaps.mjs
+
+      - name: Sync production release to Linear
+        uses: linear/linear-release-action@c0cb8354a362c24c6d3e0948f37fd66d07588e3f # v0.14.5
+        with:
+          access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
+          name: ${{ env.RELEASE_ID }}
+          version: ${{ env.RELEASE_ID }}

@@ -58,3 +58,27 @@ test("production reports incomplete launch evidence without blocking prelaunch d
   assert.match(production, /::warning::Small-group production evidence is advisory/u);
   assert.doesNotMatch(production, /continue-on-error:\s*true/u);
 });
+
+test("production uses one release identity for Sentry and Linear", async () => {
+  const production = await readFile(
+    new URL("../../.github/workflows/deploy-production.yml", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    production,
+    /RELEASE_ID: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u,
+  );
+  assert.match(production, /fetch-depth: 0/u);
+  assert.match(production, /SENTRY_RELEASE: \$\{\{ env\.RELEASE_ID \}\}/u);
+  assert.match(production, /uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.14\.5/u);
+  assert.match(production, /access_key: \$\{\{ secrets\.LINEAR_ACCESS_KEY \}\}/u);
+  assert.match(production, /name: \$\{\{ env\.RELEASE_ID \}\}/u);
+  assert.match(production, /version: \$\{\{ env\.RELEASE_ID \}\}/u);
+
+  const sentryVerification = production.indexOf(
+    "- name: Verify Sentry source maps for production release",
+  );
+  const linearSync = production.indexOf("- name: Sync production release to Linear");
+  assert.ok(sentryVerification >= 0 && linearSync > sentryVerification);
+});
