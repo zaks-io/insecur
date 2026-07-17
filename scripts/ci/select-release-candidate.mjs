@@ -121,8 +121,11 @@ export function decideReleaseAction({
   relation,
   verifiedLiveRun,
 }) {
-  if (relation === "production-ahead") return "noop";
-  if (candidateSha === productionSha && liveSha === candidateSha) return "noop";
+  if (relation === "production-ahead") {
+    if (liveSha === productionSha && verifiedLiveRun) return "noop";
+    throw new Error("Production ledger is ahead, but its live deployment is not verified.");
+  }
+  if (candidateSha === productionSha && liveSha === candidateSha && verifiedLiveRun) return "noop";
   if (liveSha === candidateSha && verifiedLiveRun) return "record";
   if (candidateSha === productionSha) return "deploy";
   return "deploy";

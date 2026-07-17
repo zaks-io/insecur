@@ -8,6 +8,31 @@ on:
         description: Exact CI-green main commit to deploy
         required: true
         type: string
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      PREVIEW_DATABASE_URL_MIGRATION:
+        required: true
+      RUNTIME_TOKEN_SIGNING_SECRET:
+        required: true
+      SENTRY_AUTH_TOKEN:
+        required: true
+      SESSION_SIGNING_SECRET:
+        required: true
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY:
+        required: false
+      TURBO_TEAM:
+        required: false
+      TURBO_TOKEN:
+        required: false
+      TURNSTILE_SECRET_KEY:
+        required: true
+      WORKOS_API_KEY:
+        required: true
+      WORKOS_COOKIE_PASSWORD:
+        required: true
 
 permissions:
   contents: read

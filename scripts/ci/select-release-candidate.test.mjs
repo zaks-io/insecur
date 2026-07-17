@@ -97,6 +97,17 @@ test("does not roll production back when the newest successful candidate is olde
     }),
     "noop",
   );
+  assert.throws(
+    () =>
+      decideReleaseAction({
+        candidateSha: OLD_SHA,
+        liveSha: OLD_SHA,
+        productionSha: NEW_SHA,
+        relation: "production-ahead",
+        verifiedLiveRun: true,
+      }),
+    /ledger is ahead, but its live deployment is not verified/u,
+  );
 });
 
 test("selects no-op, branch repair, and deployment actions", () => {
@@ -109,6 +120,16 @@ test("selects no-op, branch repair, and deployment actions", () => {
       verifiedLiveRun: true,
     }),
     "noop",
+  );
+  assert.equal(
+    decideReleaseAction({
+      candidateSha: NEW_SHA,
+      liveSha: NEW_SHA,
+      productionSha: NEW_SHA,
+      relation: "same",
+      verifiedLiveRun: false,
+    }),
+    "deploy",
   );
   assert.equal(
     decideReleaseAction({

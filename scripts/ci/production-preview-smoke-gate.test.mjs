@@ -27,6 +27,14 @@ test("daily release owns the timezone-aware serialized release train", async () 
   assert.match(daily, /contents: write\n\s+statuses: write/u);
   assert.match(daily, /context="Production release verified"[\s\S]*git\/refs\/heads\/production/u);
   assert.doesNotMatch(daily.slice(0, daily.indexOf("finalize:")), /contents: write/u);
+  assert.doesNotMatch(daily, /secrets: inherit/u);
+  const previewSecrets = daily.slice(daily.indexOf("  preview:"), daily.indexOf("  smoke:"));
+  const smokeSecrets = daily.slice(daily.indexOf("  smoke:"), daily.indexOf("  production:"));
+  assert.doesNotMatch(previewSecrets, /LINEAR_ACCESS_KEY|PRODUCTION_DATABASE_URL_MIGRATION/u);
+  assert.doesNotMatch(
+    smokeSecrets,
+    /LINEAR_ACCESS_KEY|PRODUCTION_DATABASE_URL_MIGRATION|RUNTIME_TOKEN_SIGNING_SECRET|SENTRY_AUTH_TOKEN/u,
+  );
 });
 
 test("Preview deployment and smoke are exact-SHA reusable stages", async () => {
@@ -35,6 +43,7 @@ test("Preview deployment and smoke are exact-SHA reusable stages", async () => {
 
   for (const source of [deployPreview, previewSmoke]) {
     assert.match(source, /workflow_call:\n\s+inputs:\n\s+deploy_sha:/u);
+    assert.match(source, /workflow_call:[\s\S]*secrets:/u);
     assert.doesNotMatch(source, /workflow_dispatch/u);
     assert.match(source, /ref: \$\{\{ inputs\.deploy_sha \}\}/u);
   }
@@ -89,7 +98,7 @@ test("production verifies live identity and uses one release identity for Sentry
   assert.match(production, /SENTRY_RELEASE: \$\{\{ env\.RELEASE_ID \}\}/u);
   assert.match(
     production,
-    /node \.release-orchestrator\/scripts\/ci\/verify-production-health\.mjs\n\s+"\$\{\{ env\.RELEASE_ID \}\}"/u,
+    /EXPECTED_SHA: \$\{\{ env\.RELEASE_ID \}\}[\s\S]*node \.release-orchestrator\/scripts\/ci\/verify-production-health\.mjs\n\s+"\$EXPECTED_SHA"/u,
   );
   assert.match(production, /uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.14\.5/u);
   assert.match(production, /access_key: \$\{\{ secrets\.LINEAR_ACCESS_KEY \}\}/u);
