@@ -44,5 +44,5 @@ export default defineConfig({
     trace: "off",
     video: "retain-on-failure",
   },
-  workers: 1,
+  workers: 4,
 });

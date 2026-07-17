@@ -50,6 +50,14 @@ describe("smoke artifact credential registry", () => {
     expect(readSmokeArtifactCredentials()).toEqual([]);
   });
 
+  it("reads append-only registrations and removes duplicates", () => {
+    const registry = join(scratchDir, "registry.jsonl");
+    writeFileSync(registry, '"bearer-one"\n"bearer-two"\n"bearer-one"\n', { mode: 0o600 });
+    process.env[REGISTRY_ENV] = registry;
+
+    expect(readSmokeArtifactCredentials()).toEqual(["bearer-one", "bearer-two"]);
+  });
+
   it("refuses to write a minted bearer through a symlinked registry path", () => {
     const target = join(scratchDir, "attacker-target.json");
     const registry = join(scratchDir, "registry.json");

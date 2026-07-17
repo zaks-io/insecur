@@ -1,18 +1,15 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const SMOKE_ARTIFACT_CREDENTIAL_REGISTRY_ENV = "SMOKE_ARTIFACT_CREDENTIAL_REGISTRY";
 const DEFAULT_REGISTRY_DIRNAME = "insecur-preview-smoke";
-const DEFAULT_REGISTRY_FILENAME = "artifact-credentials.json";
+const DEFAULT_REGISTRY_FILENAME = "artifact-credentials.jsonl";
 
 export function registerSmokeArtifactCredential(credential: string): void {
   const path = registryPath();
   assertSafeRegistryFile(path);
-  const credentials = readCredentials(path);
-  if (!credentials.includes(credential)) {
-    writeFileSync(path, JSON.stringify([...credentials, credential]), { mode: 0o600 });
-  }
+  appendFileSync(path, `${JSON.stringify(credential)}\n`, { encoding: "utf8", mode: 0o600 });
 }
 
 export function readSmokeArtifactCredentials(): string[] {
@@ -76,18 +73,16 @@ function readCredentials(path: string): string[] {
   assertSafeRegistryFile(path);
 
   try {
-    const value = JSON.parse(readFileSync(path, "utf8")) as unknown;
-    if (!Array.isArray(value)) {
-      throw new Error("invalid");
-    }
-    const credentials: string[] = [];
-    for (const credential of value) {
+    const credentials = readFileSync(path, "utf8")
+      .split(/\r?\n/u)
+      .filter((line) => line !== "")
+      .map((line) => JSON.parse(line) as unknown);
+    for (const credential of credentials) {
       if (typeof credential !== "string" || credential === "") {
         throw new Error("invalid");
       }
-      credentials.push(credential);
     }
-    return [...new Set(credentials)];
+    return [...new Set(credentials as string[])];
   } catch {
     throw new Error("Preview smoke artifact credential registry is invalid");
   }
