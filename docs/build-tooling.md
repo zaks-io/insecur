@@ -836,8 +836,15 @@ Trigger: `workflow_dispatch` only. CLI releases are manual while the release-att
 being tightened. A manual dispatch first verifies that the selected commit is current `main` or a
 `main` ancestor (GitHub compare status `identical` or `behind`; anything else fails closed), then
 verifies that the commit has a completed successful `CI` run, before it builds release assets, runs
-repo security attestation, attaches the attestation bundle, and prepares the draft release. A
-CI-green non-main branch therefore cannot create, retarget, or replace a CLI draft.
+repo security attestation, attaches the attestation bundle, and prepares the draft release. After
+the draft is created or updated, the workflow syncs the package version to Linear using the isolated
+`CLI_LINEAR_ACCESS_KEY` secret. The pinned action uses the recursive monorepo filter
+`include_paths` for `packages/cli/**` and every transitive workspace package in the CLI dependency
+graph: `access`, `agent-attribution`, `audit`, `auth`, `crypto`, `custody-contracts`, `domain`,
+`instance-bootstrap`, `local-store`, `observability`, `onboarding`, `operations`,
+`runtime-injection-issue`, `secret-store-contracts`, `tenant-store`, `token-signing`, and
+`worker-kit`. It attaches the generated CLI notes and GitHub release link. A CI-green non-main
+branch therefore cannot create, retarget, or replace a CLI draft.
 
 The manual trigger is an operator pause on automatic releases, not a bypass of the release security
 gate. The workflow must continue to fail if source CI is not green or if release attestation fails.

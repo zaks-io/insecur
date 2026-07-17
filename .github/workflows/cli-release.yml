@@ -616,3 +616,31 @@ jobs:
               --title "insecur CLI $TAG" \
               --notes-file dist-binaries/RELEASE_NOTES.md
           fi
+
+      - name: Resolve Linear CLI release identity
+        id: linear-cli-release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./packages/cli/package.json').version")"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Invalid package.json version for a Linear release: $version"
+            exit 1
+          fi
+          {
+            echo "version=$version"
+            echo "tag=cli-v$version"
+            echo "name=insecur CLI v$version"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sync CLI release to Linear
+        uses: linear/linear-release-action@c0cb8354a362c24c6d3e0948f37fd66d07588e3f # v0.14.5
+        with:
+          access_key: ${{ secrets.CLI_LINEAR_ACCESS_KEY }}
+          name: ${{ steps.linear-cli-release.outputs.name }}
+          version: ${{ steps.linear-cli-release.outputs.version }}
+          include_paths: "packages/access/**,packages/agent-attribution/**,packages/audit/**,packages/auth/**,packages/cli/**,packages/crypto/**,packages/custody-contracts/**,packages/domain/**,packages/instance-bootstrap/**,packages/local-store/**,packages/observability/**,packages/onboarding/**,packages/operations/**,packages/runtime-injection-issue/**,packages/secret-store-contracts/**,packages/tenant-store/**,packages/token-signing/**,packages/worker-kit/**"
+          links: |
+            GitHub release=https://github.com/${{ github.repository }}/releases/tag/${{ steps.linear-cli-release.outputs.tag }}
+          release_notes: dist-binaries/RELEASE_NOTES.md
+          github_token: ${{ github.token }}

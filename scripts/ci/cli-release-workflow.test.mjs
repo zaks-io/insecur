@@ -78,3 +78,19 @@ test("draft creation records the verified source SHA in the release notes", asyn
     /cli-release-notes\.mjs \\\n\s+--tag "\$TAG" \\\n\s+--release-sha "\$RELEASE_SHA"/u,
   );
 });
+
+test("CLI releases sync the package version to Linear with the isolated credential and CLI path filter", async () => {
+  const workflow = await workflowPromise;
+  const cliReleasePaths =
+    "packages/access/**,packages/agent-attribution/**,packages/audit/**,packages/auth/**,packages/cli/**,packages/crypto/**,packages/custody-contracts/**,packages/domain/**,packages/instance-bootstrap/**,packages/local-store/**,packages/observability/**,packages/onboarding/**,packages/operations/**,packages/runtime-injection-issue/**,packages/secret-store-contracts/**,packages/tenant-store/**,packages/token-signing/**,packages/worker-kit/**";
+
+  assert.match(
+    workflow,
+    /- name: Sync CLI release to Linear[\s\S]*?uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.14\.5[\s\S]*?access_key: \$\{\{ secrets\.CLI_LINEAR_ACCESS_KEY \}\}[\s\S]*?version: \$\{\{ steps\.linear-cli-release\.outputs\.version \}\}[\s\S]*?release_notes: dist-binaries\/RELEASE_NOTES\.md/u,
+  );
+  assert.ok(workflow.includes(`include_paths: "${cliReleasePaths}"`));
+
+  const draftRelease = workflow.indexOf("- name: Create or update draft release");
+  const linearSync = workflow.indexOf("- name: Sync CLI release to Linear");
+  assert.ok(draftRelease >= 0 && linearSync > draftRelease);
+});
