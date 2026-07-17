@@ -89,6 +89,7 @@ test("CLI releases sync the package version to Linear with the isolated credenti
     /- name: Sync CLI release to Linear[\s\S]*?uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.14\.5[\s\S]*?access_key: \$\{\{ secrets\.CLI_LINEAR_ACCESS_KEY \}\}[\s\S]*?version: \$\{\{ steps\.linear-cli-release\.outputs\.version \}\}[\s\S]*?release_notes: dist-binaries\/RELEASE_NOTES\.md/u,
   );
   assert.ok(workflow.includes(`include_paths: "${cliReleasePaths}"`));
+  assert.doesNotMatch(workflow, /include_paths: "[^"]*apps\//u);
 
   const draftRelease = workflow.indexOf("- name: Create or update draft release");
   const linearSync = workflow.indexOf("- name: Sync CLI release to Linear");

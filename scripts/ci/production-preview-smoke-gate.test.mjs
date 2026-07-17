@@ -75,6 +75,9 @@ test("production uses one release identity for Sentry and Linear", async () => {
   assert.match(production, /access_key: \$\{\{ secrets\.LINEAR_ACCESS_KEY \}\}/u);
   assert.match(production, /name: \$\{\{ env\.RELEASE_ID \}\}/u);
   assert.match(production, /version: \$\{\{ env\.RELEASE_ID \}\}/u);
+  const productionReleasePaths =
+    "apps/api/**,apps/runtime/**,apps/site/**,apps/web/**,packages/access/**,packages/agent-attribution/**,packages/app-connection/**,packages/audit/**,packages/auth/**,packages/backup-restore/**,packages/crypto/**,packages/custody-contracts/**,packages/domain/**,packages/high-assurance/**,packages/instance-bootstrap/**,packages/machine-auth/**,packages/notifications/**,packages/observability/**,packages/onboarding/**,packages/operations/**,packages/protected-change/**,packages/runtime-injection/**,packages/runtime-injection-issue/**,packages/secret-store/**,packages/secret-store-contracts/**,packages/secret-sync/**,packages/storage-security-gate/**,packages/tenant-keyring/**,packages/tenant-store/**,packages/token-signing/**,packages/ui/**,packages/worker-kit/**";
+  assert.ok(production.includes(`include_paths: "${productionReleasePaths}"`));
 
   const sentryVerification = production.indexOf(
     "- name: Verify Sentry source maps for production release",

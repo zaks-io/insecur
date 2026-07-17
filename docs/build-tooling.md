@@ -824,6 +824,12 @@ The production deploy uses the same Sentry release/source-map path as Preview an
 `SENTRY_AUTH_TOKEN` in the approved GitHub Actions secret store (repository secret by default;
 environment-scoped override optional).
 
+After the production fleet and Sentry source maps are verified, the workflow syncs the full deploy
+SHA to Linear with `LINEAR_ACCESS_KEY`. Its recursive `include_paths` filter covers the deployed
+Workers (`apps/api`, `apps/runtime`, `apps/web`, and `apps/site`) and their transitive workspace
+package dependencies. It intentionally excludes the standalone CLI package and unrelated apps, so
+CLI-only changes remain in the separate CLI release.
+
 The identity that executes this deploy is the CI machine token. The operator's personal credentials
 are never the deploy credential (ADR-0029 amendment, ADR-0004). The Cloudflare token must be able
 to write Worker scripts and upload Worker assets. It must not need Secrets Store write access or
