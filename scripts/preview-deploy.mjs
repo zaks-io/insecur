@@ -84,9 +84,9 @@ function main() {
   const secretFiles = writePreviewSecretFiles(env);
 
   try {
-    run("pnpm", turboArgs("deploy:preview:dry-run"), env);
-    run("pnpm", ["migrate:preview"], env);
-    run("pnpm", turboArgs("deploy:preview"), env);
+    for (const command of previewDeployCommands()) {
+      run(command.command, command.args, env);
+    }
   } finally {
     secretFiles.cleanup();
   }
@@ -94,6 +94,18 @@ function main() {
   console.log(
     `Preview URLs: ${DEFAULT_PREVIEW_URLS.api}, ${DEFAULT_PREVIEW_URLS.web}, ${DEFAULT_PREVIEW_URLS.site}`,
   );
+}
+
+export function previewDeployCommands() {
+  return [
+    { command: "pnpm", args: turboArgs("deploy:preview:dry-run") },
+    { command: "pnpm", args: ["--filter", "@insecur/runtime", "deploy:preview"] },
+    { command: "pnpm", args: ["migrate:preview"] },
+    {
+      command: "pnpm",
+      args: turboArgs("deploy:preview", "--filter=!@insecur/runtime"),
+    },
+  ];
 }
 
 export function normalizePreviewDeployEnv(env) {
@@ -156,8 +168,16 @@ export function writePreviewSecretFiles(
   return { cleanup: () => rmSync(root, { force: true, recursive: true }), files, root };
 }
 
-function turboArgs(task) {
-  return ["exec", "turbo", "run", task, "--cache=local:rw,remote:r", "--filter=!./packages/*"];
+function turboArgs(task, ...extraFilters) {
+  return [
+    "exec",
+    "turbo",
+    "run",
+    task,
+    "--cache=local:rw,remote:r",
+    "--filter=!./packages/*",
+    ...extraFilters,
+  ];
 }
 
 function run(command, args, env) {
