@@ -56,7 +56,9 @@ export async function recordProtectedDeliveryApprovalAudit(
     projectId: input.target.projectId,
     environmentId: input.target.environmentId,
     resource: deliveryTargetResource(input.target),
-    details: { deliveryTargetKind: input.target.kind },
+    // Audit detail strings must be stable dotted codes (ADR-0068); the bare kind vocabulary
+    // ("secret_sync_run") is not dotted and the real audit layer rejects it.
+    details: { deliveryTargetKind: `delivery_target.${input.target.kind}` },
     ...(input.reasonCode === undefined ? {} : { reasonCode: input.reasonCode }),
   });
 }

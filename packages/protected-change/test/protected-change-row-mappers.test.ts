@@ -109,6 +109,7 @@ describe("toApprovalEvidence", () => {
       operation_id: "op_00000000000000000000000001",
       impact_review_fingerprint: "impact-fingerprint-v1",
       delivery_target_fingerprint: "sha256:delivery-fingerprint-v1",
+      consumed_at: null,
       created_at: "2026-01-01T00:00:00.000Z",
       ...overrides,
     };
@@ -137,5 +138,19 @@ describe("toApprovalEvidence", () => {
     const evidence = toApprovalEvidence(evidenceRow({ delivery_target_fingerprint: null }));
 
     expect(evidence.deliveryTargetFingerprint).toBeNull();
+  });
+
+  it("maps an unconsumed evidence row to a null consumedAt", () => {
+    const evidence = toApprovalEvidence(evidenceRow());
+
+    expect(evidence.consumedAt).toBeNull();
+  });
+
+  it("maps a consumed evidence row to an ISO consumedAt timestamp", () => {
+    const evidence = toApprovalEvidence(
+      evidenceRow({ consumed_at: new Date("2026-01-02T03:04:05.000Z") }),
+    );
+
+    expect(evidence.consumedAt).toBe("2026-01-02T03:04:05.000Z");
   });
 });

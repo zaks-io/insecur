@@ -173,6 +173,7 @@ describe("TenantProtectedChangeStore approval evidence", () => {
     operation_id: null,
     impact_review_fingerprint: "impact-fingerprint-v1",
     delivery_target_fingerprint: "sha256:delivery-fingerprint-v1",
+    consumed_at: null,
     created_at: "2026-01-01T00:00:00.000Z",
   };
 
@@ -209,6 +210,28 @@ describe("TenantProtectedChangeStore approval evidence", () => {
     const store = new TenantProtectedChangeStore(fakeSql([[evidenceRow]]));
     const evidence = await store.getApprovalEvidence(ORG, PROTECTED_CHANGE_ID);
     expect(evidence?.approverUserId).toBe("usr_00000000000000000000000001");
+  });
+
+  it("returns the consumed evidence when the consume compare-and-set wins", async () => {
+    const store = new TenantProtectedChangeStore(
+      fakeSql([[{ ...evidenceRow, consumed_at: "2026-01-02T00:00:00.000Z" }]]),
+    );
+    const consumed = await store.consumeApprovalEvidence({
+      organizationId: ORG,
+      protectedChangeId: PROTECTED_CHANGE_ID,
+      evidenceId: "aud_00000000000000000000000001" as never,
+    });
+    expect(consumed?.consumedAt).toBe("2026-01-02T00:00:00.000Z");
+  });
+
+  it("returns null when the evidence was already consumed (lost the single-use race)", async () => {
+    const store = new TenantProtectedChangeStore(fakeSql([[]]));
+    const consumed = await store.consumeApprovalEvidence({
+      organizationId: ORG,
+      protectedChangeId: PROTECTED_CHANGE_ID,
+      evidenceId: "aud_00000000000000000000000001" as never,
+    });
+    expect(consumed).toBeNull();
   });
 });
 

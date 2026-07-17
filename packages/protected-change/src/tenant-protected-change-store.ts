@@ -171,6 +171,30 @@ export class TenantProtectedChangeStore {
     return toApprovalEvidence(row);
   }
 
+  /**
+   * Atomically consumes approval evidence for exactly one protected delivery execution (INS-607).
+   * The compare-and-set on `consumed_at IS NULL` admits at most one caller: concurrent consumers of
+   * the same evidence race on the row update and every loser receives `null`. Returns the consumed
+   * evidence, or `null` when the evidence does not exist or was already consumed.
+   */
+  async consumeApprovalEvidence(input: {
+    readonly organizationId: OrganizationId;
+    readonly protectedChangeId: RequestId;
+    readonly evidenceId: ProtectedChangeApprovalEvidence["evidenceId"];
+  }): Promise<ProtectedChangeApprovalEvidence | null> {
+    const rows = await this.sql<ApprovalEvidenceRow[]>`
+      UPDATE protected_change_approval_evidence
+      SET consumed_at = NOW()
+      WHERE org_id = ${input.organizationId}
+        AND protected_change_id = ${input.protectedChangeId}
+        AND id = ${input.evidenceId}
+        AND consumed_at IS NULL
+      RETURNING *
+    `;
+    const row = rows[0];
+    return row === undefined ? null : toApprovalEvidence(row);
+  }
+
   async getApprovalEvidence(
     organizationId: OrganizationId,
     protectedChangeId: RequestId,

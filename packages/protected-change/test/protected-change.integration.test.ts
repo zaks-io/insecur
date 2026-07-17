@@ -10,6 +10,7 @@ import {
   organizationId,
   parseDisplayName,
   projectId,
+  PROTECTED_CHANGE_ERROR_CODES,
   requestId,
   secretVersionId,
   userId,
@@ -25,7 +26,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   approveProtectedChange,
   cancelProtectedChange,
+  computeDeliveryTargetFingerprint,
   createProtectedChange,
+  enforceProtectedDeliveryApproval,
   generateApprovalEvidenceId,
   generateProtectedChangeId,
   rejectProtectedChange,
@@ -36,6 +39,7 @@ import {
   completeProtectedChangeExecution,
   recomputeProtectedChangeImpactFingerprint,
   PROTECTED_CHANGE_STATE_CODES,
+  type ProtectedDeliveryTarget,
 } from "../src/index.js";
 import { integrationDatabaseReady } from "../../tenant-store/test/rls/integration-database-ready.js";
 import { seedTenantBaseline } from "../../tenant-store/test/rls/seed.js";
@@ -58,6 +62,7 @@ const DRAFT_VERSION_IDS = {
   staleExecution: "sv_00000000000000000000000102",
   blockedExecution: "sv_00000000000000000000000103",
   invalidDraftExecution: "sv_00000000000000000000000104",
+  singleUseDelivery: "sv_00000000000000000000000105",
 } as const;
 
 const TEST_ENV_IDS = {
@@ -69,6 +74,7 @@ const TEST_ENV_IDS = {
   staleExecution: "env_00000000000000000000000087",
   blockedExecution: "env_00000000000000000000000088",
   invalidDraftExecution: "env_00000000000000000000000089",
+  singleUseDelivery: "env_00000000000000000000000090",
 } as const;
 
 const TEST_SECRET_IDS = {
@@ -78,6 +84,7 @@ const TEST_SECRET_IDS = {
   staleExecution: "sec_00000000000000000000000084",
   blockedExecution: "sec_00000000000000000000000085",
   invalidDraftExecution: "sec_00000000000000000000000087",
+  singleUseDelivery: "sec_00000000000000000000000088",
 } as const;
 
 const TEST_MACHINE_ID = "mach_00000000000000000000000082";
@@ -240,6 +247,10 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         TEST_ENV_IDS.invalidDraftExecution,
         "Protected Change Invalid Draft Execution Test",
       ),
+      ensureProtectedEnvironment(
+        TEST_ENV_IDS.singleUseDelivery,
+        "Protected Change Single Use Delivery Test",
+      ),
     ]);
     await Promise.all([
       seedDraftSecret({
@@ -271,6 +282,11 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         environmentId: TEST_ENV_IDS.invalidDraftExecution,
         secretId: TEST_SECRET_IDS.invalidDraftExecution,
         secretVersionId: DRAFT_VERSION_IDS.invalidDraftExecution,
+      }),
+      seedDraftSecret({
+        environmentId: TEST_ENV_IDS.singleUseDelivery,
+        secretId: TEST_SECRET_IDS.singleUseDelivery,
+        secretVersionId: DRAFT_VERSION_IDS.singleUseDelivery,
       }),
     ]);
     await seedMachineRequester();
@@ -844,6 +860,93 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         `,
     );
     expect(auditRows[0]?.result_code).toBe(APPROVAL_ERROR_CODES.invalidDraftSelection);
+  });
+
+  it("consumes approval evidence on exactly one delivery execution and denies replay (INS-607)", async () => {
+    const protectedChangeId = generateProtectedChangeId();
+    const envId = environmentId.brand(TEST_ENV_IDS.singleUseDelivery);
+    const target: ProtectedDeliveryTarget = {
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: envId,
+      kind: "secret_sync_enable",
+      targetId: "sync_00000000000000000000000090",
+    };
+
+    await createProtectedChange({
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: envId,
+      protectedChangeId,
+      requester: { userId: REQUESTER },
+      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.singleUseDelivery)],
+      actor: { type: "user", userId: REQUESTER },
+      auditActor: { type: "user", userId: REQUESTER },
+      requestId: requestId.generate(),
+      isProtectedEnvironment: true,
+    });
+    const pending = await submitProtectedChangeForApproval({
+      organizationId: ORG,
+      protectedChangeId,
+      actor: { type: "user", userId: REQUESTER },
+      auditActor: { type: "user", userId: REQUESTER },
+      requestId: requestId.generate(),
+    });
+    const fingerprint = await recomputeProtectedChangeImpactFingerprint(pending);
+    await approveProtectedChange({
+      organizationId: ORG,
+      protectedChangeId,
+      actor: { type: "user", userId: APPROVER },
+      auditActor: { type: "user", userId: APPROVER },
+      requestId: requestId.generate(),
+      impactReviewFingerprint: fingerprint,
+      approvalEvidence: {
+        evidenceId: generateApprovalEvidenceId(),
+        approverUserId: APPROVER,
+        auditEventId: auditEventId.generate(),
+        impactReviewFingerprint: fingerprint,
+        deliveryTargetFingerprint: await computeDeliveryTargetFingerprint(target),
+      },
+    });
+
+    const enforceOnce = () =>
+      enforceProtectedDeliveryApproval({
+        target,
+        protectedChangeId,
+        actor: { type: "user", userId: REQUESTER },
+        auditActor: { type: "user", userId: REQUESTER },
+        requestId: requestId.generate(),
+      });
+
+    // Concurrent double-execution: both callers race the consume compare-and-set on the same
+    // evidence row; the database admits at most one.
+    const raced = await Promise.allSettled([enforceOnce(), enforceOnce()]);
+    const authorized = raced.filter((result) => result.status === "fulfilled");
+    const denied = raced.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    expect(authorized).toHaveLength(1);
+    expect(denied).toHaveLength(1);
+    expect(denied[0]?.reason).toMatchObject({
+      code: PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized,
+    });
+
+    // Replay after execution — a later reconfiguration or repeat run — is denied.
+    await expect(enforceOnce()).rejects.toMatchObject({
+      code: PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized,
+    });
+
+    const consumedRows = await withTenantScope(
+      { kind: "organization", organizationId: ORG as never },
+      ({ sql }) =>
+        sql<{ consumed_at: Date | null }[]>`
+          SELECT consumed_at
+          FROM protected_change_approval_evidence
+          WHERE protected_change_id = ${protectedChangeId}
+        `,
+    );
+    expect(consumedRows).toHaveLength(1);
+    expect(consumedRows[0]?.consumed_at).not.toBeNull();
   });
 
   it("uses Effective Access Resolver scopes instead of role-name shortcuts", () => {

@@ -99,6 +99,37 @@ function assertApprovedState(record: ProtectedChangeRecord): void {
   }
 }
 
+function alreadyConsumedDenial(): ProtectedChangeError {
+  return new ProtectedChangeError(
+    PROTECTED_CHANGE_ERROR_CODES.approvalNotAuthorized,
+    "approval evidence was already consumed by a protected delivery execution",
+  );
+}
+
+/**
+ * Atomically consumes the approval evidence so it authorizes exactly this one execution (INS-607).
+ * The store compare-and-set on `consumed_at IS NULL` is the single-use authority: under concurrent
+ * enforcement of the same evidence at most one caller wins the row update; every other caller
+ * (concurrent or later replay) fails closed with `approval_not_authorized`.
+ */
+async function consumeApprovalEvidenceOrThrow(
+  input: EnforceProtectedDeliveryApprovalInput,
+  evidence: ProtectedChangeApprovalEvidence,
+): Promise<void> {
+  const consumed = await withTenantScope(
+    { kind: "organization", organizationId: input.target.organizationId },
+    ({ sql }) =>
+      new TenantProtectedChangeStore(sql).consumeApprovalEvidence({
+        organizationId: input.target.organizationId,
+        protectedChangeId: input.protectedChangeId,
+        evidenceId: evidence.evidenceId,
+      }),
+  );
+  if (consumed === null) {
+    throw alreadyConsumedDenial();
+  }
+}
+
 /**
  * The exact-target binding is TOCTOU-safe: the approved delivery-target fingerprint is read from the
  * authoritative approval-evidence row (server state), never from the caller. A caller who recomputes
@@ -159,6 +190,32 @@ function denialReasonCode(error: unknown): KnownErrorCode | undefined {
   return undefined;
 }
 
+/** The ordered gate sequence; every deny throws, and the final gate consumes the evidence. */
+async function runEnforcementGates(input: EnforceProtectedDeliveryApprovalInput): Promise<void> {
+  await authorizeScopeOrThrow({
+    actor: input.actor,
+    auditActor: input.auditActor,
+    coordinate: {
+      organizationId: input.target.organizationId,
+      projectId: input.target.projectId,
+      environmentId: input.target.environmentId,
+    },
+    requiredScope: requiredActorScope(input.target),
+    requestId: input.requestId,
+    ...(input.deps === undefined ? {} : { deps: input.deps }),
+  });
+
+  const { record, evidence } = await loadRecordAndEvidence(input);
+  assertCoordinateMatchesTarget(record, input.target);
+  assertApprovedState(record);
+  if (evidence.consumedAt !== null) {
+    throw alreadyConsumedDenial();
+  }
+  await assertExactTargetMatch(input, evidence);
+  await assertCurrentApprovalEvidence(record, evidence);
+  await consumeApprovalEvidenceOrThrow(input, evidence);
+}
+
 /**
  * Fail-closed enforcement seam for protected delivery execution (INS-87). Protected delivery
  * configuration changes, protected Secret Sync enable/run, and Cloudflare Worker Secret Deploy call
@@ -168,38 +225,25 @@ function denialReasonCode(error: unknown): KnownErrorCode | undefined {
  * read from the authoritative approval-evidence row, never supplied by the caller.
  *
  * Denials fail closed with a stable, metadata-only, actionable error code and a denied audit:
- * missing evidence (`missing_evidence`), non-authorizing/rejected/canceled/stale-closed state
- * (`approval_not_authorized`), stale impact review (`approval.review_stale`), mismatched target
- * (`delivery_target_mismatch`), or a denied actor (`auth.insufficient_scope`). No Sensitive Values
- * appear in the verdict, audit, or thrown error.
+ * missing evidence (`missing_evidence`), non-authorizing/rejected/canceled/stale-closed/consumed
+ * state (`approval_not_authorized`), stale impact review (`approval.review_stale`), mismatched
+ * target (`delivery_target_mismatch`), or a denied actor (`auth.insufficient_scope`). No Sensitive
+ * Values appear in the verdict, audit, or thrown error.
  *
- * NOTE (wiring, INS-88+): the verdict is a boolean-equivalent authorization, not an atomically
- * consumable token. A caller must hold a lock / CAS across enforcement → execute (or re-check under
- * the same transaction as the live effect) to close the TOCTOU window between this check and the
- * delivery write.
+ * Approval evidence is single-use (INS-607): once every gate passes, enforcement atomically
+ * consumes the evidence (compare-and-set on `consumed_at IS NULL`) before returning `authorized`,
+ * so one approval authorizes exactly one protected execution. There is no window where the same
+ * evidence authorizes two concurrent executions, and replay after execution — including later
+ * reconfigurations, retargets, or repeat runs — fails closed with `approval_not_authorized` plus
+ * the denied protected-delivery audit. Consumption happens at authorization time, which fails
+ * closed: if the gated execution then fails, the burned evidence never re-authorizes and a fresh
+ * approval is required.
  */
 export async function enforceProtectedDeliveryApproval(
   input: EnforceProtectedDeliveryApprovalInput,
 ): Promise<ProtectedDeliveryApprovalVerdict> {
   try {
-    await authorizeScopeOrThrow({
-      actor: input.actor,
-      auditActor: input.auditActor,
-      coordinate: {
-        organizationId: input.target.organizationId,
-        projectId: input.target.projectId,
-        environmentId: input.target.environmentId,
-      },
-      requiredScope: requiredActorScope(input.target),
-      requestId: input.requestId,
-      ...(input.deps === undefined ? {} : { deps: input.deps }),
-    });
-
-    const { record, evidence } = await loadRecordAndEvidence(input);
-    assertCoordinateMatchesTarget(record, input.target);
-    assertApprovedState(record);
-    await assertExactTargetMatch(input, evidence);
-    await assertCurrentApprovalEvidence(record, evidence);
+    await runEnforcementGates(input);
   } catch (error) {
     const reasonCode = denialReasonCode(error);
     try {

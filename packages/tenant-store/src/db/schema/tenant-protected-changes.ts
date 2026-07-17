@@ -93,6 +93,7 @@ export const protectedChangeApprovalEvidence = pgTable(
     operationId: text("operation_id"),
     impactReviewFingerprint: text("impact_review_fingerprint").notNull(),
     deliveryTargetFingerprint: text("delivery_target_fingerprint"),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

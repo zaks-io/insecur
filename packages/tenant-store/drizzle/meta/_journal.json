@@ -218,6 +218,13 @@
       "when": 1784920000000,
       "tag": "0030_silent_nextwave",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1784930000000,
+      "tag": "0031_luxuriant_lockjaw",
+      "breakpoints": true
     }
   ]
 }

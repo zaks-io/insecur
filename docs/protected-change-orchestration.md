@@ -89,6 +89,7 @@ State names are documentation vocabulary, not a required database enum. The requ
 - Protected delivery configuration changes remain distinct from Promotion in authority and audit, even when one Publish clears several gates in one interruption.
 - Protected delivery configuration items include protected Secret Sync create/enable/binding changes, protected Runtime Injection Policy changes, protected App Connection changes, Connection Boundary changes, protected Shared Secret Source attachment, and repository-scoped provider sync overrides.
 - A High-Assurance Challenge for Publish is single-use, time-limited, and bound to the exact Staged Change Set review fingerprint.
+- Protected delivery approval evidence is single-use: enforcement consumes it atomically with the one execution it authorizes, so consumed evidence can never authorize a later reconfiguration, retarget, or repeat run; replay fails closed.
 - A batch whose contents, target state, approval policy, requester authority, or delivery impact changes after review must be reviewed again.
 - Approval Impact Review is recomputed immediately before approval or final apply and includes enabled Secret Syncs that Promotion will run.
 - Approval Impact Review validates Provider Value Size Limits for enabled Secret Syncs affected by protected Promotion; `sync.provider_value_too_large` blocks Promotion before Published Version changes or any Immediate Sync After Promotion run.
