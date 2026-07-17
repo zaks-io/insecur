@@ -1,0 +1,1 @@
+ALTER TABLE "protected_change_approval_evidence" ADD COLUMN "consumed_at" timestamp with time zone;

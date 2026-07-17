@@ -21,6 +21,7 @@ export const PLAINTEXT_METADATA_ALLOWLIST_PROTECTED_CHANGES = {
   protected_change_approval_evidence: {
     approver_user_id: { category: "actor-id" },
     audit_event_id: { category: "opaque-id" },
+    consumed_at: { category: "timestamp" },
     created_at: { category: "timestamp" },
     delivery_target_fingerprint: { category: "type-code" },
     id: { category: "opaque-id" },

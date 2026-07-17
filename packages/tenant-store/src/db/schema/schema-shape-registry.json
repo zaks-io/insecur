@@ -2630,6 +2630,14 @@
         "columnType": "PgText",
         "sqlType": "text"
       },
+      "consumed_at": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgTimestamp",
+        "sqlType": "timestamp with time zone",
+        "withTimezone": true
+      },
       "created_at": {
         "notNull": true,
         "primaryKey": false,

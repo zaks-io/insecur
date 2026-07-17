@@ -1,7 +1,7 @@
 import { WorkerEntrypoint, type env as cloudflareEnv } from "cloudflare:workers";
 import { isRestoreImportError, type RestoreImportSuccess } from "@insecur/backup-restore";
 import { cloudflareSentryOptions } from "@insecur/observability";
-import type { RuntimeRpcResult } from "@insecur/worker-kit";
+import type { RuntimeRpcError, RuntimeRpcResult } from "@insecur/worker-kit";
 import * as Sentry from "@sentry/cloudflare";
 
 import type { RuntimeEnv } from "../env.js";
@@ -29,16 +29,18 @@ class RuntimeRestoreServiceBase extends WorkerEntrypoint<RuntimeEnv> {
       const value = await executeRestoreImport(this.env, this.ctx, input);
       return { ok: true, value };
     } catch (error) {
+      const rpcError: RuntimeRpcError = isRestoreImportError(error)
+        ? { code: error.code, message: error.message, retryable: false }
+        : toRuntimeRpcError(error);
       // ADR-0030/0084: a failed run is evidenced through the allowlisted telemetry sink (a
-      // discarded target keeps no rows). Code only — never envelope bytes or driver detail.
-      Sentry.captureMessage("backup.restore_import_failed", { level: "error" });
-      if (isRestoreImportError(error)) {
-        return {
-          ok: false,
-          error: { code: error.code, message: error.message, retryable: false },
-        };
-      }
-      return { ok: false, error: toRuntimeRpcError(error) };
+      // discarded target keeps no rows). The Sentry event is the only evidence for a failed run,
+      // so it carries the metadata-safe reason code — never envelope bytes or driver detail.
+      Sentry.captureMessage("backup.restore_import_failed", {
+        level: "error",
+        tags: { backup_restore_code: rpcError.code },
+        extra: { backup_restore_code: rpcError.code },
+      });
+      return { ok: false, error: rpcError };
     }
   }
 }

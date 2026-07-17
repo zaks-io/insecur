@@ -52,6 +52,12 @@ export interface ProtectedChangeApprovalEvidence {
    * the exact-target match; it is never accepted from the caller (INS-87).
    */
   readonly deliveryTargetFingerprint: string | null;
+  /**
+   * When this evidence authorized a protected delivery execution. Approval evidence is single-use
+   * (INS-607): enforcement consumes it atomically (compare-and-set on `consumed_at IS NULL`) before
+   * authorizing, so the same evidence can never authorize a second execution. Null while unconsumed.
+   */
+  readonly consumedAt: string | null;
   readonly createdAt: string;
 }
 
