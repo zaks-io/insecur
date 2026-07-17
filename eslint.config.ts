@@ -22,6 +22,11 @@ const DECRYPT_IMPORT_ALLOWLIST = [
   "packages/app-connection/src/decrypt-github-connection-boundary-for-validation.ts",
   "packages/notifications/src/decrypt-webhook-signing-secret.ts",
   "packages/local-store/src/decrypt-local-secret-for-injection.ts",
+  // AG8 Secret Sync write execution (ADR-0071 pre-decided entry, INS-78):
+  // binding destination-name decrypt for provider use plus source Secret
+  // value decrypt after Sync Execution Revalidation, immediately before the
+  // provider write.
+  "packages/secret-sync/src/decrypt-secret-sync-write-materials.ts",
 ] as const;
 
 const DECRYPT_ENTRY_POINT_NAMES = [

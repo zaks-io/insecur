@@ -13,6 +13,7 @@ export const SECRET_SYNC_ERROR_CODES = {
   displayNameInUse: "sync.display_name_in_use",
   stalePlan: "sync.stale_plan",
   overwriteStatusUnknown: "sync.overwrite_status_unknown",
+  providerValueTooLarge: "sync.provider_value_too_large",
 } as const;
 
 export type SecretSyncErrorCode =
