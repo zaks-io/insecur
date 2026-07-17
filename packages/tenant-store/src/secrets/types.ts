@@ -66,7 +66,14 @@ export interface AppendSecretVersionResult {
   descriptiveVerdicts: SecretWriteDescriptiveVerdicts;
 }
 
-export type AppendSecretVersionAndMakeLiveInput = AppendSecretVersionInput;
+export type AppendSecretVersionAndMakeLiveInput = AppendSecretVersionInput & {
+  /**
+   * Version-conditional write guard (INS-609): reject with
+   * `SecretVersionStoreCurrentVersionExistsError` when the Secret already has a Current Version at
+   * append time. Checked under the append row lock, so it is race-free against concurrent writes.
+   */
+  ifCurrentVersionAbsent?: boolean;
+};
 export type AppendSecretVersionAndMakeLiveResult = AppendSecretVersionResult;
 
 export type AppendSecretVersionAsDraftInput = AppendSecretVersionInput;

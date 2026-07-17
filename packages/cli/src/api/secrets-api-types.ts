@@ -93,6 +93,12 @@ export interface SecretsApiClient {
       readonly secretId?: SecretId;
       readonly allowEmpty?: boolean;
       readonly createOnly?: boolean;
+      /**
+       * Version-conditional no-overwrite guard (INS-609): the server rejects the write with
+       * `import.existing_secret` when a Current Version already exists at write time. Unlike
+       * `createOnly` it completes a half-created Secret Shape.
+       */
+      readonly ifCurrentVersionAbsent?: boolean;
     } & (
       | {
           readonly valueUtf8: Uint8Array;
