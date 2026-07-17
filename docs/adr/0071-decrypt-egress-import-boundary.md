@@ -116,3 +116,13 @@ deploy-topology conformance gate.
   question of which modules may produce decrypt plaintext at all. Together they leave the residual
   in-request window to the no-untrusted-code posture, Secret-Free Logging, and the Storage Security
   Gate, as ADR-0064 already records.
+
+## Amendment (2026-07-16, INS-78)
+
+The pre-decided AG8 Secret Sync write execution entry landed as
+`packages/secret-sync/src/decrypt-secret-sync-write-materials.ts`: Sensitive Metadata decrypt of
+exact Secret Sync Binding destination names for provider use, plus Secret value decrypt after Sync
+Execution Revalidation and immediately before the provider write. The module is invoked only from
+the Runtime Worker's sync-run operation (the sole keyring holder), and its outputs flow directly
+into the provider sync write port without persistence. Provider Credential decrypt for provider use
+remains a future allowlist diff for the connection-credential-bearing adapters (Cloudflare, INS-79).

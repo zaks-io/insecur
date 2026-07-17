@@ -187,6 +187,36 @@ secretSyncRoutes.patch("/:secretSyncId", requireUserActor, async (context) =>
   }),
 );
 
+/**
+ * Inline Sync Execution (ADR-0057): the edge parses and forwards only. The
+ * Operation Store lease, Sync Execution Revalidation, decrypt, and provider
+ * writes all run inside the Runtime deploy; the response is metadata-only
+ * operation status. Execution-phase failures come back as Operation state
+ * plus a stable `resultCode`, not as HTTP errors.
+ */
+secretSyncRoutes.post("/:secretSyncId/run", requireUserActor, async (context) =>
+  handleEnvironmentScopedUserRoute(context, async (scope) => {
+    const secretSyncId = parseSecretSyncIdParam(
+      requireRouteParam(context.req.param("secretSyncId"), "secretSyncId"),
+    );
+    const body = parseJsonBody(await context.req.json());
+    const idempotencyKey = readOptionalString(body, "idempotencyKey");
+    const expectedPlanFingerprint = readOptionalString(body, "expectedPlanFingerprint");
+    const protectedChangeId = readProtectedChangeId(body);
+
+    return runtimeClientFor(context.env, scope.userActor).runSecretSync({
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      environmentId: scope.environmentId,
+      secretSyncId,
+      requestId: scope.requestId,
+      ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
+      ...(expectedPlanFingerprint !== undefined ? { expectedPlanFingerprint } : {}),
+      ...(protectedChangeId !== undefined ? { protectedChangeId } : {}),
+    });
+  }),
+);
+
 export function registerSecretSyncRoutes(app: ApiApp): void {
   app.route(
     "/v1/orgs/:organizationId/projects/:projectId/environments/:environmentId/secret-syncs",

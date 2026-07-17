@@ -45,6 +45,7 @@ function forwardSecretSyncMethods(
   return {
     createSecretSync: forward("createSecretSync"),
     updateSecretSync: forward("updateSecretSync"),
+    runSecretSync: forward("runSecretSync"),
   };
 }
 

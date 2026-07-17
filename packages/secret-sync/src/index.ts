@@ -50,6 +50,54 @@ export {
   type SecretSyncProviderLookupPorts,
 } from "./provider-lookup-port.js";
 export {
+  GITHUB_PROVIDER_CALL_RESULTS,
+  createUnconfiguredGitHubActionsSecretsClient,
+  type GitHubActionsDestinationRef,
+  type GitHubActionsSecretsClient,
+  type GitHubDestinationPublicKeyResult,
+  type GitHubProviderCallAck,
+  type GitHubProviderCallResult,
+} from "./github-actions-provider-client.js";
+export {
+  GITHUB_ACTIONS_PROVIDER_VALUE_SIZE_LIMIT_BYTES,
+  assertGitHubDestinationNameValid,
+  createGitHubActionsSyncAdapter,
+  type GitHubActionsSyncAdapter,
+  type GitHubDestinationNameResolver,
+} from "./github-actions-sync-adapter.js";
+export { sealSecretForGitHub } from "./github-sealed-box.js";
+export {
+  PROVIDER_WRITE_STATUSES,
+  isActionRequiredWriteStatus,
+  isProviderWriteStatus,
+  resolveProviderWritePort,
+  writeExactDestinationSafely,
+  type ProviderSecretWriteRequest,
+  type ProviderSecretWriteResult,
+  type ProviderWriteStatus,
+  type SecretSyncProviderWritePort,
+  type SecretSyncProviderWritePorts,
+} from "./provider-sync-write-port.js";
+export {
+  createSecretSyncDestinationNameDecryptor,
+  createSecretSyncWriteMaterialsDecryptor,
+} from "./decrypt-secret-sync-write-materials.js";
+export type {
+  ResolveSecretSyncWriteMaterialsInput,
+  SecretSyncBindingWriteMaterial,
+  SecretSyncWriteMaterialsResolver,
+} from "./secret-sync-write-materials.js";
+export {
+  runSecretSyncCommand,
+  type RunSecretSyncCommandInput,
+  type RunSecretSyncCommandResult,
+} from "./run-secret-sync-command.js";
+export {
+  recordSecretSyncRunCompleted,
+  recordSecretSyncRunDenied,
+  toRunBindingAuditDetails,
+} from "./record-secret-sync-run-audit.js";
+export {
   recordSecretSyncPlanCompleted,
   recordSecretSyncPlanDenied,
   recordSecretSyncRevalidationDenied,

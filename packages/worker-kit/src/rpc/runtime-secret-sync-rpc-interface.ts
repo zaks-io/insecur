@@ -1,7 +1,9 @@
 import type { RuntimeRpcResult } from "./runtime-rpc-contract.js";
 import type {
   CreateSecretSyncRpcInput,
+  RunSecretSyncRpcInput,
   SecretSyncMutationRpcPayload,
+  SecretSyncRunRpcPayload,
   UpdateSecretSyncRpcInput,
 } from "./runtime-secret-sync-rpc-contract.js";
 
@@ -17,4 +19,10 @@ export interface RuntimeSecretSyncRpc {
   updateSecretSync(
     input: UpdateSecretSyncRpcInput,
   ): Promise<RuntimeRpcResult<SecretSyncMutationRpcPayload>>;
+  /**
+   * Inline Sync Execution (ADR-0057) inside the Runtime deploy: Operation
+   * Store lease, Sync Execution Revalidation, decrypt, and the provider
+   * writes all happen behind this call; the payload is metadata-only.
+   */
+  runSecretSync(input: RunSecretSyncRpcInput): Promise<RuntimeRpcResult<SecretSyncRunRpcPayload>>;
 }

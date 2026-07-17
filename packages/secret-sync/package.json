@@ -20,8 +20,11 @@
     "@insecur/audit": "workspace:*",
     "@insecur/crypto": "workspace:*",
     "@insecur/domain": "workspace:*",
+    "@insecur/operations": "workspace:*",
     "@insecur/protected-change": "workspace:*",
-    "@insecur/tenant-store": "workspace:*"
+    "@insecur/tenant-store": "workspace:*",
+    "@noble/hashes": "catalog:",
+    "tweetnacl": "catalog:"
   },
   "devDependencies": {
     "@insecur/tenant-keyring": "workspace:*",

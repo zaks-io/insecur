@@ -99,3 +99,35 @@ export interface SecretSyncMutationRpcPayload {
   readonly secretSync: SecretSyncRpcPayload;
   readonly auditEventId: string;
 }
+
+export interface RunSecretSyncRpcInput extends PostAuthRpcInputBase {
+  readonly organizationId: OrganizationId;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly secretSyncId: SecretSyncId;
+  readonly requestId: RequestId;
+  /** ADR-0066 idempotency key: a retried run resolves to the same Operation. */
+  readonly idempotencyKey?: string;
+  /** Plan fingerprint the caller reviewed; a drifted plan blocks with `sync.stale_plan`. */
+  readonly expectedPlanFingerprint?: string;
+  /** See {@link CreateSecretSyncRpcInput.protectedChangeId}; required to run a protected sync (INS-87). */
+  readonly protectedChangeId?: RequestId;
+}
+
+/**
+ * Metadata-only Secret Sync run outcome (ADR-0070): the Operation ID, its
+ * state, and safe counters. Never Sensitive Values, provider destination
+ * names, or raw provider responses. Execution-phase failures surface as
+ * Operation state plus a stable dotted `resultCode`, not as HTTP errors.
+ */
+export interface SecretSyncRunRpcPayload {
+  readonly operationId: string;
+  readonly state: string;
+  readonly startedExecution: boolean;
+  readonly resultCode?: string;
+  readonly totalBindings: number;
+  readonly writtenCount: number;
+  readonly failedCount: number;
+  readonly verifiedCount: number;
+  readonly auditEventId?: string;
+}

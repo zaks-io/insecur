@@ -287,4 +287,71 @@ describe("secret-sync worker routes", () => {
       expect(runtime.updateSecretSync).not.toHaveBeenCalled();
     });
   });
+
+  describe("POST .../secret-syncs/:secretSyncId/run", () => {
+    const runPayload = {
+      operationId: "op_00000000000000000000000001",
+      state: "succeeded",
+      startedExecution: true,
+      totalBindings: 1,
+      writtenCount: 1,
+      failedCount: 0,
+      verifiedCount: 1,
+      auditEventId: "aud_00000000000000000000000009",
+    };
+
+    it("forwards the run over the RUNTIME seam and returns metadata-only status", async () => {
+      runtime.runSecretSync.mockResolvedValue({ ok: true, value: runPayload });
+
+      const response = await authedRequest(`${basePath}/${secretSyncIdValue}/run`, {
+        method: "POST",
+        body: JSON.stringify({
+          idempotencyKey: "run-key-1",
+          expectedPlanFingerprint: "abc123",
+          protectedChangeId: protectedChangeIdValue,
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(runtime.runSecretSync).toHaveBeenCalledTimes(1);
+      const input = runtime.runSecretSync.mock.calls[0]?.[0];
+      expect(input).toMatchObject({
+        organizationId: orgId,
+        projectId: projectIdValue,
+        environmentId: environmentIdValue,
+        secretSyncId: secretSyncIdValue,
+        idempotencyKey: "run-key-1",
+        expectedPlanFingerprint: "abc123",
+        protectedChangeId: protectedChangeIdValue,
+      });
+      expect(input?.actorToken).toBeTypeOf("string");
+      const body: { data?: Record<string, unknown> } = await response.json();
+      expect(JSON.stringify(body)).not.toContain("providerDestination");
+    });
+
+    it("forwards a bare run without optional fields", async () => {
+      runtime.runSecretSync.mockResolvedValue({ ok: true, value: runPayload });
+
+      const response = await authedRequest(`${basePath}/${secretSyncIdValue}/run`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+
+      expect(response.status).toBe(200);
+      const forwarded = runtime.runSecretSync.mock.calls[0]?.[0];
+      expect(forwarded).not.toHaveProperty("idempotencyKey");
+      expect(forwarded).not.toHaveProperty("expectedPlanFingerprint");
+      expect(forwarded).not.toHaveProperty("protectedChangeId");
+    });
+
+    it("rejects an invalid secret sync id in the run path", async () => {
+      const response = await authedRequest(`${basePath}/not-a-sync-id/run`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+
+      expect(response.status).toBe(400);
+      expect(runtime.runSecretSync).not.toHaveBeenCalled();
+    });
+  });
 });
