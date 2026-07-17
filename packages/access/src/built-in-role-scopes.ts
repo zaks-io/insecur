@@ -38,6 +38,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.syncRun,
     AUTHORIZATION_SCOPES.webhookRead,
     AUTHORIZATION_SCOPES.webhookManage,
+    AUTHORIZATION_SCOPES.deliveryPolicyManage,
     AUTHORIZATION_SCOPES.approvalApprove,
     AUTHORIZATION_SCOPES.approvalReject,
     AUTHORIZATION_SCOPES.operationCancel,
@@ -60,6 +61,7 @@ const BUILT_IN_ROLE_SCOPE_BUNDLES: Record<BuiltInRolePreset, readonly Authorizat
     AUTHORIZATION_SCOPES.syncRead,
     AUTHORIZATION_SCOPES.syncManage,
     AUTHORIZATION_SCOPES.syncRun,
+    AUTHORIZATION_SCOPES.deliveryPolicyManage,
   ],
   [BUILT_IN_ROLE_PRESETS.developer]: [
     AUTHORIZATION_SCOPES.projectRead,
