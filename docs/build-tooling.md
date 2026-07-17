@@ -575,7 +575,7 @@ The agent-facing one-command loop is documented in [docs/agents/testing.md](agen
 
 1. **Unit tests (`test`).** Plain Node Vitest, no database. Runs locally, in pre-push, and in the `CI` workflow's `Verify` job. No external secrets. Coverage (`pnpm test:coverage`) runs the same unit suite with v8 coverage across the covered workspace targets, then `scripts/merge-coverage.mjs` merges their `coverage-final.json` files and enforces the repo-wide ratchet thresholds; it excludes integration and RLS suites so it stays DB-less. Each covered workspace has a Turbo `test:coverage` task with `coverage/**` outputs, so repeated pushes can restore unchanged workspace reports from cache while changed packages recompute independently. `@cloudflare/vitest-pool-workers` is deliberately not used: the `postgres` driver needs a raw TCP socket that workerd cannot reach locally without a Hyperdrive binding, so a workers-pool run would have to mock persistence (deferred, not rejected, per ADR-0065).
 2. **Integration and RLS tests (`test:rls`, `test:e2e`, `test:canary`).** Plain Vitest with `postgres.js` against Postgres 17 (ADR-0065; major pinned by ADR-0060). Local laptops and CI use Docker Compose; Cursor Cloud uses the native Postgres 17 service provisioned by `.cursor/start-postgres.sh`. `test:rls` runs every workspace DB-backed package integration suite: tenant-store forced-RLS plus root integration tests, and package-level integration tests for access, audit, operations, onboarding, secret-store, runtime-injection, machine-auth, and instance-bootstrap. `test:rls` and `test:e2e` connect as the `NOBYPASSRLS` runtime role through `DATABASE_URL_RUNTIME`; `test:canary` sweeps every `public` schema column via the migration-role connection (`DATABASE_URL_MIGRATION`) plus captured in-process console output ([ADR-0069](adr/0069-no-plaintext-canary-gate.md)). The ADR-0054 invariants stand: never SQLite or PGlite for RLS/e2e, never the migration role for RLS/e2e, and CI asserts the runtime and migration credentials are distinct. Runs locally via `pnpm smoke:local` to reset, migrate, and test a configured Postgres service or `pnpm smoke:local:docker` to reset Docker Compose first, and in the `CI` workflow's `Verify` job for DB/runtime path changes with `INSECUR_CI_RLS_GATE=1` so skipped suites fail the build. This is the authoritative RLS and DB-backed integration gate; it holds no secrets, so it is fork-safe. Use `prepare: false` in the `postgres.js` client (Hyperdrive and pooled connections do not support prepared-statement caching across connections).
-3. **Shared preview smoke.** `Deploy Preview` preflights the shared preview Worker set (`runtime`, `api`, `web`, and `site`) before any preview mutation and deploys through Turbo package tasks. It does not run or block on preview smoke. Hosted smoke evidence is manual for now through the `Preview Smoke` workflow, which seeds smoke actors and runs `pnpm smoke:preview` through `@insecur/preview-smoke`. The smoke is a Playwright Test suite that verifies API/Web/Site deploy identities against the expected SHA, drives the current happy paths over deployed HTTP routes, and sweeps preview Postgres for the generated sentinel through the migration credential. This is the only layer that can catch a broken deploy, a missing binding, a bad secret, or a route that only fails in the deployed Cloudflare shape. It is not a per-PR workflow: DB/runtime PRs use Docker Compose Postgres in the `CI` workflow's `Verify` job.
+3. **Shared preview smoke.** The daily release train passes one CI-green `main` SHA through reusable `Deploy Preview` and `Preview Smoke` stages. Preview preflights the shared Worker set (`runtime`, `api`, `web`, and `site`) before mutation and deploys through Turbo package tasks; smoke then seeds actors and runs `pnpm smoke:preview` through `@insecur/preview-smoke`. The Playwright suite verifies API/Web/Site deploy identities against that SHA, drives the current happy paths over deployed HTTP routes, and sweeps preview Postgres for the generated sentinel through the migration credential. This is the only layer that can catch a broken deploy, a missing binding, a bad secret, or a route that only fails in the deployed Cloudflare shape. It is not a per-PR workflow: DB/runtime PRs use Docker Compose Postgres in the `CI` workflow's `Verify` job.
 
 Postgres 17 is the substrate for the authoritative integration+RLS gate and uses the same major
 version as the stable Neon target (ADR-0060), so the integration layer and the Neon-backed preview
@@ -673,13 +673,19 @@ The deployed smoke belongs to a separate shared preview workflow, not to `pull_r
 workflow may use Neon and Hyperdrive, but it must target a bounded shared preview database/Worker
 pair rather than allocating resources per PR.
 
-### Preview deploy: `deploy-preview`
+### Daily release train
 
-Trigger: manually dispatched `Deploy Preview`. `scripts/preview-deploy.mjs` is CI-only: it
-materializes the Preview GitHub Environment, creates temporary per-Worker secrets files, dry-runs
-the full fleet, migrates preview Postgres, and deploys the fleet. Preview smoke remains manually
-dispatched through the separate `Preview Smoke` workflow, but a successful exact-SHA smoke run is
-the production deploy trigger and production revalidates both CI and smoke evidence for that SHA.
+`Daily Release` runs at 08:43 America/Los_Angeles and has an input-free manual trigger. It selects
+the newest successful `CI` push run on `main`; a `production` branch that is already at or ahead of
+that commit produces a successful no-op. Otherwise it passes the exact SHA through reusable
+`Deploy Preview`, `Preview Smoke`, and `Deploy Production` stages. `scripts/preview-deploy.mjs` is
+CI-only: it materializes the Preview GitHub Environment, creates temporary per-Worker secrets
+files, dry-runs the full fleet, migrates preview Postgres, and deploys the fleet. Production
+consumes the smoke artifact from the same workflow run before mutation. After Production health,
+Sentry, and Linear verification succeed, a final repository-write-only job fast-forwards the
+`production` branch. The branch ruleset blocks deletion and non-fast-forward updates and requires
+the finalizer's GitHub Actions-owned `Production release verified` commit status. Failed stages
+leave that ledger unchanged.
 
 For a dirty local Web bundle, use the Web package's direct Wrangler deploy:
 
@@ -765,9 +771,9 @@ Preview routes are fixed custom domains:
 - Public Site: `https://preview.insecur.cloud`
 - Runtime: no public route
 
-Preview smoke is manual for now through the `Preview Smoke` workflow. It seeds the smoke actors,
-runs `pnpm smoke:preview`, and uploads artifacts without blocking `Deploy Preview`. The workflow
-accepts an optional `expected_sha` input; if omitted, it expects the selected workflow ref SHA.
+The reusable `Preview Smoke` stage seeds smoke actors, runs `pnpm smoke:preview`, and uploads
+artifacts for the explicit release-candidate SHA. It cannot be dispatched independently from the
+release train.
 
 The preview application smoke requires `SMOKE_API_BASE_URL`, `SMOKE_WEB_BASE_URL`,
 `SMOKE_SITE_BASE_URL`, `SMOKE_EXPECTED_DEPLOY_SHA`, `PREVIEW_DATABASE_URL_MIGRATION`,
@@ -783,10 +789,6 @@ Local runs load ignored `.env.preview` and `.env.local` files before validating 
 variables, and may use `SESSION_SIGNING_SECRET` as the local alias for
 `SMOKE_SESSION_SIGNING_SECRET`. The value still has to match the API/Web workers under test; a random
 value is useful only when the same local process or shell starts those workers with that value.
-
-### Staging deploy: `deploy-staging`
-
-Trigger: `push` to `main`. Auto-deploys the staging Worker environment using the CI machine identity, then smoke-checks. No human gate. Staging never holds real customer secrets (ADR-0029).
 
 ### Production deploy: `deploy-production`
 
@@ -977,7 +979,7 @@ The build-tooling layer is complete when all of the following are verifiable:
 - A forked pull request runs the `CI` workflow only and reaches no secret-bearing step. Docs-only
   and workflow-only pull requests skip product-code CI jobs but still run gitleaks; workflow-only
   pull requests also run workflow formatting, action pinning, and actionlint.
-- A merge to `main` runs `CI`; a successful deployed `Preview Smoke` for that exact SHA triggers production through the `Production` GitHub Environment, which revalidates both CI and smoke evidence before mutation and runs under a CI machine identity.
+- A merge to `main` runs `CI`; the daily release train selects the newest successful commit, proves that exact SHA in Preview, deploys it through the `Production` GitHub Environment under a CI machine identity, verifies the live identities, and only then advances `production`.
 - The daily security scan workflow runs on schedule (grype, semgrep, gitleaks history). Automated
   Linear filing for High/Critical findings is enabled by default; `report-findings` fails closed
   without configuration unless `LINEAR_SECURITY_REPORTING_ENABLED=false` explicitly disables filing.

@@ -1,10 +1,13 @@
-# Deploy the bounded shared Preview Worker fleet. This is intentionally not a
-# pull_request workflow: PRs use Docker Compose Postgres in CI, while this job
-# targets the shared preview Worker deploys.
+# Reusable Preview deployment stage for the daily release train.
 name: Deploy Preview
 
 on:
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      deploy_sha:
+        description: Exact CI-green main commit to deploy
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -27,6 +30,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.deploy_sha }}
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -47,12 +53,14 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          INSECUR_DEPLOY_SHA: ${{ inputs.deploy_sha }}
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
           TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
           PREVIEW_POSTGRES_RUNTIME_ROLE: ${{ vars.PREVIEW_POSTGRES_RUNTIME_ROLE }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ inputs.deploy_sha }}
           PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           PREVIEW_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY: ${{ vars.PREVIEW_SITE_AUDIT_EXPORT_SIGNING_PUBLIC_KEY }}
           TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
@@ -85,5 +93,5 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: zaksio
           SENTRY_PROJECT: insecur
-          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_RELEASE: ${{ inputs.deploy_sha }}
         run: node scripts/sentry-verify-release-sourcemaps.mjs

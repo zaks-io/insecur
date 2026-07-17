@@ -1,9 +1,13 @@
-# Run the shared preview application smoke on demand. It shares the Preview
-# fleet lock with deployment so the tested identity cannot change mid-suite.
+# Reusable Preview smoke stage for the daily release train.
 name: Preview Smoke
 
 on:
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      deploy_sha:
+        description: Exact Preview deployment identity to verify
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -23,6 +27,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.deploy_sha }}
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -130,7 +137,7 @@ jobs:
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
           SMOKE_WEB_BASE_URL: https://app.preview.insecur.cloud
           SMOKE_SITE_BASE_URL: https://preview.insecur.cloud
-          SMOKE_EXPECTED_DEPLOY_SHA: ${{ github.sha }}
+          SMOKE_EXPECTED_DEPLOY_SHA: ${{ inputs.deploy_sha }}
           SMOKE_SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
           SMOKE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_ADMITTED_USER_ID }}
           SMOKE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_WORKOS_USER_ID }}
@@ -149,7 +156,7 @@ jobs:
           PREVIEW_RUNTIME_BACKUPS_BUCKET_NAME: ${{ vars.PREVIEW_RUNTIME_BACKUPS_BUCKET_NAME }}
           PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
-          SMOKE_EXPECTED_DEPLOY_SHA: ${{ github.sha }}
+          SMOKE_EXPECTED_DEPLOY_SHA: ${{ inputs.deploy_sha }}
           SMOKE_SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
           SMOKE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_ADMITTED_USER_ID }}
           SMOKE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_WORKOS_USER_ID }}

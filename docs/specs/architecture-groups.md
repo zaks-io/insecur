@@ -80,11 +80,8 @@ Owns:
 - Turbo tasks and cache policy, including remote read for developers/agents and remote write only
   for CI.
 - GitHub Actions topology: the `CI` workflow (its `Verify` job runs the blocking conformance and
-  turbo lint/typecheck/test floor, including `pnpm conformance:packages`; knip and actionlint are
-  separate jobs),
-  `deploy-preview`, and `security-daily` exist today; staging deploy and production deploy are
-  planned per [build-tooling.md](../build-tooling.md) and
-  [ADR-0029](../adr/0029-environments-and-cd-trust-model.md) but not yet created.
+  turbo lint/typecheck/test floor, including `pnpm conformance:packages`), the daily exact-SHA
+  Preview-to-Production release train, and `security-daily`.
 - Secret scanning, dependency scanning, SBOM/vulnerability hooks, and fork isolation.
 
 Does not own product schema, auth flows, or runtime behavior.
@@ -95,7 +92,7 @@ Primary references: [ADR-0053](../adr/0053-remote-build-cache-trust-model.md),
 [ADR-0056](../adr/0056-supply-chain-hardening-posture.md),
 [build-tooling.md](../build-tooling.md).
 
-Done means `pnpm verify` is the local and CI truth, the `CI`, `deploy-preview`, and
+Done means `pnpm verify` is the local and CI truth, the `CI`, `Daily Release`, and
 `security-daily` workflows exist, remote cache write is CI-only, forked PRs receive no
 secret-bearing jobs, PRs use Docker Compose Postgres instead of Neon branches, and adding a
 dependency that wants a postinstall fails until reviewed.

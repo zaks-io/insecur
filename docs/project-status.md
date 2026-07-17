@@ -36,6 +36,9 @@ What is delivered:
   `https://app.preview.insecur.cloud`, and `https://preview.insecur.cloud`; Runtime has
   no public route. Private Worker IDs are supplied by Preview/Production GitHub
   Environment variables during deploy, not committed Wrangler config.
+- The `Daily Release` workflow selects the newest CI-green `main` commit at 08:43 Pacific,
+  serializes Preview deploy and smoke, deploys the same source SHA with Production bindings,
+  verifies the live public fleet, and then fast-forwards the `production` release ledger.
 - The nonprod root key in Cloudflare Secrets Store has been regenerated, escrowed in an
   operator vault, and verified through the deployed preview smoke.
 
