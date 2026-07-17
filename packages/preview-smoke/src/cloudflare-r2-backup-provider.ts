@@ -3,7 +3,7 @@ import type { R2BackupSweepProvider } from "./r2-backup-sweep";
 /**
  * Real Cloudflare boundary for the R2 backup no-plaintext sweep (INS-562). Object reads go
  * through the account-scoped R2 object endpoint (the same seam `wrangler r2 object get` uses)
- * and the export trigger goes through the Worker cron schedules endpoint. Responses are never
+ * and the deployed trigger is verified through the Worker cron schedules endpoint. Responses are never
  * echoed into errors or logs: object bytes stay in memory and provider failures surface as
  * status codes only, so credentials, signed URLs, and backup bytes cannot leak into output.
  */
@@ -73,23 +73,20 @@ export function createCloudflareR2BackupSweepProvider(
       return new Uint8Array(await response.arrayBuffer());
     },
 
+    async requestExport(key, request): Promise<void> {
+      const objectPath = key.split("/").map(encodeURIComponent).join("/");
+      const response = await cloudflareFetch(
+        "PUT",
+        `/accounts/${input.accountId}/r2/buckets/${input.bucketName}/objects/${objectPath}`,
+        JSON.stringify(request),
+      );
+      assertProviderStatus(response, "R2 backup proof request");
+    },
+
     async readSchedules(): Promise<string[]> {
       const response = await cloudflareFetch("GET", schedulesPath);
       assertProviderStatus(response, "Worker schedules read");
       return parseScheduleCrons((await response.json()) as CloudflareSchedulesResult);
-    },
-
-    async writeSchedules(crons: readonly string[]): Promise<void> {
-      const response = await cloudflareFetch(
-        "PUT",
-        schedulesPath,
-        JSON.stringify(crons.map((cron) => ({ cron }))),
-      );
-      assertProviderStatus(response, "Worker schedules update");
-      const payload = (await response.json()) as CloudflareSchedulesResult;
-      if (payload.success === false) {
-        throw new Error("Cloudflare Worker schedules update did not report success");
-      }
     },
   };
 }

@@ -116,7 +116,8 @@
         },
       ],
       "triggers": {
-        "crons": ["0 3 * * *"],
+        // This trigger is a no-op until Preview Smoke writes the one-shot R2 proof request.
+        "crons": ["* * * * *"],
       },
     },
   },

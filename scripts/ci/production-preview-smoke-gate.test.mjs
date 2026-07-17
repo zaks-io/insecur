@@ -57,6 +57,17 @@ test("Preview deployment and smoke are exact-SHA reusable stages", async () => {
   assert.match(deployPreview, /group: preview-fleet\n\s+cancel-in-progress: false/u);
   assert.match(previewSmoke, /group: preview-fleet\n\s+cancel-in-progress: false/u);
   assert.match(previewSmokeConfig, /^\s*workers\s*:\s*3\s*(?:,|$)/mu);
+  assert.match(
+    previewSmoke,
+    /sweep:r2-backup &\n\s+r2_pid=\$!\n\s+unset CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN\n[\s\S]*pnpm smoke:preview/u,
+  );
+  assert.match(previewSmoke, /wait "\$r2_pid"[\s\S]*r2_status=\$\?/u);
+  const tokenUnset = previewSmoke.indexOf("unset CLOUDFLARE_ACCOUNT_ID");
+  const applicationSmoke = previewSmoke.slice(
+    previewSmoke.indexOf("\n", tokenUnset) + 1,
+    previewSmoke.indexOf('wait "$r2_pid"'),
+  );
+  assert.doesNotMatch(applicationSmoke, /CLOUDFLARE_API_TOKEN/u);
 });
 
 test("production consumes same-run Preview proof before mutation", async () => {

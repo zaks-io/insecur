@@ -1,6 +1,18 @@
 /** Marker recorded in backup export headers (ADR-0072). */
 export const BACKUP_EXPORT_FORMAT_MARKER = "insecur-backup-v1" as const;
 
+/** Preview-only R2 signal consumed once by the frequent no-op proof trigger. */
+export const BACKUP_EXPORT_PROOF_REQUEST_KEY = "backup/proof-requested" as const;
+
+export const BACKUP_EXPORT_PROOF_REQUEST_VERSION = 1 as const;
+
+export interface BackupExportProofRequest {
+  notBefore: number;
+  requestId: string;
+  status: "requested";
+  version: typeof BACKUP_EXPORT_PROOF_REQUEST_VERSION;
+}
+
 /** Recovery canary variable key — metadata-safe identifier, not a Sensitive Value. */
 export const RECOVERY_CANARY_VARIABLE_KEY = "INSECUR_RECOVERY_CANARY" as const;
 
