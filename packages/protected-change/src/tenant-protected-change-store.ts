@@ -25,6 +25,27 @@ import type {
 } from "./protected-change-types.js";
 import { validateCreateProtectedChangeInput } from "./validate-create-protected-change.js";
 
+/** Nullable insert bindings resolved outside the SQL literal to keep the insert simple. */
+function toInsertBindings(input: CreateProtectedChangeInput) {
+  return {
+    purpose: input.purpose ?? "promotion",
+    requesterUserId: input.requester.userId ?? null,
+    requesterMachineIdentityId: input.requester.machineIdentityId ?? null,
+    deliveryTargetKind: input.deliveryTarget?.kind ?? null,
+    deliveryTargetId: input.deliveryTarget?.targetId ?? null,
+  };
+}
+
+function toInsertError(error: unknown): unknown {
+  if (isUniqueConstraintViolation(error)) {
+    return new ProtectedChangeError(
+      PROTECTED_CHANGE_ERROR_CODES.activeChangeExists,
+      "protected environment already has an active protected change",
+    );
+  }
+  return error;
+}
+
 export class TenantProtectedChangeStore {
   constructor(private readonly sql: TenantScopedSql) {}
 
@@ -45,6 +66,7 @@ export class TenantProtectedChangeStore {
 
   async insertProtectedChange(input: CreateProtectedChangeInput): Promise<ProtectedChangeRecord> {
     validateCreateProtectedChangeInput(input);
+    const bindings = toInsertBindings(input);
 
     try {
       const rows = await this.sql<ProtectedChangeRow[]>`
@@ -57,7 +79,9 @@ export class TenantProtectedChangeStore {
           purpose,
           requester_user_id,
           requester_machine_identity_id,
-          draft_version_ids
+          draft_version_ids,
+          delivery_target_kind,
+          delivery_target_id
         )
         VALUES (
           ${input.protectedChangeId},
@@ -65,10 +89,12 @@ export class TenantProtectedChangeStore {
           ${input.projectId},
           ${input.environmentId},
           'proposed',
-          ${input.purpose ?? "promotion"},
-          ${input.requester.userId ?? null},
-          ${input.requester.machineIdentityId ?? null},
-          ${bindJsonb(this.sql, [...input.draftVersionIds])}
+          ${bindings.purpose},
+          ${bindings.requesterUserId},
+          ${bindings.requesterMachineIdentityId},
+          ${bindJsonb(this.sql, [...input.draftVersionIds])},
+          ${bindings.deliveryTargetKind},
+          ${bindings.deliveryTargetId}
         )
         RETURNING *
       `;
@@ -81,13 +107,7 @@ export class TenantProtectedChangeStore {
       }
       return toProtectedChangeRecord(row);
     } catch (error) {
-      if (isUniqueConstraintViolation(error)) {
-        throw new ProtectedChangeError(
-          PROTECTED_CHANGE_ERROR_CODES.activeChangeExists,
-          "protected environment already has an active protected change",
-        );
-      }
-      throw error;
+      throw toInsertError(error);
     }
   }
 

@@ -24,8 +24,10 @@ import type {
   ListSessionOrganizationsRpcInput,
   ListWebhookEventCodesRpcInput,
   ListWebhookSubscriptionsRpcInput,
+  CreateSecretSyncRpcInput,
   RevokeCliSessionRpcInput,
   RotateWebhookSigningSecretRpcInput,
+  UpdateSecretSyncRpcInput,
   UpdateWebhookSubscriptionRpcInput,
 } from "@insecur/worker-kit";
 import type {
@@ -75,6 +77,7 @@ import {
   disableRuntimeInjectionPolicyRpc,
   getRuntimeInjectionPolicyRpc,
 } from "./runtime-run-policies-rpc-delegates.js";
+import { createSecretSyncRpc, updateSecretSyncRpc } from "./runtime-secret-sync-rpc-delegates.js";
 import {
   RUNTIME_POST_AUTH_RPC,
   type RuntimePostAuthRpcHost,
@@ -188,6 +191,12 @@ export const RuntimeServiceDelegatedPostAuthRpc = {
     input: DisableRuntimeInjectionPolicyRpcInput,
   ) {
     return disableRuntimeInjectionPolicyRpc(this[RUNTIME_POST_AUTH_RPC](), input);
+  },
+  createSecretSync(this: RuntimePostAuthRpcHost, input: CreateSecretSyncRpcInput) {
+    return createSecretSyncRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
+  },
+  updateSecretSync(this: RuntimePostAuthRpcHost, input: UpdateSecretSyncRpcInput) {
+    return updateSecretSyncRpc(this[RUNTIME_POST_AUTH_RPC](), this.env, input);
   },
   createWebhookSubscription(
     this: RuntimePostAuthRpcHost,

@@ -23,6 +23,8 @@ function protectedChangeRow(overrides: Partial<ProtectedChangeRow> = {}): Protec
     requester_user_id: "usr_00000000000000000000000001",
     requester_machine_identity_id: null,
     draft_version_ids: ["sv_00000000000000000000000099"],
+    delivery_target_kind: null,
+    delivery_target_id: null,
     impact_review_fingerprint: null,
     execution_operation_id: null,
     closure_reason_code: null,

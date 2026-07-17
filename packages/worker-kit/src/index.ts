@@ -10,6 +10,7 @@ export {
   encodeRequestValueUtf8,
   parseEnvironmentIdParam,
   parseSecretIdParam,
+  parseSecretSyncIdParam,
   parseSecretVersionIdParam,
   parseGrantIdParam,
   parseGuidedOrganizationResourceIds,
@@ -136,28 +137,8 @@ export type {
   RuntimeInjectionPolicyVersionReadPayload,
 } from "./rpc/runtime-run-policies-rpc-contract.js";
 export type { RuntimeConnectionsRpc } from "./rpc/runtime-connections-rpc-interface.js";
-export type {
-  ApproveApprovalRequestRpcInput,
-  ApproveApprovalRequestRpcPayload,
-  ApprovalRequestImpactReviewRpcPayload,
-  ApprovalRequestReviewDetailRpcPayload,
-  ApprovalRequestReviewListItemRpcPayload,
-  CancelApprovalRequestRpcInput,
-  CancelApprovalRequestRpcPayload,
-  EnvironmentApprovalListItemRpcPayload,
-  GetApprovalRequestReviewRpcInput,
-  GetApprovalRequestReviewRpcPayload,
-  ListEnvironmentApprovalsRpcInput,
-  ListEnvironmentApprovalsRpcPayload,
-  ListPendingApprovalRequestsRpcInput,
-  ListPendingApprovalRequestsRpcPayload,
-  RejectApprovalRequestRpcInput,
-  RejectApprovalRequestRpcPayload,
-  RequestProtectedPromotionRpcInput,
-  RequestProtectedPromotionRpcPayload,
-  RequestProtectedRollbackRpcInput,
-  RequestProtectedRollbackRpcPayload,
-} from "./rpc/runtime-protected-change-rpc-contract.js";
+export type * from "./rpc/runtime-protected-change-rpc-contract.js";
+export type * from "./rpc/runtime-secret-sync-rpc-contract.js";
 export type {
   CaptureFirstValueFeedbackRpcInput,
   CaptureFirstValueFeedbackRpcPayload,

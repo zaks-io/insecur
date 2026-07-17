@@ -5,6 +5,8 @@ export const PLAINTEXT_METADATA_ALLOWLIST_PROTECTED_CHANGES = {
   protected_changes: {
     closure_reason_code: { category: "type-code" },
     created_at: { category: "timestamp" },
+    delivery_target_id: { category: "opaque-id" },
+    delivery_target_kind: { category: "type-code" },
     draft_version_ids: { category: "validated-payload" },
     environment_id: { category: "opaque-id" },
     execution_operation_id: { category: "opaque-id" },

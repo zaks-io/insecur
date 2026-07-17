@@ -320,6 +320,9 @@ importers:
       '@insecur/secret-store':
         specifier: workspace:*
         version: link:../../packages/secret-store
+      '@insecur/secret-sync':
+        specifier: workspace:*
+        version: link:../../packages/secret-sync
       '@insecur/tenant-keyring':
         specifier: workspace:*
         version: link:../../packages/tenant-keyring

@@ -20,6 +20,7 @@ import {
   isProtectedChangeAccessDenied,
 } from "./assert-protected-change-access.js";
 import { isProtectedChangeError, ProtectedChangeError } from "./protected-change-errors.js";
+import { computeDeliveryTargetFingerprint } from "./protected-delivery-target.js";
 import type { ProtectedChangeAuditAction } from "./protected-change-audit-codes.js";
 import { recordProtectedChangeAudit } from "./record-protected-change-audit.js";
 import type {
@@ -36,9 +37,14 @@ export interface TransitionProtectedChangeRequestInput extends TransitionProtect
   readonly requestId: RequestId;
   readonly accessAction: Parameters<typeof assertProtectedChangeAccess>[0]["action"];
   readonly auditAction: ProtectedChangeAuditAction;
+  /**
+   * Approval evidence metadata. `deliveryTargetFingerprint` is deliberately not accepted here:
+   * for a `delivery_config` change the approval transition computes it server-side from the
+   * record's stored delivery target (INS-608).
+   */
   readonly approvalEvidence?: Omit<
     RecordProtectedChangeApprovalEvidenceInput,
-    "organizationId" | "protectedChangeId"
+    "organizationId" | "protectedChangeId" | "deliveryTargetFingerprint"
   >;
   readonly deps?: AuthorizeScopeDeps;
 }
@@ -106,9 +112,36 @@ async function recordTransitionDenied(
   });
 }
 
+/**
+ * The approval-time delivery-target fingerprint for a `delivery_config` change (INS-608). It is
+ * computed here, from the record's server-stored coordinate and delivery target — never from
+ * caller input — so the enforcement seam's exact-target match binds the approval to the exact
+ * execution the requester proposed.
+ */
+async function serverComputedDeliveryTargetFingerprint(
+  current: ProtectedChangeRecord,
+): Promise<string | undefined> {
+  if (current.deliveryTarget === null) {
+    return undefined;
+  }
+  return computeDeliveryTargetFingerprint({
+    organizationId: current.organizationId,
+    projectId: current.projectId,
+    environmentId: current.environmentId,
+    kind: current.deliveryTarget.kind,
+    targetId: current.deliveryTarget.targetId,
+  });
+}
+
 async function persistTransition(
   input: TransitionProtectedChangeRequestInput,
+  current: ProtectedChangeRecord,
 ): Promise<ProtectedChangeRecord> {
+  const deliveryTargetFingerprint =
+    input.nextState === "approved" && input.approvalEvidence !== undefined
+      ? await serverComputedDeliveryTargetFingerprint(current)
+      : undefined;
+
   return withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ sql }) => {
@@ -119,6 +152,7 @@ async function persistTransition(
           organizationId: input.organizationId,
           protectedChangeId: input.protectedChangeId,
           ...input.approvalEvidence,
+          ...(deliveryTargetFingerprint === undefined ? {} : { deliveryTargetFingerprint }),
         });
       }
       return transitioned;
@@ -216,7 +250,7 @@ export async function transitionProtectedChange(
 
   let updated: ProtectedChangeRecord;
   try {
-    updated = await persistTransition(input);
+    updated = await persistTransition(input, current);
   } catch (error) {
     if (isProtectedChangeError(error)) {
       await recordProtectedChangeAudit({

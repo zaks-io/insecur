@@ -1,0 +1,5 @@
+ALTER TABLE "protected_changes" DROP CONSTRAINT "protected_changes_purpose_check";--> statement-breakpoint
+ALTER TABLE "protected_changes" ADD COLUMN "delivery_target_kind" text;--> statement-breakpoint
+ALTER TABLE "protected_changes" ADD COLUMN "delivery_target_id" text;--> statement-breakpoint
+ALTER TABLE "protected_changes" ADD CONSTRAINT "protected_changes_delivery_target_check" CHECK (("protected_changes"."purpose" = 'delivery_config' AND "protected_changes"."delivery_target_kind" IN ('delivery_config', 'secret_sync_enable', 'secret_sync_run', 'cloudflare_worker_secret_deploy') AND "protected_changes"."delivery_target_id" IS NOT NULL) OR ("protected_changes"."purpose" = 'promotion' AND "protected_changes"."delivery_target_kind" IS NULL AND "protected_changes"."delivery_target_id" IS NULL));--> statement-breakpoint
+ALTER TABLE "protected_changes" ADD CONSTRAINT "protected_changes_purpose_check" CHECK ("protected_changes"."purpose" IN ('promotion', 'delivery_config'));
