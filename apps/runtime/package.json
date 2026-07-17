@@ -39,6 +39,7 @@
     "@insecur/runtime-injection": "workspace:*",
     "@insecur/runtime-injection-issue": "workspace:*",
     "@insecur/secret-store": "workspace:*",
+    "@insecur/secret-sync": "workspace:*",
     "@insecur/tenant-keyring": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
     "@insecur/worker-kit": "workspace:*",

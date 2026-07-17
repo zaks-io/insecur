@@ -7,6 +7,7 @@ import type { RuntimeOperationsRpc } from "./runtime-operations-rpc-interface.js
 import type { RuntimeOrganizationsRpc } from "./runtime-organizations-rpc-interface.js";
 import type { RuntimePreAuthRpc } from "./runtime-pre-auth-rpc-interface.js";
 import type { RuntimeProtectedChangeRpc } from "./runtime-protected-change-rpc-interface.js";
+import type { RuntimeSecretSyncRpc } from "./runtime-secret-sync-rpc-interface.js";
 import type { RuntimeSecretsRpc } from "./runtime-secrets-rpc-interface.js";
 import type { RuntimeSessionRpc } from "./runtime-session-rpc-interface.js";
 import type { RuntimeWebhookRpc } from "./runtime-webhook-rpc-interface.js";
@@ -34,4 +35,5 @@ export interface RuntimeRpc
     RuntimeAuditRpc,
     RuntimeHighAssuranceRpc,
     RuntimeProtectedChangeRpc,
+    RuntimeSecretSyncRpc,
     RuntimeWebhookRpc {}

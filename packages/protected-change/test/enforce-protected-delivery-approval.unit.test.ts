@@ -92,6 +92,7 @@ const APPROVED_RECORD: ProtectedChangeRecord = {
   requesterUserId: USER as ProtectedChangeRecord["requesterUserId"],
   requesterMachineIdentityId: null,
   draftVersionIds: [],
+  deliveryTarget: null,
   impactReviewFingerprint: FINGERPRINT,
   executionOperationId: null,
   closureReasonCode: null,

@@ -14,6 +14,7 @@ export {
   PROTECTED_CHANGE_PURPOSES,
   type ProtectedChangeActorRef,
   type ProtectedChangeApprovalEvidence,
+  type ProtectedChangeDeliveryTargetRef,
   type ProtectedChangePurpose,
   type ProtectedChangeRecord,
   type CreateProtectedChangeInput,

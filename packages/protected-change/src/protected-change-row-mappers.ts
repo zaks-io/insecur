@@ -2,9 +2,15 @@ import { PROTECTED_CHANGE_ERROR_CODES, requestId, secretVersionId } from "@insec
 
 import { ProtectedChangeError } from "./protected-change-errors.js";
 import { isProtectedChangeState } from "./protected-change-states.js";
-import type {
-  ProtectedChangeApprovalEvidence,
-  ProtectedChangeRecord,
+import {
+  PROTECTED_DELIVERY_TARGET_KINDS,
+  type ProtectedDeliveryTargetKind,
+} from "./protected-delivery-target.js";
+import {
+  PROTECTED_CHANGE_PURPOSES,
+  type ProtectedChangeApprovalEvidence,
+  type ProtectedChangePurpose,
+  type ProtectedChangeRecord,
 } from "./protected-change-types.js";
 import { toIsoTimestamp } from "@insecur/tenant-store";
 
@@ -18,6 +24,8 @@ export interface ProtectedChangeRow {
   requester_user_id: string | null;
   requester_machine_identity_id: string | null;
   draft_version_ids: unknown;
+  delivery_target_kind: string | null;
+  delivery_target_id: string | null;
   impact_review_fingerprint: string | null;
   execution_operation_id: string | null;
   closure_reason_code: string | null;
@@ -56,6 +64,33 @@ function parseDraftVersionIds(value: unknown): ProtectedChangeRecord["draftVersi
     });
 }
 
+function parsePurpose(value: string): ProtectedChangePurpose {
+  const purpose = PROTECTED_CHANGE_PURPOSES.find((candidate) => candidate === value);
+  if (purpose === undefined) {
+    throw new ProtectedChangeError(
+      PROTECTED_CHANGE_ERROR_CODES.invalidTransition,
+      `unknown protected change purpose: ${value}`,
+    );
+  }
+  return purpose;
+}
+
+function parseDeliveryTarget(row: ProtectedChangeRow): ProtectedChangeRecord["deliveryTarget"] {
+  if (row.delivery_target_kind === null || row.delivery_target_id === null) {
+    return null;
+  }
+  const kind = PROTECTED_DELIVERY_TARGET_KINDS.find(
+    (candidate): candidate is ProtectedDeliveryTargetKind => candidate === row.delivery_target_kind,
+  );
+  if (kind === undefined) {
+    throw new ProtectedChangeError(
+      PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch,
+      `unknown stored delivery target kind: ${row.delivery_target_kind}`,
+    );
+  }
+  return { kind, targetId: row.delivery_target_id };
+}
+
 export function toProtectedChangeRecord(row: ProtectedChangeRow): ProtectedChangeRecord {
   if (!isProtectedChangeState(row.state)) {
     throw new ProtectedChangeError(
@@ -69,7 +104,7 @@ export function toProtectedChangeRecord(row: ProtectedChangeRow): ProtectedChang
     projectId: row.project_id as ProtectedChangeRecord["projectId"],
     environmentId: row.environment_id as ProtectedChangeRecord["environmentId"],
     state: row.state,
-    purpose: row.purpose === "promotion" ? "promotion" : "promotion",
+    purpose: parsePurpose(row.purpose),
     requesterUserId:
       row.requester_user_id === null
         ? null
@@ -79,6 +114,7 @@ export function toProtectedChangeRecord(row: ProtectedChangeRow): ProtectedChang
         ? null
         : (row.requester_machine_identity_id as ProtectedChangeRecord["requesterMachineIdentityId"]),
     draftVersionIds: parseDraftVersionIds(row.draft_version_ids),
+    deliveryTarget: parseDeliveryTarget(row),
     impactReviewFingerprint: row.impact_review_fingerprint,
     executionOperationId:
       row.execution_operation_id === null

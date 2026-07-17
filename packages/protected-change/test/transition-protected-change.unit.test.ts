@@ -63,6 +63,7 @@ vi.mock("../src/recompute-protected-change-impact-fingerprint.js", () => ({
 }));
 
 import { ProtectedChangeError } from "../src/protected-change-errors.js";
+import { computeDeliveryTargetFingerprint } from "../src/protected-delivery-target.js";
 import type { ProtectedChangeRecord } from "../src/protected-change-types.js";
 import {
   approveProtectedChange,
@@ -87,6 +88,7 @@ const PENDING_RECORD: ProtectedChangeRecord = {
   requesterUserId: USER as ProtectedChangeRecord["requesterUserId"],
   requesterMachineIdentityId: null,
   draftVersionIds: [],
+  deliveryTarget: null,
   impactReviewFingerprint: null,
   executionOperationId: null,
   closureReasonCode: null,
@@ -165,6 +167,47 @@ describe("transitionProtectedChange via public API wrappers", () => {
       organizationId: ORG,
       protectedChangeId: PROTECTED_CHANGE_ID,
       approverUserId: USER,
+    });
+    // A promotion approval authorizes no delivery target, so no fingerprint is recorded.
+    expect(
+      storeMocks.insertApprovalEvidence.mock.calls[0]?.[0].deliveryTargetFingerprint,
+    ).toBeUndefined();
+  });
+
+  it("records the server-computed delivery-target fingerprint when approving a delivery_config change (INS-608)", async () => {
+    const deliveryRecord = {
+      ...PENDING_RECORD,
+      purpose: "delivery_config" as const,
+      deliveryTarget: {
+        kind: "secret_sync_enable" as const,
+        targetId: "sync_00000000000000000000000608",
+      },
+    };
+    storeMocks.getById.mockResolvedValue(deliveryRecord);
+    storeMocks.applyTransition.mockResolvedValue({ ...deliveryRecord, state: "approved" as const });
+
+    await approveProtectedChange(
+      transitionInput({
+        impactReviewFingerprint: "impact-fingerprint-v1",
+        approvalEvidence: {
+          evidenceId: "aud_00000000000000000000000001" as never,
+          approverUserId: USER as never,
+          auditEventId: "aud_00000000000000000000000002" as never,
+          impactReviewFingerprint: "impact-fingerprint-v1",
+        },
+      }),
+    );
+
+    const expectedFingerprint = await computeDeliveryTargetFingerprint({
+      organizationId: ORG,
+      projectId: PROJECT,
+      environmentId: ENV,
+      kind: "secret_sync_enable",
+      targetId: "sync_00000000000000000000000608",
+    });
+    expect(storeMocks.insertApprovalEvidence).toHaveBeenCalledTimes(1);
+    expect(storeMocks.insertApprovalEvidence.mock.calls[0]?.[0]).toMatchObject({
+      deliveryTargetFingerprint: expectedFingerprint,
     });
   });
 

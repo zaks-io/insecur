@@ -61,6 +61,7 @@ const RECORD: ProtectedChangeRecord = {
   requesterUserId: USER as ProtectedChangeRecord["requesterUserId"],
   requesterMachineIdentityId: null,
   draftVersionIds: [DRAFT_VERSION_ID],
+  deliveryTarget: null,
   impactReviewFingerprint: null,
   executionOperationId: null,
   closureReasonCode: null,

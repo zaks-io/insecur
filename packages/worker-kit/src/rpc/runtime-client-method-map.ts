@@ -39,6 +39,15 @@ function forwardProtectedChangeMethods(
   };
 }
 
+function forwardSecretSyncMethods(
+  forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
+) {
+  return {
+    createSecretSync: forward("createSecretSync"),
+    updateSecretSync: forward("updateSecretSync"),
+  };
+}
+
 function forwardHighAssuranceMethods(
   forward: <K extends PostAuthMethodName>(method: K) => ClientMethod<K>,
 ) {
@@ -90,6 +99,7 @@ export function buildAuthenticatedRuntimeClientMethods(
     getRuntimeInjectionPolicy: forward("getRuntimeInjectionPolicy"),
     disableRuntimeInjectionPolicy: forward("disableRuntimeInjectionPolicy"),
     ...forwardProtectedChangeMethods(forward),
+    ...forwardSecretSyncMethods(forward),
     createWebhookSubscription: forward("createWebhookSubscription"),
     listWebhookSubscriptions: forward("listWebhookSubscriptions"),
     updateWebhookSubscription: forward("updateWebhookSubscription"),

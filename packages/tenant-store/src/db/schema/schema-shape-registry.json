@@ -2740,6 +2740,20 @@
         "sqlType": "jsonb",
         "defaultSql": "'[]'::jsonb"
       },
+      "delivery_target_kind": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
+      "delivery_target_id": {
+        "notNull": false,
+        "primaryKey": false,
+        "hasDefault": false,
+        "columnType": "PgText",
+        "sqlType": "text"
+      },
       "impact_review_fingerprint": {
         "notNull": false,
         "primaryKey": false,
@@ -2782,8 +2796,12 @@
     },
     "checks": [
       {
+        "name": "protected_changes_delivery_target_check",
+        "sql": "(\"protected_changes\".\"purpose\" = 'delivery_config' AND \"protected_changes\".\"delivery_target_kind\" IN ('delivery_config', 'secret_sync_enable', 'secret_sync_run', 'cloudflare_worker_secret_deploy') AND \"protected_changes\".\"delivery_target_id\" IS NOT NULL) OR (\"protected_changes\".\"purpose\" = 'promotion' AND \"protected_changes\".\"delivery_target_kind\" IS NULL AND \"protected_changes\".\"delivery_target_id\" IS NULL)"
+      },
+      {
         "name": "protected_changes_purpose_check",
-        "sql": "\"protected_changes\".\"purpose\" IN ('promotion')"
+        "sql": "\"protected_changes\".\"purpose\" IN ('promotion', 'delivery_config')"
       },
       {
         "name": "protected_changes_requester_present_check",

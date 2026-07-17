@@ -11,9 +11,21 @@ import type {
 } from "@insecur/domain";
 
 import type { ProtectedChangeState } from "./protected-change-states.js";
+import type { ProtectedDeliveryTargetKind } from "./protected-delivery-target.js";
 
-export const PROTECTED_CHANGE_PURPOSES = ["promotion"] as const;
+export const PROTECTED_CHANGE_PURPOSES = ["promotion", "delivery_config"] as const;
 export type ProtectedChangePurpose = (typeof PROTECTED_CHANGE_PURPOSES)[number];
+
+/**
+ * The exact protected delivery execution a `delivery_config` Protected Change authorizes,
+ * captured at creation from server-validated request input. The approval flow computes the
+ * evidence `deliveryTargetFingerprint` from these stored fields — never from caller input
+ * (INS-608).
+ */
+export interface ProtectedChangeDeliveryTargetRef {
+  readonly kind: ProtectedDeliveryTargetKind;
+  readonly targetId: string;
+}
 
 export interface ProtectedChangeActorRef {
   readonly userId?: UserId;
@@ -30,6 +42,8 @@ export interface ProtectedChangeRecord {
   readonly requesterUserId: UserId | null;
   readonly requesterMachineIdentityId: MachineIdentityId | null;
   readonly draftVersionIds: readonly SecretVersionId[];
+  /** Present exactly when `purpose` is `delivery_config` (INS-608). */
+  readonly deliveryTarget: ProtectedChangeDeliveryTargetRef | null;
   readonly impactReviewFingerprint: string | null;
   readonly executionOperationId: OperationId | null;
   readonly closureReasonCode: string | null;
@@ -69,6 +83,8 @@ export interface CreateProtectedChangeInput {
   readonly requester: ProtectedChangeActorRef;
   readonly draftVersionIds: readonly SecretVersionId[];
   readonly purpose?: ProtectedChangePurpose;
+  /** Required for `delivery_config`, forbidden for `promotion` (INS-608). */
+  readonly deliveryTarget?: ProtectedChangeDeliveryTargetRef;
 }
 
 export interface TransitionProtectedChangeInput {
@@ -88,6 +104,10 @@ export interface RecordProtectedChangeApprovalEvidenceInput {
   readonly auditEventId: AuditEventId;
   readonly operationId?: OperationId;
   readonly impactReviewFingerprint: string;
-  /** Approval-time delivery-target fingerprint; omitted for a promotion-only approval (INS-87). */
+  /**
+   * Approval-time delivery-target fingerprint; omitted for a promotion-only approval (INS-87).
+   * Server-computed by the approval transition from the stored delivery target — never accepted
+   * from route or RPC callers (INS-608).
+   */
   readonly deliveryTargetFingerprint?: string;
 }

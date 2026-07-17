@@ -21,6 +21,8 @@ function baseRow(overrides: Partial<ProtectedChangeRow> = {}): ProtectedChangeRo
     requester_user_id: "usr_00000000000000000000000001",
     requester_machine_identity_id: null,
     draft_version_ids: [DRAFT_VERSION_ID],
+    delivery_target_kind: null,
+    delivery_target_id: null,
     impact_review_fingerprint: null,
     execution_operation_id: null,
     closure_reason_code: null,

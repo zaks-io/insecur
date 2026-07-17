@@ -873,18 +873,26 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
       targetId: "sync_00000000000000000000000090",
     };
 
-    await createProtectedChange({
+    // The delivery_config approval flow (INS-608): creation captures the exact delivery target,
+    // approval computes and records the delivery-target fingerprint server-side. No caller ever
+    // supplies a fingerprint.
+    const created = await createProtectedChange({
       organizationId: ORG,
       projectId: PROJECT,
       environmentId: envId,
       protectedChangeId,
       requester: { userId: REQUESTER },
-      draftVersionIds: [secretVersionId.brand(DRAFT_VERSION_IDS.singleUseDelivery)],
+      draftVersionIds: [],
+      purpose: "delivery_config",
+      deliveryTarget: { kind: target.kind, targetId: target.targetId },
       actor: { type: "user", userId: REQUESTER },
       auditActor: { type: "user", userId: REQUESTER },
       requestId: requestId.generate(),
       isProtectedEnvironment: true,
     });
+    expect(created.purpose).toBe("delivery_config");
+    expect(created.deliveryTarget).toEqual({ kind: target.kind, targetId: target.targetId });
+
     const pending = await submitProtectedChangeForApproval({
       organizationId: ORG,
       protectedChangeId,
@@ -905,8 +913,35 @@ describeIntegration("protected change orchestrator data model (INS-82)", () => {
         approverUserId: APPROVER,
         auditEventId: auditEventId.generate(),
         impactReviewFingerprint: fingerprint,
-        deliveryTargetFingerprint: await computeDeliveryTargetFingerprint(target),
       },
+    });
+
+    // The evidence row carries the server-computed fingerprint over the stored exact target.
+    const evidenceRows = await withTenantScope(
+      { kind: "organization", organizationId: ORG as never },
+      ({ sql }) =>
+        sql<{ delivery_target_fingerprint: string | null }[]>`
+          SELECT delivery_target_fingerprint
+          FROM protected_change_approval_evidence
+          WHERE protected_change_id = ${protectedChangeId}
+        `,
+    );
+    expect(evidenceRows[0]?.delivery_target_fingerprint).toBe(
+      await computeDeliveryTargetFingerprint(target),
+    );
+
+    // A different target id cannot ride on this approval: the server-recorded fingerprint was
+    // computed over the exact approved coordinate, so the mismatch fails closed pre-consumption.
+    await expect(
+      enforceProtectedDeliveryApproval({
+        target: { ...target, targetId: "sync_00000000000000000000000091" },
+        protectedChangeId,
+        actor: { type: "user", userId: REQUESTER },
+        auditActor: { type: "user", userId: REQUESTER },
+        requestId: requestId.generate(),
+      }),
+    ).rejects.toMatchObject({
+      code: PROTECTED_CHANGE_ERROR_CODES.deliveryTargetMismatch,
     });
 
     const enforceOnce = () =>

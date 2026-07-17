@@ -6,7 +6,7 @@ import { check, foreignKey, jsonb, pgTable, sql, text, timestamp, uniqueIndex } 
 import { orgEnvironmentFkey, orgProjectFkey } from "./pg-identifier-names.js";
 import { environments, organizations, projects } from "./tenant-hierarchy.js";
 
-export const PROTECTED_CHANGE_PURPOSES = ["promotion"] as const;
+export const PROTECTED_CHANGE_PURPOSES = ["promotion", "delivery_config"] as const;
 
 export const PROTECTED_CHANGE_RECORD_STATES = [
   "proposed",
@@ -47,6 +47,8 @@ export const protectedChanges = pgTable(
     draftVersionIds: jsonb("draft_version_ids")
       .notNull()
       .default(sql`'[]'::jsonb`),
+    deliveryTargetKind: text("delivery_target_kind"),
+    deliveryTargetId: text("delivery_target_id"),
     impactReviewFingerprint: text("impact_review_fingerprint"),
     executionOperationId: text("execution_operation_id"),
     closureReasonCode: text("closure_reason_code"),
@@ -72,7 +74,17 @@ export const protectedChanges = pgTable(
       "protected_changes_state_check",
       sql`${table.state} IN ('proposed', 'pending_approval', 'approved', 'rejected', 'stale', 'canceled', 'executing', 'succeeded', 'failed')`,
     ),
-    check("protected_changes_purpose_check", sql`${table.purpose} IN ('promotion')`),
+    check(
+      "protected_changes_purpose_check",
+      sql`${table.purpose} IN ('promotion', 'delivery_config')`,
+    ),
+    // A delivery_config change authorizes exactly one server-recorded delivery target; a promotion
+    // change never carries one (INS-608). The approval-time fingerprint is computed from these
+    // columns, never from caller input.
+    check(
+      "protected_changes_delivery_target_check",
+      sql`(${table.purpose} = 'delivery_config' AND ${table.deliveryTargetKind} IN ('delivery_config', 'secret_sync_enable', 'secret_sync_run', 'cloudflare_worker_secret_deploy') AND ${table.deliveryTargetId} IS NOT NULL) OR (${table.purpose} = 'promotion' AND ${table.deliveryTargetKind} IS NULL AND ${table.deliveryTargetId} IS NULL)`,
+    ),
     check(
       "protected_changes_requester_present_check",
       sql`${table.requesterUserId} IS NOT NULL OR ${table.requesterMachineIdentityId} IS NOT NULL`,
