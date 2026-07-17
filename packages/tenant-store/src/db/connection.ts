@@ -40,12 +40,12 @@ const connectionStore = new AsyncLocalStorage<RuntimeConnection>();
 /**
  * Open a request-scoped runtime DB client for the duration of `fn` and store it in async-local
  * storage so the connection-agnostic store API (`withTenantScope`/`getRuntimeSql`) resolves it
- * without threading a handle through ~40 call sites. `max: 5` (not 1): a single RPC runs several
+ * without threading a handle through ~40 call sites. `max: 2` (not 1): a single RPC runs several
  * sequential `withTenantScope` transactions (e.g. secret write does authorize → coordinate check →
  * persist), and a one-connection client can starve when a transaction's connection has not been
- * returned before the next begins. Hyperdrive pools server-side, so a small per-request client pool
- * is cheap. The socket `end()` is returned (not awaited) so the Worker hands it to `ctx.waitUntil`
- * and never blocks the response.
+ * returned before the next begins. Two connections cover that nesting without letting concurrent
+ * requests exhaust Hyperdrive's shared origin pool. The socket `end()` is returned (not awaited) so
+ * the Worker hands it to `ctx.waitUntil` and never blocks the response.
  *
  * One isolate serves one Instance and therefore one connection string (ADR-0036/0037; RLS does
  * tenant isolation, not per-org connections), but each request still gets its own client so no
@@ -59,7 +59,7 @@ export async function runWithRuntimeConnection<T>(
   if (!connStr) {
     throw new RuntimeConfigMissingError();
   }
-  const rawSql = postgres(connStr, { prepare: false, max: 5 });
+  const rawSql = postgres(connStr, { prepare: false, max: 2 });
   let sql: PostgresSql;
   try {
     sql = options.instrumentSql?.(rawSql) ?? rawSql;
