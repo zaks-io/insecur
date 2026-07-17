@@ -1,15 +1,48 @@
-# Deploy the production Worker fleet with the same all-app topology as Preview.
+# Reusable Production deployment stage for the daily release train.
 name: Deploy Production
 
 on:
-  workflow_run:
-    workflows:
-      - Preview Smoke
-    branches:
-      - main
-    types:
-      - completed
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ci_run_id:
+        description: Successful CI run that proved the deployed commit
+        required: true
+        type: string
+      deploy_sha:
+        description: Exact Preview-proven main commit to deploy
+        required: true
+        type: string
+      orchestrator_sha:
+        description: Exact Daily Release revision that owns post-deploy verification
+        required: true
+        type: string
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      LINEAR_ACCESS_KEY:
+        required: true
+      PRODUCTION_DATABASE_URL_MIGRATION:
+        required: true
+      RUNTIME_TOKEN_SIGNING_SECRET:
+        required: true
+      SENTRY_AUTH_TOKEN:
+        required: true
+      SESSION_SIGNING_SECRET:
+        required: true
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY:
+        required: false
+      TURBO_TEAM:
+        required: false
+      TURBO_TOKEN:
+        required: false
+      TURNSTILE_SECRET_KEY:
+        required: true
+      WORKOS_API_KEY:
+        required: true
+      WORKOS_COOKIE_PASSWORD:
+        required: true
 
 permissions:
   actions: read
@@ -22,11 +55,10 @@ concurrency:
 jobs:
   deploy:
     name: Deploy Production
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
-      RELEASE_ID: ${{ github.event.workflow_run.head_sha || github.sha }}
+      RELEASE_ID: ${{ inputs.deploy_sha }}
     environment:
       name: Production
       url: ${{ steps.deploy.outputs.base_url }}
@@ -37,6 +69,12 @@ jobs:
         with:
           ref: ${{ env.RELEASE_ID }}
           fetch-depth: 0
+
+      - name: Checkout release orchestration
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.orchestrator_sha }}
+          path: .release-orchestrator
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -56,107 +94,21 @@ jobs:
         id: deploy_identity
         run: echo "deployed_at=$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" >> "$GITHUB_OUTPUT"
 
-      - name: Require passing CI for deployed commit
-        id: source_ci
+      - name: Download Preview Smoke evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: preview-smoke-artifacts
+          path: preview-smoke-evidence
+
+      - name: Require verified Preview fleet identity
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           DEPLOY_SHA: ${{ env.RELEASE_ID }}
         run: |
           set -euo pipefail
-
-          runs_json="$(
-            curl --fail-with-body --silent --show-error \
-              --header "Accept: application/vnd.github+json" \
-              --header "Authorization: Bearer $GITHUB_TOKEN" \
-              --header "X-GitHub-Api-Version: 2022-11-28" \
-              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$DEPLOY_SHA&status=completed&per_page=20"
-          )"
-
-          passing_runs="$(
-            jq --arg sha "$DEPLOY_SHA" \
-              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | length' \
-              <<<"$runs_json"
-          )"
-
-          if [ "$passing_runs" -eq 0 ]; then
-            echo "::error::No completed successful CI workflow run was found for $DEPLOY_SHA. Run CI and wait for it to pass before deploying production."
-            exit 1
-          fi
-
-          latest_run="$(
-            jq --arg sha "$DEPLOY_SHA" \
-              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | sort_by(.created_at) | last // {}' \
-              <<<"$runs_json"
-          )"
-          ci_run_id="$(jq -r '.id // empty' <<<"$latest_run")"
-          ci_run_url="$(jq -r '.html_url // empty' <<<"$latest_run")"
-
-          if [ -z "$ci_run_id" ]; then
-            echo "::error::Could not resolve the successful CI run id for $DEPLOY_SHA."
-            exit 1
-          fi
-
-          echo "ci_run_id=$ci_run_id" >> "$GITHUB_OUTPUT"
-          echo "Found $passing_runs completed successful CI workflow run(s) for $DEPLOY_SHA. Using $ci_run_url."
-
-      - name: Require passing preview smoke for deployed commit
-        id: preview_smoke
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          DEPLOY_SHA: ${{ env.RELEASE_ID }}
-        run: |
-          set -euo pipefail
-
-          runs_json="$(
-            curl --fail-with-body --silent --show-error \
-              --header "Accept: application/vnd.github+json" \
-              --header "Authorization: Bearer $GITHUB_TOKEN" \
-              --header "X-GitHub-Api-Version: 2022-11-28" \
-              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/preview-smoke.yml/runs?head_sha=$DEPLOY_SHA&status=completed&per_page=20"
-          )"
-          passing_runs="$(
-            jq --arg sha "$DEPLOY_SHA" \
-              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | length' \
-              <<<"$runs_json"
-          )"
-          if [ "$passing_runs" -eq 0 ]; then
-            echo "::error::No successful Preview Smoke run was found for exact deploy SHA $DEPLOY_SHA. Deploy that SHA to Preview and run Preview Smoke before production."
-            exit 1
-          fi
-
-          latest_run="$(
-            jq --arg sha "$DEPLOY_SHA" \
-              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | sort_by(.created_at) | last // {}' \
-              <<<"$runs_json"
-          )"
-          preview_smoke_run_id="$(jq -r '.id // empty' <<<"$latest_run")"
-          preview_smoke_run_url="$(jq -r '.html_url // empty' <<<"$latest_run")"
-          if [ -z "$preview_smoke_run_id" ]; then
-            echo "::error::Could not resolve the successful Preview Smoke run id for $DEPLOY_SHA."
-            exit 1
-          fi
-
-          echo "preview_smoke_run_id=$preview_smoke_run_id" >> "$GITHUB_OUTPUT"
-          echo "Found $passing_runs completed successful Preview Smoke run(s) for $DEPLOY_SHA. Using $preview_smoke_run_url."
-
-      - name: Require verified preview fleet identity
-        env:
-          DEPLOY_SHA: ${{ env.RELEASE_ID }}
-          GH_TOKEN: ${{ github.token }}
-          PREVIEW_SMOKE_RUN_ID: ${{ steps.preview_smoke.outputs.preview_smoke_run_id }}
-        run: |
-          set -euo pipefail
-
-          rm -rf preview-smoke-evidence
-          mkdir -p preview-smoke-evidence
-          if ! gh run download "$PREVIEW_SMOKE_RUN_ID" --name preview-smoke-artifacts --dir preview-smoke-evidence; then
-            echo "::error::Could not download Preview Smoke artifacts for run $PREVIEW_SMOKE_RUN_ID."
-            exit 1
-          fi
 
           proof_path="$(find preview-smoke-evidence -type f -name deploy-identity.json -print -quit)"
           if [ -z "$proof_path" ]; then
-            echo "::error::Preview Smoke run $PREVIEW_SMOKE_RUN_ID did not publish deploy identity proof."
+            echo "::error::Preview Smoke did not publish deploy identity proof."
             exit 1
           fi
 
@@ -168,7 +120,7 @@ jobs:
       - name: Download coverage badge evidence
         env:
           GH_TOKEN: ${{ github.token }}
-          CI_RUN_ID: ${{ steps.source_ci.outputs.ci_run_id }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
         run: |
           set -euo pipefail
 
@@ -327,6 +279,13 @@ jobs:
           SENTRY_PROJECT: insecur
           SENTRY_RELEASE: ${{ env.RELEASE_ID }}
         run: node scripts/sentry-verify-release-sourcemaps.mjs
+
+      - name: Verify production fleet identity
+        env:
+          EXPECTED_SHA: ${{ env.RELEASE_ID }}
+        run: >-
+          node .release-orchestrator/scripts/ci/verify-production-health.mjs
+          "$EXPECTED_SHA"
 
       - name: Sync production release to Linear
         uses: linear/linear-release-action@c0cb8354a362c24c6d3e0948f37fd66d07588e3f # v0.14.5

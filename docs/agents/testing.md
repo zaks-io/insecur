@@ -3,11 +3,11 @@
 insecur's tests are organized by where Postgres comes from and what failure class each catches.
 The decision record is [ADR-0065](../adr/0065-test-layers-and-preview-smoke.md).
 
-| Layer                | Postgres                   | Runtime                                                                            | Command                                                                                                                                                 | Runs where             |
-| -------------------- | -------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| Unit                 | none                       | Node Vitest                                                                        | `pnpm test`                                                                                                                                             | local, CI, agents      |
-| Integration + RLS    | Postgres 17                | Node Vitest, real route stack + `postgres` driver                                  | `pnpm smoke:local` against configured Postgres, or `pnpm smoke:local:docker` to reset Docker Compose Postgres first                                     | local, CI, agents, PRs |
-| Shared preview smoke | shared preview Neon branch | deployed Cloudflare Workers + Hyperdrive + Runtime Service Binding + Secrets Store | Manual `Preview Smoke` workflow, or `node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs && pnpm smoke:preview` after deploying preview | shared preview only    |
+| Layer                | Postgres                   | Runtime                                                                            | Command                                                                                                                                                                  | Runs where             |
+| -------------------- | -------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| Unit                 | none                       | Node Vitest                                                                        | `pnpm test`                                                                                                                                                              | local, CI, agents      |
+| Integration + RLS    | Postgres 17                | Node Vitest, real route stack + `postgres` driver                                  | `pnpm smoke:local` against configured Postgres, or `pnpm smoke:local:docker` to reset Docker Compose Postgres first                                                      | local, CI, agents, PRs |
+| Shared preview smoke | shared preview Neon branch | deployed Cloudflare Workers + Hyperdrive + Runtime Service Binding + Secrets Store | `Preview Smoke` stage in the daily release train, or `node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs && pnpm smoke:preview` after deploying preview | shared preview only    |
 
 ## Manual Mutation Review
 
@@ -136,13 +136,13 @@ tests. `pnpm smoke:local` and CI's DB-backed runner include this suite after `te
   ADR-0065.
 - **PR database policy**: PRs must not provision Neon branches, Hyperdrive configs, or Workers.
   The PR database gate is the `CI` workflow's Docker Compose-backed `Verify` step.
-- **Shared preview smoke is separate**: `pnpm smoke:preview` hard-fails unless the preview URLs,
+- **Shared preview smoke is release-gated**: `pnpm smoke:preview` hard-fails unless the preview URLs,
   expected SHA, smoke signing secret, smoke actor IDs, and migration database URL are set. The smoke
   mints short-lived credentials during the run; Web preview accepts them only behind the
-  `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview flag. The `Deploy Preview` workflow preflights
-  all preview Workers before mutating preview and deploys the shared Worker fleet, but it does not
-  run the smoke suite. Run the `Preview Smoke` workflow manually when hosted smoke evidence is
-  needed. That workflow seeds smoke actors, then runs the `@insecur/preview-smoke` Playwright suite.
+  `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview flag. The daily release train serializes the
+  reusable `Deploy Preview` and `Preview Smoke` stages for one exact SHA. Preview preflights all
+  Workers before mutation and deploys the shared fleet; smoke then seeds actors and runs the
+  `@insecur/preview-smoke` Playwright suite before Production can start.
   Playwright verifies API/Web/Site deploy identities,
   drives the current happy paths over HTTP, exercises the built `insecur` CLI for auth/session and
   metadata navigation (`whoami`, `orgs list`, `projects list`, `envs list`, `config show`, `logout`)
