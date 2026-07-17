@@ -170,6 +170,7 @@ export interface CliHumanOutputAssertionInput {
   readonly redactor: (value: unknown) => string;
   readonly forbiddenMaterials?: readonly SensitiveMaterial[];
   readonly allowedTokens?: readonly string[];
+  readonly scanSecretShapes?: boolean;
   /** Positive shape: metadata the human line MUST mention (key echo, id, ...). */
   readonly requiredStdoutSubstrings?: readonly string[];
 }
@@ -188,6 +189,7 @@ export function assertCliHumanOutputMetadataOnly(input: CliHumanOutputAssertionI
         ? {}
         : { forbiddenMaterials: input.forbiddenMaterials }),
       ...(input.allowedTokens === undefined ? {} : { allowedTokens: input.allowedTokens }),
+      ...(input.scanSecretShapes === undefined ? {} : { scanSecretShapes: input.scanSecretShapes }),
     });
   }
   for (const expected of input.requiredStdoutSubstrings ?? []) {
@@ -201,6 +203,7 @@ export interface RecordedCliOutputSurface {
   readonly name: string;
   readonly text: string;
   readonly allowedTokens?: readonly string[];
+  readonly scanSecretShapes?: boolean;
 }
 
 /**
@@ -223,6 +226,9 @@ export function assertRecordedCliOutputsMetadataOnly(input: {
       redactor: input.redactor,
       forbiddenMaterials: input.forbiddenMaterials,
       allowedTokens: [...(input.allowedTokens ?? []), ...(surface.allowedTokens ?? [])],
+      ...(surface.scanSecretShapes === undefined
+        ? {}
+        : { scanSecretShapes: surface.scanSecretShapes }),
     });
   }
   return input.surfaces.map((surface) => surface.name);

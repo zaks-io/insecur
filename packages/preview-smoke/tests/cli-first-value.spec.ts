@@ -118,12 +118,14 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
     name: string,
     channels: { readonly stdout: string; readonly stderr: string },
     allowedTokens?: readonly string[],
+    scanSecretShapes?: boolean,
   ): void => {
     for (const channel of ["stdout", "stderr"] as const) {
       outputSurfaces.push({
         name: `${name} ${channel}`,
         text: channels[channel],
         ...(allowedTokens === undefined ? {} : { allowedTokens }),
+        ...(scanSecretShapes === undefined ? {} : { scanSecretShapes }),
       });
     }
   };
@@ -318,7 +320,11 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         RUNTIME_RUN_PROOF,
         ...workspacePathTokens,
       ];
-      recordOutputs("CLI run human", { stderr, stdout }, allowedTokens);
+      // `run` injects the registered sentinel and emits controlled child output;
+      // it never generates unknown secret material. Exact redactor and named-
+      // material checks remain active, while the generic dense-token heuristic
+      // would otherwise reject benign child prose.
+      recordOutputs("CLI run human", { stderr, stdout }, allowedTokens, false);
       assertCliHumanOutputMetadataOnly({
         label: "CLI run",
         stdout,
@@ -326,6 +332,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
         redactor,
         forbiddenMaterials: [bearerMaterial],
         allowedTokens,
+        scanSecretShapes: false,
         requiredStdoutSubstrings: [humanRunMarkers.stdoutMarker, "Injected"],
       });
       if (!stderr.includes(humanRunMarkers.stderrMarker)) {
