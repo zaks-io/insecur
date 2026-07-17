@@ -29,6 +29,9 @@ function buildSecretWriteBody(
   if (input.createOnly === true) {
     body.createOnly = true;
   }
+  if (input.ifCurrentVersionAbsent === true) {
+    body.ifCurrentVersionAbsent = true;
+  }
   return body;
 }
 

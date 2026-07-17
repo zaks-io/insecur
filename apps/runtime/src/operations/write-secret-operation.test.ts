@@ -229,4 +229,36 @@ describe("writeSecretOperation", () => {
       }),
     );
   });
+
+  it("forwards ifCurrentVersionAbsent to the non-protected write path", async () => {
+    vi.mocked(authorizeScopeOrThrow).mockResolvedValue(undefined);
+    vi.mocked(assertSecretWriteCoordinate).mockResolvedValue({ isProtected: false });
+    vi.mocked(createKeyringFromRuntimeEnv).mockReturnValue(keyring);
+    vi.mocked(writeNonProtectedSecret).mockResolvedValue({
+      secretId: secret,
+      secretVersionId: version,
+      variableKey,
+      createdSecretShape: false,
+      descriptiveVerdicts: testDescriptiveVerdicts,
+    });
+
+    const input: WriteSecretRpcInput = {
+      organizationId: organization,
+      projectId: project,
+      environmentId: environment,
+      variableKey,
+      valueUtf8: new Uint8Array([1, 2, 3]),
+      ifCurrentVersionAbsent: true,
+      actorToken: "verified-by-rpc-entry",
+      requestId: request,
+    };
+
+    await writeSecretOperation({ env, input, auditActor: actor, accessActor });
+
+    expect(writeNonProtectedSecret).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ifCurrentVersionAbsent: true,
+      }),
+    );
+  });
 });

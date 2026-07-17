@@ -22,6 +22,7 @@ interface ParsedSecretWriteBody {
   localValueFile?: string;
   allowEmpty?: boolean;
   createOnly?: boolean;
+  ifCurrentVersionAbsent?: boolean;
   secretId?: SecretId;
 }
 
@@ -113,21 +114,17 @@ function appendSecretWriteMetadata(
 ): ParsedSecretWriteInput {
   const allowEmpty = readOptionalBoolean(body, "allowEmpty");
   const createOnly = readOptionalBoolean(body, "createOnly");
+  const ifCurrentVersionAbsent = readOptionalBoolean(body, "ifCurrentVersionAbsent");
   const secretId = parseOptionalSecretId(readOptionalString(body, "secretId"));
   const localValueFile = readOptionalString(body, "localValueFile");
-  if (allowEmpty !== undefined) {
-    parsed.allowEmpty = allowEmpty;
-  }
-  if (createOnly !== undefined) {
-    parsed.createOnly = createOnly;
-  }
-  if (secretId !== undefined) {
-    parsed.secretId = secretId;
-  }
-  if (localValueFile !== undefined) {
-    parsed.localValueFile = localValueFile;
-  }
-  return parsed;
+  return {
+    ...parsed,
+    ...(allowEmpty !== undefined ? { allowEmpty } : {}),
+    ...(createOnly !== undefined ? { createOnly } : {}),
+    ...(ifCurrentVersionAbsent !== undefined ? { ifCurrentVersionAbsent } : {}),
+    ...(secretId !== undefined ? { secretId } : {}),
+    ...(localValueFile !== undefined ? { localValueFile } : {}),
+  };
 }
 
 export async function parseSecretWriteBody(request: {

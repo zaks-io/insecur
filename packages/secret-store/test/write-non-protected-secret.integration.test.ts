@@ -1,5 +1,6 @@
 import { decryptSecretValueForRuntime, type WrappedSecretValue } from "@insecur/crypto";
 import {
+  IMPORT_ERROR_CODES,
   VALIDATION_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
   environmentId,
@@ -95,6 +96,68 @@ describeIntegration("writeNonProtectedSecret (tenant-scoped store)", () => {
     );
     expect(current?.secretVersionId).toBe(second.secretVersionId);
     expect(current?.versionNumber).toBe(2);
+  });
+
+  it("rejects a version-conditional write when a Current Version exists, keeping it current", async () => {
+    const org = testOrganization();
+    const variableKey = uniqueVariableKey("FV10_CONDITIONAL");
+    const first = await writeTestSecret(variableKey, new TextEncoder().encode("first-value"));
+
+    await expect(
+      writeNonProtectedSecret({
+        keyring: createTestKeyring(),
+        organizationId: org,
+        projectId: projectId.brand(TEST_PROJECT_A_ID),
+        environmentId: environmentId.brand(TEST_ENV_A_ID),
+        variableKey,
+        actor: { type: "user", userId: userId.brand(TEST_USER_ID) },
+        valueUtf8: new TextEncoder().encode("concurrent-loser-value"),
+        ifCurrentVersionAbsent: true,
+      }),
+    ).rejects.toMatchObject({ code: IMPORT_ERROR_CODES.existingSecret });
+
+    // The rejected append rolled back atomically: the first write is still the Current Version.
+    const current = await withTenantScope({ kind: "organization", organizationId: org }, ({ db }) =>
+      new TenantSecretVersionStore(db).getCurrentVersion(first.secretId),
+    );
+    expect(current?.secretVersionId).toBe(first.secretVersionId);
+    expect(current?.versionNumber).toBe(1);
+  });
+
+  it("completes a half-created Secret Shape under the version-conditional guard", async () => {
+    const org = testOrganization();
+    const variableKey = uniqueVariableKey("FV10_HALF_CREATED");
+    // A Secret Shape with no Current Version: the state a crash inside a prior write leaves behind.
+    const halfCreated = await withTenantScope(
+      { kind: "organization", organizationId: org },
+      ({ db }) =>
+        new TenantSecretVersionStore(db).resolveSecretForWrite({
+          organizationId: org,
+          projectId: projectId.brand(TEST_PROJECT_A_ID),
+          environmentId: environmentId.brand(TEST_ENV_A_ID),
+          variableKey,
+        }),
+    );
+    expect(halfCreated.createdSecretShape).toBe(true);
+
+    const completed = await writeNonProtectedSecret({
+      keyring: createTestKeyring(),
+      organizationId: org,
+      projectId: projectId.brand(TEST_PROJECT_A_ID),
+      environmentId: environmentId.brand(TEST_ENV_A_ID),
+      variableKey,
+      actor: { type: "user", userId: userId.brand(TEST_USER_ID) },
+      valueUtf8: new TextEncoder().encode("half-created-completion"),
+      secretId: halfCreated.secretId,
+      ifCurrentVersionAbsent: true,
+    });
+
+    expect(completed.secretId).toBe(halfCreated.secretId);
+    expect(completed.createdSecretShape).toBe(false);
+    const current = await withTenantScope({ kind: "organization", organizationId: org }, ({ db }) =>
+      new TenantSecretVersionStore(db).getCurrentVersion(completed.secretId),
+    );
+    expect(current?.secretVersionId).toBe(completed.secretVersionId);
   });
 
   it("decrypts with a second keyring instance after write (DB-backed wrapped DEKs)", async () => {

@@ -10,6 +10,7 @@ import {
   userId,
 } from "@insecur/domain";
 import {
+  SecretVersionStoreCurrentVersionExistsError,
   TenantEnvironmentLifecycleStore,
   TenantSecretVersionStore,
   withTenantScope,
@@ -186,6 +187,42 @@ describe("writeNonProtectedSecret validation and ingress guards", () => {
     });
 
     expect(encryptMock).not.toHaveBeenCalled();
+    expect(deniedAuditMock).toHaveBeenCalledWith({
+      kind: "non_protected",
+      actor: ACTOR,
+      scope: [ORG, PROJECT, ENV],
+      refs: [undefined, undefined, undefined],
+      reasonCode: IMPORT_ERROR_CODES.existingSecret,
+    });
+  });
+
+  it("forwards ifCurrentVersionAbsent into the version-conditional append", async () => {
+    await writeNonProtectedSecret({
+      ...baseWriteInput(new TextEncoder().encode("test-secret")),
+      ifCurrentVersionAbsent: true,
+    });
+
+    expect(TenantSecretVersionStore.prototype.appendVersionAndMakeLive).toHaveBeenCalledWith(
+      expect.objectContaining({ ifCurrentVersionAbsent: true }),
+    );
+  });
+
+  it("maps the version-conditional append conflict to import.existing_secret and audits the denial", async () => {
+    vi.spyOn(TenantSecretVersionStore.prototype, "appendVersionAndMakeLive").mockRejectedValue(
+      new SecretVersionStoreCurrentVersionExistsError(
+        "secret already has a current version; version-conditional write rejected",
+      ),
+    );
+
+    await expect(
+      writeNonProtectedSecret({
+        ...baseWriteInput(new TextEncoder().encode("test-secret")),
+        ifCurrentVersionAbsent: true,
+      }),
+    ).rejects.toMatchObject({
+      code: IMPORT_ERROR_CODES.existingSecret,
+    });
+
     expect(deniedAuditMock).toHaveBeenCalledWith({
       kind: "non_protected",
       actor: ACTOR,

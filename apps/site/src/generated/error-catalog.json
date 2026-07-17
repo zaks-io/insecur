@@ -744,7 +744,7 @@
     "exitCode": 6,
     "httpStatus": 409,
     "remediationRequired": false,
-    "notes": "Existing-secret conflict in the target Environment (preflight or create-only write)."
+    "notes": "Existing-secret conflict in the target Environment (preflight, create-only, or version-conditional write)."
   },
   {
     "code": "import.parse_error",
