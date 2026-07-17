@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import {
+  BACKUP_EXPORT_PROOF_REQUEST_KEY,
   BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY,
   buildBackupExportArtifactKey,
   buildBackupExportEvidenceKey,
@@ -31,7 +32,6 @@ import {
 const INSTANCE_ID = "ins_preview_test_instance";
 const BUCKET_NAME = "insecur-preview-backups-test";
 const EXPECTED_SHA = "e".repeat(40);
-const DAILY_CRON = "0 3 * * *";
 
 interface FakeProviderOptions {
   artifactBytes: Uint8Array;
@@ -41,21 +41,24 @@ interface FakeProviderOptions {
   omitArtifactObject?: boolean;
   status?: "passed" | "failed";
   tamperArtifactAfterEvidence?: boolean;
+  schedules?: string[];
+  schedulesAfterReads?: number;
 }
 
 interface FakeProvider extends R2BackupSweepProvider {
-  scheduleWrites: string[][];
+  exportRequests: string[];
 }
 
 /**
- * Simulates the deployed export pipeline: once the trigger cron is installed, the next poll
- * exposes a fresh export (pointer, per-run evidence, sealed artifact) scheduled after install.
+ * Simulates the deployed export pipeline: the next poll exposes a fresh export scheduled after
+ * the canary write when Preview's committed every-minute trigger is active.
  */
 function createFakeProvider(options: FakeProviderOptions): FakeProvider {
   const objects = new Map<string, Uint8Array>();
-  let schedules = [DAILY_CRON];
-  const scheduleWrites: string[][] = [];
-  let exportReadyAt: number | null = null;
+  const schedules = options.schedules ?? [R2_BACKUP_SWEEP_TRIGGER_CRON];
+  const exportRequests: string[] = [];
+  let scheduleReads = 0;
+  let exportRequested = false;
 
   const materializeExport = async () => {
     const exportTimestamp = new Date(Date.now() + (options.exportDelayMs ?? 1_000)).toISOString();
@@ -88,20 +91,24 @@ function createFakeProvider(options: FakeProviderOptions): FakeProvider {
   };
 
   return {
-    scheduleWrites,
+    exportRequests,
     async getObject(key) {
-      if (exportReadyAt !== null && objects.size === 0) {
+      if (exportRequested && objects.size === 0) {
         await materializeExport();
       }
       return objects.get(key) ?? null;
     },
-    readSchedules: () => Promise.resolve([...schedules]),
-    writeSchedules(crons) {
-      schedules = [...crons];
-      scheduleWrites.push([...crons]);
-      if (crons.includes(R2_BACKUP_SWEEP_TRIGGER_CRON) && exportReadyAt === null) {
-        exportReadyAt = Date.now();
-      }
+    readSchedules: () => {
+      scheduleReads += 1;
+      return Promise.resolve(
+        scheduleReads >= (options.schedulesAfterReads ?? 0)
+          ? [R2_BACKUP_SWEEP_TRIGGER_CRON]
+          : [...schedules],
+      );
+    },
+    requestExport(key) {
+      exportRequested = true;
+      exportRequests.push(key);
       return Promise.resolve();
     },
   };
@@ -117,6 +124,7 @@ function sweepInput(provider: FakeProvider, overrides: Record<string, unknown> =
       expectedSha: EXPECTED_SHA,
       exportTimeoutMs: 500,
       pollIntervalMs: 1,
+      scheduleTimeoutMs: 500,
       provider,
       sentinel: mintSmokeSentinel(),
       sentinelRunId: "r2-sweep-test-run",
@@ -167,6 +175,7 @@ describe("runR2BackupSweep", () => {
     const evidence = await runR2BackupSweep(input);
 
     expect(canaryWrites).toHaveLength(1);
+    expect(provider.exportRequests).toEqual([BACKUP_EXPORT_PROOF_REQUEST_KEY]);
     expect(evidence.status).toBe("passed");
     expect(evidence.surface).toBe(R2_BACKUP_SWEEP_SURFACE);
     expect(evidence.evidence_adapter).toBe(R2_BACKUP_SWEEP_EVIDENCE_ADAPTER);
@@ -186,18 +195,30 @@ describe("runR2BackupSweep", () => {
     }
   });
 
-  it("restores the committed cron schedule after a passing run and after a failure", async () => {
-    const passing = createFakeProvider({ artifactBytes: randomBytes(128) });
-    await runR2BackupSweep(sweepInput(passing).input);
-    expect(passing.scheduleWrites.at(0)).toEqual([DAILY_CRON, R2_BACKUP_SWEEP_TRIGGER_CRON]);
-    expect(passing.scheduleWrites.at(-1)).toEqual([DAILY_CRON]);
-
-    const failing = createFakeProvider({
+  it("fails before writing a canary when Preview lacks the committed frequent schedule", async () => {
+    const provider = createFakeProvider({
       artifactBytes: randomBytes(128),
-      omitArtifactObject: true,
+      schedules: ["0 3 * * *"],
+      schedulesAfterReads: Number.POSITIVE_INFINITY,
     });
-    await expect(runR2BackupSweep(sweepInput(failing).input)).rejects.toThrow(/missing/u);
-    expect(failing.scheduleWrites.at(-1)).toEqual([DAILY_CRON]);
+    const { input, canaryWrites } = sweepInput(provider);
+
+    await expect(runR2BackupSweep(input)).rejects.toThrow(/missing required \* \* \* \* \*/u);
+    expect(canaryWrites).toHaveLength(0);
+    expect(provider.exportRequests).toHaveLength(0);
+  });
+
+  it("waits for a newly deployed Preview schedule to become visible", async () => {
+    const provider = createFakeProvider({
+      artifactBytes: randomBytes(128),
+      schedules: ["0 3 * * *"],
+      schedulesAfterReads: 3,
+    });
+
+    await expect(runR2BackupSweep(sweepInput(provider).input)).resolves.toMatchObject({
+      status: "passed",
+    });
+    expect(provider.exportRequests).toEqual([BACKUP_EXPORT_PROOF_REQUEST_KEY]);
   });
 
   it("release gate accepts the emitted evidence for no_plaintext.r2_backup", async () => {
@@ -298,6 +319,5 @@ describe("runR2BackupSweep", () => {
     await expect(runR2BackupSweep(sweepInput(provider).input)).rejects.toThrow(
       /no backup export scheduled after the canary write/u,
     );
-    expect(provider.scheduleWrites.at(-1)).toEqual([DAILY_CRON]);
   });
 });

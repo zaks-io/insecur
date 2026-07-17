@@ -2,6 +2,8 @@ import { Buffer } from "node:buffer";
 
 import {
   BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY,
+  BACKUP_EXPORT_PROOF_REQUEST_KEY,
+  BACKUP_EXPORT_PROOF_REQUEST_VERSION,
   buildBackupExportEvidenceKey,
   buildBackupExportIdempotencyKey,
   hashBackupArtifact,
@@ -21,22 +23,22 @@ import { buildR2BackupSweepEvidence, type R2BackupSweepEvidence } from "./r2-bac
  * encodings, and object bytes never reach output or evidence — only counts and references do.
  */
 
-/**
- * Temporary every-minute cron added on top of the committed daily schedule so the existing
- * scheduled export handler fires inside the smoke window. Always removed again in `finally`;
- * any preview deploy also restores the committed schedule from wrangler config.
- */
+/** Preview's committed schedule keeps the backup path continuously exercised. */
 export const R2_BACKUP_SWEEP_TRIGGER_CRON = "* * * * *" as const;
 
 const DEFAULT_POLL_INTERVAL_MS = 10_000;
 const DEFAULT_EXPORT_TIMEOUT_MS = 6 * 60_000;
+const DEFAULT_SCHEDULE_TIMEOUT_MS = 15 * 60_000;
 
-/** Read-only R2 access plus the schedule nudge that drives the existing export action. */
+/** Read-only access to R2 and the deployed Runtime schedule. */
 export interface R2BackupSweepProvider {
   /** Raw object bytes, or null when the key does not exist. Bytes must never be printed. */
   getObject(key: string): Promise<Uint8Array | null>;
+  requestExport(
+    key: typeof BACKUP_EXPORT_PROOF_REQUEST_KEY,
+    request: { notBefore: number; requestId: string; status: "requested"; version: 1 },
+  ): Promise<void>;
   readSchedules(): Promise<string[]>;
-  writeSchedules(crons: readonly string[]): Promise<void>;
 }
 
 export interface R2BackupSweepFinding {
@@ -51,6 +53,7 @@ export interface RunR2BackupSweepInput {
   exportTimeoutMs?: number;
   now?: () => Date;
   pollIntervalMs?: number;
+  scheduleTimeoutMs?: number;
   provider: R2BackupSweepProvider;
   sentinel: Sentinel;
   sentinelRunId: string;
@@ -85,10 +88,17 @@ export async function runR2BackupSweep(
   const now = input.now ?? (() => new Date());
   const sleep = input.sleep ?? ((ms: number) => new Promise((res) => setTimeout(res, ms)));
 
+  await waitForFrequentExportSchedule(input, now, sleep);
   await input.writeCanary();
   const canaryWrittenAt = now();
+  await input.provider.requestExport(BACKUP_EXPORT_PROOF_REQUEST_KEY, {
+    notBefore: canaryWrittenAt.getTime(),
+    requestId: crypto.randomUUID(),
+    status: "requested",
+    version: BACKUP_EXPORT_PROOF_REQUEST_VERSION,
+  });
 
-  const exportEvidence = await driveFreshExport(input, canaryWrittenAt, now, sleep);
+  const exportEvidence = await waitForExportAfter(input, canaryWrittenAt, now, sleep);
   assertExportMatchesOperation(exportEvidence, input.expectedInstanceId);
 
   const scanned = await downloadAndScanExportObjects(input, exportEvidence);
@@ -107,26 +117,25 @@ export async function runR2BackupSweep(
   });
 }
 
-/**
- * Adds the temporary trigger cron so the existing scheduled export action fires, then waits for
- * the latest-export pointer to advance to a run scheduled after the canary write. The committed
- * schedule is always restored, including on failure.
- */
-async function driveFreshExport(
+async function waitForFrequentExportSchedule(
   input: RunR2BackupSweepInput,
-  canaryWrittenAt: Date,
   now: () => Date,
   sleep: (ms: number) => Promise<void>,
-): Promise<BackupExportSuccessEvidence> {
-  const originalCrons = await input.provider.readSchedules();
-  const withTrigger = originalCrons.includes(R2_BACKUP_SWEEP_TRIGGER_CRON)
-    ? originalCrons
-    : [...originalCrons, R2_BACKUP_SWEEP_TRIGGER_CRON];
-  await input.provider.writeSchedules(withTrigger);
-  try {
-    return await waitForExportAfter(input, canaryWrittenAt, now, sleep);
-  } finally {
-    await input.provider.writeSchedules(originalCrons);
+): Promise<void> {
+  const timeoutMs = input.scheduleTimeoutMs ?? DEFAULT_SCHEDULE_TIMEOUT_MS;
+  const pollIntervalMs = input.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  const deadline = now().getTime() + timeoutMs;
+  for (;;) {
+    const crons = await input.provider.readSchedules();
+    if (crons.includes(R2_BACKUP_SWEEP_TRIGGER_CRON)) {
+      return;
+    }
+    if (now().getTime() >= deadline) {
+      throw new Error(
+        `R2 backup sweep: deployed Preview Runtime is missing required ${R2_BACKUP_SWEEP_TRIGGER_CRON} trigger after ${String(timeoutMs)}ms`,
+      );
+    }
+    await sleep(pollIntervalMs);
   }
 }
 

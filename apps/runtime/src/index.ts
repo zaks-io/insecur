@@ -1,7 +1,7 @@
 import { cloudflareSentryOptions } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
-import { runScheduledBackupExport } from "./backup/run-scheduled-backup-export.js";
+import { runTriggeredBackupExport } from "./backup/run-triggered-backup-export.js";
 import type { RuntimeEnv } from "./env.js";
 
 export { RuntimeService } from "./runtime-service.js";
@@ -18,7 +18,7 @@ const handler = {
     return new Response("not found", { status: 404 });
   },
   scheduled(controller: ScheduledController, env: RuntimeEnv, ctx: ExecutionContext): void {
-    ctx.waitUntil(runScheduledBackupExport(env, controller.scheduledTime));
+    ctx.waitUntil(runTriggeredBackupExport(env, controller.cron, controller.scheduledTime));
   },
 } satisfies ExportedHandler<RuntimeEnv>;
 
