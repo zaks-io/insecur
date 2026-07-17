@@ -315,6 +315,7 @@ test("preview CLI first-value proof @preview @happy-path @custody", async ({
       const allowedTokens = [
         humanRunMarkers.stdoutMarker,
         humanRunMarkers.stderrMarker,
+        RUNTIME_RUN_PROOF,
         ...workspacePathTokens,
       ];
       recordOutputs("CLI run human", { stderr, stdout }, allowedTokens);
