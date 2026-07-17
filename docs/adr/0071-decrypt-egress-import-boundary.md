@@ -126,3 +126,14 @@ Execution Revalidation and immediately before the provider write. The module is 
 the Runtime Worker's sync-run operation (the sole keyring holder), and its outputs flow directly
 into the provider sync write port without persistence. Provider Credential decrypt for provider use
 remains a future allowlist diff for the connection-credential-bearing adapters (Cloudflare, INS-79).
+
+## Amendment (2026-07-16, INS-79)
+
+The AG8 sync-write module `decrypt-secret-sync-write-materials.ts` additionally decrypts the
+Cloudflare Worker script target name (Sensitive Metadata, `secret_sync.target`/`worker_script`)
+for exact provider addressing by the Cloudflare Worker secret sync adapter. The resolved script
+name flows only into the exact provider request and never reaches operation records, audit
+events, or logs. No new allowlist entry is required: the decrypt stays inside the existing AG8
+module and executes only in the Runtime deploy. Provider Credential decrypt for provider use
+remains a future allowlist diff, deferred with the INS-74 Cloudflare scoped-token App Connection
+transport (the Cloudflare secrets client ships fail-closed and unconfigured until then).

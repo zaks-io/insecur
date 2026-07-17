@@ -21,9 +21,9 @@ import {
   toRunReasonCode,
   type SecretSyncRunSession,
 } from "./run-secret-sync-session.js";
+import { finalizeComplete, finalizeIncomplete } from "./finalize-secret-sync-run.js";
 import {
-  finalizeComplete,
-  finalizeIncomplete,
+  commitStagedDeploy,
   writeBindings,
   type WriteLoopContext,
 } from "./secret-sync-write-loop.js";
@@ -241,7 +241,16 @@ export async function executeSecretSyncRun(
     return outcome.staleResult;
   }
   if (outcome.failedCount > 0) {
+    // One-deploy providers never committed: the staged version stays inert
+    // and the deployed provider state is untouched (ADR-0039/ADR-0057).
     return finalizeIncomplete(context, outcome);
   }
-  return finalizeComplete(context, plan, outcome);
+  const committed = await commitStagedDeploy(context, outcome);
+  if (committed.staleResult !== undefined) {
+    return committed.staleResult;
+  }
+  if (committed.failedCount > 0) {
+    return finalizeIncomplete(context, committed);
+  }
+  return finalizeComplete(context, plan, committed);
 }

@@ -3,9 +3,6 @@ import {
   SECRET_SYNC_ERROR_CODES,
   SECRET_SYNC_KINDS,
   type GitHubActionsProviderScope,
-  type OrganizationId,
-  type SecretSyncBindingId,
-  type SecretSyncId,
 } from "@insecur/domain";
 
 import {
@@ -28,6 +25,7 @@ import {
   type SecretSyncProviderWritePort,
 } from "./provider-sync-write-port.js";
 import { SecretSyncError } from "./secret-sync-error.js";
+import type { SecretSyncDestinationNameResolver } from "./secret-sync-write-materials.js";
 
 /** GitHub Actions secret value cap (docs/cli-and-sync.md §Plan): 48 KB. */
 export const GITHUB_ACTIONS_PROVIDER_VALUE_SIZE_LIMIT_BYTES = 48 * 1024;
@@ -123,23 +121,9 @@ const WRITE_STATUS_BY_CALL_RESULT = {
   [GITHUB_PROVIDER_CALL_RESULTS.unavailable]: PROVIDER_WRITE_STATUSES.retryableUnavailable,
 } as const satisfies Record<GitHubProviderCallResult, string>;
 
-/**
- * Resolves one binding's provider-side destination name inside the caller's
- * authorized seam. The Runtime deploy implements this with the allowlisted
- * Sensitive Metadata decrypt (ADR-0071); tests use fakes. Lookup needs it
- * because Explicit Provider Lookup checks one exact configured name.
- */
-export interface GitHubDestinationNameResolver {
-  resolveDestinationName(input: {
-    readonly organizationId: OrganizationId;
-    readonly secretSyncId: SecretSyncId;
-    readonly bindingId: SecretSyncBindingId;
-  }): Promise<string>;
-}
-
 async function lookupExact(
   client: GitHubActionsSecretsClient,
-  resolver: GitHubDestinationNameResolver,
+  resolver: SecretSyncDestinationNameResolver,
   request: ProviderDestinationLookupRequest,
 ): Promise<ProviderDestinationLookupResult> {
   const destination = toDestinationRef(request);
@@ -201,7 +185,7 @@ export interface GitHubActionsSyncAdapter {
  */
 export function createGitHubActionsSyncAdapter(input: {
   readonly client: GitHubActionsSecretsClient;
-  readonly destinationNameResolver: GitHubDestinationNameResolver;
+  readonly destinationNameResolver: SecretSyncDestinationNameResolver;
 }): GitHubActionsSyncAdapter {
   return {
     lookupPort: {

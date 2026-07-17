@@ -4,11 +4,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   PROVIDER_WRITE_STATUSES,
+  commitStagedWritesSafely,
   isActionRequiredWriteStatus,
   isProviderWriteStatus,
   resolveProviderWritePort,
   writeExactDestinationSafely,
   type ProviderSecretWriteRequest,
+  type ProviderStagedCommitRequest,
   type SecretSyncProviderWritePort,
 } from "../src/provider-sync-write-port.js";
 import { BINDING, CONN, ORG, SYNC } from "./helpers/secret-sync-test-fixtures.js";
@@ -24,6 +26,13 @@ const REQUEST: ProviderSecretWriteRequest = {
   targetGithubEnvironmentId: null,
   destinationName: "DEPLOY_TOKEN",
   value: new PlaintextHandle(new Uint8Array([1])),
+};
+
+const COMMIT_REQUEST: ProviderStagedCommitRequest = {
+  providerKind: "cloudflare-worker-secret",
+  organizationId: ORG,
+  appConnectionId: CONN,
+  secretSyncId: SYNC,
 };
 
 function portReturning(status: string): SecretSyncProviderWritePort {
@@ -59,6 +68,44 @@ describe("provider sync write port", () => {
       REQUEST,
     );
     expect(result.status).toBe(PROVIDER_WRITE_STATUSES.retryableUnavailable);
+  });
+
+  it("treats a per-binding port without a staged-commit seam as already committed", async () => {
+    const result = await commitStagedWritesSafely(
+      portReturning(PROVIDER_WRITE_STATUSES.written),
+      COMMIT_REQUEST,
+    );
+    expect(result).toEqual({ status: PROVIDER_WRITE_STATUSES.written });
+  });
+
+  it("normalizes staged-commit throws and out-of-vocabulary statuses to retryable", async () => {
+    const throwing: SecretSyncProviderWritePort = {
+      ...portReturning(PROVIDER_WRITE_STATUSES.written),
+      commitStagedWrites: async () => {
+        throw new Error("raw provider deploy response must never escape");
+      },
+    };
+    const offVocabulary: SecretSyncProviderWritePort = {
+      ...portReturning(PROVIDER_WRITE_STATUSES.written),
+      commitStagedWrites: async () => ({ status: "cloudflare_native_error_text" as never }),
+    };
+
+    expect(await commitStagedWritesSafely(throwing, COMMIT_REQUEST)).toEqual({
+      status: PROVIDER_WRITE_STATUSES.retryableUnavailable,
+    });
+    expect(await commitStagedWritesSafely(offVocabulary, COMMIT_REQUEST)).toEqual({
+      status: PROVIDER_WRITE_STATUSES.retryableUnavailable,
+    });
+  });
+
+  it("passes through a normalized staged-commit status", async () => {
+    const denied: SecretSyncProviderWritePort = {
+      ...portReturning(PROVIDER_WRITE_STATUSES.written),
+      commitStagedWrites: async () => ({ status: PROVIDER_WRITE_STATUSES.permissionDenied }),
+    };
+    expect(await commitStagedWritesSafely(denied, COMMIT_REQUEST)).toEqual({
+      status: PROVIDER_WRITE_STATUSES.permissionDenied,
+    });
   });
 
   it("classifies write statuses for retry semantics", () => {

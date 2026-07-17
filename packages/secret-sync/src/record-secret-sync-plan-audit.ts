@@ -23,6 +23,7 @@ export function toPlanBindingAuditDetails(plan: SecretSyncPlan): SecretSyncBindi
       })),
     }),
     overwriteWarningCount: plan.overwriteWarningCount,
+    ...(plan.deployImpact !== null ? { deployImpact: plan.deployImpact } : {}),
   };
   plan.bindings.forEach((binding, index) => {
     const ordinal = String(index + 1);

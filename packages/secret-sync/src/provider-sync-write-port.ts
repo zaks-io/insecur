@@ -70,6 +70,18 @@ export interface ProviderSecretWriteResult {
 }
 
 /**
+ * Metadata-only identity of one run's staged write set for the single-deploy
+ * commit (ADR-0039/ADR-0057). Carries only opaque selectors; the adapter
+ * resolves the exact provider destination inside its own authorized seam.
+ */
+export interface ProviderStagedCommitRequest {
+  readonly providerKind: SecretSyncKind;
+  readonly organizationId: OrganizationId;
+  readonly appConnectionId: AppConnectionId;
+  readonly secretSyncId: SecretSyncId;
+}
+
+/**
  * Provider sync write port. Adapters are provider-specific (GitHub Actions:
  * INS-78, Cloudflare Worker secrets: INS-79) and write exactly one bound
  * destination per call — no inventory, wildcard, or batch shapes exist on
@@ -89,6 +101,17 @@ export interface SecretSyncProviderWritePort {
     readonly valueByteLength: number;
   }): void;
   writeExactDestination(request: ProviderSecretWriteRequest): Promise<ProviderSecretWriteResult>;
+  /**
+   * Single-deploy commit for providers whose secret writes are a production
+   * deploy (ADR-0039/ADR-0057, Cloudflare Worker secrets): every
+   * `writeExactDestination` call stages one binding into one new staged
+   * provider version, and this call deploys that version exactly once. The
+   * engine invokes it only after every binding staged successfully; a failed
+   * commit means no binding landed and the deployed provider state is
+   * untouched. Absent for per-binding providers (GitHub Actions), whose
+   * writes commit individually.
+   */
+  commitStagedWrites?(request: ProviderStagedCommitRequest): Promise<ProviderSecretWriteResult>;
 }
 
 export type SecretSyncProviderWritePorts = Partial<
@@ -122,6 +145,31 @@ export async function writeExactDestinationSafely(
 ): Promise<ProviderSecretWriteResult> {
   try {
     const result = await port.writeExactDestination(request);
+    if (!isProviderWriteStatus(result.status)) {
+      return { status: PROVIDER_WRITE_STATUSES.retryableUnavailable };
+    }
+    return { status: result.status };
+  } catch {
+    return { status: PROVIDER_WRITE_STATUSES.retryableUnavailable };
+  }
+}
+
+/**
+ * Runs the optional single-deploy commit and fails closed like
+ * `writeExactDestinationSafely`. A port without a staged-commit seam commits
+ * per write, so the staged set is already live and the commit is a no-op
+ * `written`. Deploy commits are idempotent for the same staged version, so an
+ * unclassifiable failure is reported as retryable.
+ */
+export async function commitStagedWritesSafely(
+  port: SecretSyncProviderWritePort,
+  request: ProviderStagedCommitRequest,
+): Promise<ProviderSecretWriteResult> {
+  if (port.commitStagedWrites === undefined) {
+    return { status: PROVIDER_WRITE_STATUSES.written };
+  }
+  try {
+    const result = await port.commitStagedWrites(request);
     if (!isProviderWriteStatus(result.status)) {
       return { status: PROVIDER_WRITE_STATUSES.retryableUnavailable };
     }

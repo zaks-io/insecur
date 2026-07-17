@@ -36,6 +36,20 @@ export interface ResolveSecretSyncWriteMaterialsInput {
 }
 
 /**
+ * Resolves one binding's provider-side destination name inside the caller's
+ * authorized seam. The Runtime deploy implements this with the allowlisted
+ * Sensitive Metadata decrypt (ADR-0071); tests use fakes. Provider adapters
+ * need it because Explicit Provider Lookup checks one exact configured name.
+ */
+export interface SecretSyncDestinationNameResolver {
+  resolveDestinationName(input: {
+    readonly organizationId: OrganizationId;
+    readonly secretSyncId: SecretSyncId;
+    readonly bindingId: SecretSyncBindingId;
+  }): Promise<string>;
+}
+
+/**
  * Decrypt seam for sync write execution. The Runtime deploy implements this
  * with the ADR-0071 allowlisted decrypt module
  * (`decrypt-secret-sync-write-materials.ts`); tests use fakes. Resolution is

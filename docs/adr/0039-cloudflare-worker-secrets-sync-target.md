@@ -21,3 +21,14 @@ V1 Cloudflare Secret Sync targets direct per-Worker secrets on explicit Cloudfla
 ## Consequences
 
 Cloudflare remains the manual-token exception until a suitable app or OAuth flow exists for Worker secret management. App connections pin the Cloudflare account and allowed Worker script targets, and Secret Syncs pin exact script names and binding names. Writing, updating, or deleting a Cloudflare Worker secret has provider-side deploy impact for that Worker script/environment, so protected sync plan, approval, and audit output must call it a production deploy and show the exact affected script and bindings without revealing Sensitive Values. When Promotion runs an already-enabled Cloudflare Secret Sync through Immediate Sync After Promotion, the accepted Approval Impact Review is the approval evidence for the resulting Worker secret deploy; creating, enabling, or changing the sync still requires the separate protected delivery configuration path. Cloudflare Secrets Store remains valid for insecur Instance key material under ADR-0028, but it is not the V1 customer Cloudflare Secret Sync target.
+
+## Amendment (2026-07-16, INS-79)
+
+"Show the exact affected script and bindings" is satisfied by opaque reference, not by embedding
+names in stored records. The Worker script name and binding destination names are Sensitive
+Metadata (ADR-0070 custody), so plan output, operation records, and audit events carry only the
+opaque Secret Sync and Secret Sync Binding ids plus the stable dotted deploy-impact label
+`delivery_target.cloudflare_worker_secret_deploy`. Approval and status surfaces resolve those
+opaque references to the exact script and binding names for display through the Sensitive Detail
+Gate (allowlisted decrypt, ADR-0071), which is where "exact affected script and bindings" is
+shown to reviewers. Persisted records never contain the names themselves.
