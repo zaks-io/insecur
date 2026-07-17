@@ -21,6 +21,7 @@ import {
   TEST_ORG_B_ID,
 } from "../../tenant-store/test/rls/test-ids.js";
 import {
+  BACKUP_ORGANIZATION_EXPORT_TABLES,
   BACKUP_RESTORE_ERROR_CODES,
   MemoryBackupExportStorage,
   RECOVERY_CANARY_ORGANIZATION_ID,
@@ -262,6 +263,8 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
   let exportEvidence: BackupExportSuccessEvidence;
   let sourceCounts: {
     organizations: number;
+    manifestOrganizations: number;
+    skippedOrganizationIds: string[];
     orgASecrets: number;
     orgBSecrets: number;
     orgAVersions: Map<string, string>;
@@ -360,8 +363,34 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
     const artifactRows = parseBackupJsonlPayload(opened.jsonlPayload);
     const secretsFor = (orgId: string) =>
       artifactRows.filter((row) => row.table === "secrets" && row.organization_id === orgId).length;
+
+    // The export is not one transactional snapshot (ADR-0072): another package's DB-backed suite
+    // can create an organization before enumeration and delete it before its scoped read, landing
+    // it in the header manifest with zero payload rows. The importer prunes that shape, so the
+    // expected imported/skipped org sets are derived from the artifact itself — never assume the
+    // manifest is noise-free on the shared CI Postgres.
+    const organizationTables = new Set<string>(BACKUP_ORGANIZATION_EXPORT_TABLES);
+    const organizationIdsWithRows = new Set(
+      artifactRows
+        .filter(
+          (row) => organizationTables.has(row.table) && typeof row.organization_id === "string",
+        )
+        .map((row) => row.organization_id as string),
+    );
+    for (const requiredOrgId of [TEST_ORG_A_ID, TEST_ORG_B_ID, RECOVERY_CANARY_ORGANIZATION_ID]) {
+      if (!organizationIdsWithRows.has(requiredOrgId)) {
+        throw new Error(`export fixture must capture rows for baseline org ${requiredOrgId}`);
+      }
+    }
+    const manifestOrganizationIds = opened.header.organization_snapshots.map(
+      (snapshot) => snapshot.organization_id,
+    );
     sourceCounts = {
       organizations: artifactRows.filter((row) => row.table === "organizations").length,
+      manifestOrganizations: manifestOrganizationIds.length,
+      skippedOrganizationIds: manifestOrganizationIds
+        .filter((orgId) => !organizationIdsWithRows.has(orgId))
+        .sort(),
       orgASecrets: secretsFor(TEST_ORG_A_ID),
       orgBSecrets: secretsFor(TEST_ORG_B_ID),
       orgAVersions: new Map(
@@ -377,6 +406,14 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
       ),
       userAdmissions: artifactRows.filter((row) => row.table === "user_admissions").length,
     };
+    // Every manifest org either carries rows (its organizations row included) or is skipped —
+    // fail the fixture loudly if the artifact shape ever breaks that accounting.
+    if (
+      sourceCounts.manifestOrganizations - sourceCounts.skippedOrganizationIds.length !==
+      sourceCounts.organizations
+    ) {
+      throw new Error("export fixture manifest/rows organization accounting is inconsistent");
+    }
   }, 120_000);
 
   afterAll(async () => {
@@ -394,10 +431,15 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
 
     expect(result.status).toBe("succeeded");
     expect(result.organization_count).toBe(sourceCounts.organizations);
-    // Every manifest org has rows here, so nothing is pruned: manifest == imported, skipped == 0.
-    expect(result.manifest_organization_count).toBe(sourceCounts.organizations);
-    expect(result.skipped_organization_count).toBe(0);
-    expect(result.skipped_organization_ids).toEqual([]);
+    // Every row-bearing org in the artifact is restored; only manifest orgs the export captured
+    // with zero rows (concurrent-suite noise, ADR-0072 vanished-org shape) may be skipped, and the
+    // skipped set must match the artifact exactly — never a fixture org.
+    expect(result.manifest_organization_count).toBe(sourceCounts.manifestOrganizations);
+    expect(result.skipped_organization_count).toBe(sourceCounts.skippedOrganizationIds.length);
+    expect(result.skipped_organization_ids).toEqual(sourceCounts.skippedOrganizationIds);
+    expect(result.skipped_organization_ids).not.toContain(TEST_ORG_A_ID);
+    expect(result.skipped_organization_ids).not.toContain(TEST_ORG_B_ID);
+    expect(result.skipped_organization_ids).not.toContain(RECOVERY_CANARY_ORGANIZATION_ID);
     expect(result.source_export_operation_id).toBe(exportEvidence.operation_id);
     expect(result.source_export_timestamp).toBe(exportEvidence.export_timestamp);
     expect(result.imported_row_count).toBeGreaterThan(0);
@@ -432,8 +474,8 @@ describeIntegration("restore import pipeline (fresh target, forced RLS)", () => 
         artifact_ref: exportEvidence.artifact_ref,
         source_export_operation_id: exportEvidence.operation_id,
         organization_count: sourceCounts.organizations,
-        manifest_organization_count: sourceCounts.organizations,
-        skipped_organization_count: 0,
+        manifest_organization_count: sourceCounts.manifestOrganizations,
+        skipped_organization_count: sourceCounts.skippedOrganizationIds.length,
       });
     });
   }, 120_000);
