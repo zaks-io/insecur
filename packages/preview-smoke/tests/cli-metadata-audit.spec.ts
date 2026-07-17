@@ -30,6 +30,7 @@ import {
 // secret is wired to the smoke job (see assertCliAuditVerifyExpectedResult).
 const EXIT_OK = 0;
 const EXIT_VALIDATION = 2;
+const PROOF_VARIABLE_KEY = "INSECUR_PROOF_SECRET_AUDIT";
 
 test("preview CLI metadata reads and audit export @preview @happy-path @metadata @custody", async ({
   ownerBearer,
@@ -70,7 +71,7 @@ test("preview CLI metadata reads and audit export @preview @happy-path @metadata
     await test.step("cli.secrets_set_fixture", async () => {
       const { stdout } = await runCliSmokeCommand({
         ...runInput,
-        args: buildCliSecretsSetValueStdinArgs(),
+        args: buildCliSecretsSetValueStdinArgs(PROOF_VARIABLE_KEY),
         label: "CLI secrets set",
         stdinInput: sentinel.value,
       });
@@ -81,7 +82,7 @@ test("preview CLI metadata reads and audit export @preview @happy-path @metadata
     await test.step("cli.run_first_value_proof", async () => {
       const { stdout } = await runCliSmokeCommand({
         ...runInput,
-        args: buildCliFirstValueRunArgs(verifyScript),
+        args: buildCliFirstValueRunArgs(verifyScript, PROOF_VARIABLE_KEY),
         label: "CLI run",
       });
       assertCliOutputSafe({ label: "CLI run", redactor, stderr: "", stdout });
@@ -95,7 +96,7 @@ test("preview CLI metadata reads and audit export @preview @happy-path @metadata
       });
       const body = parseCliSmokeJson(stdout, "CLI secrets list");
       const secrets = assertCliSecretsListMetadataOnly(body, "CLI secrets list");
-      const secret = findById(secrets, "variableKey", "INSECUR_PROOF_SECRET", "CLI secrets list");
+      const secret = findById(secrets, "variableKey", PROOF_VARIABLE_KEY, "CLI secrets list");
       secretId = requireString(secret.secretId, "CLI secrets list secretId");
     });
 

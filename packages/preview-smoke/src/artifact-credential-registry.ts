@@ -1,26 +1,65 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const SMOKE_ARTIFACT_CREDENTIAL_REGISTRY_ENV = "SMOKE_ARTIFACT_CREDENTIAL_REGISTRY";
 const DEFAULT_REGISTRY_DIRNAME = "insecur-preview-smoke";
-const DEFAULT_REGISTRY_FILENAME = "artifact-credentials.json";
+const REGISTRY_FILE_PREFIX = "artifact-credentials-";
+const REGISTRY_FILE_SUFFIX = ".jsonl";
+
+export interface SmokeArtifactCredentialRegistry {
+  readonly credentials: readonly string[];
+  readonly invalidFiles: readonly string[];
+}
 
 export function registerSmokeArtifactCredential(credential: string): void {
-  const path = registryPath();
-  assertSafeRegistryFile(path);
-  const credentials = readCredentials(path);
-  if (!credentials.includes(credential)) {
-    writeFileSync(path, JSON.stringify([...credentials, credential]), { mode: 0o600 });
+  const dir = registryDir();
+  const path = join(dir, `${REGISTRY_FILE_PREFIX}${String(process.pid)}${REGISTRY_FILE_SUFFIX}`);
+  const fd = openRegistryFile(path, constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY);
+  try {
+    appendFileSync(fd, `${JSON.stringify(credential)}\n`, "utf8");
+  } finally {
+    closeSync(fd);
   }
 }
 
-export function readSmokeArtifactCredentials(): string[] {
-  return readCredentials(registryPath());
+export function readSmokeArtifactCredentialRegistry(): SmokeArtifactCredentialRegistry {
+  const dir = registryDir();
+  const credentials: string[] = [];
+  const invalidFiles: string[] = [];
+  for (const filename of readdirSync(dir).filter(isRegistryFilename)) {
+    try {
+      credentials.push(...readCredentials(join(dir, filename)));
+    } catch {
+      invalidFiles.push(filename);
+    }
+  }
+  return { credentials: [...new Set(credentials)], invalidFiles };
+}
+
+export function assertSmokeArtifactCredentialRegistryValid(
+  registry: SmokeArtifactCredentialRegistry,
+): void {
+  if (registry.invalidFiles.length > 0) {
+    throw new Error(
+      `Preview smoke artifact credential registry contains invalid files: ${registry.invalidFiles.join(", ")}`,
+    );
+  }
 }
 
 export function clearSmokeArtifactCredentials(): void {
-  rmSync(registryPath(), { force: true });
+  rmSync(registryDir(), { force: true, recursive: true });
 }
 
 /**
@@ -30,17 +69,16 @@ export function clearSmokeArtifactCredentials(): void {
  * same per-user path so they still agree without an env var — but under a private directory this
  * process owns, so the deterministic path cannot be redirected by a planted symlink.
  */
-function registryPath(): string {
+function registryDir(): string {
   const override = process.env[SMOKE_ARTIFACT_CREDENTIAL_REGISTRY_ENV];
   if (override !== undefined && override.trim() !== "") {
-    return override;
+    return ensurePrivateRegistryDir(override);
   }
-  return join(ensurePrivateRegistryDir(), DEFAULT_REGISTRY_FILENAME);
+  return ensurePrivateRegistryDir(join(tmpdir(), DEFAULT_REGISTRY_DIRNAME));
 }
 
 /** Create (or adopt) a `0700` directory this user owns; refuse a symlinked or foreign one. */
-function ensurePrivateRegistryDir(): string {
-  const dir = join(tmpdir(), DEFAULT_REGISTRY_DIRNAME);
+function ensurePrivateRegistryDir(dir: string): string {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const stat = lstatSync(dir);
   if (stat.isSymbolicLink() || !stat.isDirectory()) {
@@ -49,46 +87,50 @@ function ensurePrivateRegistryDir(): string {
   if (typeof process.getuid === "function" && stat.uid !== process.getuid()) {
     throw new Error(`smoke artifact credential registry dir ${dir} is not owned by this user`);
   }
+  if ((stat.mode & 0o077) !== 0) {
+    throw new Error(`smoke artifact credential registry dir ${dir} is group- or world-accessible`);
+  }
   return dir;
 }
 
-/**
- * A minted bearer must never be written through a symlink or into a group/other-accessible file.
- * Guard the registry path before every read and write; a missing file is fine (first register).
- */
-function assertSafeRegistryFile(path: string): void {
-  if (!existsSync(path)) {
-    return;
-  }
-  const stat = lstatSync(path);
-  if (stat.isSymbolicLink() || !stat.isFile()) {
+function openRegistryFile(path: string, flags: number): number {
+  const fd = openSync(path, flags | constants.O_NOFOLLOW, 0o600);
+  const stat = fstatSync(fd);
+  if (!stat.isFile()) {
+    closeSync(fd);
     throw new Error(`smoke artifact credential registry ${path} is not a regular file`);
   }
+  if (typeof process.getuid === "function" && stat.uid !== process.getuid()) {
+    closeSync(fd);
+    throw new Error(`smoke artifact credential registry ${path} is not owned by this user`);
+  }
   if ((stat.mode & 0o077) !== 0) {
+    closeSync(fd);
     throw new Error(`smoke artifact credential registry ${path} is group- or world-accessible`);
   }
+  return fd;
 }
 
 function readCredentials(path: string): string[] {
-  if (!existsSync(path)) {
-    return [];
-  }
-  assertSafeRegistryFile(path);
-
+  const fd = openRegistryFile(path, constants.O_RDONLY);
   try {
-    const value = JSON.parse(readFileSync(path, "utf8")) as unknown;
-    if (!Array.isArray(value)) {
-      throw new Error("invalid");
-    }
-    const credentials: string[] = [];
-    for (const credential of value) {
+    const credentials = readFileSync(fd, "utf8")
+      .split(/\r?\n/u)
+      .filter((line) => line !== "")
+      .map((line) => JSON.parse(line) as unknown);
+    for (const credential of credentials) {
       if (typeof credential !== "string" || credential === "") {
         throw new Error("invalid");
       }
-      credentials.push(credential);
     }
-    return [...new Set(credentials)];
+    return [...new Set(credentials as string[])];
   } catch {
     throw new Error("Preview smoke artifact credential registry is invalid");
+  } finally {
+    closeSync(fd);
   }
+}
+
+function isRegistryFilename(filename: string): boolean {
+  return filename.startsWith(REGISTRY_FILE_PREFIX) && filename.endsWith(REGISTRY_FILE_SUFFIX);
 }

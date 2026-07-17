@@ -142,7 +142,9 @@ tests. `pnpm smoke:local` and CI's DB-backed runner include this suite after `te
   `PREVIEW_SMOKE_SESSION_CREDENTIALS=true` preview flag. The daily release train serializes the
   reusable `Deploy Preview` and `Preview Smoke` stages for one exact SHA. Preview preflights all
   Workers before mutation and deploys the shared fleet; smoke then seeds actors and runs the
-  `@insecur/preview-smoke` Playwright suite before Production can start.
+  `@insecur/preview-smoke` Playwright suite with four isolated workers before Production can start.
+  Per-process append-only credential files keep every worker's minted bearer available for
+  teardown revocation and artifact scanning without concurrent writers sharing a file.
   Playwright verifies API/Web/Site deploy identities,
   drives the current happy paths over HTTP, exercises the built `insecur` CLI for auth/session and
   metadata navigation (`whoami`, `orgs list`, `projects list`, `envs list`, `config show`, `logout`)

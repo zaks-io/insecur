@@ -17,7 +17,6 @@ import {
   mintSmokeOperationId,
   mintSmokeSentinel,
   parseCliSmokeJson,
-  PROOF_VARIABLE_KEY,
   provisionSmokeOperationForPoll,
   redactorFor,
   requireString,
@@ -28,6 +27,7 @@ import {
 } from "../src/fixtures";
 
 const EXIT_NOT_FOUND = 5;
+const PROOF_VARIABLE_KEY = "INSECUR_PROOF_SECRET_RUN_POLICY";
 
 test("preview CLI operations and run-policy commands @preview @happy-path @custody", async ({
   ownerBearer,
@@ -123,7 +123,7 @@ test("preview CLI operations and run-policy commands @preview @happy-path @custo
     await test.step("cli.secrets_set_fixture", async () => {
       const { stdout } = await runCliSmokeCommand({
         ...runInput,
-        args: buildCliSecretsSetValueStdinArgs(),
+        args: buildCliSecretsSetValueStdinArgs(PROOF_VARIABLE_KEY),
         label: "CLI secrets set",
         stdinInput: sentinel.value,
       });
