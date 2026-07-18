@@ -681,8 +681,10 @@ that commit produces a successful no-op. Otherwise it passes the exact SHA throu
 `Deploy Preview`, `Preview Smoke`, and `Deploy Production` stages. `scripts/preview-deploy.mjs` is
 CI-only: it materializes the Preview GitHub Environment, creates temporary per-Worker secrets
 files, dry-runs the full fleet, migrates preview Postgres, and deploys the fleet. Production
-consumes the smoke artifact from the same workflow run before mutation. After Production health,
-Sentry, and Linear verification succeed, a final repository-write-only job fast-forwards the
+consumes the smoke artifact from the same workflow run before mutation. Linear owns a scheduled
+release keyed by that same SHA and advances it through `Preview`, `Preview Smoke`, and `Production`
+before marking it `Released`. After Production health, Sentry, and Linear completion succeed, a
+final repository-write-only job fast-forwards the
 `production` branch. The branch ruleset blocks deletion and non-fast-forward updates and requires
 the finalizer's GitHub Actions-owned `Production release verified` commit status. Failed stages
 leave that ledger unchanged.
@@ -826,11 +828,14 @@ The production deploy uses the same Sentry release/source-map path as Preview an
 `SENTRY_AUTH_TOKEN` in the approved GitHub Actions secret store (repository secret by default;
 environment-scoped override optional).
 
-After the production fleet and Sentry source maps are verified, the workflow syncs the full deploy
-SHA to Linear with `LINEAR_ACCESS_KEY`. Its recursive `include_paths` filter covers the deployed
+Before Preview, the workflow syncs the full deploy SHA to Linear with `LINEAR_ACCESS_KEY`, using the
+`production` branch as the exclusive commit-scan baseline. The scheduled Linear pipeline then moves
+through `Preview`, `Preview Smoke`, and `Production`; it reaches `Released` only after production
+fleet and Sentry verification. Its recursive `include_paths` filter covers the deployed
 Workers (`apps/api`, `apps/runtime`, `apps/web`, and `apps/site`) and their transitive workspace
 package dependencies. It intentionally excludes the standalone CLI package and unrelated apps, so
-CLI-only changes remain in the separate CLI release.
+CLI-only changes remain in the separate CLI release. A branch-reconciliation run also re-syncs and
+completes the exact version before advancing `production`, so a prior Linear failure is retried.
 
 The identity that executes this deploy is the CI machine token. The operator's personal credentials
 are never the deploy credential (ADR-0029 amendment, ADR-0004). The Cloudflare token must be able

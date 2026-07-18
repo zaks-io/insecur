@@ -21,8 +21,6 @@ on:
         required: true
       CLOUDFLARE_API_TOKEN:
         required: true
-      LINEAR_ACCESS_KEY:
-        required: true
       PRODUCTION_DATABASE_URL_MIGRATION:
         required: true
       RUNTIME_TOKEN_SIGNING_SECRET:
@@ -286,11 +284,3 @@ jobs:
         run: >-
           node .release-orchestrator/scripts/ci/verify-production-health.mjs
           "$EXPECTED_SHA"
-
-      - name: Sync production release to Linear
-        uses: linear/linear-release-action@c0cb8354a362c24c6d3e0948f37fd66d07588e3f # v0.14.5
-        with:
-          access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
-          name: ${{ env.RELEASE_ID }}
-          version: ${{ env.RELEASE_ID }}
-          include_paths: "apps/api/**,apps/runtime/**,apps/site/**,apps/web/**,packages/access/**,packages/agent-attribution/**,packages/app-connection/**,packages/audit/**,packages/auth/**,packages/backup-restore/**,packages/crypto/**,packages/custody-contracts/**,packages/domain/**,packages/high-assurance/**,packages/instance-bootstrap/**,packages/machine-auth/**,packages/notifications/**,packages/observability/**,packages/onboarding/**,packages/operations/**,packages/protected-change/**,packages/runtime-injection/**,packages/runtime-injection-issue/**,packages/secret-store/**,packages/secret-store-contracts/**,packages/secret-sync/**,packages/storage-security-gate/**,packages/tenant-keyring/**,packages/tenant-store/**,packages/token-signing/**,packages/ui/**,packages/worker-kit/**"
