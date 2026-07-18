@@ -12,13 +12,14 @@ on:
         description: Exact release candidate identity
         required: true
         type: string
+      environment_name:
+        description: GitHub Environment containing the pipeline-scoped Linear access key
+        required: true
+        type: string
       stage:
         description: Scheduled pipeline stage for update commands
         required: false
         type: string
-    secrets:
-      LINEAR_ACCESS_KEY:
-        required: true
 
 permissions:
   contents: read
@@ -28,6 +29,7 @@ jobs:
     name: Linear ${{ inputs.command }}${{ inputs.stage && format(' ({0})', inputs.stage) || '' }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
+    environment: ${{ inputs.environment_name }}
     steps:
       - name: Checkout release candidate
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7

@@ -13,11 +13,17 @@ test("daily release owns the timezone-aware serialized release train", async () 
   assert.doesNotMatch(daily, /workflow_dispatch:\s*\n\s+inputs:/u);
   assert.match(daily, /group: daily-release\n\s+cancel-in-progress: false/u);
   assert.match(daily, /node scripts\/ci\/select-release-candidate\.mjs/u);
-  assert.match(daily, /preview:[\s\S]*- linear_sync[\s\S]*deploy_sha:/u);
-  assert.match(daily, /smoke:[\s\S]*- linear_preview_smoke[\s\S]*deploy_sha:/u);
+  const preview = daily.slice(daily.indexOf("  preview:"), daily.indexOf("  smoke:"));
+  const smoke = daily.slice(daily.indexOf("  smoke:"), daily.indexOf("  linear_preview:"));
+  const production = daily.slice(
+    daily.indexOf("  production:"),
+    daily.indexOf("  linear_production:"),
+  );
+  assert.match(preview, /needs: select[\s\S]*deploy_sha:/u);
+  assert.match(smoke, /- preview[\s\S]*deploy_sha:/u);
   assert.match(
-    daily,
-    /production:[\s\S]*- linear_production[\s\S]*ci_run_id:[\s\S]*deploy_sha:[\s\S]*orchestrator_sha: \$\{\{ github\.workflow_sha \}\}/u,
+    production,
+    /- linear_preview[\s\S]*ci_run_id:[\s\S]*deploy_sha:[\s\S]*orchestrator_sha: \$\{\{ github\.workflow_sha \}\}/u,
   );
   assert.match(
     daily,
@@ -28,37 +34,56 @@ test("daily release owns the timezone-aware serialized release train", async () 
   assert.match(daily, /context="Production release verified"[\s\S]*git\/refs\/heads\/production/u);
   assert.doesNotMatch(daily.slice(0, daily.indexOf("finalize:")), /contents: write/u);
   assert.doesNotMatch(daily, /secrets: inherit/u);
-  const previewSecrets = daily.slice(daily.indexOf("  preview:"), daily.indexOf("  linear_sync:"));
-  const smokeSecrets = daily.slice(
-    daily.indexOf("  smoke:"),
-    daily.indexOf("  linear_production:"),
-  );
-  assert.doesNotMatch(previewSecrets, /LINEAR_ACCESS_KEY|PRODUCTION_DATABASE_URL_MIGRATION/u);
+  assert.doesNotMatch(preview, /LINEAR_ACCESS_KEY|PRODUCTION_DATABASE_URL_MIGRATION/u);
   assert.doesNotMatch(
-    smokeSecrets,
+    smoke,
     /LINEAR_ACCESS_KEY|PRODUCTION_DATABASE_URL_MIGRATION|RUNTIME_TOKEN_SIGNING_SECRET|SENTRY_AUTH_TOKEN/u,
   );
 });
 
-test("daily release tracks the exact SHA through the scheduled Linear pipeline", async () => {
+test("daily release records the exact SHA in environment-scoped Linear pipelines", async () => {
   const daily = await workflow("daily-release.yml");
   const linear = await workflow("linear-release-stage.yml");
+  const linearPreview = daily.slice(
+    daily.indexOf("  linear_preview:"),
+    daily.indexOf("  production:"),
+  );
+  const linearProduction = daily.slice(
+    daily.indexOf("  linear_production:"),
+    daily.indexOf("  finalize:"),
+  );
+  const finalize = daily.slice(daily.indexOf("  finalize:"), daily.indexOf("  no_change:"));
+  const noChange = daily.slice(daily.indexOf("  no_change:"));
 
-  assert.match(daily, /linear_sync:[\s\S]*command: sync[\s\S]*stage:.*'Preview'/u);
-  assert.match(daily, /linear_preview_smoke:[\s\S]*stage: Preview Smoke/u);
-  assert.match(daily, /linear_production:[\s\S]*stage: Production/u);
-  assert.match(daily, /linear_complete:[\s\S]*command: complete[\s\S]*deploy_sha:/u);
-  assert.match(daily, /linear_complete:[\s\S]*- linear_sync[\s\S]*- production/u);
-  assert.match(daily, /needs\.linear_sync\.result == 'success'/u);
-  assert.match(daily, /needs\.linear_complete\.result == 'success'/u);
+  assert.match(
+    linearPreview,
+    /- smoke[\s\S]*if: needs\.select\.outputs\.action == 'deploy'[\s\S]*command: sync[\s\S]*environment_name: Preview/u,
+  );
+  assert.match(
+    linearProduction,
+    /- production[\s\S]*always\(\)[\s\S]*needs\.select\.outputs\.action == 'record'[\s\S]*needs\.select\.outputs\.action == 'deploy' && needs\.production\.result == 'success'[\s\S]*command: sync[\s\S]*environment_name: Production/u,
+  );
+  assert.match(
+    finalize,
+    /- linear_production[\s\S]*needs\.linear_production\.result == 'success'/u,
+  );
+  assert.match(finalize, /needs\.select\.outputs\.action == 'record'/u);
+  assert.match(
+    finalize,
+    /needs\.select\.outputs\.action == 'deploy' && needs\.production\.result == 'success'/u,
+  );
+  assert.match(noChange, /if: needs\.select\.outputs\.action == 'noop'/u);
+  assert.doesNotMatch(linearPreview, /action == 'noop'/u);
+  assert.doesNotMatch(linearProduction, /action == 'noop'/u);
+  assert.doesNotMatch(finalize, /action == 'noop'/u);
   assert.match(linear, /ref: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(linear, /fetch-depth: 0/u);
   assert.match(linear, /persist-credentials: false/u);
+  assert.match(linear, /environment: \$\{\{ inputs\.environment_name \}\}/u);
+  assert.doesNotMatch(linear, /workflow_call:[\s\S]*secrets:\n\s+LINEAR_ACCESS_KEY:/u);
   assert.match(linear, /command: sync[\s\S]*version: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(linear, /base_ref: refs\/remotes\/origin\/production/u);
-  assert.match(linear, /Set initial Linear release stage[\s\S]*inputs\.command == 'sync'/u);
-  assert.match(linear, /command: update[\s\S]*stage: \$\{\{ inputs\.stage \}\}/u);
-  assert.match(linear, /command: complete[\s\S]*version: \$\{\{ inputs\.deploy_sha \}\}/u);
+  assert.match(linear, /access_key: \$\{\{ secrets\.LINEAR_ACCESS_KEY \}\}/u);
   assert.match(linear, /uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.14\.5/gu);
   assert.match(linear, /Daily Release=\$\{\{ github\.server_url \}\}/u);
 });

@@ -50,9 +50,7 @@ jobs:
 
   preview:
     name: Stage Preview
-    needs:
-      - select
-      - linear_sync
+    needs: select
     if: needs.select.outputs.action == 'deploy'
     permissions:
       contents: read
@@ -73,38 +71,11 @@ jobs:
       WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
       WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
 
-  linear_sync:
-    name: Start Linear release
-    needs: select
-    if: needs.select.outputs.action != 'noop'
-    uses: ./.github/workflows/linear-release-stage.yml
-    with:
-      command: sync
-      deploy_sha: ${{ needs.select.outputs.deploy_sha }}
-      stage: ${{ needs.select.outputs.action == 'deploy' && 'Preview' || '' }}
-    secrets:
-      LINEAR_ACCESS_KEY: ${{ secrets.LINEAR_ACCESS_KEY }}
-
-  linear_preview_smoke:
-    name: Track Preview Smoke in Linear
-    needs:
-      - select
-      - preview
-    if: needs.select.outputs.action == 'deploy'
-    uses: ./.github/workflows/linear-release-stage.yml
-    with:
-      command: update
-      deploy_sha: ${{ needs.select.outputs.deploy_sha }}
-      stage: Preview Smoke
-    secrets:
-      LINEAR_ACCESS_KEY: ${{ secrets.LINEAR_ACCESS_KEY }}
-
   smoke:
     name: Prove Preview
     needs:
       - select
       - preview
-      - linear_preview_smoke
     if: needs.select.outputs.action == 'deploy'
     permissions:
       contents: read
@@ -117,26 +88,24 @@ jobs:
       PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
       SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
 
-  linear_production:
-    name: Track Production in Linear
+  linear_preview:
+    name: Record Preview release in Linear
     needs:
       - select
       - smoke
     if: needs.select.outputs.action == 'deploy'
     uses: ./.github/workflows/linear-release-stage.yml
     with:
-      command: update
+      command: sync
       deploy_sha: ${{ needs.select.outputs.deploy_sha }}
-      stage: Production
-    secrets:
-      LINEAR_ACCESS_KEY: ${{ secrets.LINEAR_ACCESS_KEY }}
+      environment_name: Preview
 
   production:
     name: Release Production
     needs:
       - select
       - smoke
-      - linear_production
+      - linear_preview
     if: needs.select.outputs.action == 'deploy'
     permissions:
       actions: read
@@ -160,35 +129,32 @@ jobs:
       WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
       WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
 
-  linear_complete:
-    name: Complete Linear release
+  linear_production:
+    name: Record Production release in Linear
     needs:
       - select
-      - linear_sync
       - production
     if: >-
       always() &&
       needs.select.result == 'success' &&
-      needs.linear_sync.result == 'success' &&
       (needs.select.outputs.action == 'record' ||
        (needs.select.outputs.action == 'deploy' && needs.production.result == 'success'))
     uses: ./.github/workflows/linear-release-stage.yml
     with:
-      command: complete
+      command: sync
       deploy_sha: ${{ needs.select.outputs.deploy_sha }}
-    secrets:
-      LINEAR_ACCESS_KEY: ${{ secrets.LINEAR_ACCESS_KEY }}
+      environment_name: Production
 
   finalize:
     name: Record production release
     needs:
       - select
       - production
-      - linear_complete
+      - linear_production
     if: >-
       always() &&
       needs.select.result == 'success' &&
-      needs.linear_complete.result == 'success' &&
+      needs.linear_production.result == 'success' &&
       (needs.select.outputs.action == 'record' ||
        (needs.select.outputs.action == 'deploy' && needs.production.result == 'success'))
     runs-on: blacksmith-4vcpu-ubuntu-2404
