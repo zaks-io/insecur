@@ -20,6 +20,10 @@ on:
         description: Scheduled pipeline stage for update commands
         required: false
         type: string
+    secrets:
+      LINEAR_ACCESS_KEY:
+        description: Declared for the reusable workflow secrets context; supplied by the job environment
+        required: false
 
 permissions:
   contents: read
