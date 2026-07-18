@@ -80,7 +80,10 @@ test("daily release records the exact SHA in environment-scoped Linear pipelines
   assert.match(linear, /fetch-depth: 0/u);
   assert.match(linear, /persist-credentials: false/u);
   assert.match(linear, /environment: \$\{\{ inputs\.environment_name \}\}/u);
-  assert.doesNotMatch(linear, /workflow_call:[\s\S]*secrets:\n\s+LINEAR_ACCESS_KEY:/u);
+  assert.match(
+    linear,
+    /workflow_call:[\s\S]*secrets:\n\s+LINEAR_ACCESS_KEY:[\s\S]*required: false/u,
+  );
   assert.match(linear, /command: sync[\s\S]*version: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(linear, /base_ref: refs\/remotes\/origin\/production/u);
   assert.match(linear, /access_key: \$\{\{ secrets\.LINEAR_ACCESS_KEY \}\}/u);
