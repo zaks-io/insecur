@@ -53,6 +53,7 @@ test("daily release tracks the exact SHA through the scheduled Linear pipeline",
   assert.match(daily, /needs\.linear_complete\.result == 'success'/u);
   assert.match(linear, /ref: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(linear, /fetch-depth: 0/u);
+  assert.match(linear, /persist-credentials: false/u);
   assert.match(linear, /command: sync[\s\S]*version: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(linear, /base_ref: refs\/remotes\/origin\/production/u);
   assert.match(linear, /Set initial Linear release stage[\s\S]*inputs\.command == 'sync'/u);
