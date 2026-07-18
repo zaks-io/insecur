@@ -89,6 +89,7 @@ Use this index for traceability and rationale after locating the relevant spec s
 - [ADR-0083: One Visual System Across Site, Docs, and Console, Light and Dark](0083-unified-visual-system-light-dark.md)
 - [ADR-0084: Runtime-Only Restore Import Boundary](0084-runtime-only-restore-import-boundary.md)
 - [ADR-0085: Deployed Telemetry Evidence Surfaces For No-Plaintext Controls](0085-deployed-telemetry-evidence-surfaces.md)
+- [ADR-0086: Rust CLI And Verifiable Native Distribution](0086-rust-cli-and-verifiable-native-distribution.md)
 
 ## Superseded
 
