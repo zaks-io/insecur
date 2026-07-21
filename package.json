@@ -15,7 +15,7 @@
     "knip": "knip",
     "knip:strict": "knip --strict",
     "lint:actions": "node scripts/ci/actionlint-local.mjs",
-    "test:scripts": "node --test scripts/*.test.mjs scripts/ci/*.test.mjs scripts/restore/*.test.mjs apps/api/scripts/*.test.mjs apps/runtime/scripts/*.test.mjs",
+    "test:scripts": "node --test scripts/*.test.mjs scripts/ci/*.test.mjs scripts/restore/*.test.mjs apps/api/scripts/*.test.mjs apps/runtime/scripts/*.test.mjs packages/tenant-store/scripts/lib/*.test.mjs",
     "test:security-reporting": "node --test scripts/ci/security-daily-linear-reporting.test.mjs",
     "security:attest": "node scripts/security-attest.mjs",
     "conformance:topology": "node scripts/ci/deploy-topology-conformance.mjs",
