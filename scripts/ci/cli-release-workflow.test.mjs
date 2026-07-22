@@ -93,12 +93,12 @@ test("compiled binary smoke explicitly opts into the disposable file keystore", 
   );
 });
 
-test("Bun sqlite seam probe retries transient Windows cleanup locks", async () => {
+test("Bun sqlite seam probe does not fail passed assertions on disposable cleanup locks", async () => {
   const probe = await bunSqliteSeamProbePromise;
 
   assert.match(
     probe,
-    /rmSync\(tempDir, \{ recursive: true, force: true, maxRetries: [1-9]\d*, retryDelay: [1-9]\d* \}\)/u,
+    /catch \(error\) \{[\s\S]*?isDisposableCleanupLock\(error\)[\s\S]*?console\.warn/u,
   );
 });
 
