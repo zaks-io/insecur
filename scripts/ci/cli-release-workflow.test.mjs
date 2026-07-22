@@ -98,7 +98,7 @@ test("Bun sqlite seam probe does not fail passed assertions on disposable cleanu
 
   assert.match(
     probe,
-    /catch \(error\) \{[\s\S]*?isDisposableCleanupLock\(error\)[\s\S]*?console\.warn/u,
+    /catch \(error\) \{[\s\S]*?if \(!isDisposableCleanupLock\(error\)\) \{\s*throw error;\s*\}[\s\S]*?console\.warn/u,
   );
 });
 
