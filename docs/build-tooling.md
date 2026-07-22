@@ -858,8 +858,8 @@ being tightened. A manual dispatch first verifies that the selected commit is cu
 `main` ancestor (GitHub compare status `identical` or `behind`; anything else fails closed), then
 verifies that the commit has a completed successful `CI` run, before it builds release assets, runs
 repo security attestation, attaches the attestation bundle, and prepares the draft release. After
-the draft is created or updated, the workflow syncs the package version to Linear using the isolated
-`CLI_LINEAR_ACCESS_KEY` secret. The pinned action uses the recursive monorepo filter
+the draft is created or updated, the Production-environment release job syncs the package version
+to Linear using its isolated `CLI_LINEAR_ACCESS_KEY` secret. The pinned action uses the recursive monorepo filter
 `include_paths` for `packages/cli/**` and every transitive workspace package in the CLI dependency
 graph: `access`, `agent-attribution`, `audit`, `auth`, `crypto`, `custody-contracts`, `domain`,
 `instance-bootstrap`, `local-store`, `observability`, `onboarding`, `operations`,
