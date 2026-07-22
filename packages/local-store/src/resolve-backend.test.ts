@@ -49,4 +49,20 @@ describe("resolveKeyStoreBackend", () => {
       }),
     ).toBe("file-fallback");
   });
+
+  it("uses the explicitly opted-in file key store on every platform", async () => {
+    tempBinDir = await mkdtemp(path.join(os.tmpdir(), "insecur-secret-tool-"));
+    const secretToolPath = path.join(tempBinDir, "secret-tool");
+    await writeFile(secretToolPath, "#!/bin/sh\n", "utf8");
+    await chmod(secretToolPath, 0o755);
+
+    for (const platform of ["darwin", "win32", "linux"] as const) {
+      expect(
+        resolveKeyStoreBackend(platform, {
+          PATH: tempBinDir,
+          INSECUR_ALLOW_INSECURE_FILE_KEYSTORE: "1",
+        }),
+      ).toBe("file-fallback");
+    }
+  });
 });

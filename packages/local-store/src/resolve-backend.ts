@@ -30,19 +30,19 @@ export function resolveKeyStoreBackend(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,
 ): KeyStoreBackend | null {
+  if (env[INSECURE_FILE_KEY_STORE_ENV] === "1") {
+    return "file-fallback";
+  }
+
   switch (platform) {
     case "darwin":
       return "macos-keychain";
     case "win32":
       return "windows-dpapi";
     case "linux":
-      return isLinuxSecretToolAvailable(env)
-        ? "linux-secret-tool"
-        : env[INSECURE_FILE_KEY_STORE_ENV] === "1"
-          ? "file-fallback"
-          : null;
+      return isLinuxSecretToolAvailable(env) ? "linux-secret-tool" : null;
     default:
-      return env[INSECURE_FILE_KEY_STORE_ENV] === "1" ? "file-fallback" : null;
+      return null;
   }
 }
 
