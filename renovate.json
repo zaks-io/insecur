@@ -30,6 +30,12 @@
       "internalChecksFilter": "strict"
     },
     {
+      "description": "Do not test GitHub Actions releases until the three-day quarantine has elapsed",
+      "matchManagers": ["github-actions"],
+      "minimumReleaseAge": "3 days",
+      "internalChecksFilter": "strict"
+    },
+    {
       "description": "Merge routine updates only after hidden-branch and pull-request checks pass",
       "matchUpdateTypes": ["minor", "patch", "digest", "pinDigest", "lockFileMaintenance"],
       "automerge": true,

@@ -931,9 +931,10 @@ fingerprints let the helper update an existing Linear issue for the same finding
 duplicates. Automated remediation PRs are not built.
 
 Renovate runs on its own schedule with `minimumReleaseAge: 3 days` and
-`internalChecksFilter: strict` (`renovate.json`), so it creates neither a branch nor a pull request
-before the quarantine floor elapses. Eligible updates run the full secretless CI gate on hidden
-`renovate/**` branches. `prCreation: status-success` prevents failed updates from becoming pull
+`internalChecksFilter: strict` for npm and GitHub Actions updates (`renovate.json`), so it creates
+neither a branch nor a pull request before the quarantine floor elapses. Eligible updates run the
+full secretless CI gate on hidden `renovate/**` branches. `prCreation: status-success` prevents
+failed updates from becoming pull
 requests. Routine non-major updates automerge only after the protected-branch checks pass, no more
 than one routine Renovate pull request is open at a time, and majors require Dependency Dashboard
 approval. Vulnerability fixes bypass Renovate's normal concurrency limit, so they are grouped into

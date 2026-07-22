@@ -59,6 +59,16 @@ export function collectRenovateConformanceProblems(rootDir = REPO_ROOT) {
     problems.push("Renovate npm updates must enforce the three-day release quarantine");
   }
 
+  const actionsQuarantine = rules.some(
+    (rule) =>
+      rule.matchManagers?.includes("github-actions") &&
+      rule.minimumReleaseAge === "3 days" &&
+      rule.internalChecksFilter === "strict",
+  );
+  if (!actionsQuarantine) {
+    problems.push("Renovate GitHub Actions updates must enforce the three-day release quarantine");
+  }
+
   const routineAutomerge = rules.some(
     (rule) =>
       rule.automerge === true &&

@@ -784,9 +784,10 @@ inline disable is allowed; relaxing the global budget is not.
 
 Supply-chain hardening uses pnpm 10 with blocked lifecycle scripts, an explicit
 `onlyBuiltDependencies` allowlist, `strictDepBuilds`, and a 3-day `minimumReleaseAge`.
-Renovate must honor the same release-age floor, preflight updates on hidden branches, and create a
-pull request only after CI succeeds. Routine non-major updates automerge through the protected-branch
-gates; major updates require Dependency Dashboard approval. Vulnerability fixes are grouped into one
+Renovate must honor the same release-age floor for npm and GitHub Actions updates, preflight updates
+on hidden branches, and create a pull request only after CI succeeds. Routine non-major updates
+automerge through the protected-branch gates; major updates require Dependency Dashboard approval.
+Vulnerability fixes are grouped into one
 green-only pull request, and automated config-migration pull requests are disabled. This makes pnpm
 10 a prerequisite, not optional polish.
 
