@@ -6,6 +6,10 @@ const workflowPromise = readFile(
   new URL("../../.github/workflows/cli-release.yml", import.meta.url),
   "utf8",
 );
+const bunSqliteSeamProbePromise = readFile(
+  new URL("./bun-sqlite-seam-probe.mjs", import.meta.url),
+  "utf8",
+);
 
 test("all CLI release runs share one non-cancelling concurrency group", async () => {
   const workflow = await workflowPromise;
@@ -76,6 +80,25 @@ test("draft creation records the verified source SHA in the release notes", asyn
   assert.match(
     workflow,
     /cli-release-notes\.mjs \\\n\s+--tag "\$TAG" \\\n\s+--release-sha "\$RELEASE_SHA"/u,
+  );
+});
+
+test("compiled binary smoke explicitly opts into the disposable file keystore", async () => {
+  const workflow = await workflowPromise;
+
+  assert.match(
+    workflow,
+    /- name: Smoke compiled binary[\s\S]*?INSECUR_ALLOW_INSECURE_FILE_KEYSTORE: "1"/u,
+    "ephemeral release runners have no guaranteed OS credential store",
+  );
+});
+
+test("Bun sqlite seam probe does not fail passed assertions on disposable cleanup locks", async () => {
+  const probe = await bunSqliteSeamProbePromise;
+
+  assert.match(
+    probe,
+    /catch \(error\) \{[\s\S]*?if \(!isDisposableCleanupLock\(error\)\) \{\s*throw error;\s*\}[\s\S]*?console\.warn/u,
   );
 });
 

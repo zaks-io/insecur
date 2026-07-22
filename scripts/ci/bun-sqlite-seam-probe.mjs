@@ -33,6 +33,14 @@ function assert(condition, label) {
   console.log(`ok: ${label}`);
 }
 
+function isDisposableCleanupLock(error) {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error.code === "EBUSY" || error.code === "EPERM" || error.code === "ENOTEMPTY")
+  );
+}
+
 const tempDir = mkdtempSync(path.join(tmpdir(), "insecur-bun-sqlite-seam-"));
 try {
   const database = openLocalSqliteDatabase(path.join(tempDir, "nested", "probe.sqlite"));
@@ -80,5 +88,12 @@ try {
 
   console.log("bun-sqlite-seam-probe passed");
 } finally {
-  rmSync(tempDir, { recursive: true, force: true });
+  try {
+    rmSync(tempDir, { recursive: true, force: true });
+  } catch (error) {
+    if (!isDisposableCleanupLock(error)) {
+      throw error;
+    }
+    console.warn(`warning: disposable Bun SQLite probe cleanup deferred (${error.code})`);
+  }
 }

@@ -12,6 +12,7 @@ import {
   revokeAppSchemaPublicGrants,
 } from "./grant-runtime.mjs";
 import { loadRepoEnvLocal, redactLoggableError, requireDatabaseUrl } from "./lib/env-local.mjs";
+import { retryPostgresDeadlock } from "./lib/retry-postgres-deadlock.mjs";
 import { TENANT_STORE_MIGRATION_LOCK_KEY } from "./lib/test-advisory-locks.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -33,7 +34,7 @@ try {
   await sql`SELECT pg_advisory_lock(${TENANT_STORE_MIGRATION_LOCK_KEY})`;
 
   applyDrizzleBaseline();
-  await applyRawPoliciesAndRoles(sql);
+  await retryPostgresDeadlock(() => applyRawPoliciesAndRoles(sql));
 
   const migrationRole = resolveMigrationRole();
   const runtimeRole = resolveRuntimeRole();

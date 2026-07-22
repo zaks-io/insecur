@@ -22,7 +22,7 @@ embed the command argv in the error object.
 
 The `0600` key file stores raw hex key material on disk. It is never selected
 automatically. It requires the explicit `INSECUR_ALLOW_INSECURE_FILE_KEYSTORE=1`
-development opt-in. Because it lives beside the local SQLite ciphertext, a
+development opt-in, which selects it on every platform. Because it lives beside the local SQLite ciphertext, a
 single config-directory backup contains both and defeats backup separation.
 Callers surface `local_store.file_fallback_active` as metadata-only posture guidance.
 
