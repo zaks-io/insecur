@@ -192,6 +192,7 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "routes:inventory:check": "node scripts/routes-inventory.mjs --check",
     "conformance:packages": "node scripts/ci/package-boundary-conformance.mjs",
     "conformance:actions-pin": "node scripts/ci/actions-pin-conformance.mjs",
+    "conformance:renovate": "node scripts/ci/renovate-conformance.mjs",
     "duplicates:check": "node scripts/ci/jscpd-warn.mjs --fail-on-duplicates",
     "duplicates:ci": "pnpm duplicates:check",
     "duplicates:warn": "node scripts/ci/jscpd-warn.mjs",
@@ -209,7 +210,7 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ci:check": "pnpm verify",
-    "verify:policy": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm conformance:wrangler-types && pnpm conformance:cli-release-boundary && pnpm format:check && pnpm test:scripts",
+    "verify:policy": "pnpm duplicates:ci && pnpm knip && pnpm lint:actions && pnpm conformance:actions-pin && pnpm conformance:renovate && pnpm conformance:topology && pnpm conformance:packages && pnpm conformance:site-boundary && pnpm conformance:wrangler-types && pnpm conformance:cli-release-boundary && pnpm format:check && pnpm test:scripts",
     "verify:turbo": "turbo run lint typecheck test --continue=dependencies-successful --cache=\"${TURBO_CACHE:-local:rw,remote:r}\"",
     "verify:turbo:affected": "turbo run lint typecheck test --affected --continue=dependencies-successful --cache=\"${TURBO_CACHE:-local:rw,remote:r}\"",
     "verify:pr": "pnpm verify:policy && pnpm verify:turbo:affected",
@@ -222,7 +223,10 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
 
 `verify:policy` is the full-scope policy gate: the blocking duplicate zero gate with annotations,
 knip, actionlint (optional-local), the actions-pin conformance gate (`conformance:actions-pin` —
-asserts third-party GitHub Actions are pinned to full commit SHAs), the deploy-topology conformance
+asserts third-party GitHub Actions are pinned to full commit SHAs), the Renovate delivery gate
+(`conformance:renovate` — asserts green-only PR creation, bounded concurrency, major approval, npm
+release quarantine, hidden-branch CI, and the absence of a competing Dependabot lane), the
+deploy-topology conformance
 gate (`conformance:topology`, ADR-0077/INS-199 — asserts capability isolation against the wrangler
 configs and composition roots, and fails when `docs/specs/deploy-route-inventory.md` is stale
 relative to `pnpm routes:inventory`), the package-boundary conformance gate (`conformance:packages`
@@ -926,21 +930,31 @@ credentials, private key material, or Sensitive Values are included in Linear. I
 fingerprints let the helper update an existing Linear issue for the same finding instead of creating
 duplicates. Automated remediation PRs are not built.
 
-Dependabot runs on its own schedule with `cooldown.default-days: 3` (`.github/dependabot.yml`) so it will not open an update branch before the quarantine floor elapses. Install-time enforcement remains in `pnpm-workspace.yaml` via `minimumReleaseAge: 4320`.
+Renovate runs on its own schedule with `minimumReleaseAge: 3 days` and
+`internalChecksFilter: strict` (`renovate.json`), so it creates neither a branch nor a pull request
+before the quarantine floor elapses. Eligible updates run the full secretless CI gate on hidden
+`renovate/**` branches. `prCreation: status-success` prevents failed updates from becoming pull
+requests. Routine non-major updates automerge only after the protected-branch checks pass, no more
+than one routine Renovate pull request is open at a time, and majors require Dependency Dashboard
+approval. Vulnerability fixes bypass Renovate's normal concurrency limit, so they are grouped into
+one green-only security pull request instead of creating a burst of individual pull requests.
+Automatic Renovate config-migration pull requests are disabled.
+Install-time enforcement remains in `pnpm-workspace.yaml` via `minimumReleaseAge: 4320`.
 
 The active Node.js runtime major is the one declared by `package.json` `engines`, `.node-version`,
-and `.nvmrc`. Node-coupled ambient type packages must stay on that runtime major: Dependabot ignores
-`@types/node` semver-major npm updates while the repo remains on Node 24, but still allows patch and
-minor updates inside the 24.x line. Intentionally raising the Node baseline is separate planned work
-that updates `engines`, `.node-version`, `.nvmrc`, CI/runtime images, the pnpm catalog
-`@types/node` range, and the Dependabot guardrail together.
+and `.nvmrc`. Node-coupled ambient type packages must stay on that runtime major: Renovate holds
+`@types/node` semver-major npm updates in the Dependency Dashboard while the repo remains on Node 24,
+but still delivers patch and minor updates inside the 24.x line. Intentionally raising the Node
+baseline is separate planned work that updates `engines`, `.node-version`, `.nvmrc`, CI/runtime
+images, the pnpm catalog `@types/node` range, and the Renovate approval together.
 
 The active TypeScript compiler major is the one declared by the pnpm catalog (`typescript: ^5.7.0`)
-and the Version Policy table above. Dependabot ignores `typescript` semver-major npm updates while
-the repo remains on TypeScript 5.x, but still allows patch and minor updates inside the 5.x line.
+and the Version Policy table above. Renovate holds `typescript` semver-major npm updates in the
+Dependency Dashboard while the repo remains on TypeScript 5.x, but still delivers patch and minor
+updates inside the 5.x line.
 Intentionally raising the TypeScript baseline is separate planned work that updates the pnpm catalog
 `typescript` range, shared `tsconfig`/`lib` settings, package ambient-type boundaries, and the
-Dependabot guardrail together.
+Renovate approval together.
 
 ## Two-Credential Model And Guardrail Assertions
 

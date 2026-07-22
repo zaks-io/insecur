@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices"],
+  "timezone": "America/Los_Angeles",
+  "schedule": ["before 9am on monday"],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+  "configMigration": false,
+  "prCreation": "status-success",
+  "prConcurrentLimit": 1,
+  "branchConcurrentLimit": 3,
+  "prHourlyLimit": 1,
+  "rangeStrategy": "update-lockfile",
+  "labels": ["dependencies", "zaks-io/insecur"],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "build",
+  "semanticCommitScope": "deps",
+  "vulnerabilityAlerts": {
+    "groupName": "security fixes",
+    "labels": ["dependencies", "risk-security-sensitive", "zaks-io/insecur"],
+    "prCreation": "status-success",
+    "automerge": true,
+    "vulnerabilityFixStrategy": "lowest"
+  },
+  "packageRules": [
+    {
+      "description": "Do not test npm releases until the three-day quarantine has elapsed",
+      "matchDatasources": ["npm"],
+      "minimumReleaseAge": "3 days",
+      "internalChecksFilter": "strict"
+    },
+    {
+      "description": "Merge routine updates only after hidden-branch and pull-request checks pass",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pinDigest", "lockFileMaintenance"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Keep major upgrades in the dashboard until explicitly requested",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
+      "description": "Use the CI commit type for GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "semanticCommitType": "ci"
+    }
+  ]
+}

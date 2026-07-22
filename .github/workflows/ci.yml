@@ -9,6 +9,8 @@ on:
   push:
     branches:
       - main
+      # Renovate creates the PR only after this hidden branch passes CI.
+      - "renovate/**"
 
 permissions:
   contents: read

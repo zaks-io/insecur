@@ -325,11 +325,6 @@ const semgrepReport = JSON.parse(readFileSync(join(outDir, "semgrep.json"), "utf
 const semgrepResults = Array.isArray(semgrepReport.results) ? semgrepReport.results : [];
 const acceptedSemgrepPolicyDeviations = [
   {
-    check_id_suffix: "dependabot-missing-cooldown",
-    rationale:
-      "ADR-0056 intentionally uses a 3-day Dependabot cooldown aligned with pnpm minimumReleaseAge: 4320.",
-  },
-  {
     check_id_suffix: "pnpm-minimum-release-age",
     rationale:
       "ADR-0056 intentionally uses minimumReleaseAge: 4320 (3 days), not Semgrep's 7-day default.",

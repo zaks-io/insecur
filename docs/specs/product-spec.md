@@ -784,8 +784,11 @@ inline disable is allowed; relaxing the global budget is not.
 
 Supply-chain hardening uses pnpm 10 with blocked lifecycle scripts, an explicit
 `onlyBuiltDependencies` allowlist, `strictDepBuilds`, and a 3-day `minimumReleaseAge`.
-GitHub-native Dependabot must honor the same release-age floor via `.github/dependabot.yml`
-(no hosted Renovate on the private repo). This makes pnpm 10 a prerequisite, not optional polish.
+Renovate must honor the same release-age floor, preflight updates on hidden branches, and create a
+pull request only after CI succeeds. Routine non-major updates automerge through the protected-branch
+gates; major updates require Dependency Dashboard approval. Vulnerability fixes are grouped into one
+green-only pull request, and automated config-migration pull requests are disabled. This makes pnpm
+10 a prerequisite, not optional polish.
 
 The customer-facing CLI targets a Rust native binary while preserving the existing prebuilt native
 distribution and installer-verification model. Platform artifacts carry checksums, GitHub build
