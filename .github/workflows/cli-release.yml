@@ -237,14 +237,14 @@ jobs:
         run: bun scripts/ci/bun-sqlite-seam-probe.mjs
 
       - name: Smoke compiled binary
-        # INSECUR_CONFIG_HOME isolates all file state, but the macOS keystore
-        # adapter writes the machine root key to the runner's login keychain
-        # (service "insecur"); this assumes ephemeral runners with an unlocked
-        # default keychain, which Blacksmith macOS runners provide.
+        # Ephemeral runners do not guarantee an unlocked OS credential store.
+        # The explicit disposable-only opt-in keeps all key and ciphertext state
+        # under the isolated smoke directory instead of weakening real installs.
         working-directory: packages/cli
         shell: bash
         env:
           ASSET: ${{ matrix.asset }}
+          INSECUR_ALLOW_INSECURE_FILE_KEYSTORE: "1"
         run: |
           set -euo pipefail
           SMOKE_DIR="$(mktemp -d)"

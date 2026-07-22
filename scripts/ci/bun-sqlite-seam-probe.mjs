@@ -80,5 +80,5 @@ try {
 
   console.log("bun-sqlite-seam-probe passed");
 } finally {
-  rmSync(tempDir, { recursive: true, force: true });
+  rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
