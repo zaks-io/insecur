@@ -88,11 +88,34 @@ jobs:
       PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
       SESSION_SIGNING_SECRET: ${{ secrets.SESSION_SIGNING_SECRET }}
 
+  smoke_gate:
+    name: Require Preview proof
+    needs:
+      - select
+      - smoke
+    if: >-
+      always() &&
+      needs.select.result == 'success' &&
+      needs.select.outputs.action == 'deploy'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Require Preview proof
+        env:
+          PREVIEW_PROOF_PASSED: ${{ needs.smoke.outputs.proof_passed }}
+          PREVIEW_SMOKE_RESULT: ${{ needs.smoke.result }}
+        run: |
+          set -euo pipefail
+          if [ "$PREVIEW_SMOKE_RESULT" != "success" ] || [ "$PREVIEW_PROOF_PASSED" != "true" ]; then
+            echo "::error::Preview proof failed. The deployed Preview fleet remains recorded separately."
+            exit 1
+          fi
+
   linear_preview:
     name: Record Preview release in Linear
     needs:
       - select
-      - smoke
+      - smoke_gate
     if: needs.select.outputs.action == 'deploy'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
@@ -127,7 +150,7 @@ jobs:
     name: Release Production
     needs:
       - select
-      - smoke
+      - smoke_gate
       - linear_preview
     if: needs.select.outputs.action == 'deploy'
     permissions:

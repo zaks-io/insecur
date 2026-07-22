@@ -14,7 +14,8 @@ test("daily release owns the timezone-aware serialized release train", async () 
   assert.match(daily, /group: daily-release\n\s+cancel-in-progress: false/u);
   assert.match(daily, /node scripts\/ci\/select-release-candidate\.mjs/u);
   const preview = daily.slice(daily.indexOf("  preview:"), daily.indexOf("  smoke:"));
-  const smoke = daily.slice(daily.indexOf("  smoke:"), daily.indexOf("  linear_preview:"));
+  const smoke = daily.slice(daily.indexOf("  smoke:"), daily.indexOf("  smoke_gate:"));
+  const smokeGate = daily.slice(daily.indexOf("  smoke_gate:"), daily.indexOf("  linear_preview:"));
   const production = daily.slice(
     daily.indexOf("  production:"),
     daily.indexOf("  linear_production:"),
@@ -22,8 +23,12 @@ test("daily release owns the timezone-aware serialized release train", async () 
   assert.match(preview, /needs: select[\s\S]*deploy_sha:/u);
   assert.match(smoke, /- preview[\s\S]*deploy_sha:/u);
   assert.match(
+    smokeGate,
+    /needs:\n\s+- select\n\s+- smoke[\s\S]*needs\.smoke\.outputs\.proof_passed[\s\S]*Preview proof failed/u,
+  );
+  assert.match(
     production,
-    /- linear_preview[\s\S]*ci_run_id:[\s\S]*deploy_sha:[\s\S]*orchestrator_sha: \$\{\{ github\.workflow_sha \}\}/u,
+    /- smoke_gate\n\s+- linear_preview[\s\S]*ci_run_id:[\s\S]*deploy_sha:[\s\S]*orchestrator_sha: \$\{\{ github\.workflow_sha \}\}/u,
   );
   assert.match(
     daily,
@@ -56,7 +61,7 @@ test("daily release records the exact SHA in environment-scoped Linear pipelines
 
   assert.match(
     linearPreview,
-    /- smoke[\s\S]*if: needs\.select\.outputs\.action == 'deploy'[\s\S]*environment: Preview[\s\S]*command: sync/u,
+    /- smoke_gate[\s\S]*if: needs\.select\.outputs\.action == 'deploy'[\s\S]*environment: Preview[\s\S]*command: sync/u,
   );
   assert.match(
     linearProduction,
@@ -108,6 +113,19 @@ test("Preview deployment and smoke are exact-SHA reusable stages", async () => {
   assert.match(deployPreview, /INSECUR_DEPLOY_SHA: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(deployPreview, /SENTRY_RELEASE: \$\{\{ inputs\.deploy_sha \}\}/u);
   assert.match(previewSmoke, /SMOKE_EXPECTED_DEPLOY_SHA: \$\{\{ inputs\.deploy_sha \}\}/u);
+  assert.match(
+    previewSmoke,
+    /outputs:\n\s+proof_passed:[\s\S]*value: \$\{\{ jobs\.smoke\.outputs\.proof_passed \}\}/u,
+  );
+  assert.match(
+    previewSmoke,
+    /outputs:\n\s+proof_passed: \$\{\{ steps\.preview_proofs\.outcome == 'success' && steps\.artifact_sweep\.outcome == 'success' \}\}/u,
+  );
+  assert.match(previewSmoke, /id: preview_proofs\n\s+continue-on-error: true/u);
+  assert.match(
+    previewSmoke,
+    /id: artifact_sweep\n\s+if: \$\{\{ always\(\) \}\}\n\s+continue-on-error: true/u,
+  );
   assert.match(deployPreview, /group: preview-fleet\n\s+cancel-in-progress: false/u);
   assert.match(previewSmoke, /group: preview-fleet\n\s+cancel-in-progress: false/u);
   assert.match(previewSmokeConfig, /^\s*workers\s*:\s*3\s*(?:,|$)/mu);

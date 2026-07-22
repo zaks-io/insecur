@@ -8,6 +8,10 @@ on:
         description: Exact Preview deployment identity to verify
         required: true
         type: string
+    outputs:
+      proof_passed:
+        description: Whether every Preview proof and its credential cleanup passed
+        value: ${{ jobs.smoke.outputs.proof_passed }}
     secrets:
       CLOUDFLARE_ACCOUNT_ID:
         required: true
@@ -30,6 +34,8 @@ jobs:
     name: Preview Smoke
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 25
+    outputs:
+      proof_passed: ${{ steps.preview_proofs.outcome == 'success' && steps.artifact_sweep.outcome == 'success' }}
     environment:
       name: Preview
 
@@ -141,8 +147,12 @@ jobs:
         run: pnpm --filter @insecur/cli build
 
       # The R2 proof waits for Preview's committed every-minute backup trigger while the application
-      # suite runs. Neither proof mutates deployment configuration.
+      # suite runs. Neither proof mutates deployment configuration. This job owns Preview's
+      # environment credentials, so a proof failure is returned to the release train as an output
+      # and failed by its non-deployment gate instead of marking the deployed fleet as failed.
       - name: Run Preview proofs
+        id: preview_proofs
+        continue-on-error: true
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -175,6 +185,7 @@ jobs:
       - name: Revoke and sweep preview smoke artifacts
         id: artifact_sweep
         if: ${{ always() }}
+        continue-on-error: true
         env:
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
         run: pnpm --filter @insecur/preview-smoke sweep:artifacts
