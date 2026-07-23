@@ -98,7 +98,7 @@
     "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
-    "dependency-cruiser": "18.0.0",
+    "dependency-cruiser": "18.1.0",
     "eslint": "catalog:",
     "eslint-config-prettier": "catalog:",
     "fast-check": "catalog:",
