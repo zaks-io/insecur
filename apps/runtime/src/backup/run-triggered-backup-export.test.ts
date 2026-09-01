@@ -89,7 +89,7 @@ describe("runTriggeredBackupExport", () => {
     expect(env.BACKUPS.put).toHaveBeenNthCalledWith(
       1,
       BACKUP_EXPORT_PROOF_REQUEST_KEY,
-      expect.stringContaining('"status":"claimed"'),
+      expect.stringMatching(/"attempts":1.*"status":"claimed"/),
       { onlyIf: { etagMatches: "request-etag" } },
     );
     expect(runScheduledBackupExportMock).toHaveBeenCalledWith(env, 100);
@@ -110,9 +110,40 @@ describe("runTriggeredBackupExport", () => {
   });
 
   it("does not steal an unexpired claim", async () => {
-    const env = runtimeEnv(r2Object({ ...request, status: "claimed", leaseUntil: 200 }));
+    const env = runtimeEnv(
+      r2Object({ ...request, status: "claimed", leaseUntil: 200, attempts: 1 }),
+    );
 
     await runTriggeredBackupExport(env, "* * * * *", 199);
+
+    expect(env.BACKUPS.put).not.toHaveBeenCalled();
+    expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
+  });
+
+  it("fails an expired claim instead of reclaiming it", async () => {
+    const env = runtimeEnv(
+      r2Object({ ...request, status: "claimed", leaseUntil: 200, attempts: 1 }, "claim-etag"),
+      [{ etag: "failed-etag" } as R2Object],
+    );
+
+    await expect(runTriggeredBackupExport(env, "* * * * *", 200)).rejects.toThrow(
+      "claim lease expired before the export finished",
+    );
+    expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
+    expect(env.BACKUPS.put).toHaveBeenCalledTimes(1);
+    expect(env.BACKUPS.put).toHaveBeenCalledWith(
+      BACKUP_EXPORT_PROOF_REQUEST_KEY,
+      expect.stringContaining('"status":"failed"'),
+      { onlyIf: { etagMatches: "claim-etag" } },
+    );
+  });
+
+  it("leaves a failed request alone", async () => {
+    const env = runtimeEnv(
+      r2Object({ ...request, status: "failed", attempts: 1, reason: "claim lease expired" }),
+    );
+
+    await runTriggeredBackupExport(env, "* * * * *", 500);
 
     expect(env.BACKUPS.put).not.toHaveBeenCalled();
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
@@ -128,6 +159,28 @@ describe("runTriggeredBackupExport", () => {
       BACKUP_EXPORT_PROOF_REQUEST_KEY,
       expect.stringContaining('"status":"requested"'),
       { onlyIf: { etagMatches: "claim-etag" } },
+    );
+    expect(env.BACKUPS.put).toHaveBeenNthCalledWith(
+      2,
+      BACKUP_EXPORT_PROOF_REQUEST_KEY,
+      expect.stringContaining('"attempts":1'),
+      { onlyIf: { etagMatches: "claim-etag" } },
+    );
+  });
+
+  it("stops retrying once the attempt budget is spent", async () => {
+    const env = runtimeEnv(r2Object({ ...request, attempts: 3 }), [
+      { etag: "failed-etag" } as R2Object,
+    ]);
+
+    await expect(runTriggeredBackupExport(env, "* * * * *", 100)).rejects.toThrow(
+      "abandoned after 3 failed export attempts",
+    );
+    expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
+    expect(env.BACKUPS.put).toHaveBeenCalledWith(
+      BACKUP_EXPORT_PROOF_REQUEST_KEY,
+      expect.stringContaining('"reason":"export attempts exhausted"'),
+      { onlyIf: { etagMatches: "request-etag" } },
     );
   });
 });

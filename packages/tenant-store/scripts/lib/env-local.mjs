@@ -198,3 +198,11 @@ export function requireDatabaseUrl(...keys) {
     `One of ${keys.join(", ")} is required. Set it in the environment or repo .env.local.`,
   );
 }
+
+export function requireEnv(name) {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === "") {
+    throw new Error(`${name} is required`);
+  }
+  return value;
+}
