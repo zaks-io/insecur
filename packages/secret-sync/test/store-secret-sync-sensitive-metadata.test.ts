@@ -1,4 +1,5 @@
 import { createKeyring } from "@insecur/crypto";
+import { TenantSensitiveMetadataStore } from "@insecur/tenant-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -30,9 +31,7 @@ describe("storeSecretSyncSensitiveMetadata", () => {
   });
 
   it("encrypts binding destinations without storing plaintext in tenant rows", async () => {
-    const sensitiveMetadataStore = new (
-      await import("@insecur/tenant-store")
-    ).TenantSensitiveMetadataStore({} as never);
+    const sensitiveMetadataStore = new TenantSensitiveMetadataStore({} as never);
 
     await storeSecretSyncBindingDestinations({
       organizationId: ORG,
@@ -58,9 +57,7 @@ describe("storeSecretSyncSensitiveMetadata", () => {
   });
 
   it("stores worker script targets as encrypted sensitive metadata", async () => {
-    const sensitiveMetadataStore = new (
-      await import("@insecur/tenant-store")
-    ).TenantSensitiveMetadataStore({} as never);
+    const sensitiveMetadataStore = new TenantSensitiveMetadataStore({} as never);
 
     await storeSecretSyncWorkerScriptTarget({
       organizationId: ORG,
