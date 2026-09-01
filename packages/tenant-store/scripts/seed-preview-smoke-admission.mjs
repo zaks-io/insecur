@@ -4,7 +4,7 @@
  * Replaces the former ADMITTED_USER_MAP_JSON Worker var: admission is persisted in Postgres.
  */
 import postgres from "postgres";
-import { requireDatabaseUrl } from "./lib/env-local.mjs";
+import { requireDatabaseUrl, requireEnv } from "./lib/env-local.mjs";
 
 // Keep in sync with packages/preview-smoke/src/preview-smoke-no-scope-actor.ts
 const PREVIEW_SMOKE_NO_SCOPE_ADMITTED_USER_ID = "usr_0000000000000000000000SMK3";
@@ -119,12 +119,4 @@ async function upsertAdmission(actor) {
       revoked_at = NULL,
       updated_at = now()
   `;
-}
-
-function requireEnv(name) {
-  const value = process.env[name];
-  if (value === undefined || value.trim() === "") {
-    throw new Error(`${name} is required`);
-  }
-  return value;
 }
