@@ -27,7 +27,14 @@ import { buildR2BackupSweepEvidence, type R2BackupSweepEvidence } from "./r2-bac
 export const R2_BACKUP_SWEEP_TRIGGER_CRON = "* * * * *" as const;
 
 const DEFAULT_POLL_INTERVAL_MS = 10_000;
-const DEFAULT_EXPORT_TIMEOUT_MS = 6 * 60_000;
+
+/**
+ * The minute trigger claims the request on the next tick and the export itself runs a little under
+ * seven minutes against preview Neon, so the previous six-minute budget expired before the export
+ * the sweep had just requested could possibly land (INS-642). Allow for the claim delay plus a
+ * comfortable multiple of the observed export duration.
+ */
+const DEFAULT_EXPORT_TIMEOUT_MS = 12 * 60_000;
 const DEFAULT_SCHEDULE_TIMEOUT_MS = 15 * 60_000;
 
 /** Read-only access to R2 and the deployed Runtime schedule. */
@@ -91,14 +98,20 @@ export async function runR2BackupSweep(
   await waitForFrequentExportSchedule(input, now, sleep);
   await input.writeCanary();
   const canaryWrittenAt = now();
+  const requestId = crypto.randomUUID();
   await input.provider.requestExport(BACKUP_EXPORT_PROOF_REQUEST_KEY, {
     notBefore: canaryWrittenAt.getTime(),
-    requestId: crypto.randomUUID(),
+    requestId,
     status: "requested",
     version: BACKUP_EXPORT_PROOF_REQUEST_VERSION,
   });
 
-  const exportEvidence = await waitForExportAfter(input, canaryWrittenAt, now, sleep);
+  const exportEvidence = await waitForExportAfter(
+    input,
+    { canaryWrittenAt, requestId },
+    now,
+    sleep,
+  );
   assertExportMatchesOperation(exportEvidence, input.expectedInstanceId);
 
   const scanned = await downloadAndScanExportObjects(input, exportEvidence);
@@ -141,10 +154,11 @@ async function waitForFrequentExportSchedule(
 
 async function waitForExportAfter(
   input: RunR2BackupSweepInput,
-  canaryWrittenAt: Date,
+  proofRequest: { canaryWrittenAt: Date; requestId: string },
   now: () => Date,
   sleep: (ms: number) => Promise<void>,
 ): Promise<BackupExportSuccessEvidence> {
+  const { canaryWrittenAt, requestId } = proofRequest;
   const timeoutMs = input.exportTimeoutMs ?? DEFAULT_EXPORT_TIMEOUT_MS;
   const pollIntervalMs = input.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const deadline = now().getTime() + timeoutMs;
@@ -154,6 +168,7 @@ async function waitForExportAfter(
     if (evidence !== null && Date.parse(evidence.export_timestamp) >= canaryWrittenAt.getTime()) {
       return assertExportSucceeded(evidence);
     }
+    await assertProofRequestNotAbandoned(input.provider, requestId);
     if (now().getTime() >= deadline) {
       throw new Error(
         `R2 backup sweep: no backup export scheduled after the canary write appeared within ${String(timeoutMs)}ms`,
@@ -161,6 +176,34 @@ async function waitForExportAfter(
     }
     await sleep(pollIntervalMs);
   }
+}
+
+/**
+ * The Runtime records why it gave up on a proof request. Reporting that reason beats waiting out the
+ * full budget and then blaming a timeout for a failure the Runtime already diagnosed. The request key
+ * is shared, so only this run's own `requestId` counts: another writer's failure says nothing about
+ * the export this sweep is waiting on.
+ */
+async function assertProofRequestNotAbandoned(
+  provider: R2BackupSweepProvider,
+  requestId: string,
+): Promise<void> {
+  const bytes = await provider.getObject(BACKUP_EXPORT_PROOF_REQUEST_KEY);
+  if (bytes === null) {
+    return;
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(Buffer.from(bytes).toString("utf8"));
+  } catch {
+    throw new Error("R2 backup sweep: backup proof request is not valid JSON");
+  }
+  const request = raw as { reason?: unknown; requestId?: unknown; status?: unknown };
+  if (request.status !== "failed" || request.requestId !== requestId) {
+    return;
+  }
+  const reason = typeof request.reason === "string" ? request.reason : "no reason recorded";
+  throw new Error(`R2 backup sweep: the Runtime abandoned the backup proof request: ${reason}`);
 }
 
 function assertExportSucceeded(evidence: BackupExportSuccessEvidence): BackupExportSuccessEvidence {

@@ -33,7 +33,13 @@ jobs:
   smoke:
     name: Preview Smoke
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 25
+    # The R2 backup sweep waits up to 15min for the Runtime schedule plus 12min for the export it
+    # requests. That 27min runs alongside the Playwright suite, not after it, so the floor is 27min
+    # plus roughly 8min of checkout, install, browser download, CLI build, prune, and seed. A
+    # 25-minute ceiling cancelled the job before the sweep could report its own diagnosis (INS-642).
+    # Keep the slack modest: `preview-fleet` below is shared with Deploy Preview, so every extra
+    # minute here is a minute a hung job blocks preview deploys and holds preview Neon awake.
+    timeout-minutes: 45
     outputs:
       proof_passed: ${{ steps.preview_proofs.outcome == 'success' && steps.artifact_sweep.outcome == 'success' }}
     environment:
