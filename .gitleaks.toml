@@ -6,11 +6,12 @@ title = "insecur gitleaks"
 useDefault = true
 
 [[allowlists]]
-description = "Generated local mutation testing output"
+description = "Generated local build/test output that is gitignored and never committed"
 paths = [
   '''(?i)^reports/mutation/''',
   '''(?i)^\.stryker-tmp/''',
   '''(?i)^stryker\.log$''',
+  '''(?i)(^|/)\.turbo/''',
 ]
 
 [[rules]]

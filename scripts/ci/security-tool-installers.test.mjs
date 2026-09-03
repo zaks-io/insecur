@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const installers = [
-  ["install-gitleaks.sh", "fa0500f6b7e41d28791ebc680f5dd9899cd42b58629218a5f041efa899151a8e"],
+  ["install-gitleaks.sh", "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"],
   ["install-actionlint.sh", "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"],
 ];
 
