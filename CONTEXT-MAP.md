@@ -73,8 +73,7 @@ Every package has a local `CONTEXT.md`. For `preview-smoke`, also read `package.
 
 ## Reading Rules
 
-1. Start with the most local `CONTEXT.md` for the files you are touching. For an
-   implementation-support package without one, use its README or `src/index.ts`, then load the
+1. Start with the most local `CONTEXT.md` for the files you are touching, then load the
    owning domain context.
 2. From `CONTEXT.md`, load only the glossary slice(s) your task names, unless the
    task spans multiple contexts. Load `docs/context/relationships.md`,
