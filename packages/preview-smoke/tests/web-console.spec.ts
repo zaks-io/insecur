@@ -1,3 +1,4 @@
+import type { PreviewConfig } from "../src/env";
 import {
   ensureOwnerWorkspaceFixture,
   loadMemberships,
@@ -10,6 +11,34 @@ import {
   useSmokeBearer,
 } from "../src/web-console";
 import { expect, test } from "../src/fixtures";
+
+/**
+ * Which organization the console picks when the route names none is a coin flip across Playwright
+ * workers, so no test may pin it. `loadUserOrganizations` orders by Display Name
+ * (`packages/access/src/load-user-organizations.ts`) and every guided organization is provisioned as
+ * "My workspace" (`packages/onboarding/src/default-display-names.ts`), so the tie breaks on a random
+ * org id, and each worker's `beforeAll` provisions another one. Assert instead that the console landed
+ * on an organization this member belongs to, re-read now: membership only ever grows during a run, so
+ * a later provision cannot invalidate the answer. Routes that name an org explicitly are unaffected.
+ */
+async function expectLandedOnMemberOrganization(
+  landing: { label: string; pageUrl: string },
+  preview: PreviewConfig,
+  bearer: string,
+): Promise<string> {
+  const { label, pageUrl } = landing;
+  const landedOrganizationId = /\/orgs\/(?<organizationId>[^/?#]+)/u.exec(pageUrl)?.groups
+    ?.organizationId;
+  if (landedOrganizationId === undefined) {
+    throw new Error(`${label} landed on ${pageUrl}, which names no organization`);
+  }
+  const memberships = await loadMemberships(preview, bearer);
+  expect(
+    memberships.map((entry) => entry.organizationId),
+    `${label} should land on an organization the member belongs to`,
+  ).toContain(landedOrganizationId);
+  return landedOrganizationId;
+}
 
 test.describe("preview authenticated web console @preview @happy-path", () => {
   let workspace: SmokeWorkspaceFixture;
@@ -45,23 +74,27 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
     assertHtmlFreeOfSensitiveMaterial(html, "Web /whoami", [ownerBearer, preview.signingSecret]);
   });
 
-  test("default /orgs resolves to the member console", async ({ page, preview }) => {
+  test("default /orgs resolves to the member console", async ({ page, preview, ownerBearer }) => {
     const response = await gotoAuthedWebPage(page, preview.webBaseUrl, "/orgs/");
     const html = await page.content();
+    const landedOrganizationId = await expectLandedOnMemberOrganization(
+      { label: "Web /orgs", pageUrl: page.url() },
+      preview,
+      ownerBearer,
+    );
 
     await assertAuthedConsolePage({
       response,
       pageUrl: page.url(),
       html,
+      // The switcher renders the id of the active organization only, and its panel of the rest stays
+      // closed at `domcontentloaded`, so this is a check on where the console actually landed.
       label: "Web /orgs",
       expectation: {
         consoleShell: true,
-        expectedText: [workspace.displayName, workspace.organizationId, ">Projects<", ">Audit<"],
+        expectedText: [landedOrganizationId, ">Projects<", ">Audit<"],
       },
     });
-    expect(page.url(), "Web /orgs should land on the default organization").toContain(
-      `/orgs/${workspace.organizationId}`,
-    );
   });
 
   test("org home renders the console shell", async ({ page, preview }) => {
@@ -224,9 +257,15 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
   test("onboarding redirects members who already belong to an organization", async ({
     page,
     preview,
+    ownerBearer,
   }) => {
     const response = await gotoAuthedWebPage(page, preview.webBaseUrl, "/onboarding");
     const html = await page.content();
+    const landedOrganizationId = await expectLandedOnMemberOrganization(
+      { label: "Members with an org leaving /onboarding", pageUrl: page.url() },
+      preview,
+      ownerBearer,
+    );
 
     await assertAuthedConsolePage({
       response,
@@ -235,12 +274,9 @@ test.describe("preview authenticated web console @preview @happy-path", () => {
       label: "Web /onboarding redirect",
       expectation: {
         consoleShell: true,
-        expectedText: [workspace.displayName],
+        expectedText: [landedOrganizationId],
       },
     });
-    expect(page.url(), "Members with an org should leave /onboarding").toContain(
-      `/orgs/${workspace.organizationId}`,
-    );
   });
 
   test("onboarding handoff reopens when org, project, and env fixtures exist", async ({
