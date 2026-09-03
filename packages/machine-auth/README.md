@@ -9,7 +9,7 @@ Machine Identity auth method exchange for CI trust boundaries.
 - Machine access token minting and verification.
 - Exchange audit events with metadata-only denial facts.
 
-## Does not own
+## Does Not Own
 
 - Effective Access resolution, human sessions, Machine Identity membership persistence, Worker
   route/API composition, or Environment Deploy Keys.

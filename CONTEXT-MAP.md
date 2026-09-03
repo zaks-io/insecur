@@ -32,40 +32,44 @@ context for a specific task.
 
 ## Package Contexts
 
-| Path                                          | Module                                                         |
-| --------------------------------------------- | -------------------------------------------------------------- |
-| `packages/domain/CONTEXT.md`                  | Shared domain primitives and stable vocabulary shapes.         |
-| `packages/token-signing/CONTEXT.md`           | Shared HS256/HMAC signed-token codec for auth modules.         |
-| `packages/auth/CONTEXT.md`                    | Human authentication sessions and User actor context.          |
-| `packages/machine-auth/CONTEXT.md`            | Machine Identity auth method exchange and OIDC trust matching. |
-| `packages/access/CONTEXT.md`                  | Effective Access Resolver and scope-first authorization.       |
-| `packages/app-connection/CONTEXT.md`          | App Connection lifecycle and provider credential custody.      |
-| `packages/backup-restore/CONTEXT.md`          | Encrypted backup export, restore, and readiness evidence.      |
-| `packages/tenant-store/CONTEXT.md`            | Tenant-Scoped Store and metadata isolation.                    |
-| `packages/custody-contracts/CONTEXT.md`       | Plaintext-free custody and wrapped-material contracts.         |
-| `packages/crypto/CONTEXT.md`                  | Keyring, Encryption Envelope, and Ciphertext Identity Binding. |
-| `packages/tenant-keyring/CONTEXT.md`          | Runtime-only tenant-backed Keyring composition.                |
-| `packages/audit/CONTEXT.md`                   | Audit Event Writer and metadata-only audit records.            |
-| `packages/high-assurance/CONTEXT.md`          | Operation-bound High-Assurance Challenge evidence.             |
-| `packages/secret-store/CONTEXT.md`            | Secret Version Store and Blind Secret Write rules.             |
-| `packages/secret-store-contracts/CONTEXT.md`  | Public-safe Secret Write validation and error contracts.       |
-| `packages/runtime-injection-issue/CONTEXT.md` | Public-safe Injection Grant issue path and selector contracts. |
-| `packages/runtime-injection/CONTEXT.md`       | Runtime Injection Grant Service.                               |
-| `packages/onboarding/CONTEXT.md`              | Guided Organization Provisioning.                              |
-| `packages/release-gate/CONTEXT.md`            | Security Evidence Bundle assembly and fail-closed verdicts.    |
-| `packages/storage-security-gate/CONTEXT.md`   | Storage Security Gate metadata-only readiness verdict.         |
-| `packages/instance-bootstrap/CONTEXT.md`      | Instance Bootstrap and Bootstrap Operator Claim.               |
-| `packages/operations/CONTEXT.md`              | Operation Store and Sync Target Serialization.                 |
-| `packages/protected-change/CONTEXT.md`        | Protected promotion, rollback, and approval orchestration.     |
-| `packages/worker-kit/CONTEXT.md`              | Shared Worker HTTP/auth/RPC composition glue.                  |
-| `packages/cli/CONTEXT.md`                     | CLI commands, local config, safe input, and child execution.   |
-| `packages/local-store/CONTEXT.md`             | Local Mode machine root key custody and encrypted local store. |
+| Path                                          | Module                                                           |
+| --------------------------------------------- | ---------------------------------------------------------------- |
+| `packages/domain/CONTEXT.md`                  | Shared domain primitives and stable vocabulary shapes.           |
+| `packages/token-signing/CONTEXT.md`           | Shared HS256/HMAC signed-token codec for auth modules.           |
+| `packages/auth/CONTEXT.md`                    | Human authentication sessions and User actor context.            |
+| `packages/machine-auth/CONTEXT.md`            | Machine Identity auth method exchange and OIDC trust matching.   |
+| `packages/access/CONTEXT.md`                  | Effective Access Resolver and scope-first authorization.         |
+| `packages/agent-attribution/CONTEXT.md`       | Agent harness detection and Agent Session attribution.           |
+| `packages/app-connection/CONTEXT.md`          | App Connection lifecycle and provider credential custody.        |
+| `packages/backup-restore/CONTEXT.md`          | Encrypted backup export, restore, and readiness evidence.        |
+| `packages/tenant-store/CONTEXT.md`            | Tenant-Scoped Store and metadata isolation.                      |
+| `packages/custody-contracts/CONTEXT.md`       | Plaintext-free custody and wrapped-material contracts.           |
+| `packages/crypto/CONTEXT.md`                  | Keyring, Encryption Envelope, and Ciphertext Identity Binding.   |
+| `packages/tenant-keyring/CONTEXT.md`          | Runtime-only tenant-backed Keyring composition.                  |
+| `packages/audit/CONTEXT.md`                   | Audit Event Writer and metadata-only audit records.              |
+| `packages/notifications/CONTEXT.md`           | Metadata-only notification envelopes and webhook subscriptions.  |
+| `packages/high-assurance/CONTEXT.md`          | Operation-bound High-Assurance Challenge evidence.               |
+| `packages/secret-store/CONTEXT.md`            | Secret Version Store and Blind Secret Write rules.               |
+| `packages/secret-store-contracts/CONTEXT.md`  | Public-safe Secret Write validation and error contracts.         |
+| `packages/runtime-injection-issue/CONTEXT.md` | Public-safe Injection Grant issue path and selector contracts.   |
+| `packages/runtime-injection/CONTEXT.md`       | Runtime Injection Grant Service.                                 |
+| `packages/onboarding/CONTEXT.md`              | Guided Organization Provisioning.                                |
+| `packages/release-gate/CONTEXT.md`            | Security Evidence Bundle assembly and fail-closed verdicts.      |
+| `packages/storage-security-gate/CONTEXT.md`   | Storage Security Gate metadata-only readiness verdict.           |
+| `packages/instance-bootstrap/CONTEXT.md`      | Instance Bootstrap and Bootstrap Operator Claim.                 |
+| `packages/operations/CONTEXT.md`              | Operation Store and Sync Target Serialization.                   |
+| `packages/protected-change/CONTEXT.md`        | Protected promotion, rollback, and approval orchestration.       |
+| `packages/delivery-policy/CONTEXT.md`         | Delivery Risk Policy Presets and delivery automation resolution. |
+| `packages/secret-sync/CONTEXT.md`             | Secret Sync lifecycle and provider delivery adapters.            |
+| `packages/worker-kit/CONTEXT.md`              | Shared Worker HTTP/auth/RPC composition glue.                    |
+| `packages/observability/CONTEXT.md`           | Shared Sentry composition for Worker and browser runtimes.       |
+| `packages/ui/CONTEXT.md`                      | Shared React component library for the site and the console.     |
+| `packages/cli/CONTEXT.md`                     | CLI commands, local config, safe input, and child execution.     |
+| `packages/local-store/CONTEXT.md`             | Local Mode machine root key custody and encrypted local store.   |
+| `packages/preview-smoke/CONTEXT.md`           | Preview smoke harness assertions, probes, and deploy evidence.   |
 
-Implementation-support packages without a local domain context file are indexed in
-`packages/README.md`: `agent-attribution`, `delivery-policy`, `notifications`, `observability`,
-`preview-smoke`, `secret-sync`, and `ui`. For `preview-smoke`, start from `package.json` and
-`playwright.preview.config.ts`. For the others, start from their README or public `src/index.ts`,
-then load the owning domain context named by the code being changed.
+Every package has a local `CONTEXT.md`. For `preview-smoke`, also read `package.json` and
+`playwright.preview.config.ts`; it is test infrastructure rather than product code.
 
 ## Reading Rules
 
