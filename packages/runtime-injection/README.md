@@ -11,7 +11,7 @@ which exact Variable Keys may be delivered for a requested run.
 - Injection Grant issue and consume rules.
 - One-use grant invariants.
 - Direct non-protected `--variable-key` First Value convenience behavior.
-- Runtime Injection Policy evaluation once policies are implemented.
+- Runtime Injection Policy evaluation for exact secret bindings.
 - Metadata-only run status and denial result shapes.
 - Tests for output safety and exact Variable Key delivery.
 

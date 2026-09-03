@@ -1,56 +1,54 @@
 # Packages
 
-This directory contains the 20 workspace packages for insecur. The package map lives in
-`../docs/context-map.md`; the glossary lives in `../CONTEXT.md`.
+This directory contains the 33 workspace packages for insecur. The ownership and dependency map
+lives in [`../docs/context-map.md`](../docs/context-map.md); the glossary index lives in
+[`../CONTEXT.md`](../CONTEXT.md).
 
-Packages are cut around deep modules with explicit Interfaces, not around
-database tables, routes, or every heading in the glossary.
+Packages are cut around domain modules and capability boundaries, not database tables or route
+groups. Read a package's `CONTEXT.md` first when it exists, then its README and public exports.
 
-Each package has a local `CONTEXT.md` file. Use it as the first package-local
-reading map before loading slices of the root `../CONTEXT.md`.
+## Package index
 
-## Current Scaffold
+| Package                            | Responsibility                                                     |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `@insecur/access`                  | Effective Access resolution and scope-first authorization          |
+| `@insecur/agent-attribution`       | Agent session attribution and principal-chain metadata             |
+| `@insecur/app-connection`          | Provider connection lifecycle and credential custody orchestration |
+| `@insecur/audit`                   | Metadata-only audit events and tamper-evident exports              |
+| `@insecur/auth`                    | Human and CLI session authentication contracts                     |
+| `@insecur/backup-restore`          | Encrypted backup export, restore, and readiness evidence           |
+| `@insecur/cli`                     | The `insecur` CLI, Local Mode, and HTTP client composition         |
+| `@insecur/crypto`                  | Keyring, encryption envelopes, and ciphertext binding              |
+| `@insecur/custody-contracts`       | Plaintext-free public custody contracts                            |
+| `@insecur/delivery-policy`         | Delivery risk policy presets and automation resolution             |
+| `@insecur/domain`                  | Shared domain primitives and stable vocabularies                   |
+| `@insecur/high-assurance`          | Operation-bound step-up challenge evidence                         |
+| `@insecur/instance-bootstrap`      | One-time instance bootstrap and operator claim                     |
+| `@insecur/local-store`             | Encrypted machine-local custody for Local Mode                     |
+| `@insecur/machine-auth`            | Machine Identity OIDC and short-lived credential exchange          |
+| `@insecur/notifications`           | Metadata-safe approval notification ports                          |
+| `@insecur/observability`           | Allowlisted telemetry, traces, and query instrumentation           |
+| `@insecur/onboarding`              | Guided organization and first-project provisioning                 |
+| `@insecur/operations`              | Durable operation state and sync-target serialization              |
+| `@insecur/preview-smoke`           | Hosted preview proof suite and metadata-only evidence              |
+| `@insecur/protected-change`        | Protected promotion, rollback, and approval orchestration          |
+| `@insecur/release-gate`            | Security Evidence Bundle assembly and verdicts                     |
+| `@insecur/runtime-injection-issue` | Public-safe Runtime Injection grant issue contracts                |
+| `@insecur/runtime-injection`       | Runtime Injection grant policy and consumption                     |
+| `@insecur/secret-store-contracts`  | Public-safe Blind Secret Write contracts                           |
+| `@insecur/secret-store`            | Secret Version lifecycle and Blind Secret Write rules              |
+| `@insecur/secret-sync`             | Alpha Secret Sync planning and GitHub/Cloudflare provider adapters |
+| `@insecur/storage-security-gate`   | Production storage-readiness verdict and enforcement contracts     |
+| `@insecur/tenant-keyring`          | Runtime-only tenant-backed Keyring composition                     |
+| `@insecur/tenant-store`            | Tenant-scoped persistence and forced-RLS adapters                  |
+| `@insecur/token-signing`           | Shared HMAC token codec                                            |
+| `@insecur/ui`                      | Shared web and site visual primitives                              |
+| `@insecur/worker-kit`              | Shared Worker HTTP, auth, and RPC composition                      |
 
-- `@insecur/domain` - shared domain primitives and stable vocabulary shapes
-- `@insecur/token-signing` - shared HS256/HMAC signed-token codec
-- `@insecur/auth` - WorkOS session composition, User actor context, and CLI exchange contract
-- `@insecur/machine-auth` - Machine Identity auth method exchange and OIDC trust matching (staged M4 package; complete and tested, but no API exchange route consumes it yet)
-- `@insecur/access` - Effective Access Resolver and scope-first authorization
-- `@insecur/tenant-store` - Tenant-Scoped Store and RLS adapter contract
-- `@insecur/custody-contracts` - plaintext-free custody metadata and wrapped material contracts
-- `@insecur/crypto` - Keyring and Encryption Envelope
-- `@insecur/tenant-keyring` - Runtime-only tenant-backed keyring composition
-- `@insecur/audit` - Audit Event Writer
-- `@insecur/backup-restore` - encrypted backup metadata, restore drill evidence, recovery canary verification
-- `@insecur/release-gate` - Security Evidence Bundle assembly and release-gate skeleton
-- `@insecur/secret-store-contracts` - public-safe Secret Write validation and error contracts
-- `@insecur/secret-store` - Secret Version Store and Blind Secret Write rules
-- `@insecur/runtime-injection-issue` - public-safe Injection Grant issue path and contracts
-- `@insecur/runtime-injection` - Runtime Injection Grant Service
-- `@insecur/onboarding` - Guided Organization Provisioning
-- `@insecur/instance-bootstrap` - Instance Bootstrap and Bootstrap Operator Claim completion
-- `@insecur/operations` - Operation Store and Sync Target Serialization
-- `@insecur/worker-kit` - shared Worker HTTP/auth/RPC composition glue
-- `@insecur/cli` - local CLI composition and command execution
+## Package documentation
 
-## Package README Checklist
-
-Each package README should keep these sections current:
-
-- Owns
-- Consumes
-- Does Not Own
-- Interface Tests
-- Dependency Rule
-
-Each package `CONTEXT.md` should keep these sections current:
-
-- Role
-- Read First
-- Terms To Load
-- Adjacent Terms
-- Owns
-- Does Not Own
-
-When implementation starts, add concrete exported Interface docs before adding
-callers. The README is the contract reviewers should check first.
+Domain package READMEs document ownership, dependencies, exclusions, and test seams. Local
+`CONTEXT.md` files route agents to the governing glossary slices and adjacent modules. The complete
+package graph and dependency direction remain owned by
+[`../docs/context-map.md`](../docs/context-map.md), so do not infer architecture from this index
+alone.

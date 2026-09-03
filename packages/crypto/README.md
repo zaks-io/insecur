@@ -17,7 +17,7 @@ shortcuts.
 ## Consumes
 
 - `@insecur/domain` for tenant and resource identity shapes.
-- Key custody adapters when implementation reaches root-key material.
+- Key custody providers supplied by the Runtime Worker or Local Mode composition root.
 
 ## Does Not Own
 

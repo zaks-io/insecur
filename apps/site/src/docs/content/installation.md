@@ -48,14 +48,14 @@ Set these environment variables before running the script to change what gets in
 
 | Variable                   | Purpose                                                                      |
 | -------------------------- | ---------------------------------------------------------------------------- |
-| `INSECUR_CLI_VERSION`      | Pin a release tag, for example `cli-v0.1.0`. Defaults to the latest release. |
+| `INSECUR_CLI_VERSION`      | Pin a release tag, for example `cli-v0.2.0`. Defaults to the latest release. |
 | `INSECUR_INSTALL_DIR`      | Override the install destination directory.                                  |
 | `INSECUR_INSTALL_BASE_URL` | Override the base URL the binary and checksums are fetched from.             |
 
 Example, pinning a version and directory:
 
 ```sh
-INSECUR_CLI_VERSION=cli-v0.1.0 INSECUR_INSTALL_DIR="$HOME/bin" \
+INSECUR_CLI_VERSION=cli-v0.2.0 INSECUR_INSTALL_DIR="$HOME/bin" \
   curl -fsSL https://insecur.cloud/install.sh | sh
 ```
 

@@ -41,10 +41,12 @@ These control where the CLI reads and writes its own configuration. The user con
 
 ## Crash reporting and output
 
-| Variable                | Purpose                                  |
-| ----------------------- | ---------------------------------------- |
-| `INSECUR_CRASH_REPORTS` | Set to `off` to disable crash reporting. |
-| `INSECUR_ASCII`         | Force ASCII glyphs in output.            |
+| Variable                         | Purpose                                                       |
+| -------------------------------- | ------------------------------------------------------------- |
+| `INSECUR_CRASH_REPORTS`          | Set to `off` to disable crash reporting.                      |
+| `INSECUR_CLI_SENTRY_DSN`         | Override the CLI crash-reporting Sentry DSN.                  |
+| `INSECUR_CLI_SENTRY_ENVIRONMENT` | Override the environment label attached to CLI crash reports. |
+| `INSECUR_ASCII`                  | Force ASCII glyphs in output.                                 |
 
 ## Audit export verification
 
@@ -62,7 +64,7 @@ These are read by the install scripts, not by the CLI at runtime.
 
 | Variable                   | Purpose                                           |
 | -------------------------- | ------------------------------------------------- |
-| `INSECUR_CLI_VERSION`      | Release tag to install, for example `cli-v0.1.0`. |
+| `INSECUR_CLI_VERSION`      | Release tag to install, for example `cli-v0.2.0`. |
 | `INSECUR_INSTALL_DIR`      | Install destination directory.                    |
 | `INSECUR_INSTALL_BASE_URL` | Base URL for the binary and checksums.            |
 

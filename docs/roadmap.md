@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-07-05.
+Last reviewed: 2026-09-03.
 
 High-level milestone sequencing for handing implementation to a fleet of agents. This document
 owns the milestone order and each milestone's exit gate, nothing else: scope boundaries are owned
@@ -15,19 +15,9 @@ the Build Order in [project-status.md](project-status.md), and live status by
 Goal: every cross-group agreement becomes a compile-time or CI-time fact before parallel feature
 work starts, so seam divergence is caught by gates instead of review.
 
-- The enforcement code from the 2026-06-12 ADR batch is landed and blocking in CI: the
-  `OPERATION_INTENT_CODES` catalog and membership validation (ADR-0068), the
-  `operation.idempotency_mismatch` check (ADR-0066), the role-bundle registry conformance suite
-  (ADR-0034) including the machine-only `runtime_injection:grant_issue_protected` atom
-  (ADR-0038), the Plaintext Metadata Allowlist registry and conformance gate (ADR-0070), the
-  no-plaintext canary gate `pnpm test:canary` (ADR-0069), the exit/HTTP lockstep test
-  (ADR-0062), the decrypt-import lint boundary (ADR-0071), and non-lease `execution_deadline`
-  claims with lazy abandonment recovery (ADR-0073, INS-219).
-- Close the remaining custody and persistence gaps already ticketed: production root-key
-  bootstrap, escrow evidence, and Storage Security Gate sign-off (INS-145/147/149/150), plus the
-  API-side production Hyperdrive follow-through tracked after the landed runtime-pool work. INS-160
-  is landed evidence for wrapped-data-key storage and the root-key rewrap primitive, not an open M0
-  dependency.
+Scope: stable intent and error catalogs, role-bundle conformance, the Plaintext Metadata Allowlist,
+the no-plaintext canary, exit/HTTP lockstep, decrypt-import boundaries, package and deploy topology
+conformance, and operation liveness contracts.
 
 Exit gate: each named gate is blocking in CI; `pnpm verify` and the DB-backed `Verify` step are
 green with the new gates enabled.
@@ -37,12 +27,11 @@ green with the new gates enabled.
 Goal: the copyable diskless development secret loop works end to end through ordinary commands.
 
 Owned by [specs/first-value-ticket-plan.md](specs/first-value-ticket-plan.md) and
-[first-value-milestone.md](first-value-milestone.md): remaining Worker route/profile hardening,
-the copyable proof (INS-1), and validation telemetry (INS-4). Baseline CLI `secrets set`, `run`,
-and masked secret input are landed (INS-32, INS-33, INS-226).
+[first-value-milestone.md](first-value-milestone.md): Worker routes, CLI `secrets set` and `run`,
+the copyable proof, and validation telemetry.
 
 Exit gate: the First Value Proof passes end to end through `insecur secrets set --generate` plus
-`insecur run`; `pnpm test:e2e` and, once enabled, the preview smoke are green.
+`insecur run`; `pnpm test:e2e` and the Preview Smoke are green.
 
 ## M2 — Local Mode
 
@@ -72,8 +61,8 @@ Exit gate: documented evidence review and an explicit go/no-go on the V1 scope.
 
 Goal: the substrate that makes valuable secrets storable at all.
 
-Per the Build Order in [project-status.md](project-status.md): full Worker composition, persisted
-identity and admission, production Postgres/Hyperdrive bindings, the root-key bootstrap ceremony
+Foundation scope: full Worker composition, persisted identity and admission, production
+Postgres/Hyperdrive bindings, the root-key bootstrap ceremony
 (`-dev` first, per [runbooks/instance-root-key-bootstrap.md](runbooks/instance-root-key-bootstrap.md)),
 key readiness enforcement, Storage Security Gate checks, and protected environment modeling.
 
@@ -86,7 +75,8 @@ Goal: the capabilities that separate insecur from commodity secret managers.
 
 Machine Identity, OIDC, and environment-scoped deploy keys (architecture group AG7); the promotion
 approval state machine, High-Assurance Challenges, and the web Human Approval Surface (AG6/AG9);
-then App Connections and GitHub/Cloudflare Secret Sync (AG8). The order is load-bearing: approval gates land
+then App Connections and GitHub/Cloudflare Secret Sync (AG8). Provider sync remains alpha until its
+provider-level and hosted end-to-end evidence is strong enough for production use. The order is load-bearing: approval gates land
 before provider sync because Approval Impact Review is the approval evidence for Cloudflare Worker
 secret deploys (ADR-0039), and the protected-issuance boundary stays a scope atom, never an
 actor-type branch (ADR-0038).

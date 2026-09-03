@@ -109,16 +109,17 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 - **Preview deploy from local code:** `pnpm --filter @insecur/web deploy:preview` builds and deploys
   only the Web Worker through Wrangler. It uses local Wrangler authentication, derives a dirty-tree
   deploy identity, and preserves the existing Cloudflare-side preview variables. It needs no
-  Preview GitHub Environment IDs or Worker secrets. Use the manually dispatched `Deploy Preview`
-  workflow for Runtime/API resource bindings, migration, secret sync, and the shared smoke test.
+  Preview GitHub Environment IDs or Worker secrets. Full-fleet Preview deployment, migration, and
+  smoke run through the reusable `Deploy Preview` and `Preview Smoke` stages of `Daily Release`;
+  those reusable workflows are not directly dispatchable.
 - **PR/local pre-push gate:** `pnpm verify:prepush` (`pnpm verify:pr` + `pnpm test:coverage`; repo policy checks, Turbo affected package checks, and the coverage ratchet)
 - **Full verify:** `pnpm verify` (repo policy checks plus the full Turbo lint/typecheck/test package graph)
 - **CI check alias:** `pnpm ci:check` (same as `pnpm verify`)
 - **Duplicate scan:** `pnpm duplicates:check` (strict jscpd zero gate). CI/pre-push enforce `pnpm duplicates:ci` (zero-duplicate gate, delegates to `duplicates:check`).
 - **Unused code/deps:** `pnpm knip` (blocking in `verify:policy`, pre-push, and CI)
 - **Workflow lint:** `pnpm lint:actions` (actionlint; blocking in `verify:policy`, pre-push, and CI)
-- **Typecheck:** `pnpm typecheck` (runs across every workspace project: 22 packages + 4 apps)
-- **Dev check:** `pnpm dev:check` (Node, pnpm, Wrangler, and scaffold file checks)
+- **Typecheck:** `pnpm typecheck` (runs across every workspace project: 33 packages + 4 apps)
+- **Dev check:** `pnpm dev:check` (Node, pnpm, Wrangler, and required file checks)
 - **Local Postgres:** `pnpm dev:db:reset` (Postgres 17 Docker Compose, local-only role guard)
 - **Local smoke:** `pnpm smoke:local` resets configured Postgres; `pnpm smoke:local:docker` resets Docker Compose first
 - **Build:** `pnpm build` (includes the Worker dry-run deploys through `apps/api/wrangler.jsonc` and `apps/runtime/wrangler.jsonc`)
@@ -128,7 +129,7 @@ The `.cursor/environment.json` and `.cursor/Dockerfile` are the environment sour
 ### Known caveats
 
 - `engine-strict=true` in `.npmrc` means `pnpm install` will hard-fail if Node is not on major 24. Always verify `node --version` first.
-- `@insecur/api` (the public API Worker, `insecur-api`) serves `/healthz` liveness plus the `/v1/auth`, `/v1/session`, `/v1/onboarding`, `/v1/orgs/:organizationId/projects`, and `/v1/orgs/:organizationId/runtime-injection` product routes. Keyring-bound work (secret write = encrypt, grant consume = decrypt) is forwarded over the private `RUNTIME` Service Binding to `@insecur/runtime` (`insecur-runtime`), the sole holder of `INSTANCE_ROOT_KEY_V1` and the only deploy that decrypts; it serves zero public routes. `pnpm test:e2e` drives the First Value loop through these real routes against the multi-deploy shape. The authoritative route → deploy table is `docs/specs/deploy-route-inventory.md`, enforced by `pnpm conformance:topology`.
+- `@insecur/api` (the public API Worker, `insecur-api`) serves `/healthz` and the public V1 product routes. The authoritative route → deploy table is `docs/specs/deploy-route-inventory.md`, enforced by `pnpm conformance:topology`. Keyring-bound work is forwarded over the private `RUNTIME` Service Binding to `@insecur/runtime` (`insecur-runtime`), the sole holder of `INSTANCE_ROOT_KEY_V1` and the only deploy that decrypts; it serves zero public routes. `pnpm test:e2e` drives the First Value loop through the real multi-deploy route shape.
 - jscpd duplicate-code detection: `pnpm duplicates:check` is the strict zero gate; `pnpm duplicates:ci` delegates to it and is the blocking CI/pre-push path. `pnpm duplicates:warn` only emits annotations and is non-blocking. knip (`pnpm knip`) is also blocking in `verify:policy`, pre-push, and CI; its `types` dead-code rule is enabled (INS-311) and only the `exports` rule remains off in `knip.json`. Enabling `exports` is the remaining eligible follow-up config change (`docs/build-tooling.md`).
 - Local Postgres is an iteration aid only. It is pinned to Postgres 17 until ADR-0060 changes because Postgres 18 is still preview on Neon.
 - `pnpm test:rls` runs the real forced-RLS tenant suite (requires `DATABASE_URL_RUNTIME`); it now executes in CI's DB-backed `Verify` step alongside `pnpm test:e2e` (the First Value loop through the real Worker routes). See `docs/agents/testing.md`.

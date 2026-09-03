@@ -82,15 +82,16 @@ authorization, audit, or key-boundary rewrite.
 
 ## Direction of the repo
 
-This repo is documentation-led by design: the docs are the product spec, and the accepted code now
-present is the First Value scaffold and verification baseline. The next product behavior written is
-the target product built against these docs.
+This repo is documentation-led by design: the docs are the product spec, and accepted code now
+spans First Value, Local Mode, the metadata console, protected-change foundations, and supporting
+custody and release gates. Production readiness remains blocked by the explicit launch evidence.
 
 - `../CONTEXT.md` is the canonical domain language; `../CONTEXT-MAP.md` and `context-map.md`
   route work to packages.
 - `architecture.md` holds scope, the product boundary, and the V1 spine.
 - `project-status.md` holds current state and the dependency-ordered build order.
-- `phasing.md` owns what ships as which version (deliberately not yet decided).
+- `phasing.md` owns the decided V1 and deferred-scope boundary; finer release subdivision remains
+  open.
 - `brand/voice.md` and `brand/messaging.md` own how we talk about it.
 
 Build direction (ordering, not a release plan): First Value (provider-free diskless dev

@@ -8,7 +8,7 @@
 [![security-daily](https://github.com/zaks-io/insecur/actions/workflows/security-daily.yml/badge.svg)](https://github.com/zaks-io/insecur/actions/workflows/security-daily.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-insecur is secrets custody built for coding agents. Your agent asks for the secret it needs, insecur creates and sets the value, and the agent gets back a working key. It never types, picks, or copies the raw secret, and there is no plaintext `.env` file left on disk for it to read.
+insecur is secrets custody built for coding agents. Your agent asks for the secret it needs, insecur creates and sets the value, and the agent gets back a working key. It never types, picks, or copies the raw secret, and it can run without leaving a plaintext `.env` file on disk for the agent to read.
 
 Every other secrets tool is named after a fortress. We named this one after the problem, because the job is to remove the specific ways secrets leak, not to sell a feeling of safety. Yes, the name is on purpose.
 
@@ -26,7 +26,7 @@ The full custody model is in the [security model](https://insecur.cloud/docs/sec
 ## What you can do with it
 
 - **Find leaks:** `insecur scan` produces an offline, metadata-only secret exposure report for your project, and can optionally scan agent transcripts and well-known credential locations.
-- **Kill your `.env`:** `insecur import .env` moves a dotenv file into an encrypted development environment, all-or-nothing, then `insecur scan` confirms nothing readable is left behind.
+- **Kill your `.env`:** `insecur import .env` copies a dotenv file into an encrypted development environment, all-or-nothing. The source stays in place until you explicitly run `insecur local-files rm .env`; then `insecur scan` confirms nothing readable is left behind.
 - **Blind-write secrets:** `insecur secrets set KEY --generate` creates a value no human chose, saw, or pasted anywhere. There is no `get` or `export` command, on purpose.
 - **Run without files:** `insecur run` injects secrets into the process environment for exactly one run. They leave when the process does.
 - **Keep everything on the record:** every grant and use is audited and exportable; machine access uses short-lived scoped credentials, never tokens that live forever.
@@ -35,8 +35,11 @@ Robots are free. Machine identities, runtime injection, and CI access are never 
 
 ## Quickstart
 
+Install the [GitHub CLI](https://cli.github.com/) first. The installer requires `gh attestation`
+support and refuses binaries without valid build provenance.
+
 ```sh
-curl -fsSL https://insecur.cloud/install.sh | sh   # verifies the release checksum before installing
+curl -fsSL https://insecur.cloud/install.sh | sh   # verifies checksum and signed provenance
 insecur login
 insecur init
 insecur secrets set SESSION_SIGNING_KEY --generate
@@ -69,7 +72,8 @@ packages/
   tenant-store/       tenant-scoped store and RLS adapter contract
   crypto/             keyring and encryption envelope
   audit/              audit event writer
-  secrets/            secret versions and blind secret write rules
+  secret-store/       secret versions and blind secret write rules
+  secret-sync/        alpha GitHub Actions and Cloudflare Worker delivery
   runtime-injection/  runtime injection grants
   onboarding/         guided organization provisioning
   cli/                the `insecur` CLI
@@ -77,7 +81,7 @@ packages/
 
 ## Status
 
-insecur is open source (Apache-2.0); the hosted service at insecur.cloud is operated by Zaks.io, LLC. The project is in pre-launch build-out and not yet live. The First Value loop (diskless development secret use through the real API, Runtime Worker, and CLI) works end to end today; provider sync to GitHub and Cloudflare, protected delivery policy, and the production storage security gate are in progress. Production secret delivery stays blocked until the [Storage Security Gate](docs/storage-security-gate.md) passes. Current state and build order are tracked in [docs/project-status.md](docs/project-status.md) and [docs/roadmap.md](docs/roadmap.md).
+insecur is open source (Apache-2.0); the hosted service at insecur.cloud is operated by Zaks.io, LLC. The project is in pre-launch build-out and is not approved for valuable production secrets yet. Local Mode, the hosted First Value loop, the metadata web console, and protected-change approval flows are implemented. Provider sync has early GitHub Actions and Cloudflare Worker adapters, but it is alpha and does not yet have enough provider-level testing to be treated as reliable. Production delivery remains blocked until the [Storage Security Gate](docs/storage-security-gate.md) has complete runtime evidence and enforcement. Current code, deployment evidence, and remaining launch work are tracked in [docs/project-status.md](docs/project-status.md).
 
 ## Development
 
@@ -85,7 +89,7 @@ Requires Node 24 and pnpm 10. See [docs/setup.md](docs/setup.md) for the full se
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev:check          # verify toolchain and scaffold
+pnpm dev:check          # verify the local toolchain and required files
 pnpm dev:db:reset       # local Postgres 17 via Docker Compose
 pnpm dev:workers        # run the API + Runtime Workers locally
 pnpm verify             # the full CI gate: policy checks, lint, typecheck, tests

@@ -62,6 +62,7 @@ isolation across separate Cloudflare Worker deploys.** insecur is not a monolith
 | **API** (`insecur-api`)         | Public edge. Authenticates humans/agents/CI. Runs no crypto and no DB I/O.                                              | No              | Yes            | No               |
 | **Runtime** (`insecur-runtime`) | Sole holder of `INSTANCE_ROOT_KEY_V1`. The only place ciphertext becomes plaintext. Runs the Effective Access Resolver. | **Yes**         | **No**         | Yes (Hyperdrive) |
 | **Web** (`insecur-web`)         | BFF. Owns the human session cookie, CSRF, rotation.                                                                     | No              | Yes            | No               |
+| **Site** (`insecur-site`)       | Public marketing, docs, installers, legal, and error reference. No product-control-plane bindings.                      | No              | Yes            | No               |
 
 The **topology invariant** is normative and machine-enforced: _no deploy may hold both a
 public route group and the root-key binding. Exactly one deploy declares the root key, and it

@@ -16,7 +16,8 @@ route → deploy table and [`../../docs/architecture.md`](../../docs/architectur
 
 ```
 src/index.ts                   Exports RuntimeService; default fetch returns 404 (no public routes)
-src/runtime-service.ts         The RuntimeService RPC seam: consumeGrant (decrypt), writeSecret (encrypt)
+src/runtime-service.ts         The private RuntimeService RPC composition root
+src/runtime-restore-service.ts The restore-only RuntimeRestoreService entrypoint
 src/crypto/keyring-context.ts  Keyring construction — the chokepoint fenced to this deploy only
 src/rpc/*                      Hop-token verification + RpcResult error mapping across the seam
 wrangler.jsonc                 secrets_store_secrets: [INSTANCE_ROOT_KEY_V1]; hop-token secret via
@@ -35,14 +36,12 @@ deploy vars such as `SENTRY_RELEASE` so runtime errors report the same release a
 
 ## The seam
 
-Two coordinate-shaped RPC methods. The API Worker passes IDs plus a scoped, audience-bound hop token;
-nothing crypto-shaped crosses. Custom error properties (`code`/`retryable`) do not survive the RPC
-boundary, so failures are returned as a discriminated `RuntimeRpcResult` (data, not thrown), and the
-API re-throws a shaped error.
-
-- `consumeGrant(...)` — the ADR-0071 egress point: resolves the grant, decrypts, returns the delivery
-  envelope (plaintext base64url-encoded for clone-safety).
-- `writeSecret(...)` — authorizes the scope then encrypts and appends the Secret Version.
+The API Worker passes opaque IDs, request data, and a scoped audience-bound hop token. Custom error
+properties (`code`/`retryable`) do not survive the RPC boundary, so failures are returned as a
+discriminated `RuntimeRpcResult` and the API rethrows a shaped error. The RPC surface covers the
+tenant control plane, custody, audit, approvals, Runtime Injection, App Connections, and alpha
+Secret Sync. `RuntimeRestoreService` is a separate restore-only entrypoint that API and Web cannot
+invoke.
 
 **Authorization and decryption are one indivisible call (ADR-0034):** the package functions run the
 single Effective Access resolver internally before they touch the keyring, so there is no
@@ -54,8 +53,8 @@ single Effective Access resolver internally before they touch the keyring, so th
 - All encryption / decryption (the decrypt-egress boundary).
 - Hop-token verification (audience `insecur-runtime`).
 - The Runtime-side Effective Access resolution that runs inside the same call that decrypts.
-- Secret Sync, when it lands: it runs **inline** here (ADR-0057), triggered synchronously from the API
-  Worker over the binding — no sync worker, no Queues/DOs.
+- Alpha Secret Sync execution. It runs inline here (ADR-0057), triggered synchronously from the API
+  Worker over the binding, with no sync worker or Queue/DO execution path.
 
 ## Does Not Own
 

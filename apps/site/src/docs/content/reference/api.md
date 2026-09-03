@@ -19,11 +19,13 @@ The CLI is the supported client. This page documents the API surface for orienta
 - Success looks like `{ "ok": true, "data": ..., "meta": ... }`.
 - Failures use RFC 9457-style bodies with a stable `code`, a `retryable` flag, a `type` URI of the form `https://insecur.dev/errors/<code-with-hyphens>`, and often machine-readable remediation.
 
-Secret values never appear in any response body. The one delivery path is grant consumption inside the private Runtime deploy. Short-lived CLI credentials are returned only in a response header, never a body.
+Stored customer Secret Values never appear in any response body. The one delivery path is grant consumption inside the private Runtime deploy. Short-lived CLI credentials are returned only in a response header, never a body.
 
 ## Authentication
 
-The API is reached with short-lived CLI session credentials sent in a request header. Browser sessions live in the web console BFF, not on the public API.
+Most API routes use short-lived CLI session credentials sent in a request header. Runtime Injection
+also accepts verified short-lived Machine Access Tokens. Browser sessions live in the web console
+BFF, not on the public API.
 
 ## Success envelope
 
@@ -51,23 +53,26 @@ The API is reached with short-lived CLI session credentials sent in a request he
 
 Documented at the group level only.
 
-| Method(s) | Prefix                                                                                             | Purpose                                                                                                                                                                   |
-| --------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET       | `/healthz`                                                                                         | Liveness.                                                                                                                                                                 |
-| Various   | `/v1/auth`                                                                                         | CLI login flows: AuthKit PKCE authorize and exchange, device authorization.                                                                                               |
-| Various   | `/v1/session`                                                                                      | whoami, agent derive and register, memberships, revoke.                                                                                                                   |
-| Various   | `/v1/instance/bootstrap`                                                                           | Instance bootstrap status and operator claim.                                                                                                                             |
-| POST      | `/v1/onboarding`                                                                                   | Guided personal organization provisioning.                                                                                                                                |
-| Various   | `/v1/orgs/:organizationId/projects`                                                                | Projects, environments, secrets matrix metadata, per-secret version metadata, blind secret write by variable key, possession check, machine identities, injection grants. |
-| POST      | `/v1/orgs/:organizationId/runtime-injection`                                                       | Issue runtime injection grants.                                                                                                                                           |
-| Various   | `/v1/orgs/:organizationId/run-policies`                                                            | Runtime injection policies: create, show, disable.                                                                                                                        |
-| Various   | `/v1/orgs/:organizationId/connections`                                                             | App connections: list, create, status, reauth, rotate, disconnect.                                                                                                        |
-| Various   | `/v1/orgs/:organizationId/approval-requests`, `/v1/orgs/:organizationId/high-assurance-challenges` | Approvals and human step-up.                                                                                                                                              |
-| GET       | `/v1/orgs/:organizationId/audit-events`, `/v1/orgs/:organizationId/audit-export`                   | Audit feed and signed export.                                                                                                                                             |
-| Various   | `/v1/orgs/:organizationId/operations`                                                              | Long-running operation state: get, wait, cancel.                                                                                                                          |
-| Various   | `/v1/orgs/:organizationId/webhook-subscriptions`                                                   | Webhook subscription management.                                                                                                                                          |
-| Various   | `/v1/orgs/:organizationId/members`, `/v1/orgs/:organizationId/invitations`                         | Membership metadata.                                                                                                                                                      |
-| GET       | `/v1/orgs/:organizationId/first-value-usage`                                                       | Onboarding usage counters.                                                                                                                                                |
+| Method(s) | Prefix                                                                                             | Purpose                                                                                                                                            |
+| --------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET       | `/healthz`                                                                                         | Liveness.                                                                                                                                          |
+| Various   | `/v1/auth`                                                                                         | CLI login flows: AuthKit PKCE authorize and exchange, device authorization.                                                                        |
+| Various   | `/v1/session`                                                                                      | whoami, agent derive and register, memberships, revoke.                                                                                            |
+| Various   | `/v1/instance/bootstrap`                                                                           | Instance bootstrap status and operator claim.                                                                                                      |
+| POST      | `/v1/onboarding`                                                                                   | Guided personal organization provisioning.                                                                                                         |
+| POST      | `/v1/orgs/:organizationId/organizations`                                                           | Create an organization in the current tenant context.                                                                                              |
+| Various   | `/v1/orgs/:organizationId/projects`                                                                | Projects, environments, secrets metadata, blind writes, possession checks, protected promotion and rollback, machine identities, injection grants. |
+| Various   | `/v1/orgs/:organizationId/projects/:projectId/environments/:environmentId/secret-syncs`            | Alpha Secret Sync create, update, and run routes.                                                                                                  |
+| POST      | `/v1/orgs/:organizationId/runtime-injection`                                                       | Issue runtime injection grants.                                                                                                                    |
+| Various   | `/v1/orgs/:organizationId/run-policies`                                                            | Runtime injection policies: create, show, disable.                                                                                                 |
+| Various   | `/v1/orgs/:organizationId/connections`                                                             | App connections: list, create, status, reauth, rotate, disconnect.                                                                                 |
+| Various   | `/v1/orgs/:organizationId/approval-requests`, `/v1/orgs/:organizationId/high-assurance-challenges` | Approvals and human step-up.                                                                                                                       |
+| GET       | `/v1/orgs/:organizationId/audit-events`, `/v1/orgs/:organizationId/audit-export`                   | Audit feed and signed export.                                                                                                                      |
+| Various   | `/v1/orgs/:organizationId/operations`                                                              | Long-running operation state: get, wait, cancel.                                                                                                   |
+| Various   | `/v1/orgs/:organizationId/webhook-subscriptions`                                                   | Webhook subscription management.                                                                                                                   |
+| Various   | `/v1/orgs/:organizationId/members`, `/v1/orgs/:organizationId/invitations`                         | Membership metadata.                                                                                                                               |
+| GET       | `/v1/orgs/:organizationId/first-value-usage`                                                       | Onboarding usage counters.                                                                                                                         |
+| POST      | `/v1/orgs/:organizationId/design-partner-feedback`                                                 | Metadata-only design-partner feedback tied to a request or operation.                                                                              |
 
 ## Errors and exit codes
 

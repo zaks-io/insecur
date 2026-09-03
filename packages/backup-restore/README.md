@@ -33,6 +33,6 @@ Scheduled Worker export execution and R2 landing live in `apps/runtime` (ADR-007
 ## Commands
 
 ```sh
-pnpm --filter @insecur/backup-restore drill -- --evidence-dir evidence
+pnpm --filter @insecur/backup-restore fixture-self-test -- --evidence-dir evidence
 pnpm --filter @insecur/backup-restore verify-evidence -- --evidence-dir evidence
 ```

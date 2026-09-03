@@ -1,15 +1,18 @@
 # Setup
 
-There is not yet a supported product setup path for storing or delivering secrets. The accepted
-setup path today is contributor and agent verification of the scaffold.
+This page covers contributor setup. For product use, install the released CLI and follow the
+[public quickstart](https://insecur.cloud/docs/quickstart). Local Mode is supported for
+accountless development custody, and the hosted service supports the prelaunch First Value flow.
+Do not use the hosted service for valuable production secrets until the production launch gate in
+[project-status.md](project-status.md) is complete.
 
 1. Use Node 24 and pnpm 10.
 2. Install dependencies with `pnpm install --frozen-lockfile`.
 3. Run `pnpm dev:check`.
 4. Run `pnpm verify`.
-5. Run `pnpm duplicates:check` when touching repeated logic or shared helpers.
-6. Run `pnpm build`.
-7. Optionally run the copyable proof:
+5. Run `pnpm build`.
+6. Run `pnpm smoke:local:docker` when changing persistence, Worker composition, or custody paths.
+7. Optionally run the standalone example verifier:
    `INSECUR_PROOF_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") node examples/first-value-proof/verify.mjs`.
 
 The local Workers can be started with:
@@ -27,14 +30,15 @@ returns 404 to direct HTTP requests. The API Worker serves the
 `/v1/orgs/:organizationId/projects`, Runtime Injection grants under
 `/v1/orgs/:organizationId/runtime-injection`) and forwards keyring-bound work to the Runtime Worker
 over the private `RUNTIME` Service Binding; the Runtime Worker is the sole holder of
-`INSTANCE_ROOT_KEY_V1` and serves no public routes. Until the API Worker DB adapter lands, local
-Wrangler dev is a Worker liveness/service-binding smoke; the First Value loop test (`pnpm test:e2e`)
-drives the composed routes against local Postgres. See `docs/specs/deploy-route-inventory.md` for
-the authoritative route → deploy table.
+`INSTANCE_ROOT_KEY_V1` and serves no public routes. The API Worker performs no direct database I/O.
+It forwards all persisted work to Runtime over the private binding, and Runtime reaches local
+Postgres through Hyperdrive. `pnpm test:e2e` drives the First Value routes against that database.
+See `docs/specs/deploy-route-inventory.md` for the authoritative route → deploy table.
 
 ## Local Configuration
 
-- `.env.example` documents optional service keys for future product slices.
+- `.env.example` documents the local database and WorkOS configuration names used by the current
+  codebase.
 - Copy keys into `.env.local` only when a task explicitly needs real service access.
 - `apps/api/.dev.vars.example` and `apps/runtime/.dev.vars.example` document local Worker secret
   placement for each deploy (the shared `RUNTIME_TOKEN_SIGNING_SECRET` must match between them).
@@ -87,16 +91,13 @@ pnpm dev:db:guard
 ```
 
 The first DB command generates local-only values into ignored `.env.local` if they are missing. The
-scaffold creates separate migration and runtime roles and checks that the runtime role is distinct,
+database setup creates separate migration and runtime roles and checks that the runtime role is distinct,
 can connect, and has `rolbypassrls=false`. It also pins Neon-adjacent local settings for SCRAM
 password auth, `idle_in_transaction_session_timeout`, and `max_connections`. The guard proves role
 posture and local configuration only; complete tenant-isolation coverage belongs to
 `pnpm test:rls` running as the `NOBYPASSRLS` runtime role via `DATABASE_URL_RUNTIME` against this
 Docker Compose Postgres.
 
-V1 product setup guidance should be written only after the tenant-first authorization model,
-WorkOS AuthKit, short-lived machine access, tenant-bound key hierarchy, Sensitive Metadata
-encryption, audit/export integrity, and
-[security release gates](security-runbooks-and-release-gates.md) are implemented. Until then,
-scaffold verification commands are contributor documentation only and must not be used with
-valuable secrets.
+These commands are contributor verification paths. Product installation and CLI use are documented
+at [insecur.cloud/docs](https://insecur.cloud/docs). The hosted service remains prelaunch, so its
+production-readiness limits in [SECURITY.md](../SECURITY.md) still apply.

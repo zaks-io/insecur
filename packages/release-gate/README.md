@@ -1,12 +1,11 @@
 # @insecur/release-gate
 
-Metadata-only Security Evidence Bundle assembly and the initial security check
-skeleton for release gating.
+Metadata-only Security Evidence Bundle assembly and fail-closed release-readiness evaluation.
 
 ## Owns
 
 - Security Evidence Bundle shape and assembly.
-- Security check skeleton control IDs for verify, dependency scan, secret scan,
+- Security check control IDs for verify, dependency scan, secret scan,
   syft and grype vulnerability scan, and ASVS/API Top 10 checklist status.
 - Metadata-only secret-scan summarization without Sensitive Values.
 - Fail-closed bundle verdict derivation.
