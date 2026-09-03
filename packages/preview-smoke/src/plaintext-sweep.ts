@@ -36,16 +36,18 @@ export interface TableSweepQuery {
 const TEXTUAL_COLUMN_TYPES = new Set(["character", "character varying", "json", "jsonb", "text"]);
 
 /** Preview Neon scales to zero between releases, so a resume is the normal case, not the exception. */
-const CONNECT_TIMEOUT_SECONDS = 30;
+const CONNECT_TIMEOUT_SECONDS = 20;
 
-const STATEMENT_TIMEOUT_MS = 30_000;
+/** Server-side backstop, so one stuck scan reports a precise Postgres error well before the deadline. */
+const STATEMENT_TIMEOUT_MS = 25_000;
 
 /**
- * The Playwright tests that call this allow 180s and one of them sweeps twice, so a per-statement
- * ceiling alone does not bound the run. Fail loud on the whole sweep rather than let a stalled
- * compute expire the test and report nothing but a Playwright timeout (INS-642).
+ * Bounds the whole call, connect included. The Playwright tests that call this allow 180s and
+ * `webhook-subscriptions.spec.ts` sweeps twice inside one of them, so a per-statement ceiling does
+ * not bound the run: 47 statements under it can outlive the test and report nothing but a Playwright
+ * timeout, which is the failure INS-642 is about.
  */
-const SWEEP_BUDGET_MS = 60_000;
+const SWEEP_DEADLINE_MS = 50_000;
 
 /** Aggregate row counter, aliased alongside the per-probe `h{n}` columns. */
 const ROW_COUNT_ALIAS = "sweep_row_count";
@@ -60,24 +62,65 @@ export async function runPlaintextSweep(
     connect_timeout: CONNECT_TIMEOUT_SECONDS,
     connection: { statement_timeout: STATEMENT_TIMEOUT_MS },
   });
+  const sweep = sweepUnderServiceAccess(sql, sentinel);
+  // The deadline can win the race below; keep the loser's rejection from surfacing unhandled.
+  sweep.catch(() => undefined);
+  let expiry: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await sql.begin(async (tx) => {
-      // Transaction-local Service Access scope, the ADR-0037 engine gate, matching
-      // `packages/tenant-store/src/apply-tenant-scope.ts`. Session scope would survive as a silent
-      // false pass if the pooled connection dropped and postgres.js reconnected without it: RLS
-      // would then hide every row and the sweep would report a clean database it never read.
-      await tx`SELECT set_config('app.service', 'true', true)`;
-      const columns = await listTextualColumns(tx);
-      const sweep = await sweepPostgresColumns(tx, columns, sentinel);
-      if (sweep.rowsObserved === 0) {
-        throw new Error(
-          `Plaintext sweep: scanned ${String(columns.length)} textual column(s) across ${String(countTables(columns))} table(s) but observed zero rows, so the sweep proved nothing`,
-        );
-      }
-      return { columnCount: columns.length, ...sweep };
-    });
+    return await Promise.race([
+      sweep,
+      new Promise<never>((_resolve, reject) => {
+        expiry = setTimeout(() => {
+          reject(
+            new Error(`Plaintext sweep: exceeded its ${String(SWEEP_DEADLINE_MS)}ms deadline`),
+          );
+        }, SWEEP_DEADLINE_MS);
+      }),
+    ]);
   } finally {
+    clearTimeout(expiry);
     await sql.end({ timeout: 5 });
+  }
+}
+
+async function sweepUnderServiceAccess(
+  sql: ReturnType<typeof postgres>,
+  sentinel: Sentinel,
+): Promise<PlaintextSweepResult> {
+  return sql.begin(async (tx) => {
+    // Transaction-local Service Access scope, the ADR-0037 engine gate, matching
+    // `packages/tenant-store/src/apply-tenant-scope.ts`. Session scope would survive as a silent
+    // false pass if the pooled connection dropped and postgres.js reconnected without it: RLS would
+    // then hide every row and the sweep would report a clean database it never read.
+    await tx`SELECT set_config('app.service', 'true', true)`;
+    await assertServiceAccessScope(tx);
+    const columns = await listTextualColumns(tx);
+    const sweep = await sweepPostgresColumns(tx, columns, sentinel);
+    // A row count cannot prove the scope took effect, because the instance-level tables the preview
+    // seed writes carry no RLS policy at all and would report rows either way. It catches the other
+    // way the gate can prove nothing: a database with no data in it.
+    if (sweep.rowsObserved === 0) {
+      throw new Error(
+        `Plaintext sweep: scanned ${String(columns.length)} textual column(s) across ${String(countTables(columns))} table(s) but observed zero rows, so the sweep proved nothing`,
+      );
+    }
+    return { columnCount: columns.length, ...sweep };
+  });
+}
+
+/**
+ * Reads the scope back on the connection the sweep will actually use. Without Service Access every
+ * tenant table is invisible, `bool_or` aggregates to NULL, and the sweep reports a clean database it
+ * never read — the one failure this gate must never produce.
+ */
+async function assertServiceAccessScope(sql: postgres.TransactionSql): Promise<void> {
+  const [row] = await sql<{ scope: string | null }[]>`
+    SELECT current_setting('app.service', true) AS scope
+  `;
+  if (row?.scope !== "true") {
+    throw new Error(
+      `Plaintext sweep: Service Access scope is ${row?.scope ?? "unset"}, so RLS would hide the rows this gate must read`,
+    );
   }
 }
 
@@ -93,14 +136,8 @@ async function sweepPostgresColumns(
   sentinel: Sentinel,
 ): Promise<{ hits: SweepHit[]; rowsObserved: number }> {
   const hits: SweepHit[] = [];
-  const deadline = Date.now() + SWEEP_BUDGET_MS;
   let rowsObserved = 0;
   for (const [tableName, tableColumns] of groupColumnsByTable(columns)) {
-    if (Date.now() >= deadline) {
-      throw new Error(
-        `Plaintext sweep: exceeded its ${String(SWEEP_BUDGET_MS)}ms budget before scanning ${tableName}`,
-      );
-    }
     const query = buildTableSweepQuery(tableName, tableColumns, sentinel.variants);
     const [row] = await sql.unsafe(query.text, query.parameters);
     if (row === undefined) {

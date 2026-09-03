@@ -34,9 +34,10 @@ jobs:
     name: Preview Smoke
     runs-on: blacksmith-4vcpu-ubuntu-2404
     # The R2 backup sweep waits up to 15min for the Runtime schedule plus 12min for the export it
-    # requests, and that runs on top of checkout, install, and the Playwright browser download. A
-    # 25-minute ceiling cancelled the job before the sweep could report its own diagnosis (INS-642).
-    timeout-minutes: 40
+    # requests, and that runs on top of checkout, install, the Playwright browser download, and the
+    # Playwright suite running alongside it. A 25-minute ceiling cancelled the job before the sweep
+    # could report its own diagnosis (INS-642); leave room for the sweep's own budget to fire first.
+    timeout-minutes: 60
     outputs:
       proof_passed: ${{ steps.preview_proofs.outcome == 'success' && steps.artifact_sweep.outcome == 'success' }}
     environment:
