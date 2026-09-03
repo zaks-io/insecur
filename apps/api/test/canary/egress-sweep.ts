@@ -59,7 +59,7 @@ function renderJsonPath(segments: JsonPathSegments): string {
       return `${path}${segment}`;
     }
     if (segment.includes(".")) {
-      const bracketed = `["${segment.replace(/"/g, '\\"')}"]`;
+      const bracketed = `[${JSON.stringify(segment)}]`;
       return path ? `${path}${bracketed}` : bracketed;
     }
     return path ? `${path}.${segment}` : segment;

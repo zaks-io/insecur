@@ -104,6 +104,29 @@ describe("egress sweep", () => {
     });
   });
 
+  it("escapes backslashes and quotes in a bracketed diagnostic path segment", () => {
+    const sentinel = mintCanarySentinel();
+    const base64url = variantPattern(sentinel, "base64url");
+    const capture: EgressCapture = {
+      httpResponses: [
+        {
+          step: "consume",
+          status: 200,
+          headers: {},
+          bodyText: JSON.stringify({
+            ok: true,
+            'a.b\\"]': base64url,
+          }),
+        },
+      ],
+      rpcDeliveryPayloadJson: JSON.stringify({ ok: true }),
+    };
+
+    const hits = sweepEgressSurfaces(capture, sentinel);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.jsonPath).toBe('["a.b\\\\\\"]"]');
+  });
+
   it("rejects notdelivery.encodedValueUtf8 as a false-positive suffix match", () => {
     const sentinel = mintCanarySentinel();
     const base64url = variantPattern(sentinel, "base64url");
