@@ -54,6 +54,13 @@ URLs before logging. CI uses Docker Compose Postgres in the `postgres-integratio
 - RLS-backed metadata isolation for First Value tables.
 - Cross-tenant store regression tests against real Postgres.
 
+## Consumes
+
+- `@insecur/domain` for shared identifiers and vocabulary.
+- `@insecur/custody-contracts` and `@insecur/secret-store-contracts` for the persisted row
+  shapes it stores, which are contract-only packages held off the crypto graph.
+- `drizzle-orm` and `postgres` for schema definition and the scoped SQL handle.
+
 ## Does Not Own
 
 - Effective Access semantics.
@@ -63,6 +70,7 @@ URLs before logging. CI uses Docker Compose Postgres in the `postgres-integratio
 
 ## Dependency Rule
 
-This package may depend on `@insecur/domain`. It must not depend on higher
+This package may depend on `@insecur/domain` and the contract-only packages
+`@insecur/custody-contracts` and `@insecur/secret-store-contracts`. It must not depend on higher
 domain packages such as `@insecur/secret-store`, `@insecur/onboarding`, or
 `@insecur/runtime-injection`.

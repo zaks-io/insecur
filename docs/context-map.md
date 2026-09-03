@@ -12,11 +12,10 @@ set of invariants, tests, and error modes.
 ## Package Rules
 
 - Each package owns one deep domain module or a tightly related module family.
-- Domain packages have a local `CONTEXT.md` reading map that names the glossary slice, terms, and
-  deeper docs an agent should load. Implementation-support packages may instead route through
-  their README and owning domain package.
-- Package READMEs name ownership, dependencies, and exclusions where a package needs a standalone
-  contract. `packages/README.md` indexes every package.
+- Every package has a local `CONTEXT.md` reading map that names the glossary slice, terms, and
+  deeper docs an agent should load.
+- Every package README names what the package owns, consumes, and must not own.
+  `packages/README.md` indexes every package.
 - Package `CONTEXT.md` files are scoped reading maps, not independent
   glossaries. Each term is defined in exactly one slice under
   `../docs/context/glossary/`; edit term definitions there.
