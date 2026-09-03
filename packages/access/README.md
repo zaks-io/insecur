@@ -11,15 +11,14 @@ Scope against the returned set.
 
 - Membership and Role expansion into Effective Access.
 - Built-In Role to Authorization Scope mapping.
-- Credential Scopes evaluation for machine actors when machine access lands.
+- Credential Scopes evaluation for machine actors.
 - Coordinate-bound Authorization Scope sets.
 - Cross-tenant authorization regression tests for the resolver.
 
 ## Consumes
 
 - `@insecur/domain` for resource identity, result, and error-code shapes.
-- Tenant-owned Membership and Role reads through a Tenant-Scoped Store adapter
-  once implemented.
+- Tenant-owned Membership and Role reads through a Tenant-Scoped Store adapter.
 
 ## Does Not Own
 

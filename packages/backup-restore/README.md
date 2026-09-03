@@ -32,7 +32,15 @@ Scheduled Worker export execution and R2 landing live in `apps/runtime` (ADR-007
 
 ## Commands
 
+Run the fixture self-test to create `evidence/backup/fixture-self-test.json`:
+
 ```sh
-pnpm --filter @insecur/backup-restore drill -- --evidence-dir evidence
+pnpm --filter @insecur/backup-restore fixture-self-test -- --evidence-dir evidence
+```
+
+Separately, verify existing `evidence/backup/export-success.json` and
+`evidence/backup/restore-drill.json` release evidence:
+
+```sh
 pnpm --filter @insecur/backup-restore verify-evidence -- --evidence-dir evidence
 ```

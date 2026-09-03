@@ -16,7 +16,7 @@ insecur secrets set INSECUR_PROOF_SECRET --generate random --length 32
 insecur run --variable-key INSECUR_PROOF_SECRET -- node examples/first-value-proof/verify.mjs
 ```
 
-`insecur login --shell` exchanges a WorkOS browser session and starts an interactive child shell
+`insecur login --shell` completes the WorkOS AuthKit PKCE flow and starts an interactive child shell
 with `INSECUR_SESSION_TOKEN` in that child environment only. The CLI never prints the session
 credential, writes it to disk, or asks you to `eval` or `source` shell exports.
 

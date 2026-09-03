@@ -12,10 +12,11 @@ order: 0
 insecur CLI — metadata-only output, sealed local session auth
 
 Install with `curl -fsSL https://insecur.cloud/install.sh | sh` (see [Installation](/docs/installation)).
-Every command supports `--json` for metadata-only machine-readable output and exits with a
+Product commands support `--json` for metadata-only machine-readable output and exit with a
 [stable exit code](/docs/reference/exit-codes). Failures carry stable
 [error codes](/docs/reference/errors) with remediation commands in `--json` output. Secret
-values are never accepted as command-line arguments and never appear in any output.
+values are never accepted as command-line arguments and never appear in any output. `insecur guide`
+is the intentional exception to JSON output: it emits offline Markdown playbooks.
 
 ## Commands
 
@@ -46,7 +47,7 @@ values are never accepted as command-line arguments and never appear in any outp
 
 ## Global flags
 
-These apply to every command.
+These flags are accepted globally. `--json` does not change `insecur guide`, which always emits offline Markdown.
 
 | Option                | Description                                                       |
 | --------------------- | ----------------------------------------------------------------- |

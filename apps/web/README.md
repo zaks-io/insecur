@@ -11,7 +11,7 @@ The browser reaches only this deploy. Authenticated server routes mint a short-T
 pnpm --filter @insecur/web dev
 ```
 
-Run `apps/api` and `apps/runtime` alongside (`pnpm dev:workers`) for end-to-end `/whoami` proof.
+Run `apps/api` and `apps/runtime` alongside (`pnpm dev:workers`) for authenticated end-to-end use.
 
 Copy `apps/web/.dev.vars.example` to `apps/web/.dev.vars` and align WorkOS/session secrets with
 `apps/api/.dev.vars`.
@@ -20,8 +20,10 @@ The example file uses Cloudflare Turnstile dummy keys for local login. Preview a
 `TURNSTILE_SITE_KEY` as a GitHub Environment variable and `TURNSTILE_SECRET_KEY` as a GitHub
 Environment secret.
 
-## Proof route
+## Route surface
 
-`GET /whoami` — server-rendered page that resolves the browser WorkOS session, hops to
-`/v1/session/whoami` on `insecur-api` through the Service Binding, and renders the admitted actor
-metadata without returning an API bearer token to the client.
+The console includes WorkOS login/logout and step-up callbacks, onboarding, organization switching,
+project and environment metadata, the secret matrix and version history, access and delivery
+views, people, audit, and approvals. `GET /whoami` remains an authenticated diagnostic proof. The
+generated [`deploy-route-inventory.md`](../../docs/specs/deploy-route-inventory.md) is the
+authoritative route list.

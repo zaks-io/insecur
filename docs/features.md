@@ -1,6 +1,6 @@
 # Delivered Features
 
-Last reviewed: 2026-07-09.
+Last reviewed: 2026-09-03.
 
 This is the agent-readable map of major functionality that is implemented in the current checkout.
 It is not the future product spec, customer-validation plan, or production launch gate. "Delivered"
@@ -228,8 +228,17 @@ App Connection management is implemented as metadata-safe setup infrastructure:
 - metadata-safe connection status projections that do not expose provider credentials
 
 GitHub App installation verification is not delivered yet and fails closed instead of activating a
-connection from locally supplied installation metadata. Actual provider secret writes and end-to-end
-GitHub/Cloudflare Secret Sync are also not delivered yet.
+connection from locally supplied installation metadata.
+
+Secret Sync has an alpha implementation:
+
+- create, update, plan, revalidate, and run seams execute inside the Runtime boundary
+- one writer per target is enforced through Operation leases and fencing tokens
+- protected execution requires current, single-use approval evidence bound to the target fingerprint
+- GitHub Actions and Cloudflare Worker provider adapters perform exact writes behind provider ports
+
+This is code-surface delivery, not a reliability claim. Provider-level and hosted end-to-end
+coverage is still too thin to treat Secret Sync as production-ready.
 
 ## Operations, Audit, Webhooks, And Evidence
 
@@ -243,10 +252,13 @@ Operational control surfaces are implemented:
 - audit export route with JSONL plus signed manifest shape
 - public audit-export signing-key metadata endpoint on the site Worker
 - webhook subscription CRUD, event-type listing, and signing-secret rotation
-- release-gate evidence bundle skeleton and metadata-safety checks
+- encrypted scheduled backup export to R2 and a Runtime-only sealed restore importer
+- preview R2 no-plaintext proof and backup/restore readiness evidence
+- release-gate evidence bundle assembly and metadata-safety checks
 
-Production backup freshness, tested restore evidence, and full production release-gate automation
-are still not delivered.
+The Daily Release train and its Preview proof exist, but a current exact-head Production promotion
+has not completed successfully. Production freshness and launch acceptance are therefore still
+unproven.
 
 ## Verification And Safety Gates
 
@@ -271,12 +283,12 @@ accidentally weaken:
 These are the major product surfaces that should not be described as delivered:
 
 - production launch acceptance
-- actual provider Secret Sync writes to GitHub Actions or customer Cloudflare Workers
+- production-grade provider Secret Sync reliability and hosted provider-level proof
 - Vercel Secret Sync
 - Storage Security Gate enforcement before production delivery/decrypt/provider write
 - complete protected machine Runtime Injection flow
 - Environment Deploy Key fallback and rotation policy
-- production backup export pipeline and tested restore drill
+- current Production backup freshness and a launch-grade restore drill
 - launch-grade root-key escrow access-log evidence
 - full production deploy/decrypt smoke
 - customer validation evidence

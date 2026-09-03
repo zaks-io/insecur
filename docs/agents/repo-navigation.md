@@ -92,8 +92,6 @@ ADRs named by that local context.
 - Use `skills/ziw-code-review/SKILL.md` for bug-focused review of a diff, branch, or PR,
   including before opening a PR.
 - Use `skills/ziw-pr/SKILL.md` to open or ship the current branch as a PR.
-- Use `skills/ziw-review/SKILL.md` for the periodic sidecar review of newly landed `main`
-  commits that should become queued fixes.
 
 Agents should treat Linear as the queue and dependency graph, but repo docs as the product,
 security, and domain source of truth.
@@ -112,14 +110,14 @@ security, and domain source of truth.
 
 ## Current Shape To Remember
 
-The repo is documentation-led, but it is no longer planning-only. Build on the accepted executable
-scaffold: the First Value app/package code, Node 24/pnpm 10 workspace baseline, Turbo task graph,
+The repo is documentation-led, but it is no longer planning-only. Build on the implemented product
+surface: the First Value app/package code, Node 24/pnpm 10 workspace baseline, Turbo task graph,
 Prettier/ESLint/Vitest wiring, and `pnpm verify`.
 
 The Worker topology is capability-isolated: `apps/api` (`insecur-api`) is the public edge with no
 root-key binding; `apps/runtime` (`insecur-runtime`) is the sole `INSTANCE_ROOT_KEY_V1` holder with
 no public `/v1/*` routes, reached only over the private `RUNTIME` Service Binding;
-`apps/web` (BFF) is scaffolded (`insecur-web`, INS-201). See
+`apps/web` is the implemented metadata Web Console BFF (`insecur-web`). See
 [`docs/specs/deploy-route-inventory.md`](../specs/deploy-route-inventory.md) for the live route
 mounts and [`docs/project-status.md`](../project-status.md) for a status snapshot — but treat that
 snapshot as lower authority than owning specs/ADRs and verified code when they disagree (per the

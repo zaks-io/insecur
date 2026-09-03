@@ -18,10 +18,11 @@ Windows (PowerShell):
 irm https://insecur.cloud/install.ps1 | iex
 ```
 
-The scripts download the standalone binary for the host platform from the
-`cli-v*` GitHub Release, verify it against the release's `SHA256SUMS`, and
+The scripts require the GitHub CLI, download the standalone binary for the host platform from the
+`cli-v*` GitHub Release, verify it against the release's `SHA256SUMS` and signed build
+attestation, and
 install to `~/.local/bin` (or `%LOCALAPPDATA%\insecur\bin`). Overrides:
-`INSECUR_CLI_VERSION` (a release tag, e.g. `cli-v0.1.0`), `INSECUR_INSTALL_DIR`,
+`INSECUR_CLI_VERSION` (a release tag, e.g. `cli-v0.2.0`), `INSECUR_INSTALL_DIR`,
 and `INSECUR_INSTALL_BASE_URL` (download base for testing against a fixture
 server; checksums come from the same base). The scripts are served by the Public Site Worker
 (`apps/site/src/install-sh.ts`, `apps/site/src/install-ps1.ts`).
@@ -38,8 +39,7 @@ server; checksums come from the same base). The scripts are served by the Public
 ## Consumes
 
 - Server-side Interfaces exposed by the public API Worker (`apps/api`).
-- Shared result and output vocabulary from `@insecur/domain` when implementation
-  begins.
+- Shared result and output vocabulary from `@insecur/domain`.
 
 ## Does Not Own
 

@@ -1,6 +1,6 @@
 # Phasing
 
-Last updated: 2026-07-05. Status: **V1 scope is decided; deferred scope is parked here until explicitly promoted; finer release-splitting within V1 is still a working sequence.**
+Last reviewed: 2026-09-03. Status: **V1 scope is decided; deferred scope is parked here until explicitly promoted; finer release-splitting within V1 is still a working sequence.**
 
 The 2026-05-25 scope review (see [V1 scope decisions](#v1-scope-decisions-2026-05-25-scope-review) below) settled what V1 contains: the reduced production spine, Cloudflare + GitHub providers, Vercel and several heavier layers deferred. What remains open is the finer cut inside V1: whether First Value ships on its own before Production Delivery, and what counts as second-release versus post-v1 hardening. Do not infer those finer boundaries from the specs.
 

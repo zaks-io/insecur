@@ -12,7 +12,8 @@ This page is written for you, the agent. It tells you how to use secrets in this
 ## The rules
 
 1. Never read, write, or ask for a plaintext secret value. Not from `.env` files, not from the user, not from command output.
-2. Every command supports `--json`. Use it. Output is metadata only, by contract.
+2. Use `--json` for product commands. Output is metadata only, by contract. `insecur guide` is the
+   exception: it intentionally emits offline Markdown playbooks.
 3. Secrets reach code through `insecur run`, which injects them into one child process. That is the only delivery path you need.
 4. Branch on exit codes, not on message text. Messages change; codes and remediation commands do not.
 
@@ -24,7 +25,11 @@ Check whether a session exists and what scope is resolved:
 insecur whoami --json
 ```
 
-Exit `0` means you have a session and resolved org, project, and environment context (the project's committed `.insecur.json` supplies scope). Exit `3` means no session: stop and ask the human to run `insecur login`, or run `insecur login --device` if you are in a headless environment and the human can approve the device code.
+Exit `0` means the command resolved the context it could. In hosted mode, inspect the returned
+session and scope fields instead of assuming organization, project, and environment are all present.
+Local Mode has no hosted session and can also return `0`. Exit `3` in hosted mode means no session:
+stop and ask the human to run `insecur login`, or run `insecur login --device` in a headless
+environment where the human can approve the device code.
 
 See what secrets the environment expects:
 

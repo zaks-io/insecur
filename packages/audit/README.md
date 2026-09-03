@@ -9,7 +9,8 @@ Every persisted audit event is:
 
 - **Tenant-qualified** through required `organizationId`, with optional `projectId` and
   `environmentId`. Environment-scoped events require `projectId`.
-- **Actor-qualified** through `actor.type` and `actor.userId` (V1 user actors only).
+- **Actor-qualified** through `actor.type` and the matching user or machine identity. Unmatched CI
+  exchange attempts use the explicit `ci_exchange` actor type.
 - **Operation-aware** through optional `resource`, `relatedResource`, `request`, and
   `operation` references. `requestId` and `operationId` are the supported correlation
   identifiers for cross-service review.

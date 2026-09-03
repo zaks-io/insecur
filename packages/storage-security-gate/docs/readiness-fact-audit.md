@@ -4,6 +4,7 @@ Audit of every readiness control in `docs/storage-security-gate.md` against
 metadata-only fact sources the gate can compose at delivery time. Status values:
 
 - **exists** — a composable runtime or evidence fact source is implemented in-repo.
+- **evidence** — a structural CI or release-gate result exists, with no per-delivery runtime probe.
 - **partial** — some facts exist but the gate still needs wiring or supplemental evidence.
 - **missing** — no fact source yet; control defaults to `unknown` until INS-54 wires probes.
 
@@ -23,7 +24,7 @@ per-request runtime scan unless a future gate contract says otherwise.
 | `storage.key_version_binding`            | **exists**   | `@insecur/crypto` `checkStoredEnvelopeBindingReadiness`                                                       | Metadata-only parse of envelope header `tenantDataKeyVersion` vs expected key version (ADR-0026 DEK-wrap binding).                                         |
 | `storage.provider_credential_encryption` | **partial**  | Provider-credential envelope tests + `checkStoredEnvelopeBindingReadiness`                                    | Same binding model as secrets under org data keys.                                                                                                         |
 | `storage.sensitive_metadata_encryption`  | **partial**  | Plaintext Metadata Allowlist conformance (`pnpm verify`, `pnpm test:rls`) + sensitive-metadata envelope tests | Column placement is structural CI evidence; envelope correctness uses binding fact + encryption tests.                                                     |
-| `storage.no_plaintext_persistence`       | **evidence** | `pnpm test:canary` ([ADR-0069](../../docs/adr/0069-no-plaintext-canary-gate.md))                              | Test/canary evidence only. No per-delivery runtime plaintext scan in V1.                                                                                   |
+| `storage.no_plaintext_persistence`       | **evidence** | `pnpm test:canary` ([ADR-0069](../../../docs/adr/0069-no-plaintext-canary-gate.md))                           | Test/canary evidence only. No per-delivery runtime plaintext scan in V1.                                                                                   |
 | `storage.delivery_fail_closed`           | **missing**  | INS-54 delivery-path enforcement + denial tests                                                               | Gate verdict enforcement on production delivery callers, not a storage-layer fact.                                                                         |
 
 ## Confirmed splits (INS-151)

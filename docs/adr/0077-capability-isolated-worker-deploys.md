@@ -10,7 +10,7 @@ The V1 control plane runs as **multiple capability-isolated Cloudflare Worker de
 worker. Capability isolation is structural — separate deploys with separate token audiences and a
 private Service Binding between them — not a role conditional inside one deploy. The normative
 topology and the binding invariant are owned by `docs/specs/product-spec.md` §2 (per
-[ADR-0067](0067-documentation-content-ownership-and-the-single-statement-rule.md), the spec owns
+[ADR-0067](0067-documentation-content-ownership-and-single-statement-rule.md), the spec owns
 decided behavior, invariants, and the V1 boundary); this ADR records the rationale and consolidates
 the deploy-shape decisions that were previously scattered across ADR-0051/0052/0064/0071/0019.
 
@@ -21,7 +21,7 @@ The deploys:
 - **Runtime** (`apps/runtime`, `insecur-runtime`) — the sole holder of `INSTANCE_ROOT_KEY_V1` and the
   only place ciphertext becomes plaintext; no public routes; reached only over a private Service
   Binding via a `WorkerEntrypoint` RPC seam with a short-TTL scoped token; the Effective Access
-  Resolver ([ADR-0034](0034-authorization-through-a-single-effective-access-resolver.md)) runs inside
+  Resolver ([ADR-0034](0034-effective-access-resolver.md)) runs inside
   it, so authorization and decryption are one indivisible call.
 - **Web** (`apps/web`, `insecur-web`) — the BFF (ADR-0051/0052).
 - **Service Access** — a separate deploy with its own auth audience, deferred past V1 (ADR-0019).
@@ -101,10 +101,10 @@ spec, so the implementation built a monolith from the spec's "one Cloudflare Wor
 Trace: [product-spec.md §2](../specs/product-spec.md),
 [ADR-0027](0027-shared-instance-topology-and-binding-map.md) (amended),
 [ADR-0019](0019-service-access-without-secret-reveal.md),
-[ADR-0034](0034-authorization-through-a-single-effective-access-resolver.md),
+[ADR-0034](0034-effective-access-resolver.md),
 [ADR-0051](0051-web-console-architecture.md),
 [ADR-0052](0052-web-no-reveal-boundary-and-management-parity.md),
 [ADR-0057](0057-inline-sync-execution-and-partial-failure-model.md),
 [ADR-0064](0064-minimize-secret-resident-surface.md),
 [ADR-0071](0071-decrypt-egress-import-boundary.md),
-[ADR-0067](0067-documentation-content-ownership-and-the-single-statement-rule.md).
+[ADR-0067](0067-documentation-content-ownership-and-single-statement-rule.md).

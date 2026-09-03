@@ -50,11 +50,11 @@ Any hosted-only command fails fast with a clear `local.cloud_feature_unavailable
 
 ## Moving to hosted later
 
-When you are ready for teams, protected environments, or no-reveal custody, log in and run `insecur init` against the hosted API. Import works the same way, so your local `.env` migration path carries over unchanged.
+When you are ready for teams, protected environments, or no-reveal custody, log in and migrate the current Local Mode project. The migration verifies every hosted write before it removes the corresponding local value. If the hosted project already exists, the CLI adopts it and reports any values that still exist only on this machine.
 
 ```sh
 insecur login
-insecur init
+insecur projects migrate
 ```
 
 ## Related

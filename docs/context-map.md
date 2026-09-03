@@ -12,9 +12,11 @@ set of invariants, tests, and error modes.
 ## Package Rules
 
 - Each package owns one deep domain module or a tightly related module family.
-- Each package has a local `CONTEXT.md` reading map that names the glossary slice,
-  terms, and deeper docs an agent should load for that package.
-- Each package README names what the package owns, consumes, and must not own.
+- Domain packages have a local `CONTEXT.md` reading map that names the glossary slice, terms, and
+  deeper docs an agent should load. Implementation-support packages may instead route through
+  their README and owning domain package.
+- Package READMEs name ownership, dependencies, and exclusions where a package needs a standalone
+  contract. `packages/README.md` indexes every package.
 - Package `CONTEXT.md` files are scoped reading maps, not independent
   glossaries. Each term is defined in exactly one slice under
   `../docs/context/glossary/`; edit term definitions there.
@@ -47,8 +49,18 @@ Packages depend toward more primitive concepts:
 ```text
 apps/api
 apps/runtime
+apps/web
+apps/site
   -> packages/worker-kit
 packages/cli
+  -> packages/ui
+  -> packages/preview-smoke
+  -> packages/observability
+  -> packages/notifications
+  -> packages/delivery-policy
+  -> packages/secret-sync
+  -> packages/app-connection
+  -> packages/agent-attribution
   -> packages/machine-auth
   -> packages/tenant-keyring
   -> packages/instance-bootstrap
@@ -72,12 +84,10 @@ packages/cli
 This is a conceptual direction, not a requirement that every package imports
 every package below it. Add dependencies only when code crosses that Interface.
 
-## Scaffolded Packages
+## Current Packages
 
-These packages are scaffolded now with real seams, even where the implementations are narrow. The
-First Value Slice below names the package Interfaces the First Value Milestone must pass through;
-packages outside that slice are scaffolded for Production Delivery foundation, deploy composition,
-machine access, or release-gate work.
+These are the current domain and implementation-support packages. The First Value Slice below names
+the package Interfaces used by the First Value Milestone.
 
 | Package                                                           | Module                                                        | Owns                                                                                                                                                                                                                                                | Does not own                                                                                                                                   |
 | ----------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -90,8 +100,8 @@ machine access, or release-gate work.
 | `@insecur/custody-contracts`                                      | Custody Contracts                                             | plaintext-free data-key metadata, wrapped material shapes, tenant data-key readiness error                                                                                                                                                          | Encryption, decrypt, root-key access, persistence                                                                                              |
 | `@insecur/crypto`                                                 | Keyring and Encryption Envelope                               | tenant-bound key resolution, key versions, ciphertext identity binding, encrypt/decrypt entry points                                                                                                                                                | Secret lifecycle decisions, raw persistence, delivery policy, tenant-scoped DB access                                                          |
 | `@insecur/tenant-keyring`                                         | Runtime Tenant Keyring                                        | Runtime-only composition of tenant-scoped data-key metadata access with the crypto Keyring                                                                                                                                                          | Public routes, Secret Write, Injection Grant authorization, storage tables                                                                     |
-| `@insecur/audit`                                                  | Audit Event Writer                                            | tenant-qualified metadata-only audit event shape, denied-attempt coverage, audit references                                                                                                                                                         | Audit export integrity, operation state, Sensitive Value storage                                                                               |
-| `@insecur/release-gate`                                           | Security Evidence Bundle                                      | metadata-only release-gate bundle assembly, security check skeleton control IDs, fail-closed verdict derivation                                                                                                                                     | Scanner execution, human production signoff, hosted evidence portals                                                                           |
+| `@insecur/audit`                                                  | Audit Event Writer                                            | tenant-qualified metadata-only audit events, denied-attempt coverage, hash-chained and signed audit exports                                                                                                                                         | Operation state, authorization decisions, Sensitive Value storage                                                                              |
+| `@insecur/release-gate`                                           | Security Evidence Bundle                                      | metadata-only release-gate bundle assembly, security control IDs, fail-closed verdict derivation                                                                                                                                                    | Scanner execution, human production signoff, hosted evidence portals                                                                           |
 | `@insecur/secret-store-contracts`                                 | Secret Store Contracts                                        | public-safe Secret Write error class, ingress validation, text value validation, variable-key write validation                                                                                                                                      | Encryption, Secret Version append/current persistence, keyring access                                                                          |
 | `@insecur/secret-store`                                           | Secret Version Store                                          | Secret Shape, Blind Secret Write, value validation, Secret Version append/current behavior, metadata-only outputs                                                                                                                                   | Runtime Injection, Promotion approval, raw SQL, provider sync                                                                                  |
 | `@insecur/runtime-injection-issue`                                | Runtime Injection Grant Issue                                 | public-safe grant issue path, issue/consume selector contracts, Injection Grant error class                                                                                                                                                         | Decrypt, Runtime delivery, keyring access                                                                                                      |
@@ -104,22 +114,20 @@ machine access, or release-gate work.
 | `@insecur/local-store`                                            | Local Mode machine root key custody and encrypted local store | `KeyStore` seam, OS keychain/file-fallback adapters, SQLite Projects/Environments/Secret Shapes metadata, wrapped Current Version and Injection Grant persistence, organization/project data keys, metadata-only audit trail, weaker-posture notice | CLI wiring, passphrase/daemon unlock, version history, backup/export                                                                           |
 | `@insecur/storage-security-gate`                                  | Storage Security Gate                                         | Metadata-only readiness verdict interface, stable `storage.*` control IDs, delivery-blocking composition from injected probes                                                                                                                       | Keyring construction, encryption, Tenant-Scoped Store implementation, provider writes, Runtime Injection execution                             |
 | `@insecur/protected-change`                                       | Protected Change Orchestrator                                 | tenant-qualified Protected Change records, promotion Approval Request state machine, metadata-only approval evidence, Effective Access checks                                                                                                       | Secret Version publish execution, High-Assurance Challenge issuance, web approval UI, provider sync                                            |
-
-## Deferred Packages
-
-These modules are intentionally documented but not scaffolded yet. Create the
-package when its Interface is ready to be implemented and tested.
-
-| Future package                 | Module                                   | Trigger                                                    |
-| ------------------------------ | ---------------------------------------- | ---------------------------------------------------------- |
-| `@insecur/sync`                | Secret Sync                              | First provider sync lifecycle implementation               |
-| `@insecur/provider-github`     | GitHub provider adapter                  | GitHub App installation or GitHub Actions secret sync work |
-| `@insecur/provider-cloudflare` | Cloudflare provider adapter              | Cloudflare Worker Secret sync work                         |
-| `@insecur/web-console`         | Human Approval Surface and management UI | Focused web UI work after API and CLI flows are verified   |
+| `@insecur/agent-attribution`                                      | Agent attribution                                             | harness detection, registered/derived session metadata, principal-chain resolution                                                                                                                                                                  | Human authentication, authorization policy, audit persistence                                                                                  |
+| `@insecur/app-connection`                                         | App Connection                                                | provider connection lifecycle, metadata-safe status, encrypted credential attachment                                                                                                                                                                | Provider writes, Secret Sync execution, provider verification adapters                                                                         |
+| `@insecur/backup-restore`                                         | Backup and restore                                            | sealed backup artifacts, export/restore plans, recovery evidence                                                                                                                                                                                    | Runtime scheduling, R2 binding ownership, release verdict assembly                                                                             |
+| `@insecur/delivery-policy`                                        | Delivery policy                                               | risk-policy presets, automation resolution, Preview opt-in evidence                                                                                                                                                                                 | Provider writes, storage readiness, secret decryption                                                                                          |
+| `@insecur/high-assurance`                                         | High-Assurance Challenge                                      | operation-bound challenge issue, clear, deny, and evidence consumption                                                                                                                                                                              | WorkOS UI, protected-change state machine, notification delivery                                                                               |
+| `@insecur/notifications`                                          | Notifications                                                 | metadata-safe in-app/webhook envelopes, subscriptions, signing-secret rotation, delivery ports                                                                                                                                                      | Runtime port wiring, arbitrary outbound payloads, secret values                                                                                |
+| `@insecur/observability`                                          | Observability                                                 | allowlisted Sentry and trace configuration for Workers                                                                                                                                                                                              | Domain audit records, raw provider bodies, Sensitive Values                                                                                    |
+| `@insecur/preview-smoke`                                          | Preview proof                                                 | deployed API/CLI/Web/Site proofs, artifact redaction, no-plaintext sweeps                                                                                                                                                                           | Product domain behavior, Production approval                                                                                                   |
+| `@insecur/secret-sync`                                            | Secret Sync                                                   | alpha sync planning, leases, revalidation, protected approval checks, GitHub Actions and Cloudflare Worker adapters                                                                                                                                 | Production reliability claim, App Connection lifecycle, storage-gate evidence                                                                  |
+| `@insecur/ui`                                                     | Shared visual system                                          | reusable components, theme, typography, and design tokens for Web and Site                                                                                                                                                                          | Route data loading, product authorization, app-specific page composition                                                                       |
 
 ## App Composition
 
-The Worker tier is two capability-isolated deploys (ADR-0077). `apps/api` (the public **API Worker**)
+The Worker tier is four capability-isolated deploys (ADR-0077). `apps/api` (the public **API Worker**)
 owns transport, public route shape, Cloudflare bindings, caller authentication, and request
 composition; it holds no keyring and forwards keyring-bound work to `apps/runtime` (the private
 **Runtime Worker**) over the private `RUNTIME` Service Binding. `apps/runtime` is the sole holder of
@@ -130,6 +138,10 @@ deploy contains authorization branching, raw tenant data queries, encryption rul
 append rules, or Runtime Injection Grant state machines in routes. The route → deploy table is
 `docs/specs/deploy-route-inventory.md`, enforced by `pnpm conformance:topology`.
 
+`apps/web` is the browser-facing BFF with a private `API` binding and no database or keyring.
+`apps/site` serves public marketing, docs, installers, legal pages, and error references with no
+product-control-plane bindings.
+
 `packages/cli` owns local command parsing, safe input collection, local project
 configuration, process spawning, human and JSON output formatting, and HTTP
 client behavior. It should not own server-side authorization, Secret Version
@@ -137,7 +149,7 @@ storage, encryption, or provider delivery decisions.
 
 ## First Value Slice
 
-The First Value Milestone should pass through these package Interfaces:
+The First Value Milestone passes through these package Interfaces:
 
 1. `@insecur/onboarding` provisions the Personal Organization and first
    Project shape.

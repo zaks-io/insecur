@@ -27,10 +27,11 @@ wrangler.jsonc          Local and dry-run Worker configuration (no secrets_store
 
 ## Route surface
 
-`GET /healthz` plus the V1 product routes: `/v1/auth`, `/v1/session`, `/v1/onboarding`,
-`/v1/orgs/:organizationId/projects` (secret write proxies `RUNTIME.writeSecret`),
-`/v1/orgs/:organizationId/runtime-injection` (grant issue stays here; consume proxies
-`RUNTIME.consumeGrant`).
+`GET /healthz` plus the V1 auth, session, bootstrap, onboarding, organization, project, secret,
+Runtime Injection, run-policy, approval, audit, operation, connection, Secret Sync, feedback, and
+webhook route groups. The generated
+[`deploy-route-inventory.md`](../../docs/specs/deploy-route-inventory.md) is the complete list and
+must be used instead of copying a partial route table here.
 
 ## Owns
 

@@ -112,7 +112,9 @@ Production delivery depends on this storage boundary. Secret Sync and Runtime In
 
 No insecur-controlled durable surface may store plaintext secrets or provider credentials. That includes Neon Postgres, R2 backups, Queue payloads, Durable Object state, KV, operation records, audit metadata, caches, local config, logs, traces, and analytics. Plaintext may exist only as transient process memory inside approved encryption/decryption, rotation, sync, or runtime injection execution paths.
 
-Human users authenticate through WorkOS AuthKit in the multi-tenant target. The current GitHub OAuth allowlist is disposable learning code and must be removed. Human login establishes identity and authentication assurance only; authorization comes from organization and project memberships.
+Human users authenticate through WorkOS AuthKit. The former GitHub OAuth allowlist has been
+removed. Human login establishes identity and authentication assurance only; authorization comes
+from organization and project memberships.
 
 Instance Bootstrap must configure enough Instance Identity Configuration for WorkOS AuthKit before a Bootstrap Operator Claim can complete. There is no temporary local-admin username/password path; the first Instance Operator is granted only to a WorkOS-authenticated User who also presents the Bootstrap Secret through a safe sensitive input path.
 
