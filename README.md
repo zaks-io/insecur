@@ -97,7 +97,7 @@ pnpm dev:workers        # run the API + Runtime Workers locally
 pnpm verify             # the full CI gate: policy checks, lint, typecheck, tests
 ```
 
-Security issues: see [SECURITY.md](SECURITY.md).
+Contributing: see [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: see [SECURITY.md](SECURITY.md).
 
 ## License and the hosted service
 
