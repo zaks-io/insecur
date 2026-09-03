@@ -18,8 +18,8 @@ mkdir -p "${tmpdir}/docs"
 cp "${source_setup}" "${tmpdir}/docs/setup.md"
 printf '%s\n' "${probe_line}" >> "${tmpdir}/docs/setup.md"
 
-# See gitleaks-workflow-config-probe.sh: scan relative so the `^`-anchored path allowlists
-# in .gitleaks.toml actually apply. An absolute --source silently disables all of them.
+# See gitleaks-workflow-config-probe.sh: scan relative so the `^docs/setup\.md$`-anchored path
+# allowlist actually matches. An absolute --source makes it inert and the probe goes blind.
 if (cd "${tmpdir}" && gitleaks detect \
   --config "${config}" \
   --source . \

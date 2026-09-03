@@ -21,10 +21,13 @@ mkdir -p "${tmpdir}/docs/agents/workflow"
 cp "${source_config}" "${tmpdir}/docs/agents/workflow/config.md"
 printf '%s\n' "${probe_line}" >> "${tmpdir}/docs/agents/workflow/config.md"
 
-# gitleaks matches allowlist `paths` regexes against the path as scanned, and every path
-# allowlist in .gitleaks.toml is `^`-anchored to a repo-relative path. Scan from inside the
-# fixture tree so those anchors can match. An absolute --source makes every one of them
-# inert, which leaves the probe passing for the wrong reason and blind to any widening.
+# gitleaks matches allowlist `paths` regexes against the path as scanned. The allowlist this
+# probe guards is anchored `^docs/agents/workflow/config\.md$`, so it only ever matches a
+# repo-relative path. Scan from inside the fixture tree so that anchor can match: under an
+# absolute --source it goes inert, and the probe then passes because nothing was allowlisted
+# rather than because the allowlist is narrow, which is blind to exactly the widening it
+# exists to catch. Allowlists written `(^|/)...`, such as the `.turbo/` one, still match
+# mid-path and are unaffected either way.
 if (cd "${tmpdir}" && gitleaks detect \
   --config "${config}" \
   --source . \
