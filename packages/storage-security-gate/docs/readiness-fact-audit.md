@@ -4,6 +4,7 @@ Audit of every readiness control in `docs/storage-security-gate.md` against
 metadata-only fact sources the gate can compose at delivery time. Status values:
 
 - **exists** — a composable runtime or evidence fact source is implemented in-repo.
+- **evidence** — a structural CI or release-gate result exists, with no per-delivery runtime probe.
 - **partial** — some facts exist but the gate still needs wiring or supplemental evidence.
 - **missing** — no fact source yet; control defaults to `unknown` until INS-54 wires probes.
 

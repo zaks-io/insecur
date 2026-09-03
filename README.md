@@ -36,10 +36,12 @@ Robots are free. Machine identities, runtime injection, and CI access are never 
 ## Quickstart
 
 Install the [GitHub CLI](https://cli.github.com/) first. The installer requires `gh attestation`
-support and refuses binaries without valid build provenance.
+support and refuses binaries without valid build provenance. It verifies the downloaded binary's
+checksum and GitHub build attestation; like any `curl | sh` bootstrap, this command still trusts
+the HTTPS installer endpoint and the script it returns.
 
 ```sh
-curl -fsSL https://insecur.cloud/install.sh | sh   # verifies checksum and signed provenance
+curl -fsSL https://insecur.cloud/install.sh | sh
 insecur login
 insecur init
 insecur secrets set SESSION_SIGNING_KEY --generate

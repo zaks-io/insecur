@@ -47,7 +47,7 @@ is the intentional exception to JSON output: it emits offline Markdown playbooks
 
 ## Global flags
 
-These apply to every command.
+These flags are accepted globally. `--json` does not change `insecur guide`, which always emits offline Markdown.
 
 | Option                | Description                                                       |
 | --------------------- | ----------------------------------------------------------------- |

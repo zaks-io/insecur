@@ -55,8 +55,9 @@ Set these environment variables before running the script to change what gets in
 Example, pinning a version and directory:
 
 ```sh
-INSECUR_CLI_VERSION=cli-v0.2.0 INSECUR_INSTALL_DIR="$HOME/bin" \
-  curl -fsSL https://insecur.cloud/install.sh | sh
+export INSECUR_CLI_VERSION=cli-v0.2.0
+export INSECUR_INSTALL_DIR="$HOME/bin"
+curl -fsSL https://insecur.cloud/install.sh | sh
 ```
 
 ## Verify the install
