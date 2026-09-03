@@ -63,8 +63,9 @@ context for a specific task.
 
 Implementation-support packages without a local domain context file are indexed in
 `packages/README.md`: `agent-attribution`, `delivery-policy`, `notifications`, `observability`,
-`preview-smoke`, `secret-sync`, and `ui`. Start from their README or public `src/index.ts`, then
-load the owning domain context named by the code being changed.
+`preview-smoke`, `secret-sync`, and `ui`. For `preview-smoke`, start from `package.json` and
+`playwright.preview.config.ts`. For the others, start from their README or public `src/index.ts`,
+then load the owning domain context named by the code being changed.
 
 ## Reading Rules
 

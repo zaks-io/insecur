@@ -17,7 +17,8 @@ route → deploy table and [`../../docs/architecture.md`](../../docs/architectur
 ```
 src/index.ts                   Exports RuntimeService; default fetch returns 404 (no public routes)
 src/runtime-service.ts         The private RuntimeService RPC composition root
-src/runtime-restore-service.ts The restore-only RuntimeRestoreService entrypoint
+src/restore/runtime-restore-service.ts
+                             The restore-only RuntimeRestoreService entrypoint
 src/crypto/keyring-context.ts  Keyring construction — the chokepoint fenced to this deploy only
 src/rpc/*                      Hop-token verification + RpcResult error mapping across the seam
 wrangler.jsonc                 secrets_store_secrets: [INSTANCE_ROOT_KEY_V1]; hop-token secret via

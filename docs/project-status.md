@@ -36,13 +36,11 @@ Evidence refreshed on 2026-09-03:
 - The public repository, `insecur.cloud` site/docs/install script, and production API, Web, Site,
   and preview health endpoints all responded successfully.
 - `cli-v0.2.0` is a published, immutable GitHub Release.
-- Daily Release run `33800180656` deployed commit `66558277` to Preview and its full Preview proof
-  job passed, including the deployed web/CLI/API paths and R2 backup no-plaintext evidence.
-- That Daily Release did not promote to Production because its separate proof-result handoff gate
-  failed. The handoff fix is on `main`, but a successful exact-head Daily Release has not yet proved
-  it. Do not infer Production deployment from the successful Preview job.
-- The `production` release ledger still points to `130d5c4a5eccf1331ee849572793aa4a7b93f093`
-  from 2026-07-17. Public liveness is healthy, but Production is not current with `main`.
+- Daily Release run `33804319321` deployed `b104afae486b9b367bdac676e1e36e7a5a84f1a4`
+  through Preview and Production. The full Preview proof, proof-result handoff, production migration,
+  Worker deployment, Sentry verification, and live fleet identity checks passed.
+- The `production` release ledger and live API, Web, and Site health identities all match that exact
+  `main` SHA. This unmerged documentation branch is not part of that deployment.
 
 This documentation audit passed `pnpm verify`, including policy, generated-documentation,
 formatting, lint, typecheck, and unit-test gates.
@@ -54,8 +52,6 @@ gaps include:
 
 - The Storage Security Gate still lacks complete delivery-path wiring and evidence composition.
   Its readiness audit marks `storage.delivery_fail_closed` missing and several controls partial.
-- Production has not been promoted from the current `main` through a fully green exact-SHA Daily
-  Release.
 - Provider sync needs substantially more provider-level and hosted end-to-end testing.
 - GitHub App installation verification is not provider-backed and continues to fail closed.
 - Approval notification delivery ports are not wired into Runtime composition.
@@ -70,14 +66,12 @@ read path.
 
 ## Next build order
 
-1. Make the Daily Release train green for one current exact `main` SHA and reconcile the Production
-   ledger only after the Production deploy and smoke pass.
-2. Complete Storage Security Gate fact composition and fail-closed enforcement on every production
+1. Complete Storage Security Gate fact composition and fail-closed enforcement on every production
    delivery path.
-3. Harden provider sync with real provider authorization, writes, metadata-only verification,
+2. Harden provider sync with real provider authorization, writes, metadata-only verification,
    retries, and partial-failure evidence before calling it reliable.
-4. Wire metadata-safe approval notifications and finish the protected machine delivery path.
-5. Complete the customer-validation and `small_group_production` acceptance evidence.
+3. Wire metadata-safe approval notifications and finish the protected machine delivery path.
+4. Complete the customer-validation and `small_group_production` acceptance evidence.
 
 The milestone sequence and exit gates are in [roadmap.md](roadmap.md). Production acceptance is
 owned by [production-mvp-acceptance.md](production-mvp-acceptance.md).
