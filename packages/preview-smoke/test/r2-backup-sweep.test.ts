@@ -34,6 +34,7 @@ const BUCKET_NAME = "insecur-preview-backups-test";
 const EXPECTED_SHA = "e".repeat(40);
 
 interface FakeProviderOptions {
+  abandonReason?: string;
   artifactBytes: Uint8Array;
   exportDelayMs?: number;
   instanceId?: string;
@@ -109,6 +110,14 @@ function createFakeProvider(options: FakeProviderOptions): FakeProvider {
     requestExport(key) {
       exportRequested = true;
       exportRequests.push(key);
+      if (options.abandonReason !== undefined) {
+        objects.set(
+          BACKUP_EXPORT_PROOF_REQUEST_KEY,
+          new TextEncoder().encode(
+            JSON.stringify({ reason: options.abandonReason, status: "failed" }),
+          ),
+        );
+      }
       return Promise.resolve();
     },
   };
@@ -318,6 +327,16 @@ describe("runR2BackupSweep", () => {
     });
     await expect(runR2BackupSweep(sweepInput(provider).input)).rejects.toThrow(
       /no backup export scheduled after the canary write/u,
+    );
+  });
+
+  it("surfaces the Runtime's reason when it abandons the proof request", async () => {
+    const provider = createFakeProvider({
+      abandonReason: "export attempts exhausted",
+      artifactBytes: randomBytes(64),
+    });
+    await expect(runR2BackupSweep(sweepInput(provider).input)).rejects.toThrow(
+      /the Runtime abandoned the backup proof request: export attempts exhausted/u,
     );
   });
 });
