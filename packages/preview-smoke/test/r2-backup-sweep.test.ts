@@ -36,6 +36,7 @@ const EXPECTED_SHA = "e".repeat(40);
 interface FakeProviderOptions {
   abandonForeignRequest?: boolean;
   abandonReason?: string;
+  neverExports?: boolean;
   artifactBytes: Uint8Array;
   exportDelayMs?: number;
   instanceId?: string;
@@ -95,7 +96,11 @@ function createFakeProvider(options: FakeProviderOptions): FakeProvider {
   return {
     exportRequests,
     async getObject(key) {
-      if (exportRequested && objects.size === 0) {
+      if (
+        exportRequested &&
+        options.neverExports !== true &&
+        !objects.has(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY)
+      ) {
         await materializeExport();
       }
       return objects.get(key) ?? null;
@@ -340,20 +345,21 @@ describe("runR2BackupSweep", () => {
     const provider = createFakeProvider({
       abandonReason: "export attempts exhausted",
       artifactBytes: randomBytes(64),
+      neverExports: true,
     });
     await expect(runR2BackupSweep(sweepInput(provider).input)).rejects.toThrow(
       /the Runtime abandoned the backup proof request: export attempts exhausted/u,
     );
   });
 
-  it("ignores an abandoned proof request minted by a different run", async () => {
+  it("accepts its own export despite a proof request abandoned by a different run", async () => {
+    const artifactBytes = randomBytes(64);
     const provider = createFakeProvider({
       abandonForeignRequest: true,
       abandonReason: "export attempts exhausted",
-      artifactBytes: randomBytes(64),
+      artifactBytes,
     });
-    await expect(runR2BackupSweep(sweepInput(provider).input)).rejects.toThrow(
-      /no backup export scheduled after the canary write/u,
-    );
+    const evidence = await runR2BackupSweep(sweepInput(provider).input);
+    expect(evidence.artifact_sha256).toBe(await hashBackupArtifact(artifactBytes));
   });
 });

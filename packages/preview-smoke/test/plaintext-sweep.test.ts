@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTableSweepQuery, collectTableHits } from "../src/plaintext-sweep";
+import {
+  assertSweepReadRows,
+  buildTableSweepQuery,
+  collectTableHits,
+} from "../src/plaintext-sweep";
 import { mintSmokeSentinel } from "../src/redaction";
 
 const VARIANTS = [
@@ -127,5 +131,45 @@ describe("collectTableHits", () => {
     expect(() => collectTableHits("secrets", query.probes, { sweep_row_count: "4" })).toThrow(
       /probe h0 on secrets\.name returned undefined, not a boolean/u,
     );
+  });
+});
+
+describe("assertSweepReadRows", () => {
+  const seededInstanceTable = { protectedByRls: false, rowCount: 4, tableName: "instances" };
+
+  it("accepts a sweep that read rows from a forced-RLS table", () => {
+    expect(() => {
+      assertSweepReadRows([
+        seededInstanceTable,
+        { protectedByRls: true, rowCount: 2, tableName: "secrets" },
+      ]);
+    }).not.toThrow();
+  });
+
+  it("rejects a sweep that read every row from tables RLS never guarded", () => {
+    // The exact silent false pass this guard exists for: the preview seed writes the instance-level
+    // tables just before the run, so a total row count stays positive while a lost Service Access
+    // scope hides every tenant row.
+    expect(() => {
+      assertSweepReadRows([
+        seededInstanceTable,
+        { protectedByRls: true, rowCount: 0, tableName: "secrets" },
+        { protectedByRls: true, rowCount: 0, tableName: "organizations" },
+      ]);
+    }).toThrow(
+      /read zero rows from all 2 forced-RLS table\(s\), so Service Access did not take effect/u,
+    );
+  });
+
+  it("rejects a sweep that observed no rows at all", () => {
+    expect(() => {
+      assertSweepReadRows([{ protectedByRls: true, rowCount: 0, tableName: "secrets" }]);
+    }).toThrow(/observed zero rows, so the sweep proved nothing/u);
+  });
+
+  it("rejects a schema with no forced-RLS tables to prove the scope against", () => {
+    expect(() => {
+      assertSweepReadRows([seededInstanceTable]);
+    }).toThrow(/found no forced-RLS tables/u);
   });
 });
