@@ -5,7 +5,7 @@ lives in [`../docs/context-map.md`](../docs/context-map.md); the glossary index 
 [`../CONTEXT.md`](../CONTEXT.md).
 
 Packages are cut around domain modules and capability boundaries, not database tables or route
-groups. Read a package's `CONTEXT.md` first when it exists, then its README and public exports.
+groups. Read a package's `CONTEXT.md` first, then its README and public exports.
 
 ## Package index
 

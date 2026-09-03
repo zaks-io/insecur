@@ -17,7 +17,7 @@ Foundation.
 - `@insecur/access` for post-claim Effective Access verification.
 - `@insecur/audit` for metadata-only audit events.
 
-## Does not own
+## Does Not Own
 
 - WorkOS session validation (see `@insecur/auth`).
 - Guided Organization Provisioning (see `@insecur/onboarding`).
