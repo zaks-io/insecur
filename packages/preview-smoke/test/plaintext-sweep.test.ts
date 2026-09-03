@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTableSweepQuery } from "../src/plaintext-sweep";
+import { buildTableSweepQuery, collectTableHits } from "../src/plaintext-sweep";
 import { mintSmokeSentinel } from "../src/redaction";
 
 const VARIANTS = [
@@ -17,7 +17,7 @@ describe("buildTableSweepQuery", () => {
     );
 
     expect(query.text.match(/bool_or/gu)).toHaveLength(4);
-    expect(query.text.startsWith("SELECT ")).toBe(true);
+    expect(query.text.startsWith("SELECT COUNT(*) AS sweep_row_count, ")).toBe(true);
     expect(query.text.endsWith(' FROM "secrets"')).toBe(true);
     expect(query.parameters).toEqual([
       "%SENTINEL%",
@@ -66,7 +66,7 @@ describe("buildTableSweepQuery", () => {
     );
 
     expect(query.text).toBe(
-      `SELECT COALESCE(bool_or("col""umn"::text LIKE $1 ESCAPE '\\'), false) AS h0 FROM "we""ird"`,
+      `SELECT COUNT(*) AS sweep_row_count, COALESCE(bool_or("col""umn"::text LIKE $1 ESCAPE '\\'), false) AS h0 FROM "we""ird"`,
     );
   });
 
@@ -76,6 +76,56 @@ describe("buildTableSweepQuery", () => {
 
     expect(query.probes.map((probe) => probe.encoding)).toEqual(
       sentinel.variants.map((variant) => variant.encoding),
+    );
+  });
+});
+
+describe("collectTableHits", () => {
+  const query = buildTableSweepQuery(
+    "secrets",
+    [{ columnName: "name" }, { columnName: "payload" }],
+    VARIANTS,
+  );
+
+  it("fails the negative control: attributes each true probe to its column and encoding", () => {
+    const hits = collectTableHits("secrets", query.probes, {
+      sweep_row_count: "4",
+      h0: false,
+      h1: false,
+      h2: false,
+      h3: true,
+    });
+
+    expect(hits).toEqual([{ columnName: "payload", encoding: "hex", tableName: "secrets" }]);
+  });
+
+  it("reports no hits when every probe came back false", () => {
+    const hits = collectTableHits("secrets", query.probes, {
+      sweep_row_count: "4",
+      h0: false,
+      h1: false,
+      h2: false,
+      h3: false,
+    });
+
+    expect(hits).toEqual([]);
+  });
+
+  it("throws rather than treat a non-boolean probe result as a clean column", () => {
+    expect(() =>
+      collectTableHits("secrets", query.probes, {
+        sweep_row_count: "4",
+        h0: "t",
+        h1: false,
+        h2: false,
+        h3: false,
+      }),
+    ).toThrow(/probe h0 on secrets\.name returned string, not a boolean/u);
+  });
+
+  it("throws when a probe alias is missing from the aggregate row", () => {
+    expect(() => collectTableHits("secrets", query.probes, { sweep_row_count: "4" })).toThrow(
+      /probe h0 on secrets\.name returned undefined, not a boolean/u,
     );
   });
 });
