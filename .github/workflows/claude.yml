@@ -16,14 +16,51 @@ permissions:
   checks: write
 
 jobs:
+  authorize:
+    name: Authorize caller
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    outputs:
+      allowed: ${{ steps.permission.outputs.allowed }}
+    steps:
+      - name: Verify repository write permission
+        id: permission
+        env:
+          ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          case "$ACTOR" in
+            "blacksmith-sh[bot]"|"useotto[bot]"|"useotto-dev[bot]")
+              allowed=true
+              ;;
+            *)
+              if permission="$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$ACTOR/permission" --jq '.permission' 2>/dev/null)"; then
+                case "$permission" in
+                  admin|write) allowed=true ;;
+                  *) allowed=false ;;
+                esac
+              else
+                allowed=false
+              fi
+              ;;
+          esac
+          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
+
   claude:
+    needs: authorize
     # Bot comments are allowed through; the reusable workflow's allowed_bots
     # list decides which bots may actually trigger a run.
     if: |
-      github.event_name != 'issue_comment' ||
+      needs.authorize.outputs.allowed == 'true' &&
       (
-        github.event.comment.body != '/review' &&
-        !startsWith(github.event.comment.body, '/review ')
+        github.event_name != 'issue_comment' ||
+        (
+          github.event.comment.body != '/review' &&
+          !startsWith(github.event.comment.body, '/review ')
+        )
       )
     # Upstream has no semver tags; pinned to main HEAD as of 2026-07-10.
     # Bump SHA to update; review diff before bumping.
@@ -33,12 +70,16 @@ jobs:
 
   code-review:
     name: Manual Code Review
+    needs: authorize
     if: |
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request &&
+      needs.authorize.outputs.allowed == 'true' &&
       (
-        github.event.comment.body == '/review' ||
-        startsWith(github.event.comment.body, '/review ')
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        (
+          github.event.comment.body == '/review' ||
+          startsWith(github.event.comment.body, '/review ')
+        )
       )
     uses: zaks-io/claude-code-action/.github/workflows/code-review.yml@3c9d5703b1d7ed27fdd5a0b89ec494bf7ea2af55
     secrets:

@@ -975,6 +975,13 @@ Connecting `test:rls` as the migration role silently disables RLS and turns the 
 
 A forked pull request from an untrusted contributor must never receive a secret-bearing step: no Neon branch, no Cloudflare deploy token, no preview deploy. There is no per-PR secret-bearing preview workflow. `test:rls` runs against Docker Compose Postgres in the secretless DB-backed `Verify` step for DB/runtime path changes (ADR-0065), so it can run for fork PRs too. The `CI` workflow is the only thing a fork PR runs, and it holds no secrets.
 
+Issue and review comment events run from the default branch and can access repository secrets, so
+`.github/workflows/claude.yml` first resolves the triggering actor through GitHub's collaborator
+permission endpoint in a read-only job. The jobs that receive the Claude credential and write-capable
+token run only when that response confirms `push` permission, with the three explicitly configured
+GitHub Apps admitted by exact actor name. The pinned Claude action repeats its own write-permission
+check; that second check is defense in depth, not the boundary that protects the credential.
+
 ## Code Review Gate
 
 CodeRabbit is configured through `.coderabbit.yaml`, with automatic review disabled. Hosted

@@ -32,6 +32,10 @@ pnpm verify             # the full gate: policy checks, lint, typecheck, tests
 `pnpm verify` is what CI runs. Run it before pushing. Lefthook installs a pre-push hook that runs
 `pnpm verify:prepush`, the faster PR-shaped subset.
 
+Pull request CI is credential-free. It does not deploy Preview or require Cloudflare, Neon, Sentry,
+or other infrastructure credentials from contributors. After a change reaches `main`, the separate
+release train deploys the shared Preview environment and proves that exact commit before Production.
+
 Never bypass a gate to make something pass: no `--no-verify`, no ad-hoc environment variables to
 coax a command into running. If a hook fails on code you did not touch, check whether your branch
 has drifted from `main`.
