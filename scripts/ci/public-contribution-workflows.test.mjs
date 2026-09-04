@@ -26,6 +26,11 @@ test("comment automation authorizes callers before privileged jobs", async () =>
   assert.match(authorize, /permissions:\n\s+contents: read/u);
   assert.match(authorize, /collaborators\/\$ACTOR\/permission/u);
   assert.match(authorize, /--jq '\.permission'/u);
+  assert.match(
+    authorize,
+    /if permission="\$\(gh api[\s\S]+else\n\s+allowed=false\n\s+fi/u,
+    "a failed permission lookup must deny the caller without failing authorization",
+  );
   assert.match(authorize, /admin\|write\) allowed=true/u);
   assert.doesNotMatch(authorize, /secrets\.|contents: write|id-token: write/u);
   assert.equal(

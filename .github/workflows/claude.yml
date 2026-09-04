@@ -37,11 +37,14 @@ jobs:
               allowed=true
               ;;
             *)
-              permission="$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$ACTOR/permission" --jq '.permission')"
-              case "$permission" in
-                admin|write) allowed=true ;;
-                *) allowed=false ;;
-              esac
+              if permission="$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$ACTOR/permission" --jq '.permission' 2>/dev/null)"; then
+                case "$permission" in
+                  admin|write) allowed=true ;;
+                  *) allowed=false ;;
+                esac
+              else
+                allowed=false
+              fi
               ;;
           esac
           echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
