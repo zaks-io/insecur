@@ -11,21 +11,23 @@ probe_line="$(printf '%s%s%s' \
   'supersecrettoken1234567890"')"
 
 tmpdir="$(mktemp -d)"
-trap 'rm -rf "${tmpdir}"' EXIT
+probe_out="$(mktemp)"
+trap 'rm -rf "${tmpdir}" "${probe_out}"' EXIT
 
 mkdir -p "${tmpdir}/docs"
 cp "${source_setup}" "${tmpdir}/docs/setup.md"
 printf '%s\n' "${probe_line}" >> "${tmpdir}/docs/setup.md"
 
-if gitleaks detect \
+# See gitleaks-workflow-config-probe.sh: scan relative so the `^docs/setup\.md$`-anchored path
+# allowlist actually matches. An absolute --source makes it inert and the probe goes blind.
+if (cd "${tmpdir}" && gitleaks detect \
   --config "${config}" \
-  --source "${tmpdir}" \
+  --source . \
   --no-git \
   --redact \
-  --no-banner \
-  >"${tmpdir}/gitleaks-probe.out" 2>&1; then
+  --no-banner) >"${probe_out}" 2>&1; then
   echo "::error::gitleaks setup-doc probe failed: bearer token line was not reported as a leak." >&2
-  cat "${tmpdir}/gitleaks-probe.out" >&2
+  cat "${probe_out}" >&2
   exit 1
 fi
 

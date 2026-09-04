@@ -6,11 +6,12 @@ title = "insecur gitleaks"
 useDefault = true
 
 [[allowlists]]
-description = "Generated local mutation testing output"
+description = "Generated local build/test output that is gitignored and never committed"
 paths = [
   '''(?i)^reports/mutation/''',
   '''(?i)^\.stryker-tmp/''',
   '''(?i)^stryker\.log$''',
+  '''(?i)(^|/)\.turbo/''',
 ]
 
 [[rules]]
@@ -81,9 +82,17 @@ regexes = ['''^sec_[0-9A-Z]{26}$''']
 id = "curl-auth-header"
 
 [[rules.allowlists]]
+# History only. The probe script's fixture is split across source lines today, so the
+# working-tree scan never matches it, but at b65cb37f the fixture was a single-line base64
+# blob that gitleaks decodes and flags. b65cb37f is an ancestor of main, so `gitleaks git`
+# in security-daily hits it on every run. Pinned to the exact fake token rather than
+# allowlisting the whole file for this rule.
 description = "Intentional fake bearer token in gitleaks setup-doc regression probe"
 condition = "and"
 paths = ['''(?i)^scripts/ci/gitleaks-setup-doc-probe\.sh$''']
+regexes = [
+  '''^ins_live_supersecrettoken1234567890$''',
+]
 
 [[rules.allowlists]]
 description = "Historical scaffold curl Bearer placeholder in setup doc"

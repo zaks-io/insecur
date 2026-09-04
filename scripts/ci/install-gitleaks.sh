@@ -2,8 +2,8 @@
 # Install the OSS gitleaks CLI (no GITLEAKS_LICENSE required).
 set -euo pipefail
 
-version="8.24.2"
-checksum="fa0500f6b7e41d28791ebc680f5dd9899cd42b58629218a5f041efa899151a8e"
+version="8.30.1"
+checksum="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
 archive="gitleaks_${version}_linux_x64.tar.gz"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
