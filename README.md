@@ -66,6 +66,11 @@ insecur secrets set SESSION_SIGNING_KEY --generate
 insecur run --variable-key SESSION_SIGNING_KEY -- npm start
 ```
 
+Hosted sign-in works only for accounts that are already enabled; there is no public sign-up yet.
+Without one, skip `insecur login`: `insecur init` with no session starts
+[Local Mode](https://insecur.cloud/docs/local-mode), and the remaining commands work the same
+against an encrypted store on your machine.
+
 The generated value is not printed, written to a plaintext file, or placed in shell history. It is
 available to the command launched by `insecur run`, and anything controlling that process can read
 it. The five-minute walkthrough lives at
@@ -106,7 +111,7 @@ packages/
 
 ## Status
 
-insecur is open source (Apache-2.0); the hosted service at insecur.cloud is operated by Zaks.io, LLC. The project is in pre-launch build-out and is not approved for valuable production secrets yet. Local Mode, the hosted First Value loop, the metadata web console, and protected-change approval flows are implemented. Provider sync has early GitHub Actions and Cloudflare Worker adapters, but it is alpha and does not yet have enough provider-level testing to be treated as reliable. Production delivery remains blocked until the [Storage Security Gate](docs/storage-security-gate.md) has complete runtime evidence and enforcement. Current code, deployment evidence, and remaining launch work are tracked in [docs/project-status.md](docs/project-status.md).
+insecur is open source (Apache-2.0); the hosted service at insecur.cloud is operated by Zaks.io, LLC. The project is in pre-launch build-out and is not approved for valuable production secrets yet. There is no public sign-up for the hosted service; hosted sign-in works only for accounts that are already enabled. Local Mode, the hosted First Value loop, the metadata web console, and protected-change approval flows are implemented. Provider sync has early GitHub Actions and Cloudflare Worker adapters, but it is alpha and does not yet have enough provider-level testing to be treated as reliable. Production delivery remains blocked until the [Storage Security Gate](docs/storage-security-gate.md) has complete runtime evidence and enforcement. Current code, deployment evidence, and remaining launch work are tracked in [docs/project-status.md](docs/project-status.md).
 
 ## Development
 

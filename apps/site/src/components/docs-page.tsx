@@ -24,12 +24,30 @@ export function DocsPage({ page }: { page: DocPage }) {
             View as Markdown
           </a>
         </div>
+        <DocsStatusNotice />
         <div
           className="docs-prose mt-8"
           dangerouslySetInnerHTML={{ __html: renderDocHtml(page.slug, page.body) }}
         />
       </article>
     </div>
+  );
+}
+
+/**
+ * Prelaunch status on every docs page, so a reader landing mid-corpus from search or an agent
+ * still learns whether they can use the hosted service today. The same facts head llms.txt.
+ */
+function DocsStatusNotice() {
+  return (
+    <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+      insecur is experimental and prelaunch. There is no public sign-up yet, and the hosted service
+      is not approved for valuable production secrets.{" "}
+      <a href="/docs/local-mode" className="underline underline-offset-4">
+        Local Mode
+      </a>{" "}
+      runs the development loop with no account.
+    </p>
   );
 }
 
