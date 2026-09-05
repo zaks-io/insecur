@@ -198,7 +198,8 @@ function SiteFooterContent() {
         </div>
       </div>
       <p className="mt-10 border-t border-border pt-6 text-xs text-muted-foreground">
-        insecur.cloud. An experimental, open-source developer tool.
+        insecur.cloud. An experimental, open-source developer tool. There is no public sign-up yet;
+        sign-in is for accounts that are already enabled.
       </p>
     </SiteFooter>
   );
