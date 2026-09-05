@@ -12,7 +12,7 @@ import {
 } from "../src/fixtures";
 
 test.describe("preview public surfaces @preview", () => {
-  test("Public Site root renders launch content with security headers @happy-path", async ({
+  test("Public Site root renders experimental development content with security headers @happy-path", async ({
     page,
     preview,
   }) => {
@@ -24,7 +24,7 @@ test.describe("preview public surfaces @preview", () => {
     assertHeaderContains(siteRoot, "x-robots-tag", "noindex", "Site root");
     assertHeaderEquals(siteRoot, "x-frame-options", "DENY", "Site root");
     assertHeaderEquals(siteRoot, "x-content-type-options", "nosniff", "Site root");
-    assertTextIncludes(text ?? "", "no-reveal secrets custody", "Site root");
+    assertTextIncludes(text ?? "", "Run your app without plaintext", "Site root");
     assertTextIncludes(text ?? "", "insecur.cloud", "Site root");
   });
 

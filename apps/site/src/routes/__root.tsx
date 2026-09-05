@@ -23,11 +23,11 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "insecur — secrets your agents never hold" },
+      { title: "insecur | Run your app without plaintext .env files" },
       {
         name: "description",
         content:
-          "Secrets custody built for coding agents. Your agent asks for what it needs, insecur creates and sets it, and it never has to hold the raw secret. Coming soon.",
+          "An experimental developer tool for encrypted development secrets and runtime injection without plaintext .env files.",
       },
       { name: "theme-color", media: "(prefers-color-scheme: light)", content: "#ffffff" },
       { name: "theme-color", media: "(prefers-color-scheme: dark)", content: "#0a0a0a" },
@@ -173,7 +173,9 @@ function SiteFooterContent() {
       <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
         <div className="flex max-w-xs flex-col gap-3">
           <Wordmark />
-          <p className="text-sm text-muted-foreground">Secrets your agents never have to hold.</p>
+          <p className="text-sm text-muted-foreground">
+            Run your app without plaintext .env files.
+          </p>
         </div>
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 sm:gap-16">
           {footerGroups(consoleUrl).map((group) => (
@@ -196,7 +198,7 @@ function SiteFooterContent() {
         </div>
       </div>
       <p className="mt-10 border-t border-border pt-6 text-xs text-muted-foreground">
-        insecur.cloud — building in the open on Cloudflare Workers.
+        insecur.cloud. An experimental, open-source developer tool.
       </p>
     </SiteFooter>
   );

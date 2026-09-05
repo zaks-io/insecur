@@ -1,15 +1,15 @@
 ---
 title: Running commands with secrets
-description: Inject secrets into a child process at runtime with a fresh one-use grant, never touching CLI output or logs.
+description: Inject encrypted development secrets into a child process with a fresh one-use grant.
 section: Guides
 order: 2
 ---
 
 # Running commands with secrets
 
-`insecur run` starts a command with the secrets it needs injected into the child process environment, and nothing more. The value is never printed, never logged, and never written to an audit event. Each run requests a fresh one-use grant, so a leaked run leaves a small, recoverable blast radius rather than a standing secret on disk.
+`insecur run` starts a command with the selected secrets injected into the child process environment. The CLI does not print or log the value, and audit events do not contain it. Each run requests a fresh one-use grant instead of reading a standing secret from a project file.
 
-This is development-secret custody. The injected value does reach the child process. What you gain is no plaintext at rest, a single-use short-lived grant per run, and cheap rotation.
+This is development-secret custody. The injected value reaches the child process, and an agent controlling that process can inspect or print it. What you gain is no plaintext project `.env` file, a single-use short-lived grant per run, and an audit record. Automatic provider rotation is not available today.
 
 ## Run with a single variable
 
@@ -19,7 +19,7 @@ Inject one exact variable key and run your command. The `--` separator is requir
 insecur run --variable-key DATABASE_URL -- node server.js
 ```
 
-The child process sees `DATABASE_URL` in its environment. Your terminal does not.
+The child process sees `DATABASE_URL` in its environment. The CLI does not display it, though the child process can.
 
 ## Run from a profile policy
 
@@ -47,7 +47,7 @@ insecur run --variable-key DATABASE_URL --watch -- node server.js
 
 1. The CLI requests a fresh one-use Runtime Injection Grant for the exact secret bindings.
 2. Decrypt happens inside the private Runtime service, never in the CLI.
-3. The value is injected into the child process environment only.
+3. The value is injected into the child process environment. Code controlling that process can read it.
 4. Run completion is recorded as metadata.
 
 The grant lifecycle is: issued, then consumed. An unconsumed grant expires or can be revoked. At no point does the value appear in CLI output, `--json`, logs, or audit events.

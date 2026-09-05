@@ -7,7 +7,7 @@ order: 3
 
 # Agent quickstart
 
-This page is written for you, the agent. It tells you how to use secrets in this project without ever holding one. If you are a human wiring up an agent, copy the [AGENTS.md snippet](#tell-your-agents-about-insecur-agentsmd) at the bottom into your repo and your agent will find its way here.
+This page is written for you, the agent. It tells you how to use development secrets without reading them during the normal workflow. Runtime injection does not enforce unreadability: if you control the child process, you can inspect its environment. If you are a human wiring up an agent, copy the [AGENTS.md snippet](#tell-your-agents-about-insecur-agentsmd) at the bottom into your repo and your agent will find its way here.
 
 ## The rules
 
@@ -45,7 +45,7 @@ Run any command with a secret injected into its environment:
 insecur run --variable-key DATABASE_URL -- pnpm dev
 ```
 
-The `--` separator is required. The value lands only in the child process env; it never appears in your transcript, the CLI output, or the audit log. Each run consumes a fresh one-use grant and writes an audit event attributing it to you.
+The `--` separator is required. The CLI does not print the value or include it in the audit log. The child process receives it, so do not inspect, print, or log that process's environment. Each run consumes a fresh one-use grant and writes an audit event attributing it to you.
 
 ## Create a secret
 
@@ -93,7 +93,8 @@ Humans: paste this into your repo's `AGENTS.md` (or `CLAUDE.md`), adjusted to ta
 ## Secrets
 
 This project uses insecur for secrets. There are no readable secret values in
-this repo and there should never be.
+this repo and there should never be. A process launched with `insecur run` does
+receive the selected values, so do not inspect, print, or log its environment.
 
 - Never read or create `.env` files, and never ask me to paste a secret value.
 - Run anything that needs secrets through `insecur run --variable-key <KEY> -- <command>`.

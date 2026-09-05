@@ -6,12 +6,16 @@ for canonical terms see `../CONTEXT.md`.
 
 ## What this is
 
-insecur is no-reveal secrets custody for teams shipping with agents and CI. It holds the
-canonical secret and lets your code and your agents use it. For Protected Environment values
-(the production-grade ones we care about) it gives nobody a plaintext read-back path through the
-product: not the agent, not CI, not you. Every other secrets tool is named after a fortress. We
-named this one after the problem, because the job is to remove the specific ways secrets leak,
-not to sell a feeling of safety.
+insecur is currently an experimental developer tool for running applications without plaintext
+`.env` files. It stores development secrets encrypted and injects them into a child process when
+a command runs. This makes credentials easier to find and removes one common plaintext copy from
+the development workspace.
+
+The longer-term product is no-reveal secrets custody for teams shipping with agents and CI. For
+Protected Environment values, that design gives ordinary human and agent sessions no plaintext
+read-back path through the product. That production model is not yet proven or ready for valuable
+production secrets. Current implementation state and remaining evidence live in
+[`project-status.md`](project-status.md).
 
 Be precise about the boundary, because it is not the same in dev and in production, and future
 agents must not blur the two. See the custody boundary in
@@ -22,12 +26,13 @@ The upgrade pitch is that custody means the store is somewhere the agent isn't.
 
 - **Development secrets:** the injected value lands in a child process the developer's agent
   controls, so that agent can read it if it tries, and it is not hard to figure out how. We do
-  not claim otherwise. The protection here is a smaller, recoverable blast radius, not
+  not claim otherwise. The current protection is less plaintext at rest and less routine copying,
+  not
   unreadability: no plaintext file at rest, no standing credential handed to the child, one
-  short-lived single-use audited grant per run, and trivial rotation. This makes it _easy for a
-  cooperative agent to do the right thing_ and _cheap to recover_ when a careless one slips. It
-  does not stop a determined adversarial agent from exfiltrating a dev secret, and it is not
-  meant to.
+  short-lived single-use audited grant per run, and a record of use. Replacing the stored value
+  does not revoke the credential at its provider. Provider-backed, one-button rotation after an
+  agent reports exposure is future direction, not a current capability. This does not stop a
+  determined adversarial agent from exfiltrating a development secret, and it is not meant to.
 - **Production / Protected Environment secrets:** the readable value never reaches the machine
   the developer's agent runs on. A local human session, and any agent that inherits it, cannot
   obtain a Protected Environment injection grant at all. Delivery requires a machine credential
@@ -35,34 +40,34 @@ The upgrade pitch is that custody means the store is somewhere the agent isn't.
   goes through a multi-step approval no single agent-reachable channel can clear. Here the
   boundary is enforced by infrastructure we control, not by hoping the local process behaves.
 
-The honest one-line version: we reduce mistakes for well-behaved agents everywhere, and we make
-the environments that matter structurally hard for an adversarial one to reach.
+The honest current one-line version: store development secrets encrypted and inject them when a
+command runs, without claiming that the running process cannot read them.
 
 ## Why it exists
 
-Secrets management was built for humans and servers. Then coding agents started reading
-repos at 100 tokens a second, and teams started running several in parallel. The leak is not
-a break-in. It is a helpful status line you scrolled past: "I'll just read your `.env` to
-debug this." You cannot out-watch a swarm of fast agents, and you cannot predict where a
-creative one will look. Oversight was never the control. The only thing that holds at this
-speed is structural: take the readable secret off the table. Public evidence that developers
-are already running into this problem is captured in
+Development credentials become scattered across plaintext `.env` files, provider dashboards,
+notes, and old projects. Developers have to hunt for them when they are needed, while coding
+agents can encounter them during ordinary file inspection and debugging. Removing plaintext
+files reduces that exposure path. Fast provider-backed rotation would make recovery easier after
+an agent or process reports an exposure; building and proving that workflow is part of the product
+direction. Public evidence that developers are already running into the broader problem is in
 [`research/problem-evidence.md`](research/problem-evidence.md).
 
 ## What it is trying to accomplish
 
-Two promises, in order:
+Two stages, in order:
 
-- **First, development:** Diskless Development Secret Use. Stop giving coding agents plaintext
-  local secret files. Secrets load into a process at runtime and never touch disk, even on a
-  developer's own machine.
+- **Current focus, development:** Diskless Development Secret Use. Store development secrets
+  encrypted and inject them into a child process without a plaintext local secret file. Then add
+  provider-backed recovery so a known exposure can be rotated quickly.
 - **Then, production:** no-reveal custody. Let agents and CI cause approved deploy and runtime
   workflows without giving local agents or ordinary human sessions a read path to Protected
   Environment Sensitive Values.
 
-V1 is a real production release for Small-Group Production (personal projects and small
+The intended V1 is a production release for Small-Group Production (personal projects and small
 trusted teams), built on an Enterprise-Ready Model so growth does not force a tenant,
-authorization, audit, or key-boundary rewrite.
+authorization, audit, or key-boundary rewrite. The current experimental product has not reached
+that state.
 
 ## Operating principles
 

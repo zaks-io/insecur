@@ -1,17 +1,17 @@
 ---
 title: Using insecur with coding agents
-description: Give a coding agent an attributed, deny-by-default session so secrets stay off the readable table.
+description: Keep plaintext secrets out of project files and attribute runtime injection to coding-agent sessions.
 section: Guides
 order: 1
 ---
 
 # Using insecur with coding agents
 
-Coding agents read your repo and your `.env` files at machine speed. Any plaintext secret sitting on disk is one prompt away from a transcript, a log, or a paste. The fix is structural: take the readable secret off the table, and give the agent a session that is attributed and deny-by-default.
+Coding agents read your repo and your `.env` files at machine speed. insecur lets you remove plaintext development secrets from project files and attribute each runtime injection to the session that requested it.
 
-With insecur, an agent never needs a static secret in its environment. Every `insecur run` mints a fresh one-use audited injection grant, and every audit event carries the principal chain: which human, which agent, which command. You get a small, recoverable blast radius instead of a standing liability.
+With insecur, an agent does not need a static secret in its ambient environment. Every `insecur run` mints a fresh one-use audited injection grant, and every audit event carries the principal chain: which human, which agent, which command.
 
-This is development-secret custody, not unreadability. The injected value does reach the child process the agent runs. What you get is no plaintext at rest, one short-lived single-use grant per run, and cheap rotation.
+This is development-secret custody, not unreadability. The injected value reaches the child process the agent runs, and an agent that controls that process can inspect or print it. The current benefit is no plaintext project `.env` file, a short-lived single-use grant per run, and an audit record. Automatic provider rotation after an exposure is not available yet.
 
 ## Launch an agent in a deny-by-default session
 

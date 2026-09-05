@@ -4,54 +4,53 @@ What we say and where. Companion to `voice.md` (how we say it) and `../../CONTEX
 (canonical terms). This file is the go-to-market narrative and the surface map. It does not
 restate the voice rules.
 
-## The buyer
+## Current position
 
-The first buyer is a small team or solo dev shipping through Cloudflare Workers and GitHub
-Actions, running coding and deploy agents plus CI, who wants their agents to move fast
-without leaving a trail of hardcoded secrets, and does not want to stand up Vault or pay
-enterprise prices for an approval workflow. They love their agents. We are not here to make
-them distrust the agent. We are here to make sure the agent never had to hold a raw secret
-to get its job done.
+insecur is an experimental developer tool for running applications without plaintext `.env`
+files. It stores development secrets encrypted and injects them into the child process when a
+developer runs a command.
 
-Vercel remains part of the broader product direction, but the first customer-validation
-beachhead is Cloudflare Workers plus GitHub Actions. Lead with the narrow wedge until the
-First Value loop has repeated usage evidence.
+The first user is a solo developer or small team using coding agents and CI. Their immediate
+problem is practical: credentials are scattered across `.env` files, provider dashboards,
+notes, and old projects. Finding the right value is manual, while leaving values beside the
+code makes accidental agent access routine.
+
+This position is intentionally narrow while the product lacks repeated usage evidence. Do not
+market production custody as ready. Do not claim an agent cannot read a value injected into a
+process it controls.
 
 ## The narrative arc
 
 Three beats, always in this order:
 
-1. **Hook (why now):** the agent already read your `.env`, and you are about to run five
-   more in parallel. See the agent narrative in `voice.md` and the public problem evidence
-   in [`../research/problem-evidence.md`](../research/problem-evidence.md).
-2. **Mechanic (what we do):** stop handing agents secrets to manage. The agent asks, insecur
-   creates and sets the value, and it gets back a working key. It never types, picks, or
-   copies the raw secret.
-3. **Proof (why believe it):** the mechanism, shown not asserted. Blind-generated values no
-   human chooses or sees, one-step ask-and-get, short-lived scoped robot keys, every use on
-   the record, small blast radius. Plus trust artifacts as they land.
+1. **Problem:** development credentials are tedious to find and too often live in plaintext
+   files beside the code.
+2. **Mechanic:** insecur stores the values encrypted and injects them when a command runs.
+3. **Boundary:** the launched process receives the value. An agent controlling that process
+   can read it. The current benefit is less plaintext at rest and less manual secret handling.
 
-The arc moves a skeptic from "that's a cute name" to "oh, the agent genuinely never has to
-hold the raw secret."
+The product should be understood after those three beats. The future recovery story can follow:
+provider-backed rotation should eventually let a developer replace an exposed credential from
+one place. That capability is a direction, not a current claim.
 
 ## Surface map
 
 **Landing hero stack** (each line does one job, never two):
 
-- Hook line: the agent line, e.g. "Your agent already read your `.env`."
-- Mechanic line: the workflow, e.g. "Your agent never picks the secret."
-- Gloss: the one-liner from `voice.md` (secrets custody built for coding agents; it asks,
-  we create and set it, it gets back a working key it never had to hold).
-- CTA: start the free dev loop (no production secrets, no card).
+- Headline: "Run your app without plaintext `.env` files."
+- Gloss: "Store development secrets encrypted, then inject them when you run a command."
+- Boundary: "The running process can read injected secrets. Production use is not ready."
+- CTA: try the development loop with a disposable secret.
 
 **First Value proof** is the first conversion event, not a feature tour:
 
 - `insecur init`
-- `insecur secrets set --generate --variable-key <KEY>`
+- `insecur secrets set <KEY> --generate`
 - `insecur run --variable-key <KEY> -- <command>`
 
-The proof should make the user feel the missing `.env` file, the successful command, and the
-absence of plaintext output.
+The proof should show the missing `.env` file, the successful command, and the absence of
+plaintext output. It must also state that the launched command receives the value in its
+environment.
 
 The primary Public Site CTA is to run that proof or a near-equivalent static, copyable terminal demo
 with the real CLI, such as an `npx` flow that stores/generates a development secret and uses it in a
@@ -59,47 +58,35 @@ small command or mock service. Do not run browser-executed demos or hosted sandb
 site. Security design, source links, legal, and company pages matter, but they are secondary to
 getting testers to use the product.
 
-**"How custody actually works"** is the conversion engine for the security-minded buyer.
-A mechanism page, not a feature list, and it is scrupulously honest about the boundary. Walk
-it end to end: how an agent gets a secret in one step (ask, and get a working key), how blind
-generation sets a value no human chooses or sees, that the value is injected into the process
-environment at run time exactly like a normal secret (we do not claim the running process
-cannot read it), that there is no export or readback command so the raw value never leaves as
-a file to be committed, why robot credentials are short-lived and scoped, and how every use is
-recorded and tamper-evident. This is the page where the price gets justified, and where being
-precise about what we do and do not prevent is itself the trust signal.
+**"How it works"** explains the mechanism rather than listing features. Walk it end to end:
+encrypted storage, generated or imported values, runtime injection into a child process, no
+export or readback command, scoped grants, and the audit record. State the runtime boundary
+beside the injection step, where a reader cannot miss it.
 
-**Pricing** is deferred during the tester phase. Do not ship a pricing page until we have real
-charging intent. When pricing lands, it is a story, not just a table: free for dev (holds no
-production secrets), paid for production custody, and we charge for people, never your robots.
-Predictable per-seat, no usage meters, because bill anxiety is off-brand for a product whose pitch
-is "trust us with production."
+**Pricing** is a future model rather than a current offer: free development use, paid production
+custody, and per-person pricing without metering machine identities, runtime injection, or CI
+access. Keep it subordinate to the experimental status until production custody is proven.
 
-**Competitive frame** (custody vs management):
+**Competitive frame:**
 
-- vs Doppler: same runtime-injection shape, but the developer still pastes and manages raw
-  values, and Cloudflare is DIY. We make the agent's default path one where it never handled
-  a raw secret.
-- vs Infisical: closest shape, but it is built around a human reading and copying values;
-  blind generate-and-set as the agent's normal path is ours.
-- vs Phase: has a real sealed primitive, but it is opt-in per secret and there is no
-  agent-first, ask-and-get workflow or agent-aware approval model.
-- vs Vault: the enterprise standard we are deliberately not. Heavy, no Cloudflare, built for
-  ops engineers, not for a coding agent that needs a working key in one call.
+- Plaintext `.env` files are the current alternative to replace.
+- Existing secrets managers are established products. Do not claim insecur is safer or easier
+  before comparative evidence exists.
+- The differentiating direction is recovery after exposure: know what was used, then rotate the
+  provider credential from one place. The provider-rotation step is not implemented today.
 
-The one-line version: everyone else hands the developer a secret to manage. We give the
-agent a working key it never had to hold.
+The one-line version: store development secrets encrypted and inject them when the command runs.
 
 ## Proof obligations
 
-The price is backed by proof or it does not land. Market these as they ship; do not bury
-them in implementation:
+Market capabilities only as their proof lands:
 
-- Blind generate-and-set and one-step ask-and-get, with the mechanism explained and the
-  runtime boundary stated honestly.
-- Tamper-evident audit export, every use on the record, approvals an agent cannot clear,
-  short-lived machine credentials, small blast radius.
-- SOC 2, a published penetration test, and the Storage Security Gate.
+- Current: encrypted development-secret storage, import and generation without plaintext
+  output, runtime injection, and the audit record.
+- Required before a recovery claim: working provider rotation with provider-level tests and a
+  clear report of what changed.
+- Required before a production claim: the Storage Security Gate, production runtime evidence,
+  and the trust artifacts named by the product specification.
 
 ## What we do not say
 

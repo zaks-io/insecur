@@ -2,7 +2,7 @@
   "name": "insecur",
   "version": "0.0.0",
   "private": true,
-  "description": "No-reveal secrets custody for teams shipping with agents and CI.",
+  "description": "Experimental encrypted development secrets and runtime injection without plaintext .env files.",
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.19.0",
   "scripts": {

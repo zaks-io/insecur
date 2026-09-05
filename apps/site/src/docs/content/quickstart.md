@@ -7,7 +7,9 @@ order: 1
 
 # Quickstart
 
-This walkthrough takes you from nothing to a running process with a secret in its environment. The value never appears on your screen, in a file, or in a log at any point.
+This walkthrough takes you from nothing to a running process with a secret in its environment. insecur does not print the value or write it to a project file or audit log. The child process receives the plaintext value and can display it if the program chooses.
+
+insecur is experimental and prelaunch. Use this quickstart with development credentials, not valuable production secrets.
 
 ## 1. Install the CLI
 
@@ -57,7 +59,7 @@ insecur secrets set API_SIGNING_KEY --generate random --length 32
 insecur run --variable-key DATABASE_URL -- node server.js
 ```
 
-The CLI requests a fresh one-use injection grant, the value is decrypted inside the private runtime service, and it lands in the environment of `node server.js` and nowhere else. When the process exits, the grant is spent. Run it again and a new grant is issued and audited.
+The CLI requests a fresh one-use injection grant, the value is decrypted inside the private runtime service, and it lands in the environment of `node server.js`. When the process exits, the grant is spent. Run it again and a new grant is issued and audited. Code controlling the child process, including an agent that launched it, can read the injected value.
 
 Confirm what happened without revealing anything:
 

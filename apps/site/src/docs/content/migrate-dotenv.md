@@ -63,7 +63,7 @@ Then confirm injection works end to end with a real run:
 insecur run --variable-key DATABASE_URL -- node -e "process.env.DATABASE_URL && console.log('ok')"
 ```
 
-The value reaches the child process only. It does not appear in your terminal. See [Running commands with secrets](/docs/run) for details.
+The value reaches the child process. The CLI does not display it, though the child process can. See [Running commands with secrets](/docs/run) for details.
 
 ## Remove the plaintext file
 
@@ -79,7 +79,7 @@ This prompts for explicit confirmation. Skip the prompt when scripting:
 insecur local-files rm .env --yes
 ```
 
-This is an ordinary filesystem delete. There is no secure-erasure claim: treat any value that lived in the file as worth rotating on your normal schedule.
+This is an ordinary filesystem delete. There is no secure-erasure claim: treat any value that lived in the file as worth rotating at its provider. insecur does not automate provider rotation today, and storing a replacement does not revoke the old credential.
 
 ## Related
 

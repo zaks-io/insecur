@@ -14,13 +14,13 @@ function buildLlmsTxt(): string {
   const lines = [
     "# insecur",
     "",
-    "> No-reveal secrets custody for teams shipping with coding agents and CI. insecur holds the",
-    "> canonical secret and lets your code and your agents use it, without a plaintext read-back",
-    "> path through the product. The `insecur` CLI is the primary interface for humans and agents.",
+    "> An experimental developer tool for encrypted development secrets and runtime injection.",
+    "> Run your app without plaintext .env files. An agent controlling the running process",
+    "> can still read injected secrets. Automatic rotation is not available.",
     "",
     "Every documentation page is served two ways: rendered HTML at the listed URL without the",
-    "`.md` suffix, and raw markdown at the `.md` URL. All CLI and API output is metadata-only;",
-    "commands support `--json` and exit with stable codes.",
+    "`.md` suffix, and raw markdown at the `.md` URL. The CLI reports secret metadata;",
+    "a child process can still print values it receives. Commands support `--json` and stable exit codes.",
     "",
   ];
 
