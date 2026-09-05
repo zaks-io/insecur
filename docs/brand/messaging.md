@@ -19,6 +19,10 @@ This position is intentionally narrow while the product lacks repeated usage evi
 market production custody as ready. Do not claim an agent cannot read a value injected into a
 process it controls.
 
+There is no public sign-up for the hosted service yet; sign-in works only for accounts that are
+already enabled. Say so on every surface that offers sign-in or `insecur login`, and point everyone
+else at Local Mode, which runs the development loop with no account.
+
 ## The narrative arc
 
 Three beats, always in this order:
@@ -40,6 +44,7 @@ one place. That capability is a direction, not a current claim.
 - Headline: "Run your app without plaintext `.env` files."
 - Gloss: "Store development secrets encrypted, then inject them when you run a command."
 - Boundary: "The running process can read injected secrets. Production use is not ready."
+- Access: "There is no public sign-up yet. Local Mode runs the same loop with no account."
 - CTA: try the development loop with a disposable secret.
 
 **First Value proof** is the first conversion event, not a feature tour:

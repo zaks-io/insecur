@@ -19,6 +19,8 @@ describe("docs pages", () => {
     for (const page of DOC_PAGES) {
       const markup = renderToStaticMarkup(<DocsPage page={page} />);
       expect(markup, page.slug).toContain("View as Markdown");
+      expect(markup, page.slug).toContain("experimental and prelaunch");
+      expect(markup, page.slug).toContain("no public sign-up yet");
       expect(markup, page.slug).toContain(`href="${page.markdownHref}"`);
     }
   });

@@ -16,7 +16,8 @@ function buildLlmsTxt(): string {
     "",
     "> An experimental developer tool for encrypted development secrets and runtime injection.",
     "> Run your app without plaintext .env files. An agent controlling the running process",
-    "> can still read injected secrets. Automatic rotation is not available.",
+    "> can still read injected secrets. Automatic rotation is not available. There is no public",
+    "> sign-up yet; Local Mode needs no account. Not approved for valuable production secrets.",
     "",
     "Every documentation page is served two ways: rendered HTML at the listed URL without the",
     "`.md` suffix, and raw markdown at the `.md` URL. The CLI reports secret metadata;",
@@ -53,6 +54,8 @@ function buildLlmsFullTxt(): string {
     "",
     `Every documentation page concatenated as markdown. Index: ${CANONICAL_ORIGIN}/llms.txt.`,
     "Each page begins with a divider naming its canonical source URL.",
+    "insecur is experimental and prelaunch: no public sign-up yet, and not approved for valuable",
+    "production secrets. Local Mode runs the development loop with no account.",
     "",
   ];
   for (const page of DOC_PAGES) {

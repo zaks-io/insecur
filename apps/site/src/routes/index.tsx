@@ -58,7 +58,8 @@ function Hero() {
           </p>
           <p className="mt-4 max-w-[60ch] text-sm leading-relaxed text-muted-foreground">
             Under development. An agent controlling the running process can still read its injected
-            secrets. Not ready for valuable production secrets.
+            secrets. Not ready for valuable production secrets. There is no public sign-up yet;
+            Local Mode runs the same loop on your machine with no account.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Button asChild size="lg">
@@ -75,8 +76,8 @@ function Hero() {
   );
 }
 
+// The accountless Local Mode loop: what a first-time visitor can run today without sign-up.
 const TERMINAL_LINES = [
-  "insecur login",
   "insecur init",
   "insecur secrets set SESSION_SIGNING_KEY --generate",
   "insecur run --variable-key SESSION_SIGNING_KEY -- npm start",
@@ -88,10 +89,10 @@ function Terminal() {
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <span className="font-mono text-xs text-muted-foreground">
-            ~/app · after installing insecur
+            ~/app · after installing insecur, no account
           </span>
           <span className="font-mono text-xs tracking-widest text-signal uppercase">
-            development example
+            Local Mode example
           </span>
         </div>
         <div className="flex flex-col gap-2 overflow-x-auto px-4 py-4 font-mono text-sm leading-relaxed">

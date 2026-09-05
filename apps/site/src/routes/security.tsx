@@ -149,6 +149,13 @@ function VerifySection() {
         <a href="/docs/security-model" className="underline underline-offset-4">
           security model
         </a>
+        , the{" "}
+        <a
+          href="https://github.com/zaks-io/insecur/blob/main/docs/whitepaper/threat-model.md"
+          className="underline underline-offset-4"
+        >
+          threat model
+        </a>
         , and the{" "}
         <a
           href="https://github.com/zaks-io/insecur/blob/main/docs/project-status.md"

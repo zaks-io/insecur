@@ -11,7 +11,7 @@ insecur is an experimental developer tool for keeping secrets out of plaintext p
 
 The `insecur` CLI is the primary interface, for humans and for agents. Product output is metadata: names, versions, opaque ids, and audit references. Secret values travel through a one-use injection grant into the environment of the child process you asked it to run. A process controlled by an agent can inspect its own environment, so runtime injection reduces routine exposure and plaintext storage rather than making a secret unreadable to that agent.
 
-The hosted service and its production no-reveal design are still prelaunch and are not approved for valuable production secrets. Automatic provider rotation and one-button recovery after an exposure are goals, not available features today.
+The hosted service and its production no-reveal design are still prelaunch and are not approved for valuable production secrets. Automatic provider rotation and one-button recovery after an exposure are goals, not available features today. There is no public sign-up yet; [Local Mode](/docs/local-mode) runs the development loop with no account.
 
 ## Start here
 
