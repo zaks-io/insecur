@@ -15,14 +15,14 @@ interface Boundary {
 // never zero-knowledge. Grounded in docs/whitepaper/threat-model.md §2.4/§2.5.
 const BOUNDARIES: Boundary[] = [
   {
-    tier: "Production",
-    claim: "No read-back path",
-    body: "For Protected Environment values, nobody gets a plaintext read-back path through the product: not the agent, not CI, not you, not our support staff. The readable value never reaches a machine an ordinary session controls.",
+    tier: "Production design",
+    claim: "Not launch-proven",
+    body: "The protected-environment design has no plaintext read-back path through the product. Production delivery and security verification remain incomplete. Do not use the service for valuable production secrets.",
   },
   {
     tier: "Development",
-    claim: "Small blast radius",
-    body: "The dev secret is injected into the process your agent controls, so that agent can read it. We do not claim otherwise. The protection is a small, recoverable blast radius: no plaintext at rest, one short-lived single-use grant per run, trivial rotation.",
+    claim: "Encrypted storage",
+    body: "Development secrets are stored encrypted and injected into a child process. An agent controlling that process can read the values. Hosted injection uses short-lived single-use grants. Automatic credential rotation and one-button recovery are not available.",
   },
 ];
 
@@ -46,7 +46,7 @@ const CONTROLS: Control[] = [
   },
   {
     head: "Every use on the record",
-    body: "Which identity asked for which secret, when, from where. The audit trail is the point of the product, not a bolt-on, so a leak is a question you can answer instead of guess at.",
+    body: "Which identity asked for which secret, when, from where. Hosted grants and use are audited. This records access through insecur, not every read or leak inside a process.",
   },
 ];
 
@@ -116,7 +116,7 @@ function ControlsSection() {
   return (
     <section className="mt-12">
       <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-        Why it holds: structure, not vigilance
+        Hosted architecture
       </h2>
       <div className="mt-5 flex flex-col">
         {CONTROLS.map((c, i) => (
@@ -141,11 +141,23 @@ function VerifySection() {
         Check it yourself
       </h2>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-        The design is meant to be verified, not taken on faith. As they become public, this page
-        will link the source code and the threat-model white paper that spells out the adversaries
-        we model, the trust boundaries, and where the no-reveal claim starts and stops. Until then,
-        the claim ceiling above is the honest version: structural unreadability for production,
-        small blast radius for dev, and no zero-knowledge promise anywhere.
+        insecur is experimental. Read the{" "}
+        <a href="https://github.com/zaks-io/insecur" className="underline underline-offset-4">
+          source code
+        </a>
+        , the{" "}
+        <a href="/docs/security-model" className="underline underline-offset-4">
+          security model
+        </a>
+        , and the{" "}
+        <a
+          href="https://github.com/zaks-io/insecur/blob/main/docs/project-status.md"
+          className="underline underline-offset-4"
+        >
+          launch blockers
+        </a>{" "}
+        before evaluating it. Architecture describes the intended controls; it does not establish
+        that the service is ready for production secrets.
       </p>
     </section>
   );

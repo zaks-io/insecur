@@ -1,15 +1,17 @@
 ---
 title: Documentation
-description: What insecur is, how the docs are organized, and where to start.
+description: Try insecur as an experimental tool for encrypted development secrets and runtime injection.
 section: Getting started
 order: 0
 ---
 
 # insecur documentation
 
-insecur is no-reveal secrets custody for teams shipping with coding agents and CI. It holds the canonical secret and lets your code and your agents use it, without a plaintext read-back path through the product. Your agent asks for what it needs, insecur creates and sets it, and the agent never has to hold the raw value.
+insecur is an experimental developer tool for keeping secrets out of plaintext project `.env` files. It stores development secrets encrypted and injects the variables you select into a child process when you run a command.
 
-The `insecur` CLI is the primary interface, for humans and for agents. Everything it prints is metadata: names, versions, opaque ids, audit references. Secret values travel exactly one path, a one-use injection grant consumed at run time, into the environment of the child process you asked it to run.
+The `insecur` CLI is the primary interface, for humans and for agents. Product output is metadata: names, versions, opaque ids, and audit references. Secret values travel through a one-use injection grant into the environment of the child process you asked it to run. A process controlled by an agent can inspect its own environment, so runtime injection reduces routine exposure and plaintext storage rather than making a secret unreadable to that agent.
+
+The hosted service and its production no-reveal design are still prelaunch and are not approved for valuable production secrets. Automatic provider rotation and one-button recovery after an exposure are goals, not available features today.
 
 ## Start here
 

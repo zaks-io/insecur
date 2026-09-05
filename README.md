@@ -1,6 +1,6 @@
 # insecur
 
-**Secrets your agents never have to hold.**
+**Run your app without plaintext `.env` files.**
 
 [![CI](https://github.com/zaks-io/insecur/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zaks-io/insecur/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Finsecur.cloud%2Fbadges%2Fcoverage.json)](https://github.com/zaks-io/insecur/actions/workflows/ci.yml)
@@ -8,30 +8,48 @@
 [![security-daily](https://github.com/zaks-io/insecur/actions/workflows/security-daily.yml/badge.svg)](https://github.com/zaks-io/insecur/actions/workflows/security-daily.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-insecur is secrets custody built for coding agents. Your agent asks for the secret it needs, insecur creates and sets the value, and the agent gets back a working key. It never types, picks, or copies the raw secret, and it can run without leaving a plaintext `.env` file on disk for the agent to read.
+insecur is an experimental developer tool for storing development secrets encrypted and injecting
+them when you run a command. It gives you one place to put credentials instead of hunting through
+dashboards, notes, and old project files, and lets your app run without a plaintext `.env` file on
+disk.
 
 Every other secrets tool is named after a fortress. We named this one after the problem, because the job is to remove the specific ways secrets leak, not to sell a feeling of safety. Yes, the name is on purpose.
 
+The boundary is specific: the child process receives the secret in its environment, so that process
+or an agent controlling it can still read the value at runtime. insecur reduces secrets left at rest
+and copied through routine workflows. It does not make a secret invisible to the code using it.
+
 ## Why
 
-Secrets management was built for humans and servers. Then coding agents started reading repos at 100 tokens a second, and teams started running several in parallel. The leak is not a break-in. It is a helpful status line you scrolled past: "I'll just read your `.env` to debug this." You cannot out-watch a swarm of fast agents, so oversight was never the control. The only thing that holds at this speed is structural: take the readable secret off the table.
+Development credentials tend to accumulate wherever they were easiest to put: `.env` files, shell
+history, provider dashboards, notes, and chat transcripts. That makes them hard to find when you
+need them and easy for a coding agent to encounter while debugging.
 
-insecur does that in two tiers, and is honest about the difference:
+insecur currently focuses on a smaller job:
 
-- **Development secrets** are injected into the child process at runtime and never touch disk. A local agent could still read the value it uses; we don't claim otherwise. The protection is a small, recoverable blast radius: no plaintext file at rest, one short-lived single-use audited grant per run, and trivial rotation.
-- **Protected (production) secrets** never reach the machine your agent runs on. Delivery requires a machine credential bound to that environment, living in CI/CD, and promotion goes through an approval no single agent-reachable channel can clear. The boundary is enforced by infrastructure, not by hoping the local process behaves.
+- store development secrets encrypted instead of keeping plaintext values beside the code;
+- inject them into one child process for one command;
+- keep secret values out of routine copy-and-paste work;
+- record grants and use so exposure is easier to investigate.
 
-The full custody model is in the [security model](https://insecur.cloud/docs/security-model) and the [threat model](docs/whitepaper/threat-model.md).
+The longer-term direction includes provider-backed rotation, so a developer can replace a credential
+quickly after an agent or process exposes it. That recovery workflow is not available yet. Production
+custody is also unproven and must not be used for valuable production secrets. The intended model is
+documented in the [security model](https://insecur.cloud/docs/security-model) and the
+[threat model](docs/whitepaper/threat-model.md).
 
 ## What you can do with it
 
 - **Find leaks:** `insecur scan` produces an offline, metadata-only secret exposure report for your project, and can optionally scan agent transcripts and well-known credential locations.
-- **Kill your `.env`:** `insecur import .env` copies a dotenv file into an encrypted development environment, all-or-nothing. The source stays in place until you explicitly run `insecur local-files rm .env`; then `insecur scan` confirms nothing readable is left behind.
-- **Blind-write secrets:** `insecur secrets set KEY --generate` creates a value no human chose, saw, or pasted anywhere. There is no `get` or `export` command, on purpose.
-- **Run without files:** `insecur run` injects secrets into the process environment for exactly one run. They leave when the process does.
+- **Remove a plaintext `.env`:** `insecur import .env` copies a dotenv file into an encrypted
+  development environment, all-or-nothing. The source stays in place until you explicitly run
+  `insecur local-files rm .env`; then `insecur scan` checks its configured paths for readable
+  copies.
+- **Generate secrets without copying them:** `insecur secrets set KEY --generate` creates and stores
+  a value without printing it. There is no `get` or `export` command.
+- **Run without files:** `insecur run` injects secrets into the child process environment for
+  one command. Code in that process can read or persist them.
 - **Keep everything on the record:** every grant and use is audited and exportable; machine access uses short-lived scoped credentials, never tokens that live forever.
-
-Robots are free. Machine identities, runtime injection, and CI access are never metered; we charge for people.
 
 ## Quickstart
 
@@ -48,7 +66,12 @@ insecur secrets set SESSION_SIGNING_KEY --generate
 insecur run --variable-key SESSION_SIGNING_KEY -- npm start
 ```
 
-The value never appeared on your screen, in a file, in your shell history, or in an agent transcript. The five-minute walkthrough lives at [insecur.cloud/docs/quickstart](https://insecur.cloud/docs/quickstart), the agent-oriented version at [insecur.cloud/docs/agent-quickstart](https://insecur.cloud/docs/agent-quickstart), and a copyable end-to-end verifier in [examples/first-value-proof](examples/first-value-proof).
+The generated value is not printed, written to a plaintext file, or placed in shell history. It is
+available to the command launched by `insecur run`, and anything controlling that process can read
+it. The five-minute walkthrough lives at
+[insecur.cloud/docs/quickstart](https://insecur.cloud/docs/quickstart), the agent-oriented version at
+[insecur.cloud/docs/agent-quickstart](https://insecur.cloud/docs/agent-quickstart), and a copyable
+end-to-end verifier in [examples/first-value-proof](examples/first-value-proof).
 
 ## Documentation
 

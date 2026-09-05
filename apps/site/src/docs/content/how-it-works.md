@@ -1,13 +1,13 @@
 ---
 title: How insecur works
-description: The no-reveal custody model, what happens on a secret write and an injected run, and the honest security boundaries.
+description: How encrypted development storage and runtime injection work today, plus the prelaunch production design.
 section: Concepts
 order: 1
 ---
 
 # How insecur works
 
-Secrets management was built for humans and servers. Coding agents changed the threat model: they read repositories and `.env` files at machine speed, they run in parallel, and you cannot out-watch them. Oversight was never the control. The only control that holds at that speed is structural: take the readable secret off the table.
+Coding agents can read repositories and `.env` files at machine speed. insecur is an experimental attempt to remove that routine source of exposure: store development secrets encrypted, then inject them only into the process that needs them.
 
 insecur does that with two moves, in order of ambition.
 
@@ -27,13 +27,17 @@ insecur run --variable-key STRIPE_KEY -- pnpm dev
 
 Each run issues a fresh, single-use, audited injection grant for exactly the variables you named. The value is decrypted inside a private runtime service that holds the only decryption capability, delivered into the environment of the child process, and the grant is spent. No plaintext at rest, no standing credential in your shell profile, and an audit event for every use with the full principal chain, including which agent asked.
 
-Be clear about the boundary here: the injected value does reach a process on your machine, and a process the agent launched is a process the agent controls. A determined adversarial agent could read it. What you get in development is not unreadability. It is a small, recoverable blast radius: nothing on disk to scrape, one short-lived grant per use instead of an ambient credential, an audit trail that says exactly what was exposed, and rotation cheap enough to actually do.
+Be clear about the boundary here: the injected value does reach a process on your machine, and a process the agent launched is a process the agent controls. An agent can read or print that value if it chooses. What you get in development is no plaintext project file to scrape, one short-lived grant per use instead of an ambient credential, and an audit trail that records what was delivered. The grant limits reuse of insecur delivery; it does not change the provider credential's scope or lifetime.
 
-## Move two: no-reveal custody for production
+Automatic provider rotation and one-button exposure recovery are future goals. They do not exist today. Replacing a value stored in insecur does not revoke the old credential at its provider; you must rotate or revoke it with that provider yourself.
 
-Protected environments (staging, production) get the stronger property: the readable value never reaches the machine an agent or a human session runs on. There is no read-back route, no reveal command, no console view that returns a protected value. That is not a missing feature. It is the point.
+## Move two: the prelaunch production design
+
+The intended design for protected environments (staging and production) has a stronger property: the readable value does not reach the machine an agent or a human session runs on. There is no read-back route, reveal command, or console view that returns a protected value.
 
 Delivery to protected environments requires a machine credential bound to that environment, living where the workload runs (CI, the deploy target). Changes to protected secrets go through draft versions, promotion, and human approval that no CLI or agent-reachable channel can clear. An agent can prepare everything and ask; only a person with fresh step-up evidence in the web console can say yes. See [Approvals and step-up](/docs/approvals).
+
+This production path is still prelaunch and is not launch-proven. Do not use insecur for valuable production secrets yet.
 
 ## What a write and a run actually do
 
@@ -46,8 +50,8 @@ The public API edge, the web console, and the CLI never hold decryption capabili
 
 ## Honest claims, stated plainly
 
-- insecur is no-reveal custody: the product offers no read path that returns a protected secret value. We do not claim "zero knowledge" and we do not claim it is technically impossible for the operator to access data. Infrastructure-privileged access is governed by controls and audit, not wished away.
-- Development-tier injection delivers real values to your machine on purpose. The protection is blast radius and evidence, not secrecy from the process you ran.
+- The protected-environment design offers no product read path that returns a secret value. It is still prelaunch and not approved for valuable production secrets. We do not claim "zero knowledge" or that operator access is technically impossible.
+- Development-tier injection delivers real values to your machine on purpose. The current benefit is encrypted storage, scoped delivery, and evidence, not secrecy from the process you ran.
 - Audit exports are tamper-evident and independently verifiable against published signing keys. That is the ceiling of the claim. See [Audit and verification](/docs/audit).
 
 ## Related

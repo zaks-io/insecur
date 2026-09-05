@@ -92,7 +92,7 @@ describe("honest claims", () => {
 
   it("keeps the development-tier boundary honest in how-it-works", () => {
     const page = getDocPage("how-it-works");
-    expect(page?.body).toContain("blast radius");
+    expect(page?.body).toContain("An agent can read or print that value");
   });
 });
 

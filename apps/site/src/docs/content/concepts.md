@@ -19,6 +19,8 @@ These are the nouns the product, the CLI, and the API all share. Every id you wi
 
 **Environment.** Belongs to one project. The load-bearing property is `isProtected`. Development environments are non-protected: writes go live immediately and injection works from your machine. Staging and production are protected: changes require promotion and approval, and delivery requires environment-bound machine credentials. Protection is a property, not a naming convention.
 
+The development workflow is experimental. The protected-environment delivery path describes the prelaunch production design and is not approved for valuable production secrets yet.
+
 ## Secrets
 
 **Secret and variable key.** A secret is identified within an environment by its variable key, the environment variable name it will be injected as, like `DATABASE_URL`.
@@ -39,7 +41,7 @@ These are the nouns the product, the CLI, and the API all share. Every id you wi
 
 **Machine identity.** An organization-owned actor for CI and deploy workloads. It exchanges workload auth (GitHub Actions OIDC, or an environment deploy key) for short-lived tokens. Protected-environment delivery is machine-only.
 
-**App connection.** An organization-owned link to a provider (GitHub app installation, Cloudflare scoped token) with encrypted credentials, used for provider setup and, later, secret sync. Status output is metadata; provider credentials are never returned.
+**App connection.** An organization-owned link to a provider (GitHub app installation, Cloudflare scoped token) with encrypted credentials, used for provider setup and alpha secret sync. Status output is metadata; provider credentials are never returned. Automatic provider rotation and one-button exposure recovery are not available today.
 
 ## Accountability
 

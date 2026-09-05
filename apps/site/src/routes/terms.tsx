@@ -42,10 +42,10 @@ const clauses: LegalClause[] = [
     body: (
       <>
         <p>
-          insecur is secrets custody. Your code and your agents ask for a secret, we set the value
-          and hand back a working key, and the raw value stays off the paths where it usually leaks.
-          The console shows metadata only: variable key, environment, version, byte length, and when
-          it was last used. Secret values are never rendered back to you.
+          insecur is an experimental developer tool that stores development secrets encrypted and
+          injects them into a child process when you run a command. The console shows metadata only:
+          variable key, environment, version, byte length, and when it was last used. Secret values
+          are never rendered back to you.
         </p>
         <p>
           For development values, the injected secret reaches the process your agent controls, so

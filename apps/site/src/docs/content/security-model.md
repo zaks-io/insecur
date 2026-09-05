@@ -1,25 +1,26 @@
 ---
 title: Security model
-description: Boundaries, guarantees per environment tier, cryptography, and what is explicitly out of scope.
+description: Current development boundaries, the prelaunch protected-environment design, and what is out of scope.
 section: Concepts
 order: 3
 ---
 
 # Security model
 
-This page states what insecur protects, how, and where the boundaries are. It errs on the side of underclaiming; a custody product that overstates its guarantees is worse than none.
+insecur is experimental and prelaunch. This page separates the development workflow available today from the protected-environment design that still needs launch proof. Do not use the hosted service for valuable production secrets yet.
 
 ## The guarantee differs by tier
 
-|                               | Development environments                       | Protected environments                    |
+|                               | Development environments                       | Protected-environment design              |
 | ----------------------------- | ---------------------------------------------- | ----------------------------------------- |
 | Plaintext at rest             | Never                                          | Never                                     |
 | Value reaches your machine    | Yes, injected into one child process per grant | No                                        |
-| Read-back through the product | No response body ever contains a value         | No read path exists at all                |
+| Read-back through the product | No response body contains a value              | No read path                              |
 | Delivery requires             | A logged-in session and a one-use grant        | An environment-bound machine credential   |
 | Change control                | Writes go live immediately                     | Draft versions, promotion, human approval |
+| Readiness                     | Experimental development workflow              | Prelaunch and not launch-proven           |
 
-For development, an agent-launched process holding the injected value is a process the agent controls, so a determined adversarial agent can read that value. The development guarantee is a small, recoverable blast radius: no file to scrape, no standing credential, one audited grant per use, cheap rotation. For protected environments, the readable value never reaches an agent-reachable machine, and no human session, CLI call, or agent channel can obtain a protected injection grant.
+For development, an agent-launched process holding the injected value is a process the agent controls, so the agent can read or print that value. The development benefit is no plaintext project file to scrape, no standing credential in a shell profile, and one audited grant per use. For the protected-environment design, the readable value does not reach an agent-reachable machine, and no human session, CLI call, or agent channel can obtain a protected injection grant. That stronger path is not launch-proven.
 
 ## Structural isolation, not conditionals
 
@@ -45,6 +46,7 @@ Every meaningful action writes a tenant-scoped audit event carrying the principa
 - No secrecy from your own runtime. A workload that receives a secret can do anything a process can do. insecur controls delivery and evidence, not what your code does afterward.
 - [Local Mode](/docs/local-mode) is encrypted local custody, not no-reveal custody. The machine key lives on the same machine.
 - No secure-erasure claims. `insecur local-files rm` is an ordinary filesystem delete.
+- No automatic provider rotation or one-button exposure recovery today. Writing a replacement value to insecur does not revoke the old credential at its provider.
 
 ## Reporting
 
