@@ -49,7 +49,7 @@ insecur secrets set DATABASE_URL --value-stdin < /dev/tty
 
 Paste the value and press enter. The write is blind: the CLI sends the value in, and every response from here on is metadata only (variable key, version, who set it, when).
 
-Don't have a value yet? Let insecur generate one that no human ever sees:
+Don't have a value yet? Let insecur generate and store one without printing it:
 
 ```sh
 insecur secrets set API_SIGNING_KEY --generate random --length 32
@@ -74,6 +74,6 @@ insecur audit tail --limit 5
 
 ## Where to go next
 
-- [Using insecur with coding agents](/docs/agents): give your agent an attributed session that can use secrets without reading them
+- [Using insecur with coding agents](/docs/agents): run commands with injected development secrets and understand what the agent can still read
 - [Migrating from .env files](/docs/migrate-dotenv): import your existing file, then delete it
 - [How insecur works](/docs/how-it-works): what is protected, and what the honest boundaries are

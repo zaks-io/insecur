@@ -25,7 +25,7 @@ The development workflow is experimental. The protected-environment delivery pat
 
 **Secret and variable key.** A secret is identified within an environment by its variable key, the environment variable name it will be injected as, like `DATABASE_URL`.
 
-**Blind write.** `insecur secrets set` sends a value in; no response ever contains it. You can also have the service generate the value so no human ever sees it.
+**Blind write.** `insecur secrets set` sends a value in and returns metadata. You can also generate and store a value without printing it. A child process receiving the injected value, or an agent controlling that process, can still read it.
 
 **Versions.** Writes append versions; metadata records who set what and when. Non-protected writes become current immediately. Protected writes create draft versions that wait for [promotion and approval](/docs/approvals). `insecur secrets versions <secret-id>` lists version metadata.
 
