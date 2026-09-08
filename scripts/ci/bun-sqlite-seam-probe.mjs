@@ -121,8 +121,21 @@ try {
   const abandonedRecovery = openBareLocalSqliteDatabase(`${lockPath}.recovery.sqlite`);
   abandonedRecovery.exec("BEGIN IMMEDIATE");
   let recoverySettled = false;
-  const pendingRecovery = withMachineRootKeyCreationLock(lockPath, () =>
-    Promise.resolve("recovered"),
+  let reconcileCalls = 0;
+  let signalBusyRetry;
+  const busyRetryReached = new Promise((resolve) => {
+    signalBusyRetry = resolve;
+  });
+  const pendingRecovery = withMachineRootKeyCreationLock(
+    lockPath,
+    () => Promise.resolve("recovered"),
+    () => {
+      reconcileCalls += 1;
+      if (reconcileCalls === 3) {
+        signalBusyRetry();
+      }
+      return Promise.resolve(null);
+    },
   ).then(
     (value) => {
       recoverySettled = true;
@@ -133,8 +146,19 @@ try {
       return { error };
     },
   );
-  await Bun.sleep(75);
-  const waitedForRecoveryMutex = !recoverySettled;
+  let recoveryTimeout;
+  const recoveryTimedOut = new Promise((resolve) => {
+    recoveryTimeout = setTimeout(() => {
+      resolve("timed_out");
+    }, 5_000);
+  });
+  const recoveryEvent = await Promise.race([
+    busyRetryReached.then(() => "retried"),
+    pendingRecovery.then(() => "settled"),
+    recoveryTimedOut,
+  ]);
+  clearTimeout(recoveryTimeout);
+  const waitedForRecoveryMutex = recoveryEvent === "retried" && !recoverySettled;
   closeLocalSqliteDatabase(abandonedRecovery);
   const recoveryOutcome = await pendingRecovery;
   assert(
