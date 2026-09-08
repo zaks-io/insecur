@@ -2,9 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { resolveAuthenticatedApiClient } from "./bff-api.js";
 
 export type WhoamiProof =
-  | { readonly authenticated: false }
+  | { readonly kind: "unauthenticated" }
+  | { readonly kind: "unavailable" }
   | {
-      readonly authenticated: true;
+      readonly kind: "authenticated";
       readonly actorType: string;
       readonly userId: string;
       readonly sessionId: string;
@@ -30,7 +31,7 @@ function parseWhoamiProofBody(
 
   const data = envelope.data as Record<string, unknown>;
   return {
-    authenticated: true,
+    kind: "authenticated",
     actorType: readStringField(data, "actorType", "user"),
     userId: readStringField(data, "userId", fallback.userId),
     sessionId: readStringField(data, "sessionId", fallback.sessionId),
@@ -41,15 +42,20 @@ export const loadWhoamiProof = createServerFn({ method: "GET" }).handler(
   async (): Promise<WhoamiProof> => {
     const client = await resolveAuthenticatedApiClient();
     if (client === null) {
-      return { authenticated: false };
+      return { kind: "unauthenticated" };
     }
 
-    const body: unknown = await client.api.whoami();
+    let body: unknown;
+    try {
+      body = await client.api.whoami();
+    } catch {
+      return { kind: "unavailable" };
+    }
     return (
       parseWhoamiProofBody(body, {
         userId: client.actor.userId,
         sessionId: client.actor.sessionId,
-      }) ?? { authenticated: false }
+      }) ?? { kind: "unavailable" }
     );
   },
 );

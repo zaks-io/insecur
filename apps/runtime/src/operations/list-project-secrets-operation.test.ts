@@ -1,5 +1,6 @@
 import {
   AUTHORIZATION_SCOPES,
+  EffectiveAccessMemo,
   assertOrganizationMembership,
   authorizeScopeOrThrow,
 } from "@insecur/access";
@@ -101,6 +102,9 @@ describe("listProjectSecretsOperation", () => {
       AUTHORIZATION_SCOPES.environmentRead,
       AUTHORIZATION_SCOPES.secretRead,
     ]);
+    const memos = vi.mocked(authorizeScopeOrThrow).mock.calls.map(([call]) => call.deps?.memo);
+    expect(memos[0]).toBeInstanceOf(EffectiveAccessMemo);
+    expect(memos).toEqual([memos[0], memos[0], memos[0]]);
   });
 
   it("returns matrix rows with per-environment drift metadata", async () => {

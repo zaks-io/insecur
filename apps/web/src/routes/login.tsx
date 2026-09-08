@@ -11,6 +11,7 @@ import {
   type LoginErrorCode,
 } from "../auth/login-error.js";
 import {
+  readLoginFormData,
   readTurnstileToken,
   turnstileSiteKey,
   verifyTurnstileToken,
@@ -43,7 +44,10 @@ export const Route = createFileRoute("/login")({
       POST: async () => {
         const request = getRequest();
         const webEnv = asWebEnv(env);
-        const formData = await request.formData();
+        const formData = await readLoginFormData(request);
+        if (formData === null) {
+          return redirectResponse(loginRetryUrl(request), [], 303);
+        }
         const verified = await verifyTurnstileToken(request, webEnv, readTurnstileToken(formData));
         if (!verified.ok) {
           return redirectResponse(loginRetryUrl(request), [], 303);

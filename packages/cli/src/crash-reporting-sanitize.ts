@@ -68,7 +68,7 @@ export function sanitizeSentryEvent(event: SentryEvent): SentryEvent {
 }
 
 export function sanitizeSentryTransaction(event: SentryEvent): SentryEvent {
-  const sanitized = pickSafeFields(event);
+  const sanitized = { ...pickSafeFields(event), type: "transaction" };
   addSafeTags(sanitized, event);
   return sanitized;
 }

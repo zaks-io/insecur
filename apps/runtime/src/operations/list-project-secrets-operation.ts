@@ -1,6 +1,7 @@
 import { AUTH_ERROR_CODES, type VariableKey } from "@insecur/domain";
 import {
   AUTHORIZATION_SCOPES,
+  EffectiveAccessMemo,
   assertOrganizationMembership,
   authorizeScopeOrThrow,
   type ActorRef,
@@ -130,6 +131,7 @@ export async function listProjectSecretsOperation({
     organizationId: input.organizationId,
     projectId: input.projectId,
   };
+  const memo = new EffectiveAccessMemo();
 
   for (const requiredScope of [
     AUTHORIZATION_SCOPES.projectRead,
@@ -142,6 +144,7 @@ export async function listProjectSecretsOperation({
       coordinate,
       requiredScope,
       requestId: input.requestId,
+      deps: { memo },
     });
   }
 

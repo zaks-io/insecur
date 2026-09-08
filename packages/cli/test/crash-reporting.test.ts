@@ -90,6 +90,7 @@ describe("CLI crash reporting", () => {
     );
     const initOptions = init.mock.calls[0]?.[0] as {
       beforeSend: (event: Record<string, unknown>) => Record<string, unknown>;
+      beforeSendTransaction: (event: Record<string, unknown>) => Record<string, unknown>;
     };
     const sanitizedEvent = initOptions.beforeSend({
       event_id: "event-id",
@@ -107,6 +108,14 @@ describe("CLI crash reporting", () => {
       event_id: "event-id",
       tags: { command_family: "secrets.set" },
       exception: { values: [{ type: "Error", value: "Unexpected CLI failure" }] },
+    });
+    const sanitizedTransaction = initOptions.beforeSendTransaction({
+      transaction: "insecur secrets.set",
+      type: "transaction",
+    });
+    expect(sanitizedTransaction).toEqual({
+      transaction: "insecur secrets.set",
+      type: "transaction",
     });
     const productionInit = vi.fn();
     await createCliCrashReporter({
