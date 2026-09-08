@@ -26,17 +26,6 @@ export interface MetadataSafeAppConnectionListItem {
   readonly updatedAt: string;
 }
 
-export interface CloudflareConnectionBoundaryStatus {
-  readonly allowedAccountId: string;
-  readonly allowedWorkerScript: string;
-}
-
-export interface GitHubConnectionBoundaryStatus {
-  readonly installationId: string;
-  readonly owner: string;
-  readonly allowedRepositoryCount: number;
-}
-
 export interface MetadataSafeCloudflareConnectionValidation {
   readonly checkedAt: string;
   readonly outcome: "success" | "failed";
@@ -61,8 +50,6 @@ export type MetadataSafeConnectionValidation =
 export interface MetadataSafeAppConnectionStatusPayload {
   readonly connection: MetadataSafeAppConnectionListItem;
   readonly validation: MetadataSafeConnectionValidation | null;
-  readonly cloudflareBoundary: CloudflareConnectionBoundaryStatus | null;
-  readonly githubBoundary: GitHubConnectionBoundaryStatus | null;
 }
 
 export interface ListAppConnectionsRpcInput extends PostAuthRpcInputBase {

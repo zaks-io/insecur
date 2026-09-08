@@ -315,8 +315,15 @@ describe("local secrets set and run", () => {
       });
       expect(consumed.ok).toBe(false);
       if (!consumed.ok) {
-        expect(consumed.envelope.error.code).toBe("injection.decrypt_failed");
+        expect(consumed.envelope.error.code).toBe("injection.grant_denied");
       }
+      const denial = (await store.audit.listEvents(TEST_PROJECT_ID)).find(
+        (event) => event.eventCode === "runtime_injection.grant_consume_denied",
+      );
+      expect(denial).toMatchObject({
+        outcome: "denied",
+        details: { reasonCode: "binding_not_allowed" },
+      });
     } finally {
       store.close();
     }

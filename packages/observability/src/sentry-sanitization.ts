@@ -49,8 +49,12 @@ export function prepareSentryEvent<TEvent extends SentryEventLike>(
   service: string | undefined,
 ): TEvent {
   event.message = REDACTED_SENTRY_MESSAGE;
-  for (const value of event.exception?.values ?? []) {
-    value.value = REDACTED_SENTRY_MESSAGE;
+  if (event.exception?.values?.length) {
+    event.exception = {
+      values: event.exception.values.map(() => ({ value: REDACTED_SENTRY_MESSAGE })),
+    };
+  } else {
+    delete event.exception;
   }
   redactUnsafeEventCollections(event);
   event.breadcrumbs = [];

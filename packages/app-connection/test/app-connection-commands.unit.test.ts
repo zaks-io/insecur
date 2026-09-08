@@ -458,8 +458,8 @@ describe("app connection command validation", () => {
       keyring: KEYRING,
     });
 
-    expect(status.cloudflareBoundary).toBeNull();
-    expect(status.githubBoundary).toBeNull();
+    expect(status).not.toHaveProperty("cloudflareBoundary");
+    expect(status).not.toHaveProperty("githubBoundary");
     expect(status.connection.id).toBe(CONN);
     expect(loadCloudflareConnectionBoundary).not.toHaveBeenCalled();
   });
@@ -498,8 +498,8 @@ describe("app connection command validation", () => {
       keyring: KEYRING,
     });
 
-    expect(status.githubBoundary).toBeNull();
-    expect(status.cloudflareBoundary).toBeNull();
+    expect(status).not.toHaveProperty("githubBoundary");
+    expect(status).not.toHaveProperty("cloudflareBoundary");
     expect(status.connection.provider).toBe("github");
     expect(loadGitHubConnectionBoundary).not.toHaveBeenCalled();
   });

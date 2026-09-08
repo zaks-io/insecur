@@ -18,15 +18,6 @@ export interface AppConnectionStatusResult {
   readonly connection: ReturnType<typeof toMetadataSafeCloudflareConnectionStatus>["connection"];
   readonly validation:
     MetadataSafeCloudflareConnectionValidation | MetadataSafeGitHubConnectionValidation | null;
-  readonly cloudflareBoundary: {
-    readonly allowedAccountId: string;
-    readonly allowedWorkerScript: string;
-  } | null;
-  readonly githubBoundary: {
-    readonly installationId: string;
-    readonly owner: string;
-    readonly allowedRepositoryCount: number;
-  } | null;
 }
 
 export async function getAppConnectionStatusCommand(input: {
@@ -45,8 +36,6 @@ export async function getAppConnectionStatusCommand(input: {
         return Promise.resolve({
           connection: projected.connection,
           validation: projected.validation,
-          cloudflareBoundary: null,
-          githubBoundary: null,
         });
       }
 
@@ -55,8 +44,6 @@ export async function getAppConnectionStatusCommand(input: {
         return Promise.resolve({
           connection: projected.connection,
           validation: projected.validation,
-          cloudflareBoundary: null,
-          githubBoundary: null,
         });
       }
 

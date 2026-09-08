@@ -1839,7 +1839,9 @@ Notes:
 
 - Start with scoped Cloudflare API tokens for hosted sync.
 - Use the minimum permissions needed to write direct secrets on the selected Worker scripts.
-- Require a connection boundary and show it in `connections status`.
+- Require a connection boundary. Ordinary `connections status` remains metadata-only and does not
+  decrypt or return the boundary. A future boundary-detail response needs authorization plus the
+  Sensitive Detail Gate before it can show these provider target names.
 - Pin the target account and allowed Worker scripts inside the connection boundary.
 - For Wrangler environments, target the concrete script name that Cloudflare deploys, such as `my-api-production`, rather than the insecur Environment Display Name.
 - Worker code reads direct Worker secrets as normal environment bindings such as `env.DATABASE_URL`; insecur does not edit `wrangler` configuration.

@@ -42,7 +42,16 @@ describe("observability sentry config", () => {
     const event = options.beforeSend?.(
       {
         message: sentinel,
-        exception: { values: [{ type: "Error", value: sentinel }] },
+        exception: {
+          values: [
+            {
+              type: sentinel,
+              value: sentinel,
+              mechanism: { data: { raw: sentinel } },
+              stacktrace: { frames: [{ vars: { raw: sentinel }, context_line: sentinel }] },
+            },
+          ],
+        },
         request: { url: `https://example.test/?token=${sentinel}` },
         breadcrumbs: [{ message: sentinel }],
         contexts: { raw: sentinel },
@@ -77,6 +86,7 @@ describe("observability sentry config", () => {
     expect(JSON.stringify({ event, span, transaction })).not.toContain(sentinel);
     expect(event).toMatchObject({
       message: "[redacted by insecur]",
+      exception: { values: [{ value: "[redacted by insecur]" }] },
       breadcrumbs: [],
       extra: {},
       tags: { service: "insecur-api" },

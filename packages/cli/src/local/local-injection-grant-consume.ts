@@ -33,6 +33,24 @@ interface ConsumeSuccessResult {
   envelope: { ok: true; delivery: InjectionGrantDeliveryData };
 }
 
+interface LocalVariableGrantConsumeInput {
+  readonly store: LocalStore;
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly grantId: InjectionGrantId;
+  readonly variableKey: VariableKey;
+}
+
+function tryConsumeGrant(input: LocalVariableGrantConsumeInput, secretIdValue: SecretId) {
+  return input.store.injectionGrants.tryConsumeGrant({
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+    grantId: input.grantId,
+    secretId: secretIdValue,
+    variableKey: input.variableKey,
+  });
+}
+
 async function loadDeliveryPayload(input: {
   readonly store: LocalStore;
   readonly projectId: ProjectId;
@@ -155,25 +173,16 @@ async function buildConsumedSuccess(input: {
   };
 }
 
-export async function consumeLocalVariableKeyInjectionGrant(input: {
-  readonly store: LocalStore;
-  readonly projectId: ProjectId;
-  readonly environmentId: EnvironmentId;
-  readonly grantId: InjectionGrantId;
-  readonly variableKey: VariableKey;
-}): Promise<ConsumeFailureResult | ConsumeSuccessResult> {
+export async function consumeLocalVariableKeyInjectionGrant(
+  input: LocalVariableGrantConsumeInput,
+): Promise<ConsumeFailureResult | ConsumeSuccessResult> {
   const shape = await input.store.projects.getSecretShape(input.projectId, input.variableKey);
   const secretIdValue = shape?.secretId;
   if (secretIdValue === undefined) {
     return missingShapeFailure(input.variableKey);
   }
 
-  const consumed = await input.store.injectionGrants.tryConsumeGrant(
-    input.projectId,
-    input.grantId,
-    secretIdValue,
-    input.variableKey,
-  );
+  const consumed = await tryConsumeGrant(input, secretIdValue);
   if (!consumed.ok) {
     return denyConsumeFailure({
       store: input.store,

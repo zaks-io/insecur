@@ -65,6 +65,14 @@ export interface LocalInsertInjectionGrantInput {
   readonly expiresAt: Date;
 }
 
+export interface LocalInjectionGrantConsumeInput {
+  readonly projectId: ProjectId;
+  readonly environmentId: EnvironmentId;
+  readonly grantId: InjectionGrantId;
+  readonly secretId: SecretId;
+  readonly variableKey: VariableKey;
+}
+
 export type LocalInjectionGrantConsumeFailure =
   "not_found" | "expired" | "already_consumed" | "binding_not_allowed" | "revoked";
 

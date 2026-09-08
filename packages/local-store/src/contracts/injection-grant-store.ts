@@ -1,7 +1,6 @@
-import type { InjectionGrantId, ProjectId, SecretId, VariableKey } from "@insecur/domain";
-
 import type {
   LocalConsumedInjectionGrantRow,
+  LocalInjectionGrantConsumeInput,
   LocalInjectionGrantConsumeFailure,
   LocalInsertInjectionGrantInput,
 } from "./types.js";
@@ -10,10 +9,7 @@ import type {
 export interface LocalInjectionGrantStore {
   insertGrant(input: LocalInsertInjectionGrantInput): Promise<void>;
   tryConsumeGrant(
-    projectId: ProjectId,
-    grantId: InjectionGrantId,
-    secretId: SecretId,
-    variableKey: VariableKey,
+    input: LocalInjectionGrantConsumeInput,
   ): Promise<
     | { ok: true; grant: LocalConsumedInjectionGrantRow }
     | { ok: false; failure: LocalInjectionGrantConsumeFailure }
