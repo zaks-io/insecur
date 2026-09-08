@@ -412,24 +412,23 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  release:
-    name: Draft release
+  security-attestation:
+    name: Security attestation
     needs:
       - verify-source-ci
       - detect-release-change
       - build
     if: needs.detect-release-change.outputs.should_run == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    environment: Production
     timeout-minutes: 30
     permissions:
-      contents: write
-      attestations: read
+      contents: read
+    outputs:
+      artifact_id: ${{ steps.security-artifact.outputs.artifact-id }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          fetch-depth: 0
           persist-credentials: false
           ref: ${{ needs.verify-source-ci.outputs.source_sha }}
 
@@ -447,29 +446,156 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download CLI SBOM
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sbom
+          path: artifacts/security-input
+          digest-mismatch: error
+
       - name: Setup security attestation tools
         uses: ./.github/actions/setup-security-attestation-tools
 
       - name: Run repo security attestation
+        id: repo-attestation
+        continue-on-error: true
         run: pnpm security:attest
 
-      - name: Upload repo security attestation
+      - name: Scan CLI SBOM
+        id: grype
+        continue-on-error: true
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          sbom: artifacts/security-input/insecur-cli.sbom.cdx.json
+          severity-cutoff: medium
+          fail-build: true
+          output-format: json
+
+      - name: Capture CLI scan report and scanner database versions
+        if: always()
+        shell: bash
+        env:
+          GRYPE_JSON: ${{ steps.grype.outputs.json }}
+          COMMIT_SHA: ${{ needs.verify-source-ci.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          test -n "$GRYPE_JSON"
+          test -s "$GRYPE_JSON"
+          mkdir -p artifacts/release-security
+          cp "$GRYPE_JSON" artifacts/release-security/insecur-cli.grype.json
+          # shellcheck disable=SC2016
+          jq -n \
+            --arg grypeVersion "$(jq -r '.descriptor.version // empty' "$GRYPE_JSON")" \
+            --arg vulnDbBuilt "$(jq -r '.descriptor.db.status.built // empty' "$GRYPE_JSON")" \
+            --arg vulnDbSchemaVersion "$(jq -r '.descriptor.db.status.schemaVersion // empty' "$GRYPE_JSON")" \
+            --arg commit "$COMMIT_SHA" \
+            --arg scannedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{grypeVersion:$grypeVersion, vulnDbBuilt:$vulnDbBuilt, vulnDbSchemaVersion:$vulnDbSchemaVersion, commit:$commit, scannedAt:$scannedAt, blocking:true}' \
+            > artifacts/release-security/scan-metadata.json
+          cat artifacts/release-security/scan-metadata.json
+
+      - name: Package repo security attestation
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s artifacts/security/attestation.json
+          mkdir -p artifacts/release-security
+          tar -czf artifacts/release-security/repo-security-attestation.tgz -C artifacts/security .
+
+      - name: Generate security artifact checksums
+        if: always()
+        working-directory: artifacts/release-security
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum \
+            insecur-cli.grype.json \
+            repo-security-attestation.tgz \
+            scan-metadata.json \
+            > SECURITY_SHA256SUMS
+
+      - name: Upload immutable security release artifact
+        id: security-artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: cli-release-repo-security-attestation
-          path: artifacts/security/**
+          name: cli-release-security
+          path: artifacts/release-security/*
           if-no-files-found: error
           retention-days: 90
 
-      - name: Download all artifacts
+      - name: Enforce security attestation results
+        if: always()
+        shell: bash
+        env:
+          REPO_ATTESTATION_OUTCOME: ${{ steps.repo-attestation.outcome }}
+          CLI_SCAN_OUTCOME: ${{ steps.grype.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$REPO_ATTESTATION_OUTCOME" != "success" ]; then
+            echo "::error::Repo security attestation failed."
+            exit 1
+          fi
+          if [ "$CLI_SCAN_OUTCOME" != "success" ]; then
+            echo "::error::CLI SBOM scan failed."
+            exit 1
+          fi
+
+  release:
+    name: Draft release
+    needs:
+      - verify-source-ci
+      - detect-release-change
+      - build
+      - security-attestation
+    if: needs.detect-release-change.outputs.should_run == 'true'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    environment: Production
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      attestations: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.verify-source-ci.outputs.source_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: .node-version
+
+      - name: Download CLI binary artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          pattern: insecur-*
           path: dist-binaries
           merge-multiple: true
+          digest-mismatch: error
 
-      - name: Attach repo security attestation bundle
-        run: tar -czf dist-binaries/repo-security-attestation.tgz -C artifacts/security .
+      - name: Download CLI SBOM artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sbom
+          path: dist-binaries
+          digest-mismatch: error
+
+      - name: Download immutable security release artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          artifact-ids: ${{ needs.security-attestation.outputs.artifact_id }}
+          path: dist-binaries
+          merge-multiple: true
+          digest-mismatch: error
+
+      - name: Verify security release artifact
+        working-directory: dist-binaries
+        shell: bash
+        run: sha256sum --check --strict SECURITY_SHA256SUMS
 
       - name: Export provenance sidecars
         working-directory: dist-binaries
@@ -515,34 +641,6 @@ jobs:
       - name: Generate checksums
         working-directory: dist-binaries
         run: sha256sum insecur-linux-x64 insecur-linux-arm64 insecur-darwin-arm64 insecur-windows-x64.exe > SHA256SUMS
-
-      - name: Scan CLI SBOM (blocking)
-        id: grype
-        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
-        with:
-          sbom: dist-binaries/insecur-cli.sbom.cdx.json
-          severity-cutoff: medium
-          fail-build: true
-          output-format: json
-
-      - name: Capture scan report and scanner database versions
-        shell: bash
-        env:
-          GRYPE_JSON: ${{ steps.grype.outputs.json }}
-          COMMIT_SHA: ${{ needs.verify-source-ci.outputs.source_sha }}
-        run: |
-          set -euo pipefail
-          cp "$GRYPE_JSON" dist-binaries/insecur-cli.grype.json
-          # shellcheck disable=SC2016
-          jq -n \
-            --arg grypeVersion "$(jq -r '.descriptor.version // empty' "$GRYPE_JSON")" \
-            --arg vulnDbBuilt "$(jq -r '.descriptor.db.status.built // empty' "$GRYPE_JSON")" \
-            --arg vulnDbSchemaVersion "$(jq -r '.descriptor.db.status.schemaVersion // empty' "$GRYPE_JSON")" \
-            --arg commit "$COMMIT_SHA" \
-            --arg scannedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            '{grypeVersion:$grypeVersion, vulnDbBuilt:$vulnDbBuilt, vulnDbSchemaVersion:$vulnDbSchemaVersion, commit:$commit, scannedAt:$scannedAt, blocking:true}' \
-            > dist-binaries/scan-metadata.json
-          cat dist-binaries/scan-metadata.json
 
       - name: Create or update draft release
         env:

@@ -112,6 +112,43 @@ test("credentialed build and release jobs use the main-restricted Production env
   assert.match(workflow, /release:[\s\S]*?environment: Production/u);
 });
 
+test("scanner execution stays in a least-privilege job", async () => {
+  const workflow = await workflowPromise;
+  const securityStart = workflow.indexOf("\n  security-attestation:");
+  const releaseStart = workflow.indexOf("\n  release:");
+  assert.ok(securityStart >= 0 && releaseStart > securityStart);
+
+  const securityJob = workflow.slice(securityStart, releaseStart);
+  const releaseJob = workflow.slice(releaseStart);
+
+  assert.match(securityJob, /permissions:\n\s+contents: read/u);
+  assert.doesNotMatch(securityJob, /environment: Production|secrets\./u);
+  assert.match(securityJob, /uses: \.\/\.github\/actions\/setup-security-attestation-tools/u);
+  assert.match(securityJob, /run: pnpm security:attest/u);
+  assert.match(securityJob, /uses: anchore\/scan-action@[0-9a-f]{40} # v7\.4\.0/u);
+
+  assert.doesNotMatch(releaseJob, /setup-security-attestation-tools|pnpm security:attest/u);
+  assert.doesNotMatch(releaseJob, /anchore\/scan-action|pnpm/u);
+});
+
+test("privileged release consumes only the immutable security artifact and verifies it", async () => {
+  const workflow = await workflowPromise;
+  const releaseStart = workflow.indexOf("\n  release:");
+  const releaseJob = workflow.slice(releaseStart);
+
+  assert.match(workflow, /release:[\s\S]*needs:[\s\S]*- security-attestation/u);
+  assert.match(
+    releaseJob,
+    /artifact-ids: \$\{\{ needs\.security-attestation\.outputs\.artifact_id \}\}[\s\S]*digest-mismatch: error/u,
+  );
+  assert.match(releaseJob, /sha256sum --check --strict SECURITY_SHA256SUMS/u);
+  assert.doesNotMatch(releaseJob, /name: Download all artifacts/u);
+
+  const verifyArtifact = releaseJob.indexOf("- name: Verify security release artifact");
+  const draftRelease = releaseJob.indexOf("- name: Create or update draft release");
+  assert.ok(verifyArtifact >= 0 && draftRelease > verifyArtifact);
+});
+
 test("Bun sqlite seam probe does not fail passed assertions on disposable cleanup locks", async () => {
   const probe = await bunSqliteSeamProbePromise;
 
