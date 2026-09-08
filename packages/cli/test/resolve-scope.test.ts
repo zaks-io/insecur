@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { LOCAL_MODE_ORGANIZATION_ID } from "@insecur/local-store";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { GlobalCliFlags } from "../src/cli-options.js";
@@ -117,19 +120,23 @@ describe("resolveCliScope precedence", () => {
     expect(scopeFromFlags.envId).toBe(VALID_ENV_FLAG);
   });
 
-  it("uses the current Git branch mapping before the default environment", () => {
-    const currentBranch = execFileSync("git", ["branch", "--show-current"], {
-      encoding: "utf8",
-    }).trim();
-    if (currentBranch === "") throw new Error("test checkout must have a branch");
-    const branchEnvironment = VALID_ENV_FLAG as never;
-    const mappedProject = {
-      ...project,
-      gitBranchToEnvironment: { [currentBranch]: branchEnvironment },
-    };
+  it("uses the current Git branch mapping before the default environment", async () => {
+    const projectRoot = await mkdtemp(path.join(tmpdir(), "insecur-branch-scope-"));
+    const currentBranch = "mapped-environment";
+    try {
+      execFileSync("git", ["init", "-q", "-b", currentBranch], { cwd: projectRoot });
+      const branchEnvironment = VALID_ENV_FLAG as never;
+      const mappedProject = {
+        ...project,
+        gitBranchToEnvironment: { [currentBranch]: branchEnvironment },
+      };
+      const flags = { ...baseFlags, configDir: projectRoot };
 
-    expect(resolveBranchEnvironment(mappedProject, process.cwd())).toBe(branchEnvironment);
-    expect(resolveCliScope(baseFlags, mappedProject, emptyUser).envId).toBe(branchEnvironment);
+      expect(resolveBranchEnvironment(mappedProject, projectRoot)).toBe(branchEnvironment);
+      expect(resolveCliScope(flags, mappedProject, emptyUser).envId).toBe(branchEnvironment);
+    } finally {
+      await rm(projectRoot, { force: true, recursive: true });
+    }
   });
 
   it("defaults host to the API Worker origin, not the marketing apex", () => {
