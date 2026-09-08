@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -39,6 +39,27 @@ describe("withMachineRootKeyCreationLock", () => {
 
     await Promise.all([run(), run()]);
     expect(maxActive).toBe(1);
+  });
+
+  it("publishes complete owner metadata without blocking on unpublished candidates", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
+    const lockPath = resolveMachineRootKeyLockPath(tempDir);
+    const abandonedPendingPath = `${lockPath}.abandoned.pending`;
+    await writeFile(abandonedPendingPath, "", { encoding: "utf8", mode: 0o600 });
+
+    await expect(
+      withMachineRootKeyCreationLock(lockPath, async () => {
+        const metadata = JSON.parse(await readFile(lockPath, "utf8")) as {
+          pid?: number;
+          token?: string;
+        };
+        expect(metadata.pid).toBe(process.pid);
+        expect(metadata.token).toBeTypeOf("string");
+        return "created";
+      }),
+    ).resolves.toBe("created");
+
+    await expect(readdir(tempDir)).resolves.toEqual([path.basename(abandonedPendingPath)]);
   });
 
   it.each([

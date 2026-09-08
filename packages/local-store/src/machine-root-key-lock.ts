@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { access, mkdir, open, readFile, unlink } from "node:fs/promises";
+import { access, link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { MACHINE_ROOT_KEY_CREATE_LOCK_FILE_NAME } from "./constants.js";
@@ -38,6 +38,31 @@ async function ensureLockDirectory(lockPath: string): Promise<void> {
   await mkdir(path.dirname(lockPath), { recursive: true, mode: 0o700 });
 }
 
+async function removePendingLock(pendingPath: string): Promise<void> {
+  try {
+    await unlink(pendingPath);
+  } catch (error) {
+    if (!isErrnoCode(error, "ENOENT")) {
+      throw error;
+    }
+  }
+}
+
+async function publishPendingLock(
+  pendingPath: string,
+  lockPath: string,
+): Promise<"acquired" | "exists"> {
+  try {
+    await link(pendingPath, lockPath);
+    return "acquired";
+  } catch (error) {
+    if (isErrnoCode(error, "EEXIST")) {
+      return "exists";
+    }
+    throw error;
+  }
+}
+
 async function readLockMetadata(lockPath: string): Promise<LockMetadata | null> {
   try {
     const raw = await readFile(lockPath, "utf8");
@@ -56,22 +81,23 @@ async function tryAcquireLock(
   lockPath: string,
 ): Promise<{ status: "acquired"; token: string } | { status: "exists" }> {
   const token = randomUUID();
+  const pendingPath = `${lockPath}.${token}.pending`;
+  const metadata: LockMetadata = { pid: process.pid, acquiredAt: Date.now(), token };
   await ensureLockDirectory(lockPath);
+  await writeFile(pendingPath, JSON.stringify(metadata), {
+    encoding: "utf8",
+    flag: "wx",
+    mode: LOCK_FILE_MODE,
+  });
+  let publication: "acquired" | "exists";
   try {
-    const handle = await open(lockPath, "wx", LOCK_FILE_MODE);
-    try {
-      const metadata: LockMetadata = { pid: process.pid, acquiredAt: Date.now(), token };
-      await handle.writeFile(JSON.stringify(metadata), "utf8");
-    } finally {
-      await handle.close();
-    }
-    return { status: "acquired", token };
+    publication = await publishPendingLock(pendingPath, lockPath);
   } catch (error) {
-    if (isErrnoCode(error, "EEXIST")) {
-      return { status: "exists" };
-    }
+    await removePendingLock(pendingPath);
     throw error;
   }
+  await removePendingLock(pendingPath);
+  return publication === "acquired" ? { status: "acquired", token } : { status: "exists" };
 }
 
 async function releaseLock(lockPath: string, holderToken: string): Promise<void> {
