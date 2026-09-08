@@ -123,6 +123,7 @@ test("scanner execution stays in a least-privilege job", async () => {
 
   assert.match(securityJob, /permissions:\n\s+contents: read/u);
   assert.doesNotMatch(securityJob, /environment: Production|secrets\./u);
+  assert.match(securityJob, /uses: actions\/checkout@[0-9a-f]{40}[\s\S]*?fetch-depth: 0/u);
   assert.match(securityJob, /uses: \.\/\.github\/actions\/setup-security-attestation-tools/u);
   assert.match(securityJob, /run: pnpm security:attest/u);
   assert.match(securityJob, /uses: anchore\/scan-action@[0-9a-f]{40} # v7\.4\.0/u);

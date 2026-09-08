@@ -103,9 +103,9 @@ describe("ephemeral session credentials", () => {
       parentExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
     });
     const verified = await verifyEphemeralSessionCredential(minted.credential, signingSecret);
-    expect(verified.ok).toBe(true);
-    if (verified.ok) {
-      expect(verified.actor.agentMarked).toBe(true);
-    }
+    expect(verified).toMatchObject({
+      ok: true,
+      actor: { agentMarked: true },
+    });
   });
 });
