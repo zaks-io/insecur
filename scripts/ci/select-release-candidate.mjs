@@ -45,6 +45,13 @@ async function main() {
   const verifiedLiveRun = live
     ? await productionJobSucceeded({ apiUrl, headers, repository, runId: live.runId })
     : false;
+  assertCandidateNotBehindVerifiedLive({
+    candidateSha: candidate.head_sha,
+    liveSha: live?.deploySha,
+    verifiedLiveRun,
+    isAncestor: (ancestor, descendant) =>
+      gitStatus("merge-base", "--is-ancestor", ancestor, descendant) === 0,
+  });
   const action = decideReleaseAction({
     candidateSha: candidate.head_sha,
     liveSha: live?.deploySha,
@@ -53,12 +60,14 @@ async function main() {
     verifiedLiveRun,
   });
 
-  const output = {
+  const output = buildReleaseCandidateEvidence({
     action,
-    ci_run_id: String(candidate.id),
-    deploy_sha: candidate.head_sha,
-    production_sha: productionSha,
-  };
+    candidate,
+    live,
+    mainSha,
+    productionSha,
+    verifiedLiveRun,
+  });
   await appendFile(
     outputPath,
     Object.entries(output)
@@ -73,28 +82,73 @@ async function main() {
 
 export function selectNewestSuccessfulMainRun(runs, mainHistory = []) {
   if (!Array.isArray(runs)) throw new Error("CI workflow response did not contain workflow_runs.");
-  const candidates = runs
-    .filter(
-      (run) =>
-        run?.conclusion === "success" &&
-        run?.event === "push" &&
-        run?.head_branch === "main" &&
-        isCommitSha(run?.head_sha) &&
-        Number.isSafeInteger(run?.id),
-    )
-    .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
+  const candidates = runs.filter(
+    (run) =>
+      run?.conclusion === "success" &&
+      run?.event === "push" &&
+      run?.head_branch === "main" &&
+      isCommitSha(run?.head_sha) &&
+      Number.isSafeInteger(run?.id),
+  );
   if (candidates.length === 0) {
     throw new Error("No completed successful CI run was found for main.");
   }
+  const mainHistorySet = new Set(mainHistory);
+  if (!mainHistorySet.has(candidates[0].head_sha)) {
+    throw new Error(
+      `Newest successful main CI run ${candidates[0].id} at ${candidates[0].head_sha} is absent from the current main history. Refresh origin/main before selecting a release.`,
+    );
+  }
   const newestBySha = new Map();
   for (const run of candidates) {
-    if (!newestBySha.has(run.head_sha)) newestBySha.set(run.head_sha, run);
+    const existing = newestBySha.get(run.head_sha);
+    if (existing === undefined || Date.parse(run.updated_at) > Date.parse(existing.updated_at)) {
+      newestBySha.set(run.head_sha, run);
+    }
   }
   for (const sha of mainHistory) {
     const run = newestBySha.get(sha);
     if (run) return run;
   }
   throw new Error("No successful CI run belongs to the current main history.");
+}
+
+export function assertCandidateNotBehindVerifiedLive({
+  candidateSha,
+  isAncestor,
+  liveSha,
+  verifiedLiveRun,
+}) {
+  if (
+    verifiedLiveRun &&
+    isCommitSha(liveSha) &&
+    candidateSha !== liveSha &&
+    isAncestor(candidateSha, liveSha)
+  ) {
+    throw new Error(
+      `Release candidate ${candidateSha} is behind verified live deployment ${liveSha}; refusing to roll production back.`,
+    );
+  }
+}
+
+export function buildReleaseCandidateEvidence({
+  action,
+  candidate,
+  live,
+  mainSha,
+  productionSha,
+  verifiedLiveRun,
+}) {
+  return {
+    action,
+    ci_run_id: String(candidate.id),
+    deploy_sha: candidate.head_sha,
+    live_run_id: live?.runId ?? "",
+    live_run_verified: String(verifiedLiveRun),
+    live_sha: live?.deploySha ?? "",
+    main_sha: mainSha,
+    production_sha: productionSha,
+  };
 }
 
 export function assertReleaseAncestry({ candidateSha, isAncestor, mainSha, productionSha }) {

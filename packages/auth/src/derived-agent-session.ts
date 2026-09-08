@@ -29,27 +29,31 @@ export interface MintDerivedAgentSessionResult {
   readonly agentSessionId: AgentSessionId;
 }
 
-function parentRemainingTtlSeconds(parentExpiresAt: string, issuedAtEpoch: number): number {
+function parentExpiryEpoch(parentExpiresAt: string): number {
   const parentExpiresAtEpoch = Math.floor(Date.parse(parentExpiresAt) / 1000);
   if (Number.isNaN(parentExpiresAtEpoch)) {
-    return CLI_SESSION_TTL_SECONDS;
+    throw Object.assign(new Error("Parent session expiry is invalid."), { code: "auth.invalid" });
   }
-  return Math.max(0, parentExpiresAtEpoch - issuedAtEpoch);
+  return parentExpiresAtEpoch;
 }
 
 function buildDerivedAgentClaims(
   input: MintDerivedAgentSessionInput,
   derivedAgentSessionId: AgentSessionId,
-  issuedAt: number,
-  expiresAtEpoch: number,
+  lifetime: {
+    readonly issuedAt: number;
+    readonly expiresAtEpoch: number;
+    readonly parentExpiresAtEpoch: number;
+  },
 ) {
   const harnessName = input.harnessName?.trim();
   return {
     sub: input.actor.userId,
     wid: input.actor.workosUserId,
     sid: input.actor.sessionId,
-    exp: expiresAtEpoch,
-    iat: issuedAt,
+    exp: lifetime.expiresAtEpoch,
+    pexp: lifetime.parentExpiresAtEpoch,
+    iat: lifetime.issuedAt,
     typ: CLI_AGENT_SESSION_TYP,
     asid: derivedAgentSessionId,
     ...(input.credentialScopes === undefined ? {} : { scp: [...input.credentialScopes] }),
@@ -68,7 +72,8 @@ export async function mintDerivedAgentSessionCredential(
   input: MintDerivedAgentSessionInput,
 ): Promise<MintDerivedAgentSessionResult> {
   const issuedAt = Math.floor(Date.now() / 1000);
-  const remainingParentTtl = parentRemainingTtlSeconds(input.parentExpiresAt, issuedAt);
+  const parentExpiresAtEpoch = parentExpiryEpoch(input.parentExpiresAt);
+  const remainingParentTtl = Math.max(0, parentExpiresAtEpoch - issuedAt);
   const requestedTtl = input.ttlSeconds ?? CLI_SESSION_TTL_SECONDS;
   const ttlSeconds = Math.min(CLI_SESSION_TTL_SECONDS, remainingParentTtl, requestedTtl);
   if (ttlSeconds <= 0) {
@@ -76,7 +81,11 @@ export async function mintDerivedAgentSessionCredential(
   }
   const expiresAtEpoch = issuedAt + ttlSeconds;
   const derivedAgentSessionId = agentSessionId.generate();
-  const payload = buildDerivedAgentClaims(input, derivedAgentSessionId, issuedAt, expiresAtEpoch);
+  const payload = buildDerivedAgentClaims(input, derivedAgentSessionId, {
+    issuedAt,
+    expiresAtEpoch,
+    parentExpiresAtEpoch,
+  });
   return {
     credential: await encodeHmacToken(payload, input.signingSecret),
     expiresAt: new Date(expiresAtEpoch * 1000).toISOString(),

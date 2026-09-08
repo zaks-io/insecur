@@ -1,6 +1,7 @@
 import { PRODUCTION_AUDIT_EVENT_CODES, writeAuditEvent } from "@insecur/audit";
 import { DEFAULT_ROOT_KEY_VERSION } from "@insecur/crypto";
 import {
+  BACKUP_RESTORE_ERROR_CODES,
   brandOpaqueResourceIdForPrefix,
   organizationId as brandOrganizationId,
   type OperationId,
@@ -78,12 +79,18 @@ async function recordBackupExportAuditEvent(input: {
   operationId: OperationId;
   succeeded: boolean;
 }) {
+  const eventCode = input.succeeded
+    ? PRODUCTION_AUDIT_EVENT_CODES.backupExportSucceeded
+    : PRODUCTION_AUDIT_EVENT_CODES.backupExportFailed;
   return await writeAuditEvent({
     organizationId: input.organizationId,
-    eventCode: input.succeeded
-      ? PRODUCTION_AUDIT_EVENT_CODES.backupExportSucceeded
-      : PRODUCTION_AUDIT_EVENT_CODES.backupExportFailed,
-    outcome: "success",
+    eventCode,
+    ...(input.succeeded
+      ? { outcome: "success" as const }
+      : {
+          outcome: "denied" as const,
+          denial: { reasonCode: BACKUP_RESTORE_ERROR_CODES.exportFailed },
+        }),
     actor: { type: "user", userId: null },
     resource: {
       type: "operation",

@@ -55,7 +55,11 @@ export async function resolveVariableKeyBinding(
       retryable: false,
     });
   }
-  const current = await store.secretVersions.getCurrentWrappedVersion(projectId, shape.secretId);
+  const current = await store.secretVersions.getCurrentWrappedVersion(
+    projectId,
+    environmentId,
+    shape.secretId,
+  );
   if (current === null) {
     return throwValueMissingOnMachine(store, projectId, environmentId, variableKey);
   }

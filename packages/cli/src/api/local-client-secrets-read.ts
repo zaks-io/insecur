@@ -20,6 +20,7 @@ async function buildLocalSecretList(input: {
       const row = metadataBySecretId.get(shape.secretId);
       const current = await input.store.secretVersions.getCurrentWrappedVersion(
         input.projectId,
+        input.environmentId,
         shape.secretId,
       );
       return {
@@ -52,6 +53,7 @@ async function listLocalSecretVersions(input: {
   const [current, metadata] = await Promise.all([
     input.store.secretVersions.getCurrentWrappedVersion(
       input.request.projectId,
+      input.request.environmentId,
       input.request.secretId,
     ),
     input.store.secretVersions.listSecretMetadata(

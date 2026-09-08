@@ -100,9 +100,12 @@ function testDisplayName(raw: string): DisplayName {
 
 async function cleanupProtectedChanges(): Promise<void> {
   await withTenantScope({ kind: "organization", organizationId: ORG }, async ({ sql }) => {
-    await sql`DELETE FROM protected_change_approval_evidence WHERE org_id = ${ORG}`;
-    await sql`DELETE FROM protected_changes WHERE org_id = ${ORG}`;
     for (const envId of Object.values(TEST_ENV_IDS)) {
+      await sql`DELETE FROM protected_change_approval_evidence WHERE org_id = ${ORG}
+        AND protected_change_id IN (
+          SELECT id FROM protected_changes WHERE org_id = ${ORG} AND environment_id = ${envId}
+        )`;
+      await sql`DELETE FROM protected_changes WHERE org_id = ${ORG} AND environment_id = ${envId}`;
       await sql`DELETE FROM secret_versions WHERE org_id = ${ORG} AND secret_id IN (
         SELECT id FROM secrets WHERE environment_id = ${envId}
       )`;

@@ -153,6 +153,7 @@ jobs:
       - detect-release-change
     if: needs.detect-release-change.outputs.should_run == 'true'
     runs-on: ${{ matrix.runner }}
+    environment: Production
     timeout-minutes: 20
     permissions:
       contents: read
@@ -216,6 +217,10 @@ jobs:
       - name: Build CLI bundle
         if: matrix.name != 'linux-x64'
         run: pnpm --filter @insecur/cli build
+
+      - name: Verify built CLI Local Mode custody
+        if: matrix.name == 'linux-x64'
+        run: pnpm test:cli:local-features
 
       - name: Compile binary
         working-directory: packages/cli

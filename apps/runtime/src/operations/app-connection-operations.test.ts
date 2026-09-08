@@ -117,11 +117,6 @@ describe("app connection operations", () => {
     const statusPayload = {
       connection: metadataConnection,
       validation: null,
-      cloudflareBoundary: {
-        allowedAccountId: "cf-account-123",
-        allowedWorkerScript: "my-api-production",
-      },
-      githubBoundary: null,
     };
     vi.mocked(getAppConnectionStatusCommand).mockResolvedValue(statusPayload);
 

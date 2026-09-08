@@ -93,6 +93,25 @@ test("compiled binary smoke explicitly opts into the disposable file keystore", 
   );
 });
 
+test("CLI release blocks on the built Local Mode custody suite", async () => {
+  const workflow = await workflowPromise;
+
+  assert.match(
+    workflow,
+    /- name: Verify built CLI Local Mode custody\n\s+if: matrix\.name == 'linux-x64'\n\s+run: pnpm test:cli:local-features/u,
+  );
+});
+
+test("credentialed build and release jobs use the main-restricted Production environment", async () => {
+  const workflow = await workflowPromise;
+
+  assert.match(
+    workflow,
+    /build:[\s\S]*?runs-on: \$\{\{ matrix\.runner \}\}\n\s+environment: Production/u,
+  );
+  assert.match(workflow, /release:[\s\S]*?environment: Production/u);
+});
+
 test("Bun sqlite seam probe does not fail passed assertions on disposable cleanup locks", async () => {
   const probe = await bunSqliteSeamProbePromise;
 

@@ -3,8 +3,6 @@ import {
   injectionGrantId,
   projectId,
   secretVersionId,
-  type InjectionGrantId,
-  type ProjectId,
   type SecretId,
   type VariableKey,
 } from "@insecur/domain";
@@ -12,6 +10,7 @@ import {
 import type { LocalInjectionGrantStore } from "../../contracts/injection-grant-store.js";
 import type {
   LocalConsumedInjectionGrantRow,
+  LocalInjectionGrantConsumeInput,
   LocalInsertInjectionGrantInput,
 } from "../../contracts/types.js";
 import type { LocalSqliteDatabase } from "../../sqlite/connection.js";
@@ -63,35 +62,14 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
    * overlapping consumers, and the conditional `UPDATE ... WHERE consumed_at IS NULL`
    * is the single atomic claim primitive (no separate pre-classify/mark split).
    */
-  tryConsumeGrant(
-    projectIdValue: ProjectId,
-    grantIdValue: InjectionGrantId,
-    secretIdValue: SecretId,
-    variableKey: VariableKey,
-  ): Promise<ConsumeOutcome> {
-    return Promise.resolve(
-      this.atomicConsumeGrantInTransaction(
-        projectIdValue,
-        grantIdValue,
-        secretIdValue,
-        variableKey,
-      ),
-    );
+  tryConsumeGrant(input: LocalInjectionGrantConsumeInput): Promise<ConsumeOutcome> {
+    return Promise.resolve(this.atomicConsumeGrantInTransaction(input));
   }
 
-  private atomicConsumeGrantInTransaction(
-    projectIdValue: ProjectId,
-    grantIdValue: InjectionGrantId,
-    secretIdValue: SecretId,
-    variableKey: VariableKey,
-  ): ConsumeOutcome {
+  private atomicConsumeGrantInTransaction(input: LocalInjectionGrantConsumeInput): ConsumeOutcome {
     let outcome: ConsumeOutcome | undefined;
     withSqliteTransaction(this.database, () => {
-      outcome = this.consumeGrantRowUnderLock(
-        this.getGrantRow(grantIdValue, projectIdValue),
-        secretIdValue,
-        variableKey,
-      );
+      outcome = this.consumeGrantRowUnderLock(this.getGrantRow(input), input);
     });
     if (outcome === undefined) {
       throw new Error("injection grant consume transaction did not set an outcome");
@@ -101,8 +79,7 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
 
   private classifyConsumeFailure(
     row: GrantDbRow | null,
-    secretIdValue: SecretId,
-    variableKey: VariableKey,
+    input: LocalInjectionGrantConsumeInput,
   ): ConsumeFailure | null {
     if (!row) {
       return "not_found";
@@ -116,7 +93,11 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
     if (new Date(row.expires_at).getTime() <= Date.now()) {
       return "expired";
     }
-    if (!this.resolveBinding(row, secretIdValue, variableKey)) {
+    if (row.environment_id !== input.environmentId) {
+      return "binding_not_allowed";
+    }
+    const binding = this.resolveBinding(row, input.secretId, input.variableKey);
+    if (!binding || !this.isCurrentBinding(row, binding.secretVersionIdValue, input.secretId)) {
       return "binding_not_allowed";
     }
     return null;
@@ -124,14 +105,13 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
 
   private consumeGrantRowUnderLock(
     row: GrantDbRow | null,
-    secretIdValue: SecretId,
-    variableKey: VariableKey,
+    input: LocalInjectionGrantConsumeInput,
   ): ConsumeOutcome {
-    const preflight = this.classifyConsumeFailure(row, secretIdValue, variableKey);
+    const preflight = this.classifyConsumeFailure(row, input);
     if (preflight !== null || row === null) {
       return { ok: false, failure: preflight ?? "not_found" };
     }
-    const binding = this.resolveBinding(row, secretIdValue, variableKey);
+    const binding = this.resolveBinding(row, input.secretId, input.variableKey);
     if (!binding) {
       return { ok: false, failure: "binding_not_allowed" };
     }
@@ -140,9 +120,10 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
       .prepare(
         `UPDATE injection_grants
          SET consumed_at = ?
-         WHERE id = ? AND project_id = ? AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > ?`,
+         WHERE id = ? AND project_id = ? AND environment_id = ?
+           AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > ?`,
       )
-      .run(consumedAt, row.id, row.project_id, consumedAt);
+      .run(consumedAt, row.id, row.project_id, input.environmentId, consumedAt);
     if (claimed.changes !== 1) {
       return { ok: false, failure: "already_consumed" };
     }
@@ -152,17 +133,14 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
         grantId: injectionGrantId.brand(row.id),
         projectId: projectId.brand(row.project_id),
         environmentId: environmentId.brand(row.environment_id),
-        secretId: secretIdValue,
+        secretId: input.secretId,
         secretVersionId: secretVersionId.brand(binding.secretVersionIdValue),
-        variableKey,
+        variableKey: input.variableKey,
       },
     };
   }
 
-  private getGrantRow(
-    grantIdValue: InjectionGrantId,
-    projectIdValue: ProjectId,
-  ): GrantDbRow | null {
+  private getGrantRow(input: LocalInjectionGrantConsumeInput): GrantDbRow | null {
     return (
       (this.database
         .prepare(
@@ -171,7 +149,7 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
            FROM injection_grants
            WHERE id = ? AND project_id = ?`,
         )
-        .get(grantIdValue, projectIdValue) as GrantDbRow | undefined) ?? null
+        .get(input.grantId, input.projectId) as GrantDbRow | undefined) ?? null
     );
   }
 
@@ -194,6 +172,22 @@ export class SqliteLocalInjectionGrantStore implements LocalInjectionGrantStore 
       return null;
     }
     return { secretVersionIdValue };
+  }
+
+  private isCurrentBinding(
+    row: GrantDbRow,
+    secretVersionIdValue: string,
+    secretIdValue: SecretId,
+  ): boolean {
+    const current = this.database
+      .prepare(
+        `SELECT secret_version_id
+         FROM current_secret_versions
+         WHERE project_id = ? AND environment_id = ? AND secret_id = ?`,
+      )
+      .get(row.project_id, row.environment_id, secretIdValue) as
+      { secret_version_id: string } | undefined;
+    return current?.secret_version_id === secretVersionIdValue;
   }
 }
 

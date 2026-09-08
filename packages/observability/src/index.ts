@@ -1,4 +1,18 @@
 import type { CloudflareOptions } from "@sentry/cloudflare";
+import {
+  prepareSentryEvent,
+  prepareSentrySpan,
+  prepareSentryTransaction,
+  type SentryEventLike,
+  type SentrySanitizationMetadata,
+  type SentrySpanLike,
+  type SentryTransactionLike,
+} from "./sentry-sanitization.js";
+
+export {
+  requestWithoutSentryBaggage,
+  sentryFetchWithBaggageGuard,
+} from "./sentry-request-handler.js";
 
 export interface SentryBindings {
   readonly SENTRY_DSN?: string;
@@ -10,13 +24,11 @@ export interface SentryBindings {
 
 export interface SentryBrowserConfig {
   readonly dsn: string;
-  readonly enableLogs?: boolean;
   readonly environment?: string;
   readonly release?: string;
   readonly service?: string;
   readonly tracesSampleRate: number;
 }
-
 export interface BrowserSentryRuntime<TRouter, TIntegration> {
   readonly init: (options: BrowserSentryOptions<TIntegration>) => void;
   readonly routerTracingIntegration: (router: TRouter) => TIntegration;
@@ -28,59 +40,75 @@ export interface BrowserSentryOptions<TIntegration> {
   readonly environment?: string;
   readonly release?: string;
   readonly tracesSampleRate: number;
-  readonly dataCollection?: NonProductionDataCollection;
+  readonly dataCollection: MetadataOnlySentryDataCollection;
   readonly enableLogs: boolean;
   readonly integrations: TIntegration[];
-  readonly initialScope?: { readonly tags: Record<string, string> };
+  readonly beforeSend: <TEvent extends SentryEventLike>(event: TEvent) => TEvent;
+  readonly beforeSendSpan: <TSpan extends SentrySpanLike>(span: TSpan) => TSpan;
+  readonly beforeSendTransaction: <TEvent extends SentryTransactionLike>(event: TEvent) => TEvent;
 }
 
 export const DEFAULT_SENTRY_TRACES_SAMPLE_RATE = 1;
 
 let browserSentryInitialized = false;
 
-export interface NonProductionDataCollection {
-  readonly userInfo: true;
+interface MetadataOnlySentryDataCollection {
+  readonly cookies: false;
+  readonly frameContextLines: 0;
+  readonly genAI: { readonly inputs: false; readonly outputs: false };
   readonly httpBodies: never[];
+  readonly httpHeaders: { readonly request: false; readonly response: false };
+  readonly queryParams: false;
+  readonly stackFrameVariables: false;
+  readonly userInfo: false;
 }
 
-// Prelaunch telemetry posture: full-fidelity events (PII, payloads, breadcrumbs) outside
-// production so we can see what the SDK actually captures; production keeps the SDK's
-// conservative PII-deny defaults by omitting `dataCollection`. Re-tightening is tracked in
-// INS-553. A missing environment fails closed to the production posture.
-//
-// `httpBodies: []` is NOT environment-scoped: secret writes carry plaintext Sensitive Values in
-// HTTP request bodies by design (CLI/API → Runtime), and the SDK's key/token filtering covers
-// headers/cookies/query params but not bodies. Capturing bodies anywhere would store plaintext
-// secrets in Sentry, which the Security Baseline forbids in every environment.
-export function sentryDataCollection(
-  environment: string | undefined,
-): NonProductionDataCollection | undefined {
-  return environment === undefined || environment === "production"
-    ? undefined
-    : { userInfo: true, httpBodies: [] };
-}
+const METADATA_ONLY_DATA_COLLECTION: MetadataOnlySentryDataCollection = {
+  cookies: false,
+  frameContextLines: 0,
+  genAI: { inputs: false, outputs: false },
+  httpBodies: [],
+  httpHeaders: { request: false, response: false },
+  queryParams: false,
+  stackFrameVariables: false,
+  userInfo: false,
+};
 
 export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions {
   const dsn = optional(env.SENTRY_DSN);
   const environment = optional(env.SENTRY_ENVIRONMENT);
   const release = optional(env.SENTRY_RELEASE);
   const service = optional(env.SENTRY_SERVICE);
-  const dataCollection = sentryDataCollection(environment);
-
+  const sanitizationMetadata = sentrySanitizationMetadata({
+    ...(environment ? { environment } : {}),
+    ...(release ? { release } : {}),
+    ...(service ? { service } : {}),
+  });
   return {
     enabled: Boolean(dsn),
     ...(dsn ? { dsn } : {}),
     ...(environment ? { environment } : {}),
     ...(release ? { release } : {}),
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
-    ...(dataCollection ? { dataCollection } : {}),
-    enableLogs: env.SENTRY_ENABLE_LOGS === "true",
+    dataCollection: METADATA_ONLY_DATA_COLLECTION,
+    enableLogs: false,
     enableRpcTracePropagation: true,
     // Continue inbound traces only when the caller's baggage carries our Sentry org id (extracted
     // from the DSN); arbitrary third-party sentry-trace/baggage on the public edge starts a new
     // trace instead of joining ours.
     strictTraceContinuation: true,
-    ...(service ? { initialScope: { tags: { service } } } : {}),
+    beforeSend(event) {
+      return prepareSentryEvent(event, sanitizationMetadata);
+    },
+    beforeSendSpan(span) {
+      return prepareSentrySpan(span);
+    },
+    beforeSendTransaction(event) {
+      return prepareSentryTransaction(event, sanitizationMetadata);
+    },
+    beforeSendLog() {
+      return null;
+    },
   };
 }
 
@@ -100,7 +128,6 @@ export function sentryBrowserConfig(env: SentryBindings): SentryBrowserConfig | 
     ...(release ? { release } : {}),
     ...(service ? { service } : {}),
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
-    ...(env.SENTRY_ENABLE_LOGS === "true" ? { enableLogs: true } : {}),
   };
 }
 
@@ -144,17 +171,36 @@ function browserSentryOptions<TRouter, TIntegration>(
   router: TRouter,
   routerTracingIntegration: (router: TRouter) => TIntegration,
 ): BrowserSentryOptions<TIntegration> {
-  const dataCollection = sentryDataCollection(config.environment);
+  const sanitizationMetadata = sentrySanitizationMetadata(config);
   return {
     dsn: config.dsn,
     enabled: true,
     ...(config.environment ? { environment: config.environment } : {}),
     ...(config.release ? { release: config.release } : {}),
     tracesSampleRate: config.tracesSampleRate,
-    ...(dataCollection ? { dataCollection } : {}),
-    enableLogs: config.enableLogs === true,
+    dataCollection: METADATA_ONLY_DATA_COLLECTION,
+    enableLogs: false,
     integrations: [routerTracingIntegration(router)],
-    ...(config.service ? { initialScope: { tags: { service: config.service } } } : {}),
+    beforeSend(event) {
+      return prepareSentryEvent(event, sanitizationMetadata);
+    },
+    beforeSendSpan(span) {
+      return prepareSentrySpan(span);
+    },
+    beforeSendTransaction(event) {
+      return prepareSentryTransaction(event, sanitizationMetadata);
+    },
+  };
+}
+
+function sentrySanitizationMetadata(
+  config: Pick<SentryBrowserConfig, "environment" | "release" | "service">,
+): SentrySanitizationMetadata {
+  return {
+    ...(config.environment ? { environment: config.environment } : {}),
+    platform: "javascript",
+    ...(config.release ? { release: config.release } : {}),
+    ...(config.service ? { service: config.service } : {}),
   };
 }
 

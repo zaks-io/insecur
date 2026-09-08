@@ -275,6 +275,60 @@ describe("local secrets set and run", () => {
     }
   });
 
+  it("fails closed when a secret rotates after an injection grant is issued", async () => {
+    await setupProject();
+    const store = openLocalStore({
+      configHome: isolatedHome.homeDir,
+      keyStore: createFakeKeyStore({ keyHex }),
+    });
+    const api = createLocalApiClient({
+      store,
+      context,
+      flags: { ...baseFlags, configDir: projectDir },
+    });
+
+    try {
+      const write = () =>
+        runSecretsSetCommand({ ...baseFlags, configDir: projectDir }, api, context, {
+          variableKey: VARIABLE_KEY,
+          generateMode: "random",
+          generateLength: "32",
+          valueStdin: false,
+          allowEmpty: false,
+        });
+      expect(await write()).toBe(0);
+      const issued = await issueLocalVariableKeyInjectionGrant({
+        store,
+        projectId: TEST_PROJECT_ID,
+        environmentId: TEST_ENV_ID,
+        variableKey: VARIABLE_KEY as never,
+      });
+      if (!issued.ok) throw new Error("expected grant issuance to succeed");
+      expect(await write()).toBe(0);
+
+      const consumed = await consumeLocalVariableKeyInjectionGrant({
+        store,
+        projectId: TEST_PROJECT_ID,
+        environmentId: TEST_ENV_ID,
+        grantId: issued.envelope.data.grantId,
+        variableKey: VARIABLE_KEY as never,
+      });
+      expect(consumed.ok).toBe(false);
+      if (!consumed.ok) {
+        expect(consumed.envelope.error.code).toBe("injection.grant_denied");
+      }
+      const denial = (await store.audit.listEvents(TEST_PROJECT_ID)).find(
+        (event) => event.eventCode === "runtime_injection.grant_consume_denied",
+      );
+      expect(denial).toMatchObject({
+        outcome: "denied",
+        details: { reasonCode: "binding_not_allowed" },
+      });
+    } finally {
+      store.close();
+    }
+  });
+
   it("runs the First Value proof verifier without login", async () => {
     await setupProject();
     const { api, dispose } = createLocalApi();

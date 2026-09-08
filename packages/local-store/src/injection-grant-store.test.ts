@@ -10,6 +10,7 @@ import {
   secretId,
   secretVersionId,
 } from "@insecur/domain";
+import { computeSecretWriteDescriptiveVerdicts } from "@insecur/secret-store-contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createLocalStoreForTest } from "./create-local-store.js";
@@ -19,9 +20,11 @@ import type { LocalStore } from "./create-local-store.js";
 
 const PROJECT_A = projectId.brand("prj_01JZ8E4X5D9N3J7P2Q4R6S8T0W");
 const ENV_A = environmentId.brand("env_01JZ8E6Z7F1P5L9R4T6U8V0W2Y");
+const ENV_B = environmentId.brand("env_01JZ8E6Z7F1P5L9R4T6U8V0W3Z");
 const SECRET_A = secretId.brand("sec_01JZ8E8B9H3R7N1T6V8W0X2Y4A");
 const SECRET_B = secretId.brand("sec_01JZ8E9C0I4S8O2U7W9X1Y3Z5B");
 const VERSION_A = secretVersionId.brand("sv_01TEST00000000000000000001");
+const VERSION_B = secretVersionId.brand("sv_01TEST00000000000000000002");
 const GRANT_A = injectionGrantId.brand("igr_01TEST00000000000000000001");
 const GRANT_B = injectionGrantId.brand("igr_01TEST00000000000000000002");
 const VARIABLE_KEY = brandValue<string, "VariableKey">("INSECUR_PROOF_SECRET");
@@ -53,6 +56,27 @@ function createGrantTestContext(): GrantTestContext {
 async function seedProject(store: LocalStore): Promise<void> {
   await store.projects.createProject(PROJECT_A, "Local project");
   await store.projects.createEnvironment(PROJECT_A, ENV_A, "development");
+  await store.projects.createEnvironment(PROJECT_A, ENV_B, "preview");
+}
+
+async function setCurrentVersion(
+  store: LocalStore,
+  secretVersionIdValue: import("@insecur/domain").SecretVersionId,
+): Promise<void> {
+  const plaintext = new TextEncoder().encode("test-secret");
+  await store.secretVersions.replaceCurrentVersion({
+    projectId: PROJECT_A,
+    environmentId: ENV_A,
+    secretId: SECRET_A,
+    secretVersionId: secretVersionIdValue,
+    variableKey: VARIABLE_KEY,
+    wrapped: {
+      organizationDataKeyVersion: 1,
+      projectDataKeyVersion: 1,
+      ciphertext: new Uint8Array([1]),
+    },
+    descriptiveVerdicts: computeSecretWriteDescriptiveVerdicts({ valueUtf8: plaintext }),
+  });
 }
 
 async function insertGrant(
@@ -60,6 +84,7 @@ async function insertGrant(
   grantIdValue: typeof GRANT_A,
   expiresAt: Date,
 ): Promise<void> {
+  await setCurrentVersion(store, VERSION_A);
   await store.injectionGrants.insertGrant({
     grantId: grantIdValue,
     projectId: PROJECT_A,
@@ -91,12 +116,13 @@ describe("store.injectionGrants", () => {
     await seedProject(context.store);
     await insertGrant(context.store, GRANT_A, new Date(Date.now() + 60_000));
 
-    const consumed = await context.store.injectionGrants.tryConsumeGrant(
-      PROJECT_A,
-      GRANT_A,
-      SECRET_A,
-      VARIABLE_KEY,
-    );
+    const consumed = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
     expect(consumed).toEqual({
       ok: true,
       grant: {
@@ -114,12 +140,13 @@ describe("store.injectionGrants", () => {
     await seedProject(context.store);
     await insertGrant(context.store, GRANT_A, new Date(Date.now() - 1_000));
 
-    const consumed = await context.store.injectionGrants.tryConsumeGrant(
-      PROJECT_A,
-      GRANT_A,
-      SECRET_A,
-      VARIABLE_KEY,
-    );
+    const consumed = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
     expect(consumed).toEqual({ ok: false, failure: "expired" });
   });
 
@@ -127,20 +154,22 @@ describe("store.injectionGrants", () => {
     await seedProject(context.store);
     await insertGrant(context.store, GRANT_A, new Date(Date.now() + 60_000));
 
-    const first = await context.store.injectionGrants.tryConsumeGrant(
-      PROJECT_A,
-      GRANT_A,
-      SECRET_A,
-      VARIABLE_KEY,
-    );
+    const first = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
     expect(first.ok).toBe(true);
 
-    const second = await context.store.injectionGrants.tryConsumeGrant(
-      PROJECT_A,
-      GRANT_A,
-      SECRET_A,
-      VARIABLE_KEY,
-    );
+    const second = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
     expect(second).toEqual({ ok: false, failure: "already_consumed" });
   });
 
@@ -148,32 +177,83 @@ describe("store.injectionGrants", () => {
     await seedProject(context.store);
     await insertGrant(context.store, GRANT_A, new Date(Date.now() + 60_000));
 
-    const wrongSecret = await context.store.injectionGrants.tryConsumeGrant(
-      PROJECT_A,
-      GRANT_A,
-      SECRET_B,
-      VARIABLE_KEY,
-    );
+    const wrongSecret = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_B,
+      variableKey: VARIABLE_KEY,
+    });
     expect(wrongSecret).toEqual({ ok: false, failure: "binding_not_allowed" });
 
-    const wrongVariable = await context.store.injectionGrants.tryConsumeGrant(
-      PROJECT_A,
-      GRANT_A,
-      SECRET_A,
-      OTHER_VARIABLE_KEY,
-    );
+    const wrongVariable = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: OTHER_VARIABLE_KEY,
+    });
     expect(wrongVariable).toEqual({ ok: false, failure: "binding_not_allowed" });
+  });
+
+  it("does not consume a grant for the wrong environment", async () => {
+    await seedProject(context.store);
+    await insertGrant(context.store, GRANT_A, new Date(Date.now() + 60_000));
+
+    const wrongEnvironment = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_B,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
+    expect(wrongEnvironment).toEqual({ ok: false, failure: "binding_not_allowed" });
+
+    const consumed = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
+    expect(consumed.ok).toBe(true);
+  });
+
+  it("does not consume a grant whose bound secret version is stale", async () => {
+    await seedProject(context.store);
+    await insertGrant(context.store, GRANT_A, new Date(Date.now() + 60_000));
+    await setCurrentVersion(context.store, VERSION_B);
+
+    const stale = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
+    expect(stale).toEqual({ ok: false, failure: "binding_not_allowed" });
+
+    await setCurrentVersion(context.store, VERSION_A);
+    const consumed = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
+    expect(consumed.ok).toBe(true);
   });
 
   it("tryConsumeGrant rejects unknown grants", async () => {
     await seedProject(context.store);
 
-    const consumed = await context.store.injectionGrants.tryConsumeGrant(
-      PROJECT_A,
-      GRANT_B,
-      SECRET_A,
-      VARIABLE_KEY,
-    );
+    const consumed = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_B,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
     expect(consumed).toEqual({ ok: false, failure: "not_found" });
   });
 
@@ -181,12 +261,13 @@ describe("store.injectionGrants", () => {
     await seedProject(context.store);
     await insertGrant(context.store, GRANT_A, new Date(Date.now() + 60_000));
 
-    const first = await context.store.injectionGrants.tryConsumeGrant(
-      PROJECT_A,
-      GRANT_A,
-      SECRET_A,
-      VARIABLE_KEY,
-    );
+    const first = await context.store.injectionGrants.tryConsumeGrant({
+      projectId: PROJECT_A,
+      environmentId: ENV_A,
+      grantId: GRANT_A,
+      secretId: SECRET_A,
+      variableKey: VARIABLE_KEY,
+    });
     expect(first.ok).toBe(true);
 
     const peerDatabase = openLocalSqliteDatabase(context.databasePath);
@@ -195,12 +276,13 @@ describe("store.injectionGrants", () => {
       database: peerDatabase,
     });
     try {
-      const second = await peerStore.injectionGrants.tryConsumeGrant(
-        PROJECT_A,
-        GRANT_A,
-        SECRET_A,
-        VARIABLE_KEY,
-      );
+      const second = await peerStore.injectionGrants.tryConsumeGrant({
+        projectId: PROJECT_A,
+        environmentId: ENV_A,
+        grantId: GRANT_A,
+        secretId: SECRET_A,
+        variableKey: VARIABLE_KEY,
+      });
       expect(second).toEqual({ ok: false, failure: "already_consumed" });
     } finally {
       peerStore.close();

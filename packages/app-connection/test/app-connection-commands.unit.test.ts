@@ -424,7 +424,7 @@ describe("app connection command validation", () => {
     expect(disableCloudflareConnection).toHaveBeenCalledOnce();
   });
 
-  it("getAppConnectionStatusCommand returns Cloudflare metadata and boundary", async () => {
+  it("getAppConnectionStatusCommand does not decrypt Cloudflare sensitive metadata", async () => {
     const connectionRow = {
       id: CONN,
       organizationId: ORG,
@@ -451,11 +451,6 @@ describe("app connection command validation", () => {
         connectionRow,
       ),
     );
-    vi.mocked(loadCloudflareConnectionBoundary).mockResolvedValue({
-      allowedAccountId: "cf-account-123",
-      allowedWorkerScript: "my-api-production",
-    });
-
     const status = await getAppConnectionStatusCommand({
       actor: USER_ACTOR,
       organizationId: ORG,
@@ -463,12 +458,13 @@ describe("app connection command validation", () => {
       keyring: KEYRING,
     });
 
-    expect(status.cloudflareBoundary?.allowedAccountId).toBe("cf-account-123");
-    expect(status.githubBoundary).toBeNull();
+    expect(status).not.toHaveProperty("cloudflareBoundary");
+    expect(status).not.toHaveProperty("githubBoundary");
     expect(status.connection.id).toBe(CONN);
+    expect(loadCloudflareConnectionBoundary).not.toHaveBeenCalled();
   });
 
-  it("getAppConnectionStatusCommand returns GitHub metadata and boundary", async () => {
+  it("getAppConnectionStatusCommand does not decrypt GitHub sensitive metadata", async () => {
     const connectionRow = {
       id: CONN,
       organizationId: ORG,
@@ -495,18 +491,6 @@ describe("app connection command validation", () => {
         connectionRow,
       ),
     );
-    vi.mocked(loadGitHubConnectionBoundary).mockResolvedValue({
-      boundary: {
-        installationId: "12345678",
-        owner: "insecur-org",
-        allowedRepositories: ["insecur-org/api", "insecur-org/web"],
-      },
-      linkage: {
-        providerAccountId: "insecur-org",
-        providerAppRegistrationId: "preg_test" as never,
-      },
-    });
-
     const status = await getAppConnectionStatusCommand({
       actor: USER_ACTOR,
       organizationId: ORG,
@@ -514,9 +498,10 @@ describe("app connection command validation", () => {
       keyring: KEYRING,
     });
 
-    expect(status.githubBoundary?.allowedRepositoryCount).toBe(2);
-    expect(status.cloudflareBoundary).toBeNull();
+    expect(status).not.toHaveProperty("githubBoundary");
+    expect(status).not.toHaveProperty("cloudflareBoundary");
     expect(status.connection.provider).toBe("github");
+    expect(loadGitHubConnectionBoundary).not.toHaveBeenCalled();
   });
 
   it("reauthAppConnectionCommand forwards GitHub reauth through the gate", async () => {

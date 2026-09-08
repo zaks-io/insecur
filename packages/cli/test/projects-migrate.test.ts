@@ -451,6 +451,7 @@ describe("insecur projects migrate", () => {
       }
       const wrapped = await store.secretVersions.getCurrentWrappedVersion(
         LOCAL_PROJECT_ID,
+        LOCAL_ENV_ID,
         shape.secretId,
       );
       if (wrapped === null) {

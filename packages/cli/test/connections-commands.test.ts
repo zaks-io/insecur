@@ -115,11 +115,6 @@ describe("connections CLI commands", () => {
           data: {
             connection: metadataOnlyConnection,
             validation: { outcome: "success" },
-            cloudflareBoundary: {
-              allowedAccountId: "cf-account-123",
-              allowedWorkerScript: "my-api-production",
-            },
-            githubBoundary: null,
           },
         },
       })),
@@ -134,7 +129,8 @@ describe("connections CLI commands", () => {
     );
     expect(exitCode).toBe(0);
     const output = stdout.mock.calls.map((call) => String(call[0])).join("");
-    expect(output).toContain('"cloudflareBoundary"');
+    expect(output).not.toContain("cloudflareBoundary");
+    expect(output).not.toContain("githubBoundary");
     expect(output).not.toContain("tokenUtf8");
     expect(output).not.toContain("encodedValueUtf8");
     stdout.mockRestore();

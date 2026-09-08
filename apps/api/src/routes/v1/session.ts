@@ -76,6 +76,24 @@ function parseOptionalEnvironmentId(raw: string) {
   return parsed.value;
 }
 
+async function readRevocationSessionExpiry(
+  context: SessionRouteContext,
+  authorizationHeader: string | undefined,
+): Promise<string> {
+  const bearerCredential = authorizationHeader?.startsWith("Bearer ")
+    ? authorizationHeader.slice("Bearer ".length)
+    : undefined;
+  if (bearerCredential === undefined) {
+    return new Date(Date.now() + 86_400_000).toISOString();
+  }
+  const { config } = createAuthContext(context.env);
+  const metadata = await readSessionCredentialMetadata(
+    bearerCredential,
+    config.sessionSigningSecret,
+  );
+  return metadata.parentExpiresAt ?? metadata.expiresAt;
+}
+
 function assertWhoamiContextScope(
   orgIdRaw: string | undefined,
   projectIdRaw: string | undefined,
@@ -243,15 +261,7 @@ sessionRoutes.post("/revoke", async (context) =>
     if (!resolved.ok) {
       return { revoked: false };
     }
-    const { config } = createAuthContext(context.env);
-    const bearerCredential = authorizationHeader?.startsWith("Bearer ")
-      ? authorizationHeader.slice("Bearer ".length)
-      : undefined;
-    const sessionExpiresAt =
-      bearerCredential === undefined
-        ? new Date(Date.now() + 86_400_000).toISOString()
-        : (await readSessionCredentialMetadata(bearerCredential, config.sessionSigningSecret))
-            .expiresAt;
+    const sessionExpiresAt = await readRevocationSessionExpiry(context, authorizationHeader);
     const revoked = await runtimeClientFor(context.env, resolved.actor).revokeCliSession({
       instanceId: resolveInstanceId(context.env),
       requestId: reqId,

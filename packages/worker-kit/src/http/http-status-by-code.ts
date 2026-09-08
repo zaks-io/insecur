@@ -98,6 +98,7 @@ export const HTTP_STATUS_BY_CODE = new Map<KnownErrorCode, number>([
   [BACKUP_RESTORE_ERROR_CODES.manifestIncomplete, 400],
   [BACKUP_RESTORE_ERROR_CODES.unsupportedTable, 400],
   [BACKUP_RESTORE_ERROR_CODES.schemaMismatch, 409],
+  [BACKUP_RESTORE_ERROR_CODES.exportFailed, 500],
   [BACKUP_RESTORE_ERROR_CODES.importFailed, 500],
   [BOOTSTRAP_ERROR_CODES.alreadyBootstrapped, 409],
   [BOOTSTRAP_ERROR_CODES.notBootstrapped, 404],

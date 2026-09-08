@@ -225,11 +225,6 @@ describe("connections worker routes", () => {
         value: {
           connection: metadataOnlyConnection,
           validation: cloudflareValidation,
-          cloudflareBoundary: {
-            allowedAccountId: "cf-account-123",
-            allowedWorkerScript: "my-api-production",
-          },
-          githubBoundary: null,
         },
       });
 
@@ -240,9 +235,10 @@ describe("connections worker routes", () => {
         ok: true,
         data: {
           connection: { id: connectionIdValue },
-          cloudflareBoundary: { allowedWorkerScript: "my-api-production" },
         },
       });
+      expect(body).not.toHaveProperty("data.cloudflareBoundary");
+      expect(body).not.toHaveProperty("data.githubBoundary");
       expect(JSON.stringify(body)).not.toMatch(/tokenUtf8|encodedValueUtf8|providerCredential/i);
     });
   });

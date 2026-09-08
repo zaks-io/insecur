@@ -5,7 +5,16 @@ set -euo pipefail
 fail_on="${1:-high}"
 sbom_path="${SBOM_PATH:-sbom.cyclonedx.json}"
 
-bash "$(dirname "$0")/install-syft-grype.sh"
+if ! command -v syft >/dev/null 2>&1 || ! command -v grype >/dev/null 2>&1; then
+  bash "$(dirname "$0")/install-syft-grype.sh"
+fi
+
+for tool in syft grype; do
+  if ! command -v "${tool}" >/dev/null 2>&1; then
+    echo "${tool} is unavailable after installation; refusing to skip the vulnerability scan." >&2
+    exit 1
+  fi
+done
 
 syft scan "dir:." -o "cyclonedx-json=${sbom_path}"
 

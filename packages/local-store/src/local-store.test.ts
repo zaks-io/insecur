@@ -8,6 +8,7 @@ import {
   secretId,
   secretVersionId,
   brandValue,
+  type EnvironmentId,
   type SecretVersionId,
 } from "@insecur/domain";
 import type { SecretCiphertextIdentity } from "@insecur/crypto";
@@ -28,6 +29,7 @@ import type { LocalAuditWriter } from "./contracts/audit-writer.js";
 
 const PROJECT_A = projectId.brand("prj_01JZ8E4X5D9N3J7P2Q4R6S8T0W");
 const ENV_A = environmentId.brand("env_01JZ8E6Z7F1P5L9R4T6U8V0W2Y");
+const ENV_B = environmentId.brand("env_01JZ8E6Z7F1P5L9R4T6U8V0W3Z");
 const SECRET_A = secretId.brand("sec_01JZ8E8B9H3R7N1T6V8W0X2Y4A");
 const SECRET_B = secretId.brand("sec_01JZ8E9C0I4S8O2U7W9X1Y3Z5B");
 const VERSION_A = secretVersionId.brand("sv_01TEST00000000000000000001");
@@ -36,11 +38,14 @@ const VERSION_B = secretVersionId.brand("sv_01TEST00000000000000000002");
 const SENSITIVE_PLAINTEXT = new TextEncoder().encode("local-mode-sensitive-value");
 const REPLACED_PLAINTEXT = new TextEncoder().encode("replaced-sensitive-value");
 
-function identity(secretIdValue = SECRET_A): SecretCiphertextIdentity {
+function identity(
+  secretIdValue = SECRET_A,
+  environmentIdValue: EnvironmentId = ENV_A,
+): SecretCiphertextIdentity {
   return {
     organizationId: LOCAL_MODE_ORGANIZATION_ID,
     projectId: PROJECT_A,
-    environmentId: ENV_A,
+    environmentId: environmentIdValue,
     secretId: secretIdValue,
   };
 }
@@ -99,17 +104,19 @@ async function writeWrappedCurrentVersion(
     secretVersionIdValue: SecretVersionId;
     plaintext: Uint8Array;
     variableKey?: string;
+    environmentIdValue?: EnvironmentId;
   },
 ): Promise<void> {
   const secretIdValue = input.secretIdValue ?? SECRET_A;
+  const environmentIdValue = input.environmentIdValue ?? ENV_A;
   const wrapped = await encryptLocalSecretValue(
     harness.store.keyring,
-    identity(secretIdValue),
+    identity(secretIdValue, environmentIdValue),
     input.plaintext,
   );
   await harness.secretVersions.replaceCurrentVersion({
     projectId: PROJECT_A,
-    environmentId: ENV_A,
+    environmentId: environmentIdValue,
     secretId: secretIdValue,
     secretVersionId: input.secretVersionIdValue,
     variableKey: brandValue<string, "VariableKey">(input.variableKey ?? "INSECUR_PROOF_SECRET"),
@@ -143,12 +150,16 @@ describe("SqliteLocalStore", () => {
       plaintext: SENSITIVE_PLAINTEXT,
     });
 
-    const stored = await harness.secretVersions.getCurrentWrappedVersion(PROJECT_A, SECRET_A);
+    const stored = await harness.secretVersions.getCurrentWrappedVersion(
+      PROJECT_A,
+      ENV_A,
+      SECRET_A,
+    );
     expect(stored).not.toBeNull();
     if (!stored) {
       throw new Error("expected stored secret version");
     }
-    const ciphertextOnDisk = harness.sqlite.readRawCiphertext(SECRET_A);
+    const ciphertextOnDisk = harness.sqlite.readRawCiphertext(PROJECT_A, ENV_A, SECRET_A);
     expect(ciphertextOnDisk).not.toBeNull();
     const diskText = new TextDecoder().decode(ciphertextOnDisk ?? new Uint8Array());
     expect(diskText).not.toContain(new TextDecoder().decode(SENSITIVE_PLAINTEXT));
@@ -170,7 +181,7 @@ describe("SqliteLocalStore", () => {
       secretVersionIdValue: VERSION_A,
       plaintext: SENSITIVE_PLAINTEXT,
     });
-    const firstCiphertext = harness.sqlite.readRawCiphertext(SECRET_A);
+    const firstCiphertext = harness.sqlite.readRawCiphertext(PROJECT_A, ENV_A, SECRET_A);
     expect(harness.sqlite.countCurrentSecretVersionRows()).toBe(1);
 
     await writeWrappedCurrentVersion(harness, {
@@ -179,10 +190,55 @@ describe("SqliteLocalStore", () => {
     });
 
     expect(harness.sqlite.countCurrentSecretVersionRows()).toBe(1);
-    const secondCiphertext = harness.sqlite.readRawCiphertext(SECRET_A);
+    const secondCiphertext = harness.sqlite.readRawCiphertext(PROJECT_A, ENV_A, SECRET_A);
     expect(secondCiphertext).not.toEqual(firstCiphertext);
-    const stored = await harness.secretVersions.getCurrentWrappedVersion(PROJECT_A, SECRET_A);
+    const stored = await harness.secretVersions.getCurrentWrappedVersion(
+      PROJECT_A,
+      ENV_A,
+      SECRET_A,
+    );
     expect(stored?.secretVersionId).toBe(VERSION_B);
+  });
+
+  it("keeps the same secret shape isolated across environments", async () => {
+    await seedProjectAndEnvironment(harness);
+    await harness.projects.createEnvironment(PROJECT_A, ENV_B, "preview");
+    await writeWrappedCurrentVersion(harness, {
+      secretVersionIdValue: VERSION_A,
+      plaintext: SENSITIVE_PLAINTEXT,
+    });
+    await writeWrappedCurrentVersion(harness, {
+      environmentIdValue: ENV_B,
+      secretVersionIdValue: VERSION_B,
+      plaintext: REPLACED_PLAINTEXT,
+    });
+
+    const storedA = await harness.secretVersions.getCurrentWrappedVersion(
+      PROJECT_A,
+      ENV_A,
+      SECRET_A,
+    );
+    const storedB = await harness.secretVersions.getCurrentWrappedVersion(
+      PROJECT_A,
+      ENV_B,
+      SECRET_A,
+    );
+    expect(storedA?.secretVersionId).toBe(VERSION_A);
+    expect(storedB?.secretVersionId).toBe(VERSION_B);
+    if (!storedA || !storedB) throw new Error("expected both environment values");
+
+    const plaintextA = await decryptLocalSecretForInjection(
+      harness.store.keyring,
+      identity(SECRET_A, ENV_A),
+      storedA.wrapped,
+    );
+    const plaintextB = await decryptLocalSecretForInjection(
+      harness.store.keyring,
+      identity(SECRET_A, ENV_B),
+      storedB.wrapped,
+    );
+    expect(plaintextA.unwrapUtf8()).toEqual(SENSITIVE_PLAINTEXT);
+    expect(plaintextB.unwrapUtf8()).toEqual(REPLACED_PLAINTEXT);
   });
 
   it("fails decrypt when ciphertext identity binding does not match the requested secret id", async () => {
@@ -191,7 +247,11 @@ describe("SqliteLocalStore", () => {
       secretVersionIdValue: VERSION_A,
       plaintext: SENSITIVE_PLAINTEXT,
     });
-    const stored = await harness.secretVersions.getCurrentWrappedVersion(PROJECT_A, SECRET_A);
+    const stored = await harness.secretVersions.getCurrentWrappedVersion(
+      PROJECT_A,
+      ENV_A,
+      SECRET_A,
+    );
     if (!stored) {
       throw new Error("expected stored secret version");
     }
@@ -206,7 +266,11 @@ describe("SqliteLocalStore", () => {
       secretVersionIdValue: VERSION_A,
       plaintext: SENSITIVE_PLAINTEXT,
     });
-    const stored = await harness.secretVersions.getCurrentWrappedVersion(PROJECT_A, SECRET_A);
+    const stored = await harness.secretVersions.getCurrentWrappedVersion(
+      PROJECT_A,
+      ENV_A,
+      SECRET_A,
+    );
     if (!stored) {
       throw new Error("expected stored secret version");
     }
@@ -222,6 +286,7 @@ describe("SqliteLocalStore", () => {
     try {
       const copiedWrapped = await copiedStore.secretVersions.getCurrentWrappedVersion(
         PROJECT_A,
+        ENV_A,
         SECRET_A,
       );
       if (!copiedWrapped) {
@@ -290,7 +355,7 @@ describe("SqliteLocalStore", () => {
     await expect(harness.projects.getEnvironment(PROJECT_A, ENV_A)).resolves.toBeNull();
     await expect(harness.projects.listSecretShapes(PROJECT_A)).resolves.toHaveLength(0);
     await expect(
-      harness.secretVersions.getCurrentWrappedVersion(PROJECT_A, SECRET_A),
+      harness.secretVersions.getCurrentWrappedVersion(PROJECT_A, ENV_A, SECRET_A),
     ).resolves.toBeNull();
     expect(harness.sqlite.countCurrentSecretVersionRows()).toBe(0);
     // Audit rows survive with the project reference nulled (ON DELETE SET NULL).
