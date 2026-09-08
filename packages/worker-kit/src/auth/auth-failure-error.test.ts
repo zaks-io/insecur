@@ -12,5 +12,6 @@ describe("AuthFailureError", () => {
     expect(error.failure).toBe(failure);
     expect(error.requestId).toBe(reqId);
     expect(error.name).toBe("AuthFailureError");
+    expect(error.status).toBe(401);
   });
 });

@@ -1,6 +1,7 @@
 import { AUTH_ERROR_CODES } from "@insecur/domain";
 import {
   AUTHORIZATION_SCOPES,
+  EffectiveAccessMemo,
   assertOrganizationMembership,
   authorizeScopeOrThrow,
   type ActorRef,
@@ -33,6 +34,7 @@ async function authorizeUserProjectScopes(input: {
     organizationId: input.organizationId,
     projectId: input.projectId,
   };
+  const memo = new EffectiveAccessMemo();
 
   for (const requiredScope of input.requiredScopes) {
     await authorizeScopeOrThrow({
@@ -41,6 +43,7 @@ async function authorizeUserProjectScopes(input: {
       coordinate,
       requiredScope,
       requestId: input.requestId,
+      deps: { memo },
     });
   }
 }

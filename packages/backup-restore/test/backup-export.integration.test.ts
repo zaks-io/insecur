@@ -488,4 +488,27 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
 
     expect(onExportFailureAlert).toHaveBeenCalledTimes(1);
   });
+
+  it("refuses a different instance without reassigning the recovery organization", async () => {
+    const onExportFailureAlert = vi.fn();
+    await expect(
+      runBackupExport({
+        scheduledAt: uniqueScheduledAt(),
+        rootKeyBytes,
+        storage: new MemoryBackupExportStorage(),
+        instanceId: "inst_wrong_backup_instance",
+        onExportFailureAlert,
+      }),
+    ).rejects.toThrow("recovery canary organization does not belong to the configured instance");
+    expect(onExportFailureAlert).toHaveBeenCalledOnce();
+    await withTenantScope(
+      { kind: "organization", organizationId: recoveryOrg },
+      async ({ sql }) => {
+        const rows = await sql<{ instance_id: string }[]>`
+        SELECT instance_id FROM organizations WHERE id = ${recoveryOrg}
+      `;
+        expect(rows[0]?.instance_id).toBe(TEST_INSTANCE_ID);
+      },
+    );
+  });
 });

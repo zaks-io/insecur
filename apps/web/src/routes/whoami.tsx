@@ -1,18 +1,24 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@insecur/ui";
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { ConsoleRouteError } from "../components/console-route-error.js";
 import { SiteFrame } from "../components/site-frame.js";
 import { loginRedirectHref } from "../console/login-redirect.js";
+import { throwConsoleUnavailable } from "../console/unavailable.js";
 import { loadWhoamiProof } from "../server/whoami";
 
 export const Route = createFileRoute("/whoami")({
   loader: async () => {
     const proof = await loadWhoamiProof();
-    if (!proof.authenticated) {
+    if (proof.kind === "unauthenticated") {
       throw redirect({ href: loginRedirectHref("/whoami") });
+    }
+    if (proof.kind === "unavailable") {
+      throwConsoleUnavailable();
     }
     return proof;
   },
   component: WhoamiPage,
+  errorComponent: ConsoleRouteError,
 });
 
 function WhoamiPage() {

@@ -2,6 +2,7 @@ import type { AuthFailure } from "@insecur/auth";
 import type { RequestId } from "@insecur/domain";
 
 export class AuthFailureError extends Error {
+  readonly status = 401;
   readonly failure: AuthFailure;
   readonly requestId: RequestId;
 

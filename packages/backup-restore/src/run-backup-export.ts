@@ -30,6 +30,7 @@ import {
   republishLatestBackupExport,
 } from "./publish-latest-backup-export.js";
 import { resolveExportInstanceId } from "./resolve-export-instance-id.js";
+import { prepareBackupExportOrganization } from "./prepare-backup-export-organization.js";
 import { sealAndStoreBackupArtifact } from "./seal-and-store-backup-artifact.js";
 import type { BackupExportOrganizationSnapshot, BackupExportSuccessEvidence } from "./types.js";
 
@@ -135,7 +136,7 @@ async function executeBackupExport(input: {
   rootKeyBytes: Uint8Array;
   rootKeyVersion: number;
   storage: BackupExportStorage;
-  instanceId?: string;
+  instanceId: string;
   onStepCompleted?: OnBackupExportStepCompleted;
 }): Promise<RunBackupExportResult> {
   await transitionOperation({
@@ -145,7 +146,7 @@ async function executeBackupExport(input: {
     idempotencyKey: input.idempotencyKey,
   });
 
-  const instanceId = await resolveExportInstanceId(input.instanceId);
+  const instanceId = input.instanceId;
   const exportTimestamp = input.scheduledAt.toISOString();
   const organizationIds = await enumerateOrganizationIds();
   const { jsonlPayload, instanceSnapshotAt, organizationSnapshots } =
@@ -233,6 +234,10 @@ export async function runBackupExport(input: RunBackupExportInput): Promise<RunB
   // pipeline that dies silently before it records an Operation is worse than one that pages.
   let operationId: OperationId | undefined;
   try {
+    const instanceId = await resolveExportInstanceId(input.instanceId);
+    if (organizationId === RECOVERY_CANARY_ORGANIZATION_ID) {
+      await prepareBackupExportOrganization(instanceId);
+    }
     const created = await createOperation({
       organizationId,
       intentCode: OPERATION_INTENT_CODES.backupExport,
@@ -258,7 +263,7 @@ export async function runBackupExport(input: RunBackupExportInput): Promise<RunB
       rootKeyBytes: input.rootKeyBytes,
       rootKeyVersion,
       storage: input.storage,
-      ...(input.instanceId ? { instanceId: input.instanceId } : {}),
+      instanceId,
       ...(input.onStepCompleted ? { onStepCompleted: input.onStepCompleted } : {}),
     });
   } catch (error) {

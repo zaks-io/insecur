@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  readLoginFormData,
   readTurnstileToken,
   turnstileSiteKey,
   verifyTurnstileToken,
@@ -44,6 +45,54 @@ describe("readTurnstileToken", () => {
     const formData = new FormData();
     formData.set(TURNSTILE_RESPONSE_FIELD, "x".repeat(2049));
     expect(readTurnstileToken(formData)).toBeNull();
+  });
+});
+
+describe("readLoginFormData", () => {
+  it("reads a supported URL-encoded login form", async () => {
+    const loginRequest = new Request("https://app.insecur.cloud/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `${TURNSTILE_RESPONSE_FIELD}=token`,
+    });
+
+    const formData = await readLoginFormData(loginRequest);
+
+    expect(formData?.get(TURNSTILE_RESPONSE_FIELD)).toBe("token");
+  });
+
+  it.each([
+    ["a missing content type", {}],
+    ["an unsupported content type", { "Content-Type": "application/json" }],
+    ["a multipart content type without a boundary", { "Content-Type": "multipart/form-data" }],
+  ])("rejects %s without throwing", async (_description, headers) => {
+    const loginRequest = new Request("https://app.insecur.cloud/login", {
+      method: "POST",
+      headers,
+      body: "malformed",
+    });
+
+    await expect(readLoginFormData(loginRequest)).resolves.toBeNull();
+  });
+
+  it("rejects a truncated multipart body without throwing", async () => {
+    const loginRequest = new Request("https://app.insecur.cloud/login", {
+      method: "POST",
+      headers: { "Content-Type": "multipart/form-data; boundary=login-boundary" },
+      body: '--login-boundary\r\nContent-Disposition: form-data; name="field"\r\n',
+    });
+
+    await expect(readLoginFormData(loginRequest)).resolves.toBeNull();
+  });
+
+  it("does not hide an unexpected form parser failure", async () => {
+    const unexpected = new Error("unexpected parser failure");
+    const loginRequest = {
+      headers: new Headers({ "Content-Type": "application/x-www-form-urlencoded" }),
+      formData: vi.fn().mockRejectedValue(unexpected),
+    } as unknown as Request;
+
+    await expect(readLoginFormData(loginRequest)).rejects.toBe(unexpected);
   });
 });
 

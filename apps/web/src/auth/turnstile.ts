@@ -49,6 +49,22 @@ export function readTurnstileToken(formData: FormData): string | null {
   return token;
 }
 
+export async function readLoginFormData(request: Request): Promise<FormData | null> {
+  const mediaType = request.headers.get("Content-Type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (mediaType !== "application/x-www-form-urlencoded" && mediaType !== "multipart/form-data") {
+    return null;
+  }
+
+  try {
+    return await request.formData();
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 function parseSiteverifyResponse(body: unknown): TurnstileSiteverifyResponse | null {
   if (typeof body !== "object" || body === null) {
     return null;

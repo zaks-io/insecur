@@ -505,6 +505,38 @@ async function assertLoginFormActionAllowsAuthkit(expectedOrigins) {
   console.log(`ok /login form-action allows ${expectedOrigins.join(" ")} (no wildcard)`);
 }
 
+async function assertMalformedLoginPostsFailClosed() {
+  const malformedRequests = [
+    {
+      label: "unsupported content type",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    },
+    {
+      label: "truncated multipart body",
+      headers: { "Content-Type": "multipart/form-data; boundary=login-boundary" },
+      body: '--login-boundary\r\nContent-Disposition: form-data; name="field"\r\n',
+    },
+  ];
+
+  for (const malformedRequest of malformedRequests) {
+    const response = await mf.dispatchFetch("http://web.local/login", {
+      method: "POST",
+      headers: { accept: "text/html", ...malformedRequest.headers },
+      body: malformedRequest.body,
+      redirect: "manual",
+    });
+    const location = response.headers.get("location") ?? "";
+    if (response.status !== 303 || location !== "/login?error=verification") {
+      throw new Error(
+        `/login ${malformedRequest.label} expected a verification retry, got ${response.status} ${location}`,
+      );
+    }
+  }
+
+  console.log("ok /login malformed form posts fail closed with a verification retry");
+}
+
 async function assertUnauthenticatedConsoleRedirect(path) {
   const response = await fetchPath(path);
   const location = response.headers.get("location") ?? "";
@@ -539,6 +571,7 @@ try {
     "https://api.workos.com",
     "https://tenant-ssr-csp.authkit.app",
   ]);
+  await assertMalformedLoginPostsFailClosed();
   await assertUnauthenticatedConsoleRedirect(`/orgs/${ORG.organizationId}`);
   await assertRouteHasMatchingCspNonce("/whoami", { headers: authorization, authedDocument: true });
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}`, {
