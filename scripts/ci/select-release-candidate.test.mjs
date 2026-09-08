@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  assertCandidateNotBehindVerifiedLive,
   assertReleaseAncestry,
+  buildReleaseCandidateEvidence,
   decideReleaseAction,
   parseHealthIdentities,
   selectNewestSuccessfulMainRun,
@@ -55,6 +57,17 @@ test("fails closed when no successful main run exists", () => {
   );
 });
 
+test("fails closed when the newest API candidate is absent from local main history", () => {
+  assert.throws(
+    () =>
+      selectNewestSuccessfulMainRun(
+        [run(), run({ head_sha: OLD_SHA, id: 11, updated_at: "2026-07-17T11:00:00Z" })],
+        [OLD_SHA],
+      ),
+    /Refresh origin\/main before selecting a release/u,
+  );
+});
+
 test("accepts a fast-forward release and rejects candidate or production divergence", () => {
   assert.doesNotThrow(() =>
     assertReleaseAncestry({
@@ -77,7 +90,7 @@ test("accepts a fast-forward release and rejects candidate or production diverge
   );
 });
 
-test("does not roll production back when the newest successful candidate is older", () => {
+test("rejects a candidate behind a verified live deployment", () => {
   assert.doesNotThrow(() =>
     assertReleaseAncestry({
       candidateSha: OLD_SHA,
@@ -87,15 +100,23 @@ test("does not roll production back when the newest successful candidate is olde
         ancestor === descendant || (ancestor === OLD_SHA && descendant === NEW_SHA),
     }),
   );
-  assert.equal(
-    decideReleaseAction({
+  assert.throws(
+    () =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: OLD_SHA,
+        liveSha: NEW_SHA,
+        verifiedLiveRun: true,
+        isAncestor: (ancestor, descendant) => ancestor === OLD_SHA && descendant === NEW_SHA,
+      }),
+    /refusing to roll production back/u,
+  );
+  assert.doesNotThrow(() =>
+    assertCandidateNotBehindVerifiedLive({
       candidateSha: OLD_SHA,
       liveSha: NEW_SHA,
-      productionSha: NEW_SHA,
-      relation: "production-ahead",
-      verifiedLiveRun: true,
+      verifiedLiveRun: false,
+      isAncestor: () => true,
     }),
-    "noop",
   );
   assert.throws(
     () =>
@@ -107,6 +128,29 @@ test("does not roll production back when the newest successful candidate is olde
         verifiedLiveRun: true,
       }),
     /ledger is ahead, but its live deployment is not verified/u,
+  );
+});
+
+test("records the exact candidate, main, production, and live identities", () => {
+  assert.deepEqual(
+    buildReleaseCandidateEvidence({
+      action: "record",
+      candidate: { head_sha: NEW_SHA, id: 22 },
+      live: { deploySha: NEW_SHA, runId: "123" },
+      mainSha: NEW_SHA,
+      productionSha: OLD_SHA,
+      verifiedLiveRun: true,
+    }),
+    {
+      action: "record",
+      ci_run_id: "22",
+      deploy_sha: NEW_SHA,
+      live_run_id: "123",
+      live_run_verified: "true",
+      live_sha: NEW_SHA,
+      main_sha: NEW_SHA,
+      production_sha: OLD_SHA,
+    },
   );
 });
 

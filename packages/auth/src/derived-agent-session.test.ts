@@ -28,7 +28,20 @@ describe("mintDerivedAgentSessionCredential", () => {
     expect(metadata.agentMarked).toBe(true);
     expect(metadata.derivedAgentSessionId).toBe(minted.agentSessionId);
     expect(metadata.harnessName).toBe("agent.harness.claude_code");
+    expect(metadata.parentExpiresAt).toBe(
+      new Date(Math.floor(Date.parse(parentExpiresAt) / 1000) * 1000).toISOString(),
+    );
     expect(Date.parse(metadata.expiresAt)).toBeLessThanOrEqual(Date.parse(parentExpiresAt));
+  });
+
+  it("fails closed when the parent expiry is malformed", async () => {
+    await expect(
+      mintDerivedAgentSessionCredential({
+        actor,
+        signingSecret,
+        parentExpiresAt: "not-a-date",
+      }),
+    ).rejects.toMatchObject({ code: "auth.invalid" });
   });
 
   it("fails closed when the parent session is already expired", async () => {

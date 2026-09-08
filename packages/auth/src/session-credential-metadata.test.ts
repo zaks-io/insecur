@@ -25,6 +25,7 @@ describe("readSessionCredentialMetadata", () => {
     const metadata = await readSessionCredentialMetadata(minted.credential, signingSecret);
 
     expect(metadata.sessionValid).toBe(true);
+    expect(metadata.credentialKind).toBe("cli_session");
     expect(metadata.agentMarked).toBe(false);
     expect(metadata.expiresAt).toEqual(minted.expiresAt);
   });
@@ -39,6 +40,7 @@ describe("readSessionCredentialMetadata", () => {
     const metadata = await readSessionCredentialMetadata(scoped.token, signingSecret);
 
     expect(metadata).toEqual({
+      credentialKind: "scoped_access",
       expiresAt: scoped.expiresAt,
       sessionValid: true,
       agentMarked: false,
@@ -78,6 +80,7 @@ describe("readSessionCredentialMetadata", () => {
     const metadata = await readSessionCredentialMetadata(credential, signingSecret);
 
     expect(metadata.agentMarked).toBe(true);
+    expect(metadata.credentialKind).toBe("agent_session");
     expect(metadata.derivedAgentSessionId).toBe(derivedId);
     expect(metadata.harnessName).toBe("agent.harness.claude_code");
   });

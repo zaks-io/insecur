@@ -38,12 +38,14 @@ async function loadDeliveryPayload(input: {
   readonly projectId: ProjectId;
   readonly environmentId: EnvironmentId;
   readonly secretId: SecretId;
+  readonly secretVersionId: import("@insecur/domain").SecretVersionId;
 }): Promise<string | null> {
   const wrapped = await input.store.secretVersions.getCurrentWrappedVersion(
     input.projectId,
+    input.environmentId,
     input.secretId,
   );
-  if (wrapped === null) {
+  if (wrapped?.secretVersionId !== input.secretVersionId) {
     return null;
   }
   const plaintext = await decryptLocalSecretForInjection(
@@ -189,6 +191,7 @@ export async function consumeLocalVariableKeyInjectionGrant(input: {
     projectId: input.projectId,
     environmentId: input.environmentId,
     secretId: consumed.grant.secretId,
+    secretVersionId: consumed.grant.secretVersionId,
   });
   if (encodedValueUtf8 === null) {
     return missingPayloadFailure();

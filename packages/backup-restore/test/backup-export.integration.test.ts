@@ -138,7 +138,9 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
     );
   }
 
-  async function failureAuditEventCountForScheduledRun(scheduledAt: Date): Promise<number> {
+  async function failureAuditEventsForScheduledRun(
+    scheduledAt: Date,
+  ): Promise<{ outcome: string; result_code: string }[]> {
     return await withTenantScope(
       { kind: "organization", organizationId: recoveryOrg },
       async ({ sql }) => {
@@ -147,13 +149,12 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
           buildBackupExportIdempotencyKey(scheduledAt),
         );
         expect(operation).toBeDefined();
-        const rows = (await sql`
-          SELECT COUNT(*)::int AS count
+        return (await sql`
+          SELECT outcome, result_code
           FROM audit_events
           WHERE operation_id = ${operation?.operationId ?? ""}
             AND event_code = ${"backup.export_failed"}
-        `) as { count: number }[];
-        return rows[0]?.count ?? 0;
+        `) as { outcome: string; result_code: string }[];
       },
     );
   }
@@ -192,7 +193,9 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
 
     expect(storage.objects.get(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY)).toBe(priorPointer);
     expect(await operationStateForScheduledRun(input.failedScheduledAt)).toBe("failed");
-    expect(await failureAuditEventCountForScheduledRun(input.failedScheduledAt)).toBe(1);
+    expect(await failureAuditEventsForScheduledRun(input.failedScheduledAt)).toEqual([
+      { outcome: "denied", result_code: "backup_restore.export_failed" },
+    ]);
   }
 
   it("uses the NOBYPASSRLS runtime credential", async () => {
@@ -309,7 +312,7 @@ describeIntegration("backup export pipeline (runtime role, multi-org)", () => {
     // stays succeeded, no contradictory failure audit event exists, and the pointer is untouched.
     expect(onExportFailureAlert).toHaveBeenCalledTimes(1);
     expect(await operationStateForScheduledRun(scheduledAt)).toBe("succeeded");
-    expect(await failureAuditEventCountForScheduledRun(scheduledAt)).toBe(0);
+    expect(await failureAuditEventsForScheduledRun(scheduledAt)).toEqual([]);
     expect(storage.objects.has(BACKUP_EXPORT_SUCCESS_EVIDENCE_KEY)).toBe(false);
 
     // Replaying the same scheduled run re-publishes the pointer from the durable per-run evidence.

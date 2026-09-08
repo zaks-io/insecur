@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import type { CliProfileId, EnvironmentId, OrganizationId, ProjectId } from "@insecur/domain";
 import { LOCAL_MODE_ORGANIZATION_ID } from "@insecur/local-store";
 import type { GlobalCliFlags } from "../cli-options.js";
@@ -11,6 +12,7 @@ import { resolveProfile } from "./profiles/resolve-profile.js";
 import type { InsecurProjectConfig } from "./project-config.js";
 import type { CliUserConfig, CliUserProfile } from "./user-config.js";
 import { parseApiHost } from "./api-host.js";
+import { resolveProjectRoot } from "./paths.js";
 
 export interface ResolvedCliScope {
   readonly host: string;
@@ -36,6 +38,24 @@ function firstDefined<T>(...values: readonly (T | undefined)[]): T | undefined {
     }
   }
   return undefined;
+}
+
+export function resolveBranchEnvironment(
+  projectConfig: InsecurProjectConfig | null,
+  projectRoot: string,
+): EnvironmentId | undefined {
+  if (projectConfig?.gitBranchToEnvironment === undefined) return undefined;
+  let branch: string;
+  try {
+    branch = execFileSync("git", ["branch", "--show-current"], {
+      cwd: projectRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+  return branch === "" ? undefined : projectConfig.gitBranchToEnvironment[branch];
 }
 
 /**
@@ -85,6 +105,7 @@ export function resolveCliScope(
   const envId =
     flags.envId ??
     parseOptionalEnvironmentId(readEnv("INSECUR_ENV"), "INSECUR_ENV") ??
+    resolveBranchEnvironment(projectConfig, resolveProjectRoot(flags.configDir)) ??
     projectConfig?.defaultEnvId ??
     profile?.envId;
   const profileId = firstDefined(flags.profileId, projectConfig?.profileId);

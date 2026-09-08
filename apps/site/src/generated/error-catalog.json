@@ -864,6 +864,15 @@
     "notes": "Restore target is missing migrated export-registry tables or columns the exported rows require."
   },
   {
+    "code": "backup_restore.export_failed",
+    "slug": "backup-restore-export-failed",
+    "typeUri": "https://insecur.dev/errors/backup-restore-export-failed",
+    "exitCode": 1,
+    "httpStatus": 500,
+    "remediationRequired": false,
+    "notes": "Scheduled export failed before durable success evidence was recorded."
+  },
+  {
     "code": "backup_restore.import_failed",
     "slug": "backup-restore-import-failed",
     "typeUri": "https://insecur.dev/errors/backup-restore-import-failed",

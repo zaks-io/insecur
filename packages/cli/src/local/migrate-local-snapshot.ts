@@ -66,7 +66,11 @@ export async function decryptLocalMigrateCandidate(
   snapshot: Pick<LocalMigrateSnapshot, "projectId" | "environmentId">,
   secretId: SecretId,
 ): Promise<Uint8Array> {
-  const wrapped = await store.secretVersions.getCurrentWrappedVersion(snapshot.projectId, secretId);
+  const wrapped = await store.secretVersions.getCurrentWrappedVersion(
+    snapshot.projectId,
+    snapshot.environmentId,
+    secretId,
+  );
   if (wrapped === null) {
     throw new Error("local Current Version disappeared during migrate");
   }

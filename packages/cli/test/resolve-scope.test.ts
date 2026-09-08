@@ -1,7 +1,8 @@
+import { execFileSync } from "node:child_process";
 import { LOCAL_MODE_ORGANIZATION_ID } from "@insecur/local-store";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { GlobalCliFlags } from "../src/cli-options.js";
-import { resolveCliScope } from "../src/config/resolve-scope.js";
+import { resolveBranchEnvironment, resolveCliScope } from "../src/config/resolve-scope.js";
 import type { InsecurProjectConfig } from "../src/config/project-config.js";
 import type { CliUserConfig } from "../src/config/user-config.js";
 
@@ -114,6 +115,21 @@ describe("resolveCliScope precedence", () => {
     expect(scopeFromFlags.orgId).toBe(VALID_ORG_FLAG);
     expect(scopeFromFlags.projectId).toBe(VALID_PROJECT_FLAG);
     expect(scopeFromFlags.envId).toBe(VALID_ENV_FLAG);
+  });
+
+  it("uses the current Git branch mapping before the default environment", () => {
+    const currentBranch = execFileSync("git", ["branch", "--show-current"], {
+      encoding: "utf8",
+    }).trim();
+    if (currentBranch === "") throw new Error("test checkout must have a branch");
+    const branchEnvironment = VALID_ENV_FLAG as never;
+    const mappedProject = {
+      ...project,
+      gitBranchToEnvironment: { [currentBranch]: branchEnvironment },
+    };
+
+    expect(resolveBranchEnvironment(mappedProject, process.cwd())).toBe(branchEnvironment);
+    expect(resolveCliScope(baseFlags, mappedProject, emptyUser).envId).toBe(branchEnvironment);
   });
 
   it("defaults host to the API Worker origin, not the marketing apex", () => {

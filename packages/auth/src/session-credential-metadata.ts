@@ -17,7 +17,9 @@ const CLI_AGENT_SESSION_TYP = "insecur_cli_agent_session_v1";
 const SCOPED_ACCESS_TYP = "insecur_scoped_access_v1";
 
 export interface SessionCredentialMetadata {
+  readonly credentialKind: "cli_session" | "agent_session" | "scoped_access";
   readonly expiresAt: string;
+  readonly parentExpiresAt?: string;
   readonly sessionValid: true;
   readonly derivedAgentSessionId?: AgentSessionId;
   readonly agentMarked: boolean;
@@ -26,6 +28,14 @@ export interface SessionCredentialMetadata {
   readonly projectId?: ProjectId;
   readonly environmentId?: EnvironmentId;
   readonly organizationId?: OrganizationId;
+}
+
+function readParentExpiresAtClaim(claims: Record<string, unknown>): string | undefined {
+  if (claims.pexp === undefined) return undefined;
+  if (!Number.isSafeInteger(claims.pexp) || (claims.pexp as number) <= 0) {
+    throw Object.assign(new Error("Invalid parent session expiry."), { code: "auth.invalid" });
+  }
+  return new Date((claims.pexp as number) * 1000).toISOString();
 }
 
 function readAgentMarkedClaim(claims: Record<string, unknown>, typ: string): boolean {
@@ -80,28 +90,42 @@ function readScopedAccessAudience(claims: Record<string, unknown>): string | nul
   return typeof aud === "string" ? aud : null;
 }
 
-function readCliSessionCredentialMetadata(
-  decoded: Record<string, unknown>,
-  claims: NonNullable<ReturnType<typeof readActorClaims>>,
-): SessionCredentialMetadata {
-  const agentMarked = readAgentMarkedClaim(decoded, claims.typ);
+function readOptionalCliMetadata(decoded: Record<string, unknown>) {
   const derivedAgentSessionId = readDerivedAgentSessionId(decoded);
   const harnessName = readHarnessNameClaim(decoded);
   const credentialScopes = readCredentialScopes(decoded);
   const projectIdValue = readProjectIdClaim(decoded);
   const environmentIdValue = readEnvironmentIdClaim(decoded);
   const organizationIdValue = readOrganizationIdClaim(decoded);
-
   return {
-    expiresAt: new Date(claims.exp * 1000).toISOString(),
-    sessionValid: true,
-    agentMarked,
     ...(derivedAgentSessionId !== undefined ? { derivedAgentSessionId } : {}),
     ...(harnessName !== undefined ? { harnessName } : {}),
     ...(credentialScopes === undefined ? {} : { credentialScopes }),
     ...(projectIdValue === undefined ? {} : { projectId: projectIdValue }),
     ...(environmentIdValue === undefined ? {} : { environmentId: environmentIdValue }),
     ...(organizationIdValue === undefined ? {} : { organizationId: organizationIdValue }),
+  };
+}
+
+function readCliSessionCredentialMetadata(
+  decoded: Record<string, unknown>,
+  claims: NonNullable<ReturnType<typeof readActorClaims>>,
+): SessionCredentialMetadata {
+  const agentMarked = readAgentMarkedClaim(decoded, claims.typ);
+  const parentExpiresAt = readParentExpiresAtClaim(decoded);
+  if (parentExpiresAt !== undefined && Date.parse(parentExpiresAt) < claims.exp * 1000) {
+    throw Object.assign(new Error("Parent session expiry precedes credential expiry."), {
+      code: "auth.invalid",
+    });
+  }
+
+  return {
+    credentialKind: agentMarked ? "agent_session" : "cli_session",
+    expiresAt: new Date(claims.exp * 1000).toISOString(),
+    ...(parentExpiresAt === undefined ? {} : { parentExpiresAt }),
+    sessionValid: true,
+    agentMarked,
+    ...readOptionalCliMetadata(decoded),
   };
 }
 
@@ -116,6 +140,7 @@ function readScopedAccessCredentialMetadata(
   }
 
   return {
+    credentialKind: "scoped_access",
     expiresAt: new Date(claims.exp * 1000).toISOString(),
     sessionValid: true,
     agentMarked: false,

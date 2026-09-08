@@ -45,8 +45,8 @@ export async function readHumanSessionMetadata(
   context: SessionRouteContext,
 ): Promise<SessionCredentialMetadata> {
   const sessionMetadata = await readRequestSessionMetadata(context);
-  if (sessionMetadata.agentMarked) {
-    throw Object.assign(new Error("Agent-marked sessions cannot derive or register."), {
+  if (sessionMetadata.credentialKind !== "cli_session") {
+    throw Object.assign(new Error("Only human CLI sessions can derive or register."), {
       code: "auth.insufficient_scope",
     });
   }

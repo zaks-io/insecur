@@ -322,6 +322,33 @@ describe("worker session routes", () => {
     expect(input?.sessionExpiresAt).toBe(minted.expiresAt);
   });
 
+  it("revokes a derived credential through the parent session expiry", async () => {
+    const runtime = createRuntimeRpcStub();
+    runtime.revokeCliSession.mockResolvedValue({ ok: true, value: { revoked: true } });
+    const parentExpiresAt = new Date(Date.now() + 3_600_000).toISOString();
+    const minted = await mintDerivedAgentSessionCredential({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_revoke_derived",
+      },
+      signingSecret: env.SESSION_SIGNING_SECRET,
+      parentExpiresAt,
+      ttlSeconds: 60,
+    });
+    const response = await app.request(
+      "/v1/session/revoke",
+      { method: "POST", headers: { Authorization: `Bearer ${minted.credential}` } },
+      { ...env, RUNTIME: runtime },
+    );
+
+    expect(response.status).toBe(200);
+    expect(runtime.revokeCliSession.mock.calls[0]?.[0]?.sessionExpiresAt).toBe(
+      new Date(Math.floor(Date.parse(parentExpiresAt) / 1000) * 1000).toISOString(),
+    );
+  });
+
   it("forwards the memberships read over the RUNTIME seam and returns the organizations", async () => {
     const runtime = createRuntimeRpcStub();
     runtime.listSessionOrganizations.mockResolvedValue({
@@ -907,6 +934,65 @@ describe("worker session routes", () => {
       },
       env,
     );
+    expect(registerResponse.status).toBe(403);
+    expect(await registerResponse.json()).toMatchObject({
+      ok: false,
+      error: { code: "auth.insufficient_scope" },
+    });
+  });
+
+  it("rejects derive and register from scoped access tokens", async () => {
+    const scoped = await mintScopedAccessToken({
+      actor: {
+        type: "user",
+        userId: admittedUserId,
+        workosUserId,
+        sessionId: "session_scoped_chain_block",
+        credentialScopes: ["secret:read"],
+        tokenScope: {
+          organizationId: "org_00000000000000000000000001" as never,
+          projectId: "prj_00000000000000000000000001" as never,
+        },
+      },
+      audience: INSECUR_API_TOKEN_AUDIENCE,
+      signingSecret: env.SESSION_SIGNING_SECRET,
+    });
+    const headers = {
+      Authorization: `Bearer ${scoped.token}`,
+      "Content-Type": "application/json",
+    };
+
+    const deriveResponse = await app.request(
+      "/v1/session/agent/derive",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          credentialScopes: ["secret:protected_draft_write"],
+          organizationId: "org_00000000000000000000000002",
+          projectId: "prj_00000000000000000000000002",
+        }),
+      },
+      env,
+    );
+    const registerResponse = await app.request(
+      "/v1/session/agent/register",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          harnessName: "agent.harness.claude_code",
+          ancestryKey: "scoped-token-must-not-register",
+        }),
+      },
+      env,
+    );
+
+    expect(deriveResponse.status).toBe(403);
+    expect(await deriveResponse.json()).toMatchObject({
+      ok: false,
+      error: { code: "auth.insufficient_scope" },
+    });
     expect(registerResponse.status).toBe(403);
     expect(await registerResponse.json()).toMatchObject({
       ok: false,

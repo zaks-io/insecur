@@ -96,6 +96,7 @@ export const DENIED_FIRST_VALUE_AUDIT_EVENT_CODES = new Set<FirstValueAuditEvent
 ]);
 
 export const DENIED_PRODUCTION_AUDIT_EVENT_CODES = new Set<ProductionAuditEventCode>([
+  PRODUCTION_AUDIT_EVENT_CODES.backupExportFailed,
   PRODUCTION_AUDIT_EVENT_CODES.machineGithubActionsOidcExchangeDenied,
   PRODUCTION_AUDIT_EVENT_CODES.machineDeployKeyExchangeDenied,
   PRODUCTION_AUDIT_EVENT_CODES.machineAuthAccessTokenDenied,

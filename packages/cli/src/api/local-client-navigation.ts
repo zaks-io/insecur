@@ -69,6 +69,7 @@ async function localProjectSecretRows(input: {
     shapes.map(async (shape) => {
       const current = await input.store.secretVersions.getCurrentWrappedVersion(
         projectId,
+        environmentId,
         shape.secretId,
       );
       const present = current !== null && metadataBySecretId.get(shape.secretId)?.hasCurrentVersion;

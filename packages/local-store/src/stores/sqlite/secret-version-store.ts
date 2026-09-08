@@ -45,6 +45,7 @@ export class SqliteLocalSecretVersionStore implements LocalSecretVersionStore {
 
   getCurrentWrappedVersion(
     projectIdValue: ProjectId,
+    environmentIdValue: EnvironmentId,
     secretIdValue: SecretId,
   ): Promise<LocalSecretVersionRow | null> {
     const row = this.database
@@ -52,10 +53,13 @@ export class SqliteLocalSecretVersionStore implements LocalSecretVersionStore {
         `SELECT s.id AS secret_id, csv.secret_version_id, csv.organization_data_key_version,
                 csv.project_data_key_version, csv.ciphertext
          FROM secrets s
-         INNER JOIN current_secret_versions csv ON csv.secret_id = s.id
-         WHERE s.project_id = ? AND s.id = ?`,
+         INNER JOIN current_secret_versions csv
+           ON csv.project_id = s.project_id
+          AND csv.environment_id = s.environment_id
+          AND csv.secret_id = s.id
+         WHERE s.project_id = ? AND s.environment_id = ? AND s.id = ?`,
       )
-      .get(projectIdValue, secretIdValue) as CurrentVersionDbRow | undefined;
+      .get(projectIdValue, environmentIdValue, secretIdValue) as CurrentVersionDbRow | undefined;
     if (!row) {
       return Promise.resolve(null);
     }
@@ -77,7 +81,10 @@ export class SqliteLocalSecretVersionStore implements LocalSecretVersionStore {
                 csv.has_leading_or_trailing_whitespace, csv.looks_like_placeholder,
                 csv.secret_shape_match_verdict
          FROM secrets s
-         LEFT JOIN current_secret_versions csv ON csv.secret_id = s.id
+         LEFT JOIN current_secret_versions csv
+           ON csv.project_id = s.project_id
+          AND csv.environment_id = s.environment_id
+          AND csv.secret_id = s.id
          WHERE s.project_id = ? AND s.environment_id = ?
          ORDER BY s.variable_key ASC`,
       )
@@ -104,10 +111,17 @@ export class SqliteLocalSecretVersionStore implements LocalSecretVersionStore {
     return row.count;
   }
 
-  readRawCiphertext(secretIdValue: SecretId): Uint8Array | null {
+  readRawCiphertext(
+    projectIdValue: ProjectId,
+    environmentIdValue: EnvironmentId,
+    secretIdValue: SecretId,
+  ): Uint8Array | null {
     const row = this.database
-      .prepare(`SELECT ciphertext FROM current_secret_versions WHERE secret_id = ?`)
-      .get(secretIdValue) as { ciphertext: Buffer } | undefined;
+      .prepare(
+        `SELECT ciphertext FROM current_secret_versions
+         WHERE project_id = ? AND environment_id = ? AND secret_id = ?`,
+      )
+      .get(projectIdValue, environmentIdValue, secretIdValue) as { ciphertext: Buffer } | undefined;
     if (!row) {
       return null;
     }
@@ -121,12 +135,15 @@ function upsertSecretPointer(
   timestamp: string,
 ): void {
   const existingSecret = database
-    .prepare(`SELECT id FROM secrets WHERE id = ?`)
-    .get(input.secretId) as { id: string } | undefined;
+    .prepare(`SELECT id FROM secrets WHERE project_id = ? AND environment_id = ? AND id = ?`)
+    .get(input.projectId, input.environmentId, input.secretId) as { id: string } | undefined;
   if (existingSecret) {
     database
-      .prepare(`UPDATE secrets SET current_version_id = ?, updated_at = ? WHERE id = ?`)
-      .run(input.secretVersionId, timestamp, input.secretId);
+      .prepare(
+        `UPDATE secrets SET current_version_id = ?, updated_at = ?
+         WHERE project_id = ? AND environment_id = ? AND id = ?`,
+      )
+      .run(input.secretVersionId, timestamp, input.projectId, input.environmentId, input.secretId);
     return;
   }
   database
@@ -155,11 +172,12 @@ function upsertCurrentSecretVersion(
   database
     .prepare(
       `INSERT INTO current_secret_versions
-       (secret_id, secret_version_id, organization_data_key_version, project_data_key_version, ciphertext,
+       (project_id, environment_id, secret_id, secret_version_id,
+        organization_data_key_version, project_data_key_version, ciphertext,
         value_byte_length, encoding_class, is_empty, has_leading_or_trailing_whitespace,
         looks_like_placeholder, secret_shape_match_verdict, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(secret_id) DO UPDATE SET
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(project_id, environment_id, secret_id) DO UPDATE SET
          secret_version_id = excluded.secret_version_id,
          organization_data_key_version = excluded.organization_data_key_version,
          project_data_key_version = excluded.project_data_key_version,
@@ -173,6 +191,8 @@ function upsertCurrentSecretVersion(
          created_at = excluded.created_at`,
     )
     .run(
+      input.projectId,
+      input.environmentId,
       input.secretId,
       input.secretVersionId,
       input.wrapped.organizationDataKeyVersion,

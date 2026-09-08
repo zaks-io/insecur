@@ -1,4 +1,4 @@
-import type { SecretId } from "@insecur/domain";
+import type { EnvironmentId, ProjectId, SecretId } from "@insecur/domain";
 
 import type { LocalAuditWriter } from "../contracts/audit-writer.js";
 import type { LocalInjectionGrantStore } from "../contracts/injection-grant-store.js";
@@ -124,8 +124,16 @@ export class SqliteLocalStore
     return this.secretVersionsStore.countCurrentSecretVersionRows();
   }
 
-  readRawCiphertext(secretIdValue: SecretId): Uint8Array | null {
-    return this.secretVersionsStore.readRawCiphertext(secretIdValue);
+  readRawCiphertext(
+    projectIdValue: ProjectId,
+    environmentIdValue: EnvironmentId,
+    secretIdValue: SecretId,
+  ): Uint8Array | null {
+    return this.secretVersionsStore.readRawCiphertext(
+      projectIdValue,
+      environmentIdValue,
+      secretIdValue,
+    );
   }
 
   readAuditDetailsJsonRows(): readonly string[] {

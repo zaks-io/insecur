@@ -49,7 +49,14 @@ export async function runCoreChecks(context) {
       output.error?.code === "local.value_missing_on_machine",
       "missing value error code changed",
     );
-    expect(output.remediation?.secretsSet?.includes("INSECUR_PROOF_SECRET"), "missing remediation");
+    expect(
+      output.remediation?.missingValues?.some(
+        (entry) =>
+          entry.variableKey === "INSECUR_PROOF_SECRET" &&
+          entry.argv?.includes("INSECUR_PROOF_SECRET"),
+      ),
+      "missing remediation",
+    );
   });
 
   await check("secrets list shows local manifest before values exist", async () => {
@@ -111,9 +118,10 @@ export async function runCoreChecks(context) {
       },
     );
     expect(result.code === 0, `run exact exited ${result.code}: ${redact(commandOutput(result))}`);
-    const lines = parseJsonLines(commandOutput(result));
-    expect(lines[0]?.ok === true, "verifier did not pass");
-    expect(lines.at(-1)?.data?.childExitCode === 0, "CLI did not report child success");
+    const childLines = parseJsonLines(result.stderr);
+    const cliLines = parseJsonLines(result.stdout);
+    expect(childLines[0]?.ok === true, "verifier did not pass");
+    expect(cliLines.at(-1)?.data?.childExitCode === 0, "CLI did not report child success");
   });
 
   await check("secrets set --generate random works with First Value verifier", async () => {
@@ -139,8 +147,10 @@ export async function runCoreChecks(context) {
       runResult.code === 0,
       `First Value run exited ${runResult.code}: ${redact(commandOutput(runResult))}`,
     );
-    const lines = parseJsonLines(commandOutput(runResult));
-    expect(lines[0]?.proof === "hmac-challenge", "First Value verifier did not run");
+    const childLines = parseJsonLines(runResult.stderr);
+    const cliLines = parseJsonLines(runResult.stdout);
+    expect(childLines[0]?.proof === "hmac-challenge", "First Value verifier did not run");
+    expect(cliLines.at(-1)?.data?.childExitCode === 0, "CLI did not report child success");
   });
 
   await check("secrets list and versions return metadata only", async () => {

@@ -93,6 +93,15 @@ describe("audit event code registry assembly", () => {
     ).toBe(true);
   });
 
+  it("classifies backup export failure as a non-success outcome", () => {
+    expect(DENIED_AUDIT_EVENT_CODES.has(PRODUCTION_AUDIT_EVENT_CODES.backupExportFailed)).toBe(
+      true,
+    );
+    expect(SUCCESS_AUDIT_EVENT_CODES.has(PRODUCTION_AUDIT_EVENT_CODES.backupExportFailed)).toBe(
+      false,
+    );
+  });
+
   it("merges every per-domain module into the assembled registry", () => {
     const domainValues = new Set(
       DOMAIN_AUDIT_EVENT_CODE_MODULES.flatMap((module) => Object.values(module)),

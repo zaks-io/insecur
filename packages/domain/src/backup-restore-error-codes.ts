@@ -4,6 +4,7 @@
  * repo-wide `domain.reason` dotted-code convention.
  */
 export const BACKUP_RESTORE_ERROR_CODES = {
+  exportFailed: "backup_restore.export_failed",
   notArmed: "backup_restore.not_armed",
   targetIsLive: "backup_restore.target_is_live",
   targetNotFresh: "backup_restore.target_not_fresh",

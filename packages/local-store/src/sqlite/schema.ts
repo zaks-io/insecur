@@ -1,4 +1,4 @@
-export const LOCAL_STORE_SCHEMA_VERSION = 4;
+export const LOCAL_STORE_SCHEMA_VERSION = 5;
 
 export const LOCAL_STORE_SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
@@ -41,7 +41,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS secret_shapes_project_secret_id_idx
   ON secret_shapes(project_id, secret_id);
 
 CREATE TABLE IF NOT EXISTS secrets (
-  id TEXT PRIMARY KEY NOT NULL,
+  id TEXT NOT NULL,
   project_id TEXT NOT NULL,
   environment_id TEXT NOT NULL,
   variable_key TEXT NOT NULL,
@@ -49,14 +49,17 @@ CREATE TABLE IF NOT EXISTS secrets (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-  FOREIGN KEY (project_id, environment_id) REFERENCES environments(project_id, id) ON DELETE CASCADE
+  FOREIGN KEY (project_id, environment_id) REFERENCES environments(project_id, id) ON DELETE CASCADE,
+  PRIMARY KEY (project_id, environment_id, id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS secrets_project_env_variable_key_idx
   ON secrets(project_id, environment_id, variable_key);
 
 CREATE TABLE IF NOT EXISTS current_secret_versions (
-  secret_id TEXT PRIMARY KEY NOT NULL REFERENCES secrets(id) ON DELETE CASCADE,
+  project_id TEXT NOT NULL,
+  environment_id TEXT NOT NULL,
+  secret_id TEXT NOT NULL,
   secret_version_id TEXT NOT NULL,
   organization_data_key_version INTEGER NOT NULL,
   project_data_key_version INTEGER NOT NULL,
@@ -67,7 +70,10 @@ CREATE TABLE IF NOT EXISTS current_secret_versions (
   has_leading_or_trailing_whitespace INTEGER NOT NULL CHECK (has_leading_or_trailing_whitespace IN (0, 1)),
   looks_like_placeholder INTEGER NOT NULL CHECK (looks_like_placeholder IN (0, 1)),
   secret_shape_match_verdict TEXT NOT NULL CHECK (secret_shape_match_verdict IN ('matches', 'does_not_match', 'no_shape_rule')),
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (project_id, environment_id, secret_id),
+  FOREIGN KEY (project_id, environment_id, secret_id)
+    REFERENCES secrets(project_id, environment_id, id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS organization_data_keys (

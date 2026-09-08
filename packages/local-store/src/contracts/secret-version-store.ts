@@ -11,6 +11,7 @@ export interface LocalSecretVersionStore {
   replaceCurrentVersion(input: LocalReplaceCurrentVersionInput): Promise<void>;
   getCurrentWrappedVersion(
     projectId: ProjectId,
+    environmentId: EnvironmentId,
     secretId: SecretId,
   ): Promise<LocalSecretVersionRow | null>;
   listSecretMetadata(
