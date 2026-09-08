@@ -11,14 +11,19 @@
  * Run with: bun scripts/ci/bun-sqlite-seam-probe.mjs
  * (Bun imports the TypeScript adapter source directly.)
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
   closeLocalSqliteDatabase,
+  openBareLocalSqliteDatabase,
   openLocalSqliteDatabase,
 } from "../../packages/local-store/src/sqlite/connection.ts";
+import {
+  resolveMachineRootKeyLockPath,
+  withMachineRootKeyCreationLock,
+} from "../../packages/local-store/src/machine-root-key-lock.ts";
 
 if (process.versions.bun === undefined) {
   console.error("bun-sqlite-seam-probe must run under Bun, not Node.");
@@ -85,6 +90,41 @@ try {
   } finally {
     closeLocalSqliteDatabase(reopened);
   }
+
+  const lockPath = resolveMachineRootKeyLockPath(tempDir);
+  writeFileSync(
+    lockPath,
+    JSON.stringify({ pid: 9_999_999, acquiredAt: 0, token: "dead-holder-token" }),
+    { mode: 0o600 },
+  );
+  let activeCreators = 0;
+  let maxActiveCreators = 0;
+  const createUnderLock = () =>
+    withMachineRootKeyCreationLock(lockPath, async () => {
+      activeCreators += 1;
+      maxActiveCreators = Math.max(maxActiveCreators, activeCreators);
+      await Bun.sleep(25);
+      activeCreators -= 1;
+      return "created";
+    });
+  const creationResults = await Promise.all([createUnderLock(), createUnderLock()]);
+  assert(
+    creationResults.every((result) => result === "created") && maxActiveCreators === 1,
+    "machine root key stale recovery serializes under Bun",
+  );
+
+  writeFileSync(
+    lockPath,
+    JSON.stringify({ pid: 9_999_999, acquiredAt: 0, token: "dead-holder-token-2" }),
+    { mode: 0o600 },
+  );
+  const abandonedRecovery = openBareLocalSqliteDatabase(`${lockPath}.recovery.sqlite`);
+  abandonedRecovery.exec("BEGIN IMMEDIATE");
+  closeLocalSqliteDatabase(abandonedRecovery);
+  const recovered = await withMachineRootKeyCreationLock(lockPath, () =>
+    Promise.resolve("recovered"),
+  );
+  assert(recovered === "recovered", "abandoned Bun recovery transactions release their mutex");
 
   console.log("bun-sqlite-seam-probe passed");
 } finally {
