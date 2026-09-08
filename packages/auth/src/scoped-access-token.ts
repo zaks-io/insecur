@@ -63,12 +63,17 @@ function runtimeHopMachineClaims(actor: RuntimeHopMachineActor) {
   };
 }
 
+function runtimeHopAgentClaims(actor: UserActor): { readonly agm?: true } {
+  return actor.agentMarked === true ? { agm: true } : {};
+}
+
 function runtimeHopUserClaims(actor: UserActor) {
   return {
     act: "user",
     sub: actor.userId,
     wid: actor.workosUserId,
     sid: actor.sessionId,
+    ...runtimeHopAgentClaims(actor),
     ...(actor.credentialScopes === undefined ? {} : { scp: [...actor.credentialScopes] }),
     ...(actor.tokenScope?.organizationId === undefined
       ? {}
@@ -174,7 +179,13 @@ function actorFromScopedClaims(claims: TokenClaims): RuntimeHopActor | null {
     return null;
   }
   const userActor = actorFromClaims(userClaims);
-  return userActor.ok ? userActor.actor : null;
+  if (!userActor.ok || (claims.agm !== undefined && claims.agm !== true)) {
+    return null;
+  }
+  return {
+    ...userActor.actor,
+    ...(claims.agm === true ? { agentMarked: true as const } : {}),
+  };
 }
 
 /** Validates typ/aud/lifetime and returns the actor without checking audience binding. */

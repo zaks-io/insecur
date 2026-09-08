@@ -1,5 +1,6 @@
 import {
   auditEventId,
+  environmentId,
   HIGH_ASSURANCE_ERROR_CODES,
   machineIdentityId,
   OPERATION_ERROR_CODES,
@@ -63,6 +64,8 @@ const {
 const ORG = organizationId.brand("org_00000000000000000000000001");
 const PRJ = projectId.brand("prj_00000000000000000000000001");
 const PRJ_OTHER = projectId.brand("prj_00000000000000000000000002");
+const ENV = environmentId.brand("env_00000000000000000000000001");
+const ENV_OTHER = environmentId.brand("env_00000000000000000000000002");
 const OP = operationId.brand("op_00000000000000000000000001");
 const USER_A = userId.brand("usr_00000000000000000000000001");
 const USER_B = userId.brand("usr_00000000000000000000000002");
@@ -348,6 +351,37 @@ describe("clear preflight regressions", () => {
         projectId: PRJ_OTHER,
       }),
     );
+  });
+
+  it("rejects clear when the caller environment does not match bound evidence", async () => {
+    const evidence = baseEvidence({
+      environmentId: ENV,
+      expiresAt: "2026-07-03T00:15:00.000Z",
+    });
+
+    await expect(
+      requirePendingChallengeEvidence(evidence, clearInput({ environmentId: ENV_OTHER }), {
+        now: new Date("2026-07-03T00:10:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch });
+
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PRJ,
+        environmentId: ENV,
+        denial: { reasonCode: HIGH_ASSURANCE_ERROR_CODES.operationMismatch },
+      }),
+    );
+  });
+
+  it("rejects clear when the caller adds an environment to project-bound evidence", async () => {
+    const evidence = baseEvidence({ expiresAt: "2026-07-03T00:15:00.000Z" });
+
+    await expect(
+      requirePendingChallengeEvidence(evidence, clearInput({ environmentId: ENV }), {
+        now: new Date("2026-07-03T00:10:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch });
   });
 });
 
@@ -732,6 +766,36 @@ describe("clear challenge flow regressions", () => {
     expect(recordHighAssuranceChallengeCleared).toHaveBeenCalledWith(
       expect.objectContaining({ auditEventId: AUD_CLEAR, clearingUserId: USER_A }),
     );
+  });
+
+  it("denies agent-marked credentials before clearing pending evidence", async () => {
+    await expect(
+      clearHighAssuranceChallenge(clearInput({ clearingCredentialAgentMarked: true })),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.clearingDenied });
+
+    expect(recordOperationProgressClearHighAssuranceChallenge).not.toHaveBeenCalled();
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "denied",
+        projectId: PRJ,
+        denial: { reasonCode: HIGH_ASSURANCE_ERROR_CODES.clearingDenied },
+      }),
+    );
+  });
+
+  it("rejects environment mismatch when retrying durable clear audit finalization", async () => {
+    const durableOperation = operationWithEvidence({
+      ...clearedEvidence(),
+      environmentId: ENV,
+      clearAuditEventId: AUD_CLEAR,
+    });
+    getOperation.mockResolvedValue(durableOperation);
+
+    await expect(
+      clearHighAssuranceChallenge(clearInput({ environmentId: ENV_OTHER })),
+    ).rejects.toMatchObject({ code: HIGH_ASSURANCE_ERROR_CODES.operationMismatch });
+
+    expect(recordHighAssuranceChallengeCleared).not.toHaveBeenCalled();
   });
 
   it("does not record clear success audit when atomic clear progress write fails", async () => {

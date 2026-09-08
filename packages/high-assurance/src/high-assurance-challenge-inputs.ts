@@ -17,6 +17,7 @@ export interface ClearHighAssuranceChallengeInput {
   readonly environmentId?: EnvironmentId;
   readonly operationId: OperationId;
   readonly clearingUserId: UserId;
+  readonly clearingCredentialAgentMarked?: boolean;
   readonly sessionAssurance: EvaluateHighAssuranceChallengeClearInput;
   readonly requiredScopes?: readonly AuthorizationScope[];
   readonly clearingUserAccess?: EffectiveAccessResult;

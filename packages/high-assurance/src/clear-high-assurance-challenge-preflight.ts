@@ -51,7 +51,21 @@ function boundEvidenceOptions(evidence: OperationHighAssuranceChallengeEvidence)
   };
 }
 
-async function assertBoundProjectMatch(
+export async function requireClearCredentialIsHuman(
+  evidence: OperationHighAssuranceChallengeEvidence | undefined,
+  input: ClearHighAssuranceChallengeInput,
+): Promise<void> {
+  if (input.clearingCredentialAgentMarked === true) {
+    await deny(
+      input,
+      HIGH_ASSURANCE_ERROR_CODES.clearingDenied,
+      "agent-marked credentials cannot clear high-assurance challenges",
+      evidence !== undefined ? boundEvidenceOptions(evidence) : undefined,
+    );
+  }
+}
+
+export async function requireClearCoordinateMatch(
   evidence: OperationHighAssuranceChallengeEvidence,
   input: ClearHighAssuranceChallengeInput,
 ): Promise<void> {
@@ -60,6 +74,15 @@ async function assertBoundProjectMatch(
       input,
       HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
       "caller project does not match bound challenge evidence",
+      boundEvidenceOptions(evidence),
+    );
+  }
+
+  if (input.environmentId !== evidence.environmentId) {
+    await deny(
+      input,
+      HIGH_ASSURANCE_ERROR_CODES.operationMismatch,
+      "caller environment does not match bound challenge evidence",
       boundEvidenceOptions(evidence),
     );
   }
@@ -113,7 +136,7 @@ async function assertPendingEvidenceShape(
     );
   }
 
-  await assertBoundProjectMatch(evidence, input);
+  await requireClearCoordinateMatch(evidence, input);
   await assertHumanSessionClearingActor(evidence, input);
 
   return evidence;

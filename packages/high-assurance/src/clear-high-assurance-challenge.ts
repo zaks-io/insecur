@@ -16,6 +16,8 @@ import {
 } from "./high-assurance-challenge-audit-scope.js";
 import {
   assertClearingActorForClear,
+  requireClearCoordinateMatch,
+  requireClearCredentialIsHuman,
   requireOperationWaitingForClear,
   requirePendingChallengeEvidence,
   requireSessionAssuranceForClear,
@@ -146,6 +148,7 @@ async function completeDurableClear(
     );
   }
 
+  await requireClearCoordinateMatch(evidence, input);
   await assertClearingActorForClear(evidence, input);
   await finalizePendingChallengeAuditsInOrder(input, evidence);
 
@@ -159,6 +162,8 @@ export async function clearHighAssuranceChallenge(
     organizationId: input.organizationId,
     operationId: input.operationId,
   });
+
+  await requireClearCredentialIsHuman(operation.progress.highAssuranceChallenge, input);
 
   if (hasPersistedClearAuditLinkage(operation.progress.highAssuranceChallenge)) {
     return await completeDurableClear(operation, input);

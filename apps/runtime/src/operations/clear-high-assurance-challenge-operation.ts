@@ -16,12 +16,14 @@ export interface ClearHighAssuranceChallengeOperationInput {
   readonly auditActor: AuditActorRef;
   readonly accessActor: ActorRef;
   readonly clearingUserId: ClearHighAssuranceChallengeInput["clearingUserId"];
+  readonly clearingCredentialAgentMarked?: boolean;
 }
 
 export async function clearHighAssuranceChallengeOperation({
   input,
   accessActor,
   clearingUserId,
+  clearingCredentialAgentMarked,
 }: ClearHighAssuranceChallengeOperationInput): Promise<ClearHighAssuranceChallengeRpcPayload> {
   const clearingUserAccess = await prepareMutationReviewAccess({
     accessActor,
@@ -36,6 +38,7 @@ export async function clearHighAssuranceChallengeOperation({
     ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
     operationId: input.operationId,
     clearingUserId,
+    ...(clearingCredentialAgentMarked === true ? { clearingCredentialAgentMarked: true } : {}),
     sessionAssurance: input.sessionAssurance,
     requiredScopes: [AUTHORIZATION_SCOPES.approvalApprove],
     clearingUserAccess,

@@ -104,5 +104,8 @@ describe("ephemeral session credentials", () => {
     });
     const verified = await verifyEphemeralSessionCredential(minted.credential, signingSecret);
     expect(verified.ok).toBe(true);
+    if (verified.ok) {
+      expect(verified.actor.agentMarked).toBe(true);
+    }
   });
 });
