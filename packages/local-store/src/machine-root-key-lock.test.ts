@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -41,10 +41,13 @@ describe("withMachineRootKeyCreationLock", () => {
     expect(maxActive).toBe(1);
   });
 
-  it("recovers from a stale first-run lock after re-lookup misses", async () => {
+  it.each([
+    ["tokenized", { pid: 9_999_999, acquiredAt: 0, token: "dead-holder-token" }],
+    ["legacy", { pid: 9_999_999, acquiredAt: 0 }],
+  ])("recovers from a %s lock whose PID is dead", async (_kind, metadata) => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
     const lockPath = resolveMachineRootKeyLockPath(tempDir);
-    await writeFile(lockPath, JSON.stringify({ pid: 9_999_999, acquiredAt: 0 }), {
+    await writeFile(lockPath, JSON.stringify(metadata), {
       encoding: "utf8",
       mode: 0o600,
     });
@@ -57,6 +60,54 @@ describe("withMachineRootKeyCreationLock", () => {
         () => Promise.resolve(null),
       ),
     ).resolves.toBe("created");
+  });
+
+  it.each([
+    ["tokenized", { pid: process.pid, acquiredAt: 0, token: "live-holder-token" }],
+    ["legacy", { pid: process.pid, acquiredAt: 0 }],
+  ])("does not treat an old %s lock with a live PID as stale", async (_kind, metadata) => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
+    const lockPath = resolveMachineRootKeyLockPath(tempDir);
+    await writeFile(lockPath, JSON.stringify(metadata), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+
+    await expect(isStaleMachineRootKeyLock(lockPath)).resolves.toBe(false);
+  });
+
+  it("does not run a second creator behind an old live-PID lock", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
+    const lockPath = resolveMachineRootKeyLockPath(tempDir);
+    await writeFile(
+      lockPath,
+      JSON.stringify({ pid: process.pid, acquiredAt: 0, token: "live-holder-token" }),
+      { encoding: "utf8", mode: 0o600 },
+    );
+    let createCalls = 0;
+
+    const contender = withMachineRootKeyCreationLock(lockPath, () => {
+      createCalls += 1;
+      return Promise.resolve("created");
+    });
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 100);
+    });
+    expect(createCalls).toBe(0);
+
+    await rm(lockPath);
+    await expect(contender).resolves.toBe("created");
+    expect(createCalls).toBe(1);
+  });
+
+  it("does not age out lock files whose holder cannot be identified", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
+    const lockPath = resolveMachineRootKeyLockPath(tempDir);
+    await writeFile(lockPath, "", { encoding: "utf8", mode: 0o600 });
+    await utimes(lockPath, new Date(0), new Date(0));
+
+    await expect(isStaleMachineRootKeyLock(lockPath)).resolves.toBe(false);
   });
 
   it("returns reconciled material without taking over a stale lock", async () => {

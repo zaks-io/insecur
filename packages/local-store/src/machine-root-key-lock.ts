@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { access, mkdir, open, readFile, stat, unlink } from "node:fs/promises";
+import { access, mkdir, open, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import { MACHINE_ROOT_KEY_CREATE_LOCK_FILE_NAME } from "./constants.js";
 import { KEY_STORE_ERROR_CODES, KeyStoreError } from "./errors.js";
 import {
   isMetadataStale,
-  LOCK_STALE_MS,
   lockMetadataIdentityMatches,
   type LockMetadata,
   parseLockMetadata,
@@ -50,19 +49,7 @@ async function readLockMetadata(lockPath: string): Promise<LockMetadata | null> 
 
 export async function isStaleMachineRootKeyLock(lockPath: string): Promise<boolean> {
   const metadata = await readLockMetadata(lockPath);
-  if (metadata !== null) {
-    return isMetadataStale(metadata);
-  }
-
-  try {
-    const lockStat = await stat(lockPath);
-    return Date.now() - lockStat.mtimeMs > LOCK_STALE_MS;
-  } catch (error) {
-    if (isErrnoCode(error, "ENOENT")) {
-      return false;
-    }
-    throw error;
-  }
+  return metadata !== null && isMetadataStale(metadata);
 }
 
 async function tryAcquireLock(
@@ -145,7 +132,7 @@ async function runWhenLockAcquired<T>(
   }
 }
 
-async function waitForTokenizedStaleLock<T>(
+async function waitForStaleLock<T>(
   lockPath: string,
   staleSnapshot: LockMetadata,
   reconcile?: () => Promise<T | null>,
@@ -158,36 +145,13 @@ async function waitForTokenizedStaleLock<T>(
   return "retry";
 }
 
-async function waitForLegacyStaleLock<T>(
-  lockPath: string,
-  reconcile?: () => Promise<T | null>,
-): Promise<"retry" | T> {
-  const persisted = await reconcileOrNull(reconcile);
-  if (persisted !== null) {
-    return persisted;
-  }
-  if (await isStaleMachineRootKeyLock(lockPath)) {
-    try {
-      await unlink(lockPath);
-    } catch (error) {
-      if (!isErrnoCode(error, "ENOENT")) {
-        throw error;
-      }
-    }
-  }
-  return "retry";
-}
-
 async function waitForActiveLock<T>(
   lockPath: string,
   reconcile?: () => Promise<T | null>,
 ): Promise<"retry" | T> {
   const staleSnapshot = await readLockMetadata(lockPath);
   if (staleSnapshot !== null && isMetadataStale(staleSnapshot)) {
-    return waitForTokenizedStaleLock(lockPath, staleSnapshot, reconcile);
-  }
-  if (staleSnapshot === null && (await isStaleMachineRootKeyLock(lockPath))) {
-    return waitForLegacyStaleLock(lockPath, reconcile);
+    return waitForStaleLock(lockPath, staleSnapshot, reconcile);
   }
 
   try {

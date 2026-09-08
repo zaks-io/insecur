@@ -4,8 +4,6 @@ export interface LockMetadata {
   readonly token?: string;
 }
 
-export const LOCK_STALE_MS = 30_000;
-
 function isLockMetadataRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -28,16 +26,18 @@ function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    return !(
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ESRCH"
+    );
   }
 }
 
 export function isMetadataStale(metadata: LockMetadata): boolean {
-  if (!isPidAlive(metadata.pid)) {
-    return true;
-  }
-  return Date.now() - metadata.acquiredAt > LOCK_STALE_MS;
+  return !isPidAlive(metadata.pid);
 }
 
 export function lockMetadataIdentityMatches(
