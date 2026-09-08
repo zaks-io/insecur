@@ -55,6 +55,11 @@ describe("observability sentry config", () => {
         request: { url: `https://example.test/?token=${sentinel}` },
         breadcrumbs: [{ message: sentinel }],
         contexts: { raw: sentinel },
+        logger: sentinel,
+        modules: { raw: sentinel },
+        sdkProcessingMetadata: { normalizedRequest: { data: sentinel }, ipAddress: sentinel },
+        server_name: sentinel,
+        transaction: sentinel,
         extra: { raw: sentinel },
         tags: { raw: sentinel },
         user: { email: sentinel },
@@ -65,7 +70,15 @@ describe("observability sentry config", () => {
       data: { "db.query.text": `SELECT '${sentinel}'`, authorization: sentinel },
       description: `GET https://example.test/path?token=${sentinel}`,
       links: [{ attributes: { raw: sentinel } }],
+      measurements: { raw: sentinel },
       op: "http.client",
+      origin: sentinel,
+      profile_id: sentinel,
+      span_id: "0123456789abcdef",
+      start_timestamp: 1,
+      status: sentinel,
+      timestamp: 2,
+      trace_id: "0123456789abcdef0123456789abcdef",
     } as never);
     const transaction = options.beforeSendTransaction?.(
       {
@@ -91,12 +104,20 @@ describe("observability sentry config", () => {
       extra: {},
       tags: { service: "insecur-api" },
     });
-    expect(span).toMatchObject({ data: {}, description: "GET /path" });
+    expect(span).toEqual({
+      data: {},
+      description: "GET",
+      op: "http.client",
+      span_id: "0123456789abcdef",
+      start_timestamp: 1,
+      timestamp: 2,
+      trace_id: "0123456789abcdef0123456789abcdef",
+    });
     expect(transaction).toMatchObject({
       breadcrumbs: [],
       extra: {},
       measurements: {},
-      transaction: "GET /v1/secrets",
+      transaction: "GET",
     });
     expect(options.beforeSendLog?.({ body: sentinel } as never)).toBeNull();
   });
