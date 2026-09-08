@@ -83,6 +83,53 @@ describe("withMachineRootKeyCreationLock", () => {
     ).resolves.toBe("created");
   });
 
+  it("serializes contenders that race to recover the same dead lock", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
+    const lockPath = resolveMachineRootKeyLockPath(tempDir);
+    await writeFile(
+      lockPath,
+      JSON.stringify({ pid: 9_999_999, acquiredAt: 0, token: "dead-holder-token" }),
+      { encoding: "utf8", mode: 0o600 },
+    );
+    let recoveryWaiters = 0;
+    let releaseRecoveryWaiters: (() => void) | undefined;
+    const recoveryBarrier = new Promise<void>((resolve) => {
+      releaseRecoveryWaiters = resolve;
+    });
+    let active = 0;
+    let maxActive = 0;
+
+    const run = async () => {
+      let reconcileCalls = 0;
+      return withMachineRootKeyCreationLock(
+        lockPath,
+        async () => {
+          active += 1;
+          maxActive = Math.max(maxActive, active);
+          await new Promise((resolve) => {
+            setTimeout(resolve, 25);
+          });
+          active -= 1;
+          return "created";
+        },
+        async () => {
+          reconcileCalls += 1;
+          if (reconcileCalls === 2) {
+            recoveryWaiters += 1;
+            if (recoveryWaiters === 2) {
+              releaseRecoveryWaiters?.();
+            }
+            await recoveryBarrier;
+          }
+          return null;
+        },
+      );
+    };
+
+    await expect(Promise.all([run(), run()])).resolves.toEqual(["created", "created"]);
+    expect(maxActive).toBe(1);
+  });
+
   it.each([
     ["tokenized", { pid: process.pid, acquiredAt: 0, token: "live-holder-token" }],
     ["legacy", { pid: process.pid, acquiredAt: 0 }],

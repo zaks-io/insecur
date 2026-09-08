@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { access, link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -38,13 +38,35 @@ async function ensureLockDirectory(lockPath: string): Promise<void> {
   await mkdir(path.dirname(lockPath), { recursive: true, mode: 0o700 });
 }
 
-async function removePendingLock(pendingPath: string): Promise<void> {
+async function removeFileIfExists(filePath: string): Promise<void> {
   try {
-    await unlink(pendingPath);
+    await unlink(filePath);
   } catch (error) {
     if (!isErrnoCode(error, "ENOENT")) {
       throw error;
     }
+  }
+}
+
+function resolveStaleClaimPath(lockPath: string, metadata: LockMetadata): string {
+  const identity = JSON.stringify([metadata.pid, metadata.acquiredAt, metadata.token ?? null]);
+  const digest = createHash("sha256").update(identity).digest("hex");
+  return `${lockPath}.${digest}.reap`;
+}
+
+async function claimStaleLock(
+  lockPath: string,
+  staleSnapshot: LockMetadata,
+): Promise<string | null> {
+  const claimPath = resolveStaleClaimPath(lockPath, staleSnapshot);
+  try {
+    await link(lockPath, claimPath);
+    return claimPath;
+  } catch (error) {
+    if (isErrnoCode(error, "EEXIST") || isErrnoCode(error, "ENOENT")) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -93,10 +115,10 @@ async function tryAcquireLock(
   try {
     publication = await publishPendingLock(pendingPath, lockPath);
   } catch (error) {
-    await removePendingLock(pendingPath);
+    await removeFileIfExists(pendingPath);
     throw error;
   }
-  await removePendingLock(pendingPath);
+  await removeFileIfExists(pendingPath);
   return publication === "acquired" ? { status: "acquired", token } : { status: "exists" };
 }
 
@@ -118,20 +140,24 @@ async function removeStaleLockIfMatches(
   lockPath: string,
   staleSnapshot: LockMetadata,
 ): Promise<void> {
-  const current = await readLockMetadata(lockPath);
-  if (!lockMetadataIdentityMatches(current, staleSnapshot)) {
+  const claimPath = await claimStaleLock(lockPath, staleSnapshot);
+  if (claimPath === null) {
     return;
   }
-  if (current === null || !isMetadataStale(current)) {
+  const claimed = await readLockMetadata(claimPath);
+  if (!lockMetadataIdentityMatches(claimed, staleSnapshot) || !isMetadataStale(staleSnapshot)) {
+    await removeFileIfExists(claimPath);
     return;
   }
   try {
     await unlink(lockPath);
   } catch (error) {
     if (!isErrnoCode(error, "ENOENT")) {
+      await removeFileIfExists(claimPath);
       throw error;
     }
   }
+  await removeFileIfExists(claimPath);
 }
 
 async function reconcileOrNull<T>(reconcile?: () => Promise<T | null>): Promise<T | null> {
