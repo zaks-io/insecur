@@ -11,7 +11,7 @@
  * Run with: bun scripts/ci/bun-sqlite-seam-probe.mjs
  * (Bun imports the TypeScript adapter source directly.)
  */
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -122,6 +122,7 @@ try {
   abandonedRecovery.exec("BEGIN IMMEDIATE");
   let recoverySettled = false;
   let reconcileCalls = 0;
+  let busyRetryPreservedStaleLock = false;
   let signalBusyRetry;
   const busyRetryReached = new Promise((resolve) => {
     signalBusyRetry = resolve;
@@ -132,6 +133,12 @@ try {
     () => {
       reconcileCalls += 1;
       if (reconcileCalls === 3) {
+        try {
+          const preserved = JSON.parse(readFileSync(lockPath, "utf8"));
+          busyRetryPreservedStaleLock = preserved.token === "dead-holder-token-2";
+        } catch {
+          busyRetryPreservedStaleLock = false;
+        }
         signalBusyRetry();
       }
       return Promise.resolve(null);
@@ -158,7 +165,8 @@ try {
     recoveryTimedOut,
   ]);
   clearTimeout(recoveryTimeout);
-  const waitedForRecoveryMutex = recoveryEvent === "retried" && !recoverySettled;
+  const waitedForRecoveryMutex =
+    recoveryEvent === "retried" && !recoverySettled && busyRetryPreservedStaleLock;
   closeLocalSqliteDatabase(abandonedRecovery);
   const recoveryOutcome = await pendingRecovery;
   assert(
