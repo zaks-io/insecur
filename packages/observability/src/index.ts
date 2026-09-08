@@ -4,6 +4,7 @@ import {
   prepareSentrySpan,
   prepareSentryTransaction,
   type SentryEventLike,
+  type SentrySanitizationMetadata,
   type SentrySpanLike,
   type SentryTransactionLike,
 } from "./sentry-sanitization.js";
@@ -78,6 +79,11 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
   const environment = optional(env.SENTRY_ENVIRONMENT);
   const release = optional(env.SENTRY_RELEASE);
   const service = optional(env.SENTRY_SERVICE);
+  const sanitizationMetadata = sentrySanitizationMetadata({
+    ...(environment ? { environment } : {}),
+    ...(release ? { release } : {}),
+    ...(service ? { service } : {}),
+  });
   return {
     enabled: Boolean(dsn),
     ...(dsn ? { dsn } : {}),
@@ -92,13 +98,13 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
     // trace instead of joining ours.
     strictTraceContinuation: true,
     beforeSend(event) {
-      return prepareSentryEvent(event, service);
+      return prepareSentryEvent(event, sanitizationMetadata);
     },
     beforeSendSpan(span) {
       return prepareSentrySpan(span);
     },
     beforeSendTransaction(event) {
-      return prepareSentryTransaction(event, service);
+      return prepareSentryTransaction(event, sanitizationMetadata);
     },
     beforeSendLog() {
       return null;
@@ -165,6 +171,7 @@ function browserSentryOptions<TRouter, TIntegration>(
   router: TRouter,
   routerTracingIntegration: (router: TRouter) => TIntegration,
 ): BrowserSentryOptions<TIntegration> {
+  const sanitizationMetadata = sentrySanitizationMetadata(config);
   return {
     dsn: config.dsn,
     enabled: true,
@@ -175,14 +182,25 @@ function browserSentryOptions<TRouter, TIntegration>(
     enableLogs: false,
     integrations: [routerTracingIntegration(router)],
     beforeSend(event) {
-      return prepareSentryEvent(event, config.service);
+      return prepareSentryEvent(event, sanitizationMetadata);
     },
     beforeSendSpan(span) {
       return prepareSentrySpan(span);
     },
     beforeSendTransaction(event) {
-      return prepareSentryTransaction(event, config.service);
+      return prepareSentryTransaction(event, sanitizationMetadata);
     },
+  };
+}
+
+function sentrySanitizationMetadata(
+  config: Pick<SentryBrowserConfig, "environment" | "release" | "service">,
+): SentrySanitizationMetadata {
+  return {
+    ...(config.environment ? { environment: config.environment } : {}),
+    platform: "javascript",
+    ...(config.release ? { release: config.release } : {}),
+    ...(config.service ? { service: config.service } : {}),
   };
 }
 

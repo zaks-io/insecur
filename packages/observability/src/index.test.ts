@@ -38,7 +38,11 @@ describe("observability sentry config", () => {
 
   it("removes secret-bearing event, span, transaction, and log data", () => {
     const sentinel = "sensitive-value-must-not-leave";
-    const options = cloudflareSentryOptions({ SENTRY_SERVICE: "insecur-api" });
+    const options = cloudflareSentryOptions({
+      SENTRY_ENVIRONMENT: "preview",
+      SENTRY_RELEASE: "version-1",
+      SENTRY_SERVICE: "insecur-api",
+    });
     const event = options.beforeSend?.(
       {
         message: sentinel,
@@ -54,12 +58,25 @@ describe("observability sentry config", () => {
         },
         request: { url: `https://example.test/?token=${sentinel}` },
         breadcrumbs: [{ message: sentinel }],
-        contexts: { raw: sentinel },
+        contexts: {
+          raw: sentinel,
+          trace: {
+            data: { raw: sentinel },
+            op: "http.server",
+            span_id: "fedcba9876543210",
+            trace_id: "fedcba9876543210fedcba9876543210",
+          },
+        },
+        environment: sentinel,
+        event_id: "0123456789abcdef0123456789abcdef",
         logger: sentinel,
         modules: { raw: sentinel },
+        platform: sentinel,
+        release: sentinel,
         sdkProcessingMetadata: { normalizedRequest: { data: sentinel }, ipAddress: sentinel },
         server_name: sentinel,
         transaction: sentinel,
+        timestamp: 1,
         extra: { raw: sentinel },
         tags: { raw: sentinel },
         user: { email: sentinel },
@@ -82,6 +99,19 @@ describe("observability sentry config", () => {
     } as never);
     const transaction = options.beforeSendTransaction?.(
       {
+        contexts: {
+          trace: {
+            data: { raw: sentinel },
+            op: "http.server",
+            origin: sentinel,
+            parent_span_id: "fedcba9876543210",
+            span_id: "0123456789abcdef",
+            status: "ok",
+            tags: { raw: sentinel },
+            trace_id: "0123456789abcdef0123456789abcdef",
+          },
+        },
+        event_id: "fedcba9876543210fedcba9876543210",
         request: { body: sentinel },
         measurements: { raw: sentinel },
         spans: [
@@ -91,6 +121,9 @@ describe("observability sentry config", () => {
             op: "db",
           },
         ],
+        start_timestamp: 1,
+        timestamp: 2,
+        type: "transaction",
         transaction: `GET /v1/secrets?token=${sentinel}`,
       } as never,
       {},
@@ -99,10 +132,22 @@ describe("observability sentry config", () => {
     expect(JSON.stringify({ event, span, transaction })).not.toContain(sentinel);
     expect(event).toMatchObject({
       message: "[redacted by insecur]",
+      environment: "preview",
+      event_id: "0123456789abcdef0123456789abcdef",
       exception: { values: [{ value: "[redacted by insecur]" }] },
       breadcrumbs: [],
       extra: {},
       tags: { service: "insecur-api" },
+      platform: "javascript",
+      release: "version-1",
+      timestamp: 1,
+      contexts: {
+        trace: {
+          op: "http.server",
+          span_id: "fedcba9876543210",
+          trace_id: "fedcba9876543210fedcba9876543210",
+        },
+      },
     });
     expect(span).toEqual({
       data: {},
@@ -115,11 +160,69 @@ describe("observability sentry config", () => {
     });
     expect(transaction).toMatchObject({
       breadcrumbs: [],
+      contexts: {
+        trace: {
+          op: "http.server",
+          parent_span_id: "fedcba9876543210",
+          span_id: "0123456789abcdef",
+          status: "ok",
+          trace_id: "0123456789abcdef0123456789abcdef",
+        },
+      },
+      environment: "preview",
+      event_id: "fedcba9876543210fedcba9876543210",
       extra: {},
       measurements: {},
+      platform: "javascript",
+      release: "version-1",
+      start_timestamp: 1,
+      timestamp: 2,
       transaction: "GET",
+      type: "transaction",
     });
     expect(options.beforeSendLog?.({ body: sentinel } as never)).toBeNull();
+  });
+
+  it("drops invalid Sentry identity, timing, and trace metadata", () => {
+    const options = cloudflareSentryOptions({ SENTRY_SERVICE: "insecur-api" });
+    const event = options.beforeSend?.(
+      {
+        contexts: {
+          trace: {
+            op: "arbitrary.operation",
+            span_id: "not-a-span-id",
+            trace_id: "not-a-trace-id",
+          },
+        },
+        event_id: "not-an-event-id",
+        timestamp: Number.POSITIVE_INFINITY,
+      } as never,
+      {},
+    );
+    const transaction = options.beforeSendTransaction?.(
+      {
+        contexts: {
+          trace: {
+            span_id: "not-a-span-id",
+            trace_id: "not-a-trace-id",
+          },
+        },
+        event_id: "not-an-event-id",
+        start_timestamp: Number.NaN,
+        timestamp: Number.NEGATIVE_INFINITY,
+        type: "transaction",
+      } as never,
+      {},
+    );
+
+    expect(event).not.toHaveProperty("contexts");
+    expect(event).not.toHaveProperty("event_id");
+    expect(event).not.toHaveProperty("timestamp");
+    expect(transaction).not.toHaveProperty("contexts");
+    expect(transaction).not.toHaveProperty("event_id");
+    expect(transaction).not.toHaveProperty("start_timestamp");
+    expect(transaction).not.toHaveProperty("timestamp");
+    expect(transaction).toMatchObject({ platform: "javascript", type: "transaction" });
   });
 
   it("drops caller-controlled Sentry baggage and retains the trace header", () => {

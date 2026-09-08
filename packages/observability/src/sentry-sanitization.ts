@@ -1,6 +1,8 @@
 const REDACTED_SENTRY_MESSAGE = "[redacted by insecur]";
 
 export interface SentryEventLike {
+  environment?: string;
+  event_id?: string;
   message?: string;
   exception?: { values?: SentryExceptionLike[] };
   request?: unknown;
@@ -10,8 +12,12 @@ export interface SentryEventLike {
   extra?: Record<string, unknown>;
   fingerprint?: unknown;
   logentry?: unknown;
+  platform?: string;
+  release?: string;
   tags?: Record<string, unknown>;
   threads?: unknown;
+  timestamp?: number;
+  type?: "transaction" | undefined;
   user?: unknown;
 }
 
@@ -30,10 +36,18 @@ export interface SentrySpanLike {
 }
 
 export interface SentryTransactionLike extends SentryEventLike {
+  start_timestamp?: number;
   measurements?: unknown;
   spans?: SentrySpanLike[];
   transaction?: string;
   transaction_info?: unknown;
+}
+
+export interface SentrySanitizationMetadata {
+  environment?: string;
+  platform: "javascript";
+  release?: string;
+  service?: string;
 }
 
 interface SentryExceptionLike {
@@ -43,9 +57,11 @@ interface SentryExceptionLike {
 /** Redact every telemetry field except explicit metadata allowlists. */
 export function prepareSentryEvent<TEvent extends SentryEventLike>(
   event: TEvent,
-  service: string | undefined,
+  metadata: SentrySanitizationMetadata,
 ): TEvent {
   const sanitized: SentryEventLike = {
+    ...safeEventIdentityAndTiming(event),
+    ...safeConfiguredMetadata(metadata),
     message: REDACTED_SENTRY_MESSAGE,
     breadcrumbs: [],
     extra: {},
@@ -55,8 +71,12 @@ export function prepareSentryEvent<TEvent extends SentryEventLike>(
       values: event.exception.values.map(() => ({ value: REDACTED_SENTRY_MESSAGE })),
     };
   }
-  if (service) {
-    sanitized.tags = { service };
+  if (metadata.service) {
+    sanitized.tags = { service: metadata.service };
+  }
+  const trace = safeTraceContext(event.contexts);
+  if (trace !== undefined) {
+    sanitized.contexts = { trace };
   }
   return sanitized as TEvent;
 }
@@ -80,13 +100,17 @@ export function prepareSentrySpan<TSpan extends SentrySpanLike>(span: TSpan): TS
 
 export function prepareSentryTransaction<TEvent extends SentryTransactionLike>(
   event: TEvent,
-  service: string | undefined,
+  metadata: SentrySanitizationMetadata,
 ): TEvent {
   const sanitized: SentryTransactionLike = {
-    ...prepareSentryEvent(event, service),
+    ...prepareSentryEvent(event, metadata),
+    type: "transaction",
     transaction_info: { source: "custom" },
     measurements: {},
   };
+  if (isFiniteNumber(event.start_timestamp)) {
+    sanitized.start_timestamp = event.start_timestamp;
+  }
   const transaction = sanitizedTransactionName(event.transaction);
   if (transaction !== undefined) {
     sanitized.transaction = transaction;
@@ -95,6 +119,43 @@ export function prepareSentryTransaction<TEvent extends SentryTransactionLike>(
     sanitized.spans = event.spans.map(prepareSentrySpan);
   }
   return sanitized as TEvent;
+}
+
+function safeEventIdentityAndTiming(event: SentryEventLike): Partial<SentryEventLike> {
+  return {
+    ...(isHexId(event.event_id, 32) ? { event_id: event.event_id } : {}),
+    ...(isFiniteNumber(event.timestamp) ? { timestamp: event.timestamp } : {}),
+  };
+}
+
+function safeConfiguredMetadata(
+  metadata: SentrySanitizationMetadata,
+): Pick<SentryEventLike, "environment" | "platform" | "release"> {
+  return {
+    ...(metadata.environment ? { environment: metadata.environment } : {}),
+    platform: metadata.platform,
+    ...(metadata.release ? { release: metadata.release } : {}),
+  };
+}
+
+function safeTraceContext(contexts: unknown): Record<string, string> | undefined {
+  if (!isRecord(contexts) || !isRecord(contexts.trace)) return undefined;
+  const trace = contexts.trace;
+  const traceId = safeHexId(trace.trace_id, 32);
+  const spanId = safeHexId(trace.span_id, 16);
+  if (!traceId || !spanId) return undefined;
+  return { trace_id: traceId, span_id: spanId, ...safeTraceMetadata(trace) };
+}
+
+function safeTraceMetadata(trace: Record<string, unknown>): Record<string, string> {
+  const parentSpanId = safeHexId(trace.parent_span_id, 16);
+  const op = sanitizedSpanOp(asString(trace.op));
+  const status = asString(trace.status);
+  return {
+    ...(parentSpanId ? { parent_span_id: parentSpanId } : {}),
+    ...(op !== undefined ? { op } : {}),
+    ...(status === "ok" || status === "error" ? { status } : {}),
+  };
 }
 
 function safeSpanIdentifiers(span: SentrySpanLike): Partial<SentrySpanLike> {
@@ -156,4 +217,17 @@ function isHexId(value: string | undefined, length: number): value is string {
 
 function isFiniteNumber(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function safeHexId(value: unknown, length: number): string | undefined {
+  const stringValue = asString(value);
+  return isHexId(stringValue, length) ? stringValue : undefined;
 }
