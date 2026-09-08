@@ -120,11 +120,34 @@ try {
   );
   const abandonedRecovery = openBareLocalSqliteDatabase(`${lockPath}.recovery.sqlite`);
   abandonedRecovery.exec("BEGIN IMMEDIATE");
-  closeLocalSqliteDatabase(abandonedRecovery);
-  const recovered = await withMachineRootKeyCreationLock(lockPath, () =>
+  let recoverySettled = false;
+  const pendingRecovery = withMachineRootKeyCreationLock(lockPath, () =>
     Promise.resolve("recovered"),
+  ).then(
+    (value) => {
+      recoverySettled = true;
+      return { value };
+    },
+    (error) => {
+      recoverySettled = true;
+      return { error };
+    },
   );
-  assert(recovered === "recovered", "abandoned Bun recovery transactions release their mutex");
+  await Bun.sleep(75);
+  const waitedForRecoveryMutex = !recoverySettled;
+  closeLocalSqliteDatabase(abandonedRecovery);
+  const recoveryOutcome = await pendingRecovery;
+  assert(
+    waitedForRecoveryMutex,
+    "Bun SQLITE_BUSY keeps stale recovery pending until the mutex is released",
+  );
+  if ("error" in recoveryOutcome) {
+    throw recoveryOutcome.error;
+  }
+  assert(
+    recoveryOutcome.value === "recovered",
+    "abandoned Bun recovery transactions release their mutex",
+  );
 
   console.log("bun-sqlite-seam-probe passed");
 } finally {
