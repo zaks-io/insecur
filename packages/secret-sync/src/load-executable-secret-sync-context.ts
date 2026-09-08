@@ -79,15 +79,22 @@ function assertBindingDestinationsPresent(input: {
   }
 }
 
-export async function loadExecutableSecretSyncContext(input: {
+export interface LoadSecretSyncRunContextInput {
   readonly db: TenantScopedDb;
   readonly organizationId: SecretSyncRow["organizationId"];
   readonly secretSyncId: SecretSyncId;
-}): Promise<{
+}
+
+export interface SecretSyncRunContext {
   readonly sync: SecretSyncRow;
   readonly connection: AppConnectionRow;
   readonly bindings: readonly SecretSyncBindingRow[];
-}> {
+}
+
+/** Loads only plaintext-allowlisted rows needed to identify and serialize a run. */
+export async function loadSecretSyncRunContext(
+  input: LoadSecretSyncRunContextInput,
+): Promise<SecretSyncRunContext> {
   const syncStore = new TenantSecretSyncStore(input.db);
   const sync = await syncStore.getSecretSyncById(input.organizationId, input.secretSyncId);
   if (!sync) {
@@ -102,6 +109,14 @@ export async function loadExecutableSecretSyncContext(input: {
   );
 
   const bindings = await syncStore.listBindings(input.organizationId, sync.id);
+  return { sync, connection, bindings };
+}
+
+export async function loadExecutableSecretSyncContext(
+  input: LoadSecretSyncRunContextInput,
+): Promise<SecretSyncRunContext> {
+  const context = await loadSecretSyncRunContext(input);
+  const { sync, bindings } = context;
   const sensitiveMetadata = await loadSecretSyncSensitiveMetadata({
     db: input.db,
     organizationId: sync.organizationId,
@@ -117,5 +132,5 @@ export async function loadExecutableSecretSyncContext(input: {
     workerScriptName: sensitiveMetadata.workerScriptName,
   });
 
-  return { sync, connection, bindings };
+  return context;
 }

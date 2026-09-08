@@ -117,6 +117,7 @@ import {
   createBindingRow,
   createCloudflareConnection,
 } from "./helpers/secret-sync-test-fixtures.js";
+import { createPassedStorageSecurityGateEvaluator } from "./helpers/storage-security-gate.js";
 
 const REQUEST = requestId.brand("req_00000000000000000000000001");
 const OPERATION = operationId.brand("op_00000000000000000000000001");
@@ -209,6 +210,7 @@ function runInput(
     lookupPorts: { "cloudflare-worker-secret": adapter.lookupPort },
     writePorts: { "cloudflare-worker-secret": adapter.writePort },
     writeMaterialsResolver: createMaterialsResolver(),
+    evaluateStorageSecurityGate: createPassedStorageSecurityGateEvaluator(),
     requestId: REQUEST,
     ...overrides,
   };

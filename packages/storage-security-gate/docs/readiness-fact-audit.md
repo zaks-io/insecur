@@ -25,7 +25,7 @@ per-request runtime scan unless a future gate contract says otherwise.
 | `storage.provider_credential_encryption` | **partial**  | Provider-credential envelope tests + `checkStoredEnvelopeBindingReadiness`                                    | Same binding model as secrets under org data keys.                                                                                                         |
 | `storage.sensitive_metadata_encryption`  | **partial**  | Plaintext Metadata Allowlist conformance (`pnpm verify`, `pnpm test:rls`) + sensitive-metadata envelope tests | Column placement is structural CI evidence; envelope correctness uses binding fact + encryption tests.                                                     |
 | `storage.no_plaintext_persistence`       | **evidence** | `pnpm test:canary` ([ADR-0069](../../../docs/adr/0069-no-plaintext-canary-gate.md))                           | Test/canary evidence only. No per-delivery runtime plaintext scan in V1.                                                                                   |
-| `storage.delivery_fail_closed`           | **missing**  | INS-54 delivery-path enforcement + denial tests                                                               | Gate verdict enforcement on production delivery callers, not a storage-layer fact.                                                                         |
+| `storage.delivery_fail_closed`           | **exists**   | `@insecur/runtime-injection` and `@insecur/secret-sync` production delivery gates + denial tests              | Both production delivery callers block before decrypt or provider access when the verdict is not `passed`.                                                 |
 
 ## Confirmed splits (INS-151)
 
@@ -48,9 +48,10 @@ attempt. Delivery probes should accept injected evidence references (for example
 gate maps to `storage.key_version_binding` and supports `storage.secret_encryption` /
 credential / Sensitive Metadata controls without decrypting payloads.
 
-## Probe wiring (follow-up)
+## Live fact composition (follow-up)
 
-INS-54 owns composing these facts into `StorageSecurityGateReadinessProbes` on production
-delivery paths. `@insecur/storage-security-gate` exports `mapReadinessReportToProbeOutcome`
-helpers that convert package reports into `StorageGateProbeOutcome` without pulling crypto or
-tenant-store into the gate dependency graph.
+INS-54 owns composing the remaining runtime and release facts into
+`StorageSecurityGateReadinessProbes`. Production delivery callers now enforce the verdict and use
+missing-evidence probes by default, so absent composition blocks delivery. The package exports
+`mapReadinessReportToProbeOutcome` helpers that convert package reports into
+`StorageGateProbeOutcome` without pulling crypto or tenant-store into the gate dependency graph.

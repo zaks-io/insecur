@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-03
+Last updated: 2026-09-08
 
 This document owns live implementation, verification, and launch status. It does not redefine
 product behavior. When it disagrees with an owning spec, ADR, generated route inventory, or current
@@ -50,8 +50,8 @@ formatting, lint, typecheck, and unit-test gates.
 The service is not approved for valuable production secrets. Remaining proof or implementation
 gaps include:
 
-- The Storage Security Gate still lacks complete delivery-path wiring and evidence composition.
-  Its readiness audit marks `storage.delivery_fail_closed` missing and several controls partial.
+- The Storage Security Gate now fails closed on both production delivery callers, but live evidence
+  composition remains incomplete and several readiness controls are still partial.
 - Provider sync needs substantially more provider-level and hosted end-to-end testing.
 - GitHub App installation verification is not provider-backed and continues to fail closed.
 - Approval notification delivery ports are not wired into Runtime composition.
@@ -66,8 +66,8 @@ read path.
 
 ## Next build order
 
-1. Complete Storage Security Gate fact composition and fail-closed enforcement on every production
-   delivery path.
+1. Complete Storage Security Gate fact composition so production delivery can pass its enforced
+   fail-closed checks.
 2. Harden provider sync with real provider authorization, writes, metadata-only verification,
    retries, and partial-failure evidence before calling it reliable.
 3. Wire metadata-safe approval notifications and finish the protected machine delivery path.

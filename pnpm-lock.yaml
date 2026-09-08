@@ -1302,6 +1302,9 @@ importers:
       '@insecur/protected-change':
         specifier: workspace:*
         version: link:../protected-change
+      '@insecur/storage-security-gate':
+        specifier: workspace:*
+        version: link:../storage-security-gate
       '@insecur/tenant-store':
         specifier: workspace:*
         version: link:../tenant-store
