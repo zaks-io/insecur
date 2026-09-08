@@ -9,6 +9,7 @@ import {
   resolveMachineRootKeyLockPath,
   withMachineRootKeyCreationLock,
 } from "./machine-root-key-lock.js";
+import { closeLocalSqliteDatabase, openBareLocalSqliteDatabase } from "./sqlite/connection.js";
 
 describe("withMachineRootKeyCreationLock", () => {
   let tempDir = "";
@@ -128,6 +129,23 @@ describe("withMachineRootKeyCreationLock", () => {
 
     await expect(Promise.all([run(), run()])).resolves.toEqual(["created", "created"]);
     expect(maxActive).toBe(1);
+  });
+
+  it("recovers after a stale-recovery transaction ends without committing", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "insecur-lock-"));
+    const lockPath = resolveMachineRootKeyLockPath(tempDir);
+    await writeFile(
+      lockPath,
+      JSON.stringify({ pid: 9_999_999, acquiredAt: 0, token: "dead-holder-token" }),
+      { encoding: "utf8", mode: 0o600 },
+    );
+    const abandonedRecovery = openBareLocalSqliteDatabase(`${lockPath}.recovery.sqlite`);
+    abandonedRecovery.exec("BEGIN IMMEDIATE");
+    closeLocalSqliteDatabase(abandonedRecovery);
+
+    await expect(
+      withMachineRootKeyCreationLock(lockPath, () => Promise.resolve("created")),
+    ).resolves.toBe("created");
   });
 
   it.each([
