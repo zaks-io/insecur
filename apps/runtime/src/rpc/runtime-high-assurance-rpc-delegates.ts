@@ -44,6 +44,7 @@ export function clearHighAssuranceChallengeRpc(
       auditActor: { type: "user", userId: actor.userId },
       accessActor,
       clearingUserId: actor.userId,
+      ...(actor.agentMarked === true ? { clearingCredentialAgentMarked: true } : {}),
     }),
   );
 }

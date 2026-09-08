@@ -64,5 +64,9 @@ export async function verifyEphemeralSessionCredential(
   if (claims?.typ === undefined || !CLI_SESSION_TYPS.has(claims.typ)) {
     return { ok: false, reason: "invalid" };
   }
-  return actorFromClaims(claims);
+  const resolved = actorFromClaims(claims);
+  if (!resolved.ok || claims.typ !== AGENT_EPHEMERAL_TYP) {
+    return resolved;
+  }
+  return { ok: true, actor: { ...resolved.actor, agentMarked: true } };
 }

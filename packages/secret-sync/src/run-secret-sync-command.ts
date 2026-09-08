@@ -1,6 +1,7 @@
 import type { UserActorRef } from "@insecur/access";
 import {
   SECRET_SYNC_ERROR_CODES,
+  STORAGE_GATE_ERROR_CODES,
   readErrorCode,
   type EnvironmentId,
   type KnownErrorCode,
@@ -18,17 +19,27 @@ import {
   type OperationMutationResult,
   type OperationState,
 } from "@insecur/operations";
+import {
+  assertProductionDeliveryGatePassed,
+  createMissingEvidenceProbes,
+  evaluateStorageSecurityGate as evaluateStorageGate,
+  PRODUCTION_DELIVERY_PATHS,
+  type StorageSecurityGateScope,
+  type StorageSecurityGateVerdict,
+} from "@insecur/storage-security-gate";
 import { withTenantScope } from "@insecur/tenant-store";
 
 import { resolveSecretSyncRunAccess } from "./assert-secret-sync-access.js";
 import { executeSecretSyncRun } from "./execute-secret-sync-run.js";
-import { loadExecutableSecretSyncContext } from "./load-executable-secret-sync-context.js";
+import { loadSecretSyncRunContext } from "./load-executable-secret-sync-context.js";
 import type { SecretSyncProviderLookupPorts } from "./provider-lookup-port.js";
 import type { SecretSyncProviderWritePorts } from "./provider-sync-write-port.js";
 import { recordSecretSyncRunDenied } from "./record-secret-sync-run-audit.js";
 import {
   emptyCounters,
+  parkBlocked,
   syncTargetKey,
+  toRunReasonCode,
   type SecretSyncRunSession,
 } from "./run-secret-sync-session.js";
 import { SecretSyncError } from "./secret-sync-error.js";
@@ -43,6 +54,9 @@ export interface RunSecretSyncCommandInput {
   readonly lookupPorts: SecretSyncProviderLookupPorts;
   readonly writePorts: SecretSyncProviderWritePorts;
   readonly writeMaterialsResolver: SecretSyncWriteMaterialsResolver;
+  readonly evaluateStorageSecurityGate?: (
+    scope: StorageSecurityGateScope,
+  ) => Promise<StorageSecurityGateVerdict>;
   readonly requestId: RequestId;
   /** ADR-0066 idempotency key; a retried run returns the existing Operation. */
   readonly idempotencyKey?: string;
@@ -125,7 +139,7 @@ async function loadRunContext(input: RunSecretSyncCommandInput) {
   const context = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ db }) =>
-      loadExecutableSecretSyncContext({
+      loadSecretSyncRunContext({
         db,
         organizationId: input.organizationId,
         secretSyncId: input.secretSyncId,
@@ -138,6 +152,32 @@ async function loadRunContext(input: RunSecretSyncCommandInput) {
     throw new SecretSyncError(SECRET_SYNC_ERROR_CODES.notFound, "secret sync not found");
   }
   return context;
+}
+
+function storageGateScope(input: RunSecretSyncCommandInput): StorageSecurityGateScope {
+  return {
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    environmentId: input.environmentId,
+  };
+}
+
+async function executeWithStorageGate(
+  session: SecretSyncRunSession,
+): Promise<RunSecretSyncCommandResult> {
+  const evaluateGate =
+    session.input.evaluateStorageSecurityGate ??
+    ((scope: StorageSecurityGateScope) =>
+      evaluateStorageGate({ scope, probes: createMissingEvidenceProbes() }));
+  try {
+    await assertProductionDeliveryGatePassed({
+      path: PRODUCTION_DELIVERY_PATHS.secretSync,
+      evaluateGate: () => evaluateGate(storageGateScope(session.input)),
+    });
+  } catch (error) {
+    return parkBlocked(session, toRunReasonCode(error, STORAGE_GATE_ERROR_CODES.gateUnknown));
+  }
+  return executeSecretSyncRun(session);
 }
 
 /**
@@ -193,5 +233,5 @@ export async function runSecretSyncCommand(
     target,
     operationId: created.operation.operationId,
   };
-  return executeSecretSyncRun(session);
+  return executeWithStorageGate(session);
 }

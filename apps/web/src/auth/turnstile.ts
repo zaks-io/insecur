@@ -5,6 +5,7 @@ export const TURNSTILE_LOGIN_ACTION = "web-login";
 
 const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const MAX_TURNSTILE_TOKEN_LENGTH = 2048;
+const MAX_LOGIN_FORM_BODY_BYTES = 8 * 1024;
 const SITEVERIFY_TIMEOUT_MS = 5_000;
 
 type TurnstileFailureReason =
@@ -49,6 +50,56 @@ export function readTurnstileToken(formData: FormData): string | null {
   return token;
 }
 
+async function readBoundedRequestBody(
+  request: Request,
+  maxBytes: number,
+): Promise<Uint8Array<ArrayBuffer> | null> {
+  const declaredLength = request.headers.get("Content-Length");
+  if (declaredLength !== null && Number(declaredLength) > maxBytes) {
+    return null;
+  }
+
+  if (request.body === null) {
+    return new Uint8Array();
+  }
+
+  const chunks = await readBodyChunksAtMost(request.body, maxBytes);
+  return chunks === null ? null : joinBodyChunks(chunks);
+}
+
+async function readBodyChunksAtMost(
+  stream: ReadableStream<Uint8Array>,
+  maxBytes: number,
+): Promise<readonly Uint8Array[] | null> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  let read = await reader.read();
+  while (!read.done) {
+    const { value } = read;
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+    read = await reader.read();
+  }
+
+  return chunks;
+}
+
+function joinBodyChunks(chunks: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
+  const totalBytes = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+}
+
 export async function readLoginFormData(request: Request): Promise<FormData | null> {
   const mediaType = request.headers.get("Content-Type")?.split(";", 1)[0]?.trim().toLowerCase();
   if (mediaType !== "application/x-www-form-urlencoded" && mediaType !== "multipart/form-data") {
@@ -56,7 +107,15 @@ export async function readLoginFormData(request: Request): Promise<FormData | nu
   }
 
   try {
-    return await request.formData();
+    const body = await readBoundedRequestBody(request, MAX_LOGIN_FORM_BODY_BYTES);
+    if (body === null) {
+      return null;
+    }
+    return await new Request(request.url, {
+      method: "POST",
+      headers: request.headers,
+      body,
+    }).formData();
   } catch (error) {
     if (error instanceof TypeError) {
       return null;

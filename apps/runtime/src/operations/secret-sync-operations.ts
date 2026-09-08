@@ -111,7 +111,8 @@ export interface RunSecretSyncOperationInput {
  * only. Both provider clients stay fail-closed (`provider.unavailable`)
  * until real transports are configured — GitHub via the INS-75 provider app
  * registration seam, Cloudflare via the INS-74 scoped-token App Connection —
- * so no run can write before real credentials exist. The RPC payload is
+ * and the Secret Sync command independently requires a passed Storage Security
+ * Gate verdict before sensitive metadata or provider access. The RPC payload is
  * metadata-only.
  */
 /**

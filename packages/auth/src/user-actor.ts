@@ -11,6 +11,8 @@ export interface UserActor {
   readonly workosUserId: string;
   /** Opaque insecur session row identifier for audit correlation. */
   readonly sessionId: string;
+  /** Signed credential marker for a derived Agent Session (ADR-0032). */
+  readonly agentMarked?: true;
   /** Optional derived-agent hard bounds. Effective Access intersects with these claims. */
   readonly credentialScopes?: readonly string[];
   readonly tokenScope?: {

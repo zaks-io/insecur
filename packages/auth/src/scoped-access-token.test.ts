@@ -71,6 +71,24 @@ describe("scoped access token", () => {
     });
   });
 
+  it("preserves the signed agent marker across the private runtime hop", async () => {
+    const minted = await mintScopedAccessToken({
+      actor: { ...actor, agentMarked: true },
+      audience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+      signingSecret,
+    });
+    const verified = await verifyScopedAccessToken({
+      token: minted.token,
+      expectedAudience: INSECUR_RUNTIME_TOKEN_AUDIENCE,
+      signingSecret,
+    });
+
+    expect(verified).toMatchObject({
+      ok: true,
+      actor: { agentMarked: true },
+    });
+  });
+
   it("rejects a token minted for a different audience", async () => {
     const minted = await mintScopedAccessToken({
       actor,

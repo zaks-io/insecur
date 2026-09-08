@@ -4,6 +4,7 @@ import {
   PROTECTED_CHANGE_ERROR_CODES,
   PROVIDER_ERROR_CODES,
   SECRET_SYNC_ERROR_CODES,
+  STORAGE_GATE_ERROR_CODES,
   operationId,
   requestId,
   secretId,
@@ -118,6 +119,7 @@ import {
   createBindingRow,
   createGitHubConnection,
 } from "./helpers/secret-sync-test-fixtures.js";
+import { createPassedStorageSecurityGateEvaluator } from "./helpers/storage-security-gate.js";
 
 const REQUEST = requestId.brand("req_00000000000000000000000001");
 const OPERATION = operationId.brand("op_00000000000000000000000001");
@@ -242,6 +244,7 @@ function runInput(overrides: Partial<Parameters<typeof runSecretSyncCommand>[0]>
       lookupPorts: { "github-actions": lookup.port },
       writePorts: { "github-actions": writePort.port },
       writeMaterialsResolver: createMaterialsResolver(),
+      evaluateStorageSecurityGate: createPassedStorageSecurityGateEvaluator(),
       requestId: REQUEST,
       ...overrides,
     },
@@ -276,6 +279,28 @@ beforeEach(() => {
 });
 
 describe("runSecretSyncCommand", () => {
+  it("fails closed before sensitive metadata or provider access when gate evidence is missing", async () => {
+    const materialsResolver = createMaterialsResolver();
+    const resolveMaterials = vi.spyOn(materialsResolver, "resolveWriteMaterials");
+    const { input, writePort, lookup } = runInput({
+      writeMaterialsResolver: materialsResolver,
+      evaluateStorageSecurityGate: undefined,
+    });
+
+    const result = await runSecretSyncCommand(input);
+
+    expect(result).toMatchObject({
+      state: "blocked",
+      resultCode: STORAGE_GATE_ERROR_CODES.gateUnknown,
+      writtenCount: 0,
+    });
+    expect(getField).not.toHaveBeenCalled();
+    expect(lookup.requests).toHaveLength(0);
+    expect(resolveMaterials).not.toHaveBeenCalled();
+    expect(writePort.writes).toHaveLength(0);
+    expect(transitionStates()).toEqual(["blocked"]);
+  });
+
   it("writes every exact bound destination, verifies metadata, and succeeds", async () => {
     seedStores([createBindingRow(), createBindingRow({ id: BINDING_2, secretId: SECRET_2 })]);
     const { input, writePort } = runInput({

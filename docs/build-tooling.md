@@ -856,10 +856,16 @@ domain route changes are operator-controlled Cloudflare changes.
 Trigger: `workflow_dispatch` only. CLI releases are manual while the release-attestation policy is
 being tightened. A manual dispatch first verifies that the selected commit is current `main` or a
 `main` ancestor (GitHub compare status `identical` or `behind`; anything else fails closed), then
-verifies that the commit has a completed successful `CI` run, before it builds release assets, runs
-repo security attestation, attaches the attestation bundle, and prepares the draft release. After
-the draft is created or updated, the Production-environment release job syncs the package version
-to Linear using its isolated `CLI_LINEAR_ACCESS_KEY` secret. The pinned action uses the recursive monorepo filter
+verifies that the commit has a completed successful `CI` run before it builds release assets. A
+separate `contents: read` job with no GitHub Environment or secrets runs the repo security
+attestation and blocking CLI SBOM scan. It uploads one immutable security artifact. The Production
+release job downloads that artifact by ID, requires the artifact transport digest to match, and
+checks the included file hashes before any release mutation or secret-consuming step.
+Scanner-installed executables, PATH changes, and workspace mutations cannot cross the job boundary.
+Binary scanner archives use repository-owned SHA-256 values, and Checkov plus Semgrep install from a
+fully pinned, hash-locked, binary-only Python dependency file under the composite action. After the
+draft is created or updated, the Production-environment release job syncs the package version to
+Linear using its isolated `CLI_LINEAR_ACCESS_KEY` secret. The pinned action uses the recursive monorepo filter
 `include_paths` for `packages/cli/**` and every transitive workspace package in the CLI dependency
 graph: `access`, `agent-attribution`, `audit`, `auth`, `crypto`, `custody-contracts`, `domain`,
 `instance-bootstrap`, `local-store`, `observability`, `onboarding`, `operations`,

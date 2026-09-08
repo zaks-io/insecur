@@ -1,16 +1,20 @@
 import { randomUUID } from "node:crypto";
-import { access, mkdir, open, readFile, stat, unlink } from "node:fs/promises";
+import { access, link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { MACHINE_ROOT_KEY_CREATE_LOCK_FILE_NAME } from "./constants.js";
 import { KEY_STORE_ERROR_CODES, KeyStoreError } from "./errors.js";
 import {
   isMetadataStale,
-  LOCK_STALE_MS,
   lockMetadataIdentityMatches,
   type LockMetadata,
   parseLockMetadata,
 } from "./machine-root-key-lock-metadata.js";
+import {
+  closeLocalSqliteDatabase,
+  openBareLocalSqliteDatabase,
+  type LocalSqliteDatabase,
+} from "./sqlite/connection.js";
 
 const LOCK_FILE_MODE = 0o600;
 const LOCK_POLL_MS = 50;
@@ -22,6 +26,15 @@ function isErrnoCode(error: unknown, code: string): boolean {
     error !== null &&
     "code" in error &&
     (error as NodeJS.ErrnoException).code === code
+  );
+}
+
+function isSqliteBusy(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (("errcode" in error && (error as { errcode?: unknown }).errcode === 5) ||
+      ("code" in error && (error as { code?: unknown }).code === "SQLITE_BUSY"))
   );
 }
 
@@ -39,6 +52,31 @@ async function ensureLockDirectory(lockPath: string): Promise<void> {
   await mkdir(path.dirname(lockPath), { recursive: true, mode: 0o700 });
 }
 
+async function removePendingLock(filePath: string): Promise<void> {
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if (!isErrnoCode(error, "ENOENT")) {
+      throw error;
+    }
+  }
+}
+
+async function publishPendingLock(
+  pendingPath: string,
+  lockPath: string,
+): Promise<"acquired" | "exists"> {
+  try {
+    await link(pendingPath, lockPath);
+    return "acquired";
+  } catch (error) {
+    if (isErrnoCode(error, "EEXIST")) {
+      return "exists";
+    }
+    throw error;
+  }
+}
+
 async function readLockMetadata(lockPath: string): Promise<LockMetadata | null> {
   try {
     const raw = await readFile(lockPath, "utf8");
@@ -50,41 +88,30 @@ async function readLockMetadata(lockPath: string): Promise<LockMetadata | null> 
 
 export async function isStaleMachineRootKeyLock(lockPath: string): Promise<boolean> {
   const metadata = await readLockMetadata(lockPath);
-  if (metadata !== null) {
-    return isMetadataStale(metadata);
-  }
-
-  try {
-    const lockStat = await stat(lockPath);
-    return Date.now() - lockStat.mtimeMs > LOCK_STALE_MS;
-  } catch (error) {
-    if (isErrnoCode(error, "ENOENT")) {
-      return false;
-    }
-    throw error;
-  }
+  return metadata !== null && isMetadataStale(metadata);
 }
 
 async function tryAcquireLock(
   lockPath: string,
 ): Promise<{ status: "acquired"; token: string } | { status: "exists" }> {
   const token = randomUUID();
+  const pendingPath = `${lockPath}.${token}.pending`;
+  const metadata: LockMetadata = { pid: process.pid, acquiredAt: Date.now(), token };
   await ensureLockDirectory(lockPath);
+  await writeFile(pendingPath, JSON.stringify(metadata), {
+    encoding: "utf8",
+    flag: "wx",
+    mode: LOCK_FILE_MODE,
+  });
+  let publication: "acquired" | "exists";
   try {
-    const handle = await open(lockPath, "wx", LOCK_FILE_MODE);
-    try {
-      const metadata: LockMetadata = { pid: process.pid, acquiredAt: Date.now(), token };
-      await handle.writeFile(JSON.stringify(metadata), "utf8");
-    } finally {
-      await handle.close();
-    }
-    return { status: "acquired", token };
+    publication = await publishPendingLock(pendingPath, lockPath);
   } catch (error) {
-    if (isErrnoCode(error, "EEXIST")) {
-      return { status: "exists" };
-    }
+    await removePendingLock(pendingPath);
     throw error;
   }
+  await removePendingLock(pendingPath);
+  return publication === "acquired" ? { status: "acquired", token } : { status: "exists" };
 }
 
 async function releaseLock(lockPath: string, holderToken: string): Promise<void> {
@@ -101,24 +128,63 @@ async function releaseLock(lockPath: string, holderToken: string): Promise<void>
   }
 }
 
+function rollbackStaleRecovery(database: LocalSqliteDatabase, cause: unknown): never {
+  try {
+    database.exec("ROLLBACK");
+  } catch (rollbackError) {
+    throw new AggregateError([cause, rollbackError], "machine root key stale recovery failed", {
+      cause: rollbackError,
+    });
+  }
+  throw cause;
+}
+
+async function withStaleRecoveryMutex(
+  lockPath: string,
+  operation: () => Promise<void>,
+): Promise<void> {
+  const database = openBareLocalSqliteDatabase(`${lockPath}.recovery.sqlite`);
+  try {
+    database.exec("PRAGMA busy_timeout = 0");
+    try {
+      database.exec("BEGIN IMMEDIATE");
+    } catch (error) {
+      if (isSqliteBusy(error)) {
+        return;
+      }
+      throw error;
+    }
+    try {
+      await operation();
+      database.exec("COMMIT");
+    } catch (error) {
+      rollbackStaleRecovery(database, error);
+    }
+  } finally {
+    closeLocalSqliteDatabase(database);
+  }
+}
+
 async function removeStaleLockIfMatches(
   lockPath: string,
   staleSnapshot: LockMetadata,
 ): Promise<void> {
-  const current = await readLockMetadata(lockPath);
-  if (!lockMetadataIdentityMatches(current, staleSnapshot)) {
-    return;
-  }
-  if (current === null || !isMetadataStale(current)) {
-    return;
-  }
-  try {
-    await unlink(lockPath);
-  } catch (error) {
-    if (!isErrnoCode(error, "ENOENT")) {
-      throw error;
+  await withStaleRecoveryMutex(lockPath, async () => {
+    const current = await readLockMetadata(lockPath);
+    if (!lockMetadataIdentityMatches(current, staleSnapshot)) {
+      return;
     }
-  }
+    if (current === null || !isMetadataStale(current)) {
+      return;
+    }
+    try {
+      await unlink(lockPath);
+    } catch (error) {
+      if (!isErrnoCode(error, "ENOENT")) {
+        throw error;
+      }
+    }
+  });
 }
 
 async function reconcileOrNull<T>(reconcile?: () => Promise<T | null>): Promise<T | null> {
@@ -145,7 +211,7 @@ async function runWhenLockAcquired<T>(
   }
 }
 
-async function waitForTokenizedStaleLock<T>(
+async function waitForStaleLock<T>(
   lockPath: string,
   staleSnapshot: LockMetadata,
   reconcile?: () => Promise<T | null>,
@@ -158,36 +224,13 @@ async function waitForTokenizedStaleLock<T>(
   return "retry";
 }
 
-async function waitForLegacyStaleLock<T>(
-  lockPath: string,
-  reconcile?: () => Promise<T | null>,
-): Promise<"retry" | T> {
-  const persisted = await reconcileOrNull(reconcile);
-  if (persisted !== null) {
-    return persisted;
-  }
-  if (await isStaleMachineRootKeyLock(lockPath)) {
-    try {
-      await unlink(lockPath);
-    } catch (error) {
-      if (!isErrnoCode(error, "ENOENT")) {
-        throw error;
-      }
-    }
-  }
-  return "retry";
-}
-
 async function waitForActiveLock<T>(
   lockPath: string,
   reconcile?: () => Promise<T | null>,
 ): Promise<"retry" | T> {
   const staleSnapshot = await readLockMetadata(lockPath);
   if (staleSnapshot !== null && isMetadataStale(staleSnapshot)) {
-    return waitForTokenizedStaleLock(lockPath, staleSnapshot, reconcile);
-  }
-  if (staleSnapshot === null && (await isStaleMachineRootKeyLock(lockPath))) {
-    return waitForLegacyStaleLock(lockPath, reconcile);
+    return waitForStaleLock(lockPath, staleSnapshot, reconcile);
   }
 
   try {

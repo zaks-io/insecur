@@ -22,6 +22,7 @@
     "@insecur/domain": "workspace:*",
     "@insecur/operations": "workspace:*",
     "@insecur/protected-change": "workspace:*",
+    "@insecur/storage-security-gate": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
     "@noble/hashes": "catalog:",
     "tweetnacl": "catalog:"

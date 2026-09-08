@@ -85,11 +85,42 @@ describe("readLoginFormData", () => {
     await expect(readLoginFormData(loginRequest)).resolves.toBeNull();
   });
 
+  it("rejects an oversized login body before form parsing", async () => {
+    const loginRequest = new Request("https://app.insecur.cloud/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `junk=${"x".repeat(8 * 1024)}`,
+    });
+
+    await expect(readLoginFormData(loginRequest)).resolves.toBeNull();
+  });
+
+  it("rejects a declared oversized login body without reading its stream", async () => {
+    const loginRequest = {
+      url: "https://app.insecur.cloud/login",
+      headers: new Headers({
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Length": String(8 * 1024 + 1),
+      }),
+      get body(): never {
+        throw new Error("request body should not be read");
+      },
+    } as unknown as Request;
+
+    await expect(readLoginFormData(loginRequest)).resolves.toBeNull();
+  });
+
   it("does not hide an unexpected form parser failure", async () => {
     const unexpected = new Error("unexpected parser failure");
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(unexpected);
+      },
+    });
     const loginRequest = {
+      url: "https://app.insecur.cloud/login",
       headers: new Headers({ "Content-Type": "application/x-www-form-urlencoded" }),
-      formData: vi.fn().mockRejectedValue(unexpected),
+      body,
     } as unknown as Request;
 
     await expect(readLoginFormData(loginRequest)).rejects.toBe(unexpected);

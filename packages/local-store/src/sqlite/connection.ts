@@ -107,9 +107,13 @@ function initializeLocalStoreSchema(database: LocalSqliteDatabase): void {
   assertCurrentSchemaVersion(database);
 }
 
-export function openLocalSqliteDatabase(databaseFilePath: string): LocalSqliteDatabase {
+export function openBareLocalSqliteDatabase(databaseFilePath: string): LocalSqliteDatabase {
   preparePrivateDatabaseFile(databaseFilePath);
-  const database = openRuntimeSqliteDatabase(databaseFilePath);
+  return openRuntimeSqliteDatabase(databaseFilePath);
+}
+
+export function openLocalSqliteDatabase(databaseFilePath: string): LocalSqliteDatabase {
+  const database = openBareLocalSqliteDatabase(databaseFilePath);
   try {
     initializeLocalStoreSchema(database);
     return database;
