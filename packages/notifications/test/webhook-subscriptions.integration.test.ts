@@ -8,6 +8,7 @@ import {
   base64UrlToBytes,
   brandOpaqueResourceIdForPrefix,
   injectionGrantId,
+  NOTIFICATION_ERROR_CODES,
   organizationId,
   parseDisplayName,
   projectId,
@@ -19,6 +20,7 @@ import {
   clearAuditNotificationEmitter,
   createWebhookSubscription,
   registerAuditNotificationEmitter,
+  rotateWebhookSubscriptionSigningSecret,
   verifyEventNotificationSignature,
 } from "@insecur/notifications";
 import {
@@ -190,5 +192,54 @@ describeRls("webhook subscriptions and event notifications", () => {
       async ({ db }) => new TenantWebhookSubscriptionStore(db).list(ORG_A),
     );
     expect(orgAView.some((row) => row.subscriptionId === orgASubscription)).toBe(true);
+  });
+
+  it("serializes concurrent signing-secret rotations to one active replacement", async () => {
+    const created = await createWebhookSubscription({
+      actorUserId: USER,
+      organizationId: ORG_A,
+      displayName: parseName("Rotation alerts"),
+      eventCodes: [WEBHOOK_EVENT_CODES.secretNonProtectedWrite],
+      enableEmailChannel: false,
+      enableInAppChannel: true,
+      keyring,
+      accessActor: ACTOR,
+    });
+
+    const rotations = await Promise.allSettled(
+      [0, 1].map(() =>
+        rotateWebhookSubscriptionSigningSecret({
+          actorUserId: USER,
+          organizationId: ORG_A,
+          subscriptionId: created.subscriptionId,
+          keyring,
+          accessActor: ACTOR,
+        }),
+      ),
+    );
+
+    expect(rotations.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = rotations.find((result) => result.status === "rejected");
+    expect(rejected).toMatchObject({
+      status: "rejected",
+      reason: { code: NOTIFICATION_ERROR_CODES.signingSecretMissing },
+    });
+
+    const rows = await withTenantScope(
+      { kind: "organization", organizationId: ORG_A },
+      async ({ sql }) =>
+        sql<{ status: string; count: string }[]>`
+          SELECT status, count(*)::text AS count
+          FROM webhook_signing_secrets
+          WHERE org_id = ${ORG_A}
+            AND subscription_id = ${created.subscriptionId}
+          GROUP BY status
+          ORDER BY status
+        `,
+    );
+    expect(rows).toEqual([
+      { status: "active", count: "1" },
+      { status: "retired", count: "1" },
+    ]);
   });
 });

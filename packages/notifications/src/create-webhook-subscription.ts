@@ -4,14 +4,18 @@ import {
   webhookSigningSecretId,
   webhookSubscriptionId,
 } from "@insecur/domain";
-import { TenantWebhookSubscriptionStore, withTenantScope } from "@insecur/tenant-store";
+import {
+  TenantWebhookSigningSecretStore,
+  TenantWebhookSubscriptionStore,
+  withTenantScope,
+} from "@insecur/tenant-store";
 
 import {
   recordWebhookSubscriptionCreateDenied,
   recordWebhookSubscriptionCreated,
   toWebhookAuditReasonCode,
 } from "./record-webhook-audit.js";
-import { mintWebhookSigningSecret } from "./webhook-signing-secret-lifecycle.js";
+import { prepareWebhookSigningSecret } from "./webhook-signing-secret-lifecycle.js";
 import {
   assertWebhookManageAccess,
   assertV1WebhookChannels,
@@ -36,10 +40,16 @@ export async function createWebhookSubscription(
 
     const subscriptionId = webhookSubscriptionId.generate();
     const signingSecretId = webhookSigningSecretId.generate();
+    const { plaintext, wrapped } = await prepareWebhookSigningSecret({
+      keyring: input.keyring,
+      organizationId: input.organizationId,
+      subscriptionId,
+      signingSecretId,
+    });
     const created = await withTenantScope(
       { kind: "organization", organizationId: input.organizationId },
-      async ({ db }) =>
-        new TenantWebhookSubscriptionStore(db).create({
+      async ({ db }) => {
+        const subscription = await new TenantWebhookSubscriptionStore(db).create({
           organizationId: input.organizationId,
           subscriptionId,
           displayName: input.displayName,
@@ -48,14 +58,16 @@ export async function createWebhookSubscription(
           enableEmailChannel: input.enableEmailChannel,
           enableInAppChannel: input.enableInAppChannel,
           createdByUserId: input.actorUserId,
-        }),
+        });
+        await new TenantWebhookSigningSecretStore(db).insertSecret({
+          organizationId: input.organizationId,
+          subscriptionId,
+          signingSecretId,
+          wrapped,
+        });
+        return subscription;
+      },
     );
-    const { plaintext } = await mintWebhookSigningSecret({
-      keyring: input.keyring,
-      organizationId: input.organizationId,
-      subscriptionId,
-      signingSecretId,
-    });
     await recordWebhookSubscriptionCreated({ ...auditScope, subscriptionId });
     return toPayload(created, bytesToBase64Url(plaintext));
   } catch (error) {

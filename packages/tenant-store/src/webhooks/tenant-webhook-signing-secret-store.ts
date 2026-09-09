@@ -46,19 +46,24 @@ export class TenantWebhookSigningSecretStore {
     });
   }
 
-  async retireSecret(
+  async retireActiveSecret(
     organizationId: OrganizationId,
+    subscriptionId: WebhookSubscriptionId,
     signingSecretId: WebhookSigningSecretId,
-  ): Promise<void> {
-    await this.db
+  ): Promise<boolean> {
+    const retired = await this.db
       .update(webhookSigningSecrets)
       .set({ status: "retired", retiredAt: new Date() })
       .where(
         and(
           eq(webhookSigningSecrets.orgId, organizationId),
+          eq(webhookSigningSecrets.subscriptionId, subscriptionId),
           eq(webhookSigningSecrets.id, signingSecretId),
+          eq(webhookSigningSecrets.status, "active"),
         ),
-      );
+      )
+      .returning({ id: webhookSigningSecrets.id });
+    return retired.length === 1;
   }
 
   async getActiveSecret(

@@ -282,6 +282,7 @@ function isNonRouteMiddlewareUse(source, callIndex) {
   return (
     /^app\.use\(\s*sentry\(/.test(snippet) ||
     /^app\.use\(\s*["'`][^"'`]+["'`]\s*,\s*sentry\(/.test(snippet) ||
+    /^app\.use\(\s*apiRequestBodyLimitMiddleware\s*\)/.test(snippet) ||
     /^app\.use\(\s*apiRequestAnalyticsMiddleware\s*\)/.test(snippet)
   );
 }

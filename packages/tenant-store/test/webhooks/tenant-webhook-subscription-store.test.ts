@@ -2,8 +2,10 @@ import {
   inAppEventNotificationId,
   organizationId,
   userId,
+  webhookSigningSecretId,
   webhookSubscriptionId,
 } from "@insecur/domain";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import { TenantInAppEventNotificationStore } from "../../src/webhooks/tenant-in-app-event-notification-store.js";
@@ -13,6 +15,7 @@ import { createMockTenantDb } from "../helpers/mock-tenant-db.js";
 
 const ORG = organizationId.brand("org_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const SUBSCRIPTION = webhookSubscriptionId.brand("whsub_01JZ8EFH2R7M4T0V9X3C5D8F1G");
+const SIGNING_SECRET = webhookSigningSecretId.brand("whsec_01JZ8EFH2R7M4T0V9X3C5D8F1G");
 const SETUP_USER = userId.brand("usr_01JZ8E2QYQ6M7F4K9A2B3C4D5E");
 const NOW = new Date("2026-07-07T12:00:00.000Z");
 
@@ -72,6 +75,29 @@ describe("TenantWebhookSigningSecretStore", () => {
     const store = new TenantWebhookSigningSecretStore(db);
 
     await expect(store.getActiveSecret(ORG, SUBSCRIPTION)).resolves.toBeNull();
+  });
+
+  it("retires an active signing secret with a subscription-scoped compare-and-set", async () => {
+    const { db, updateWheres } = createMockTenantDb({
+      updateReturning: [[{ id: SIGNING_SECRET }]],
+    });
+    const store = new TenantWebhookSigningSecretStore(db);
+
+    await expect(store.retireActiveSecret(ORG, SUBSCRIPTION, SIGNING_SECRET)).resolves.toBe(true);
+
+    const query = new PgDialect().sqlToQuery(updateWheres[0] as never);
+    expect(query.sql).toContain('"webhook_signing_secrets"."org_id" = $1');
+    expect(query.sql).toContain('"webhook_signing_secrets"."subscription_id" = $2');
+    expect(query.sql).toContain('"webhook_signing_secrets"."id" = $3');
+    expect(query.sql).toContain('"webhook_signing_secrets"."status" = $4');
+    expect(query.params).toEqual([ORG, SUBSCRIPTION, SIGNING_SECRET, "active"]);
+  });
+
+  it("reports a stale signing-secret retirement", async () => {
+    const { db } = createMockTenantDb({ updateReturning: [[]] });
+    const store = new TenantWebhookSigningSecretStore(db);
+
+    await expect(store.retireActiveSecret(ORG, SUBSCRIPTION, SIGNING_SECRET)).resolves.toBe(false);
   });
 });
 

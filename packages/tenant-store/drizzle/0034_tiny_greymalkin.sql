@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "webhook_signing_secrets_one_active_per_subscription" ON "webhook_signing_secrets" USING btree ("org_id","subscription_id") WHERE "webhook_signing_secrets"."status" = 'active';

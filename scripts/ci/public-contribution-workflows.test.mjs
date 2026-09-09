@@ -18,8 +18,27 @@ test("pull request CI cannot reach privileged Preview deployment", async () => {
   assert.doesNotMatch(deployPreview, /\n\s+pull_request:/u);
 });
 
+test("only reviewed CI refs receive signed remote-cache write credentials", async () => {
+  const ci = await workflow("ci.yml");
+  const trustedWriterCondition =
+    /\(github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'\) \|\| github\.event_name == 'merge_group'/gu;
+
+  assert.equal(
+    ci.match(trustedWriterCondition)?.length,
+    3,
+    "each remote-cache credential must be restricted to main pushes and merge-group commits",
+  );
+  assert.match(ci, /push:\n\s+branches:\n\s+- main\n[\s\S]+- "renovate\/\*\*"/u);
+  assert.doesNotMatch(
+    ci,
+    /\(github\.event_name == 'push' \|\| github\.event_name == 'merge_group'\) && secrets\.TURBO_/u,
+  );
+});
+
 test("comment automation authorizes callers before privileged jobs", async () => {
   const claude = await workflow("claude.yml");
+  const claudeAgent = await workflow("claude-agent-reusable.yml");
+  const claudeReview = await workflow("claude-code-review-reusable.yml");
   const authorize = claude.slice(claude.indexOf("  authorize:"), claude.indexOf("  claude:"));
   const privilegedJobs = claude.slice(claude.indexOf("  claude:"));
 
@@ -43,4 +62,37 @@ test("comment automation authorizes callers before privileged jobs", async () =>
     2,
     "each secret-bearing reusable workflow must fail closed for a public caller",
   );
+  assert.match(privilegedJobs, /uses: \.\/\.github\/workflows\/claude-agent-reusable\.yml/u);
+  assert.match(privilegedJobs, /uses: \.\/\.github\/workflows\/claude-code-review-reusable\.yml/u);
+  assert.doesNotMatch(
+    privilegedJobs,
+    /uses: zaks-io\/claude-code-action/u,
+    "credentialed jobs must not delegate to workflows with unpinned nested actions",
+  );
+  assert.ok(
+    claudeReview.indexOf("- name: Create check run") <
+      claudeReview.indexOf("- name: Checkout code"),
+    "comment-triggered reviews must resolve the pull request head before review",
+  );
+  assert.match(claudeReview, /core\.setOutput\('head_sha', pr\.data\.head\.sha\)/u);
+  for (const reusableWorkflow of [claudeAgent, claudeReview]) {
+    assert.match(reusableWorkflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/u);
+    assert.doesNotMatch(reusableWorkflow, /ref: .*head\.sha/u);
+  }
+  assert.match(claudeReview, /persist-credentials: false/u);
+  assert.match(
+    claudeReview,
+    /REVIEW HEAD SHA: \$\{\{ inputs\.trigger_type == 'comment' && steps\.check\.outputs\.head_sha \|\| github\.event\.pull_request\.head\.sha \}\}/u,
+  );
+  assert.match(claudeReview, /Do not execute, source, or install code from the pull request\./u);
+  for (const reusableWorkflow of [claudeAgent, claudeReview]) {
+    assert.match(reusableWorkflow, /runs-on: blacksmith-2vcpu-ubuntu-2404/u);
+    assert.doesNotMatch(reusableWorkflow, /runs-on: ubuntu-latest/u);
+    assert.match(reusableWorkflow, /claude_code_oauth_token:/u);
+    assert.doesNotMatch(
+      reusableWorkflow,
+      /id-token: write/u,
+      "OAuth-authenticated workflows must not mint GitHub OIDC tokens",
+    );
+  }
 });
