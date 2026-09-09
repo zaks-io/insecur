@@ -70,6 +70,8 @@ test("comment automation authorizes callers before privileged jobs", async () =>
     "credentialed jobs must not delegate to workflows with unpinned nested actions",
   );
   for (const reusableWorkflow of [claudeAgent, claudeReview]) {
+    assert.match(reusableWorkflow, /runs-on: blacksmith-2vcpu-ubuntu-2404/u);
+    assert.doesNotMatch(reusableWorkflow, /runs-on: ubuntu-latest/u);
     assert.match(reusableWorkflow, /claude_code_oauth_token:/u);
     assert.doesNotMatch(
       reusableWorkflow,
