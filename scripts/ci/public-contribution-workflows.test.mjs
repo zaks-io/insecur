@@ -37,6 +37,8 @@ test("only reviewed CI refs receive signed remote-cache write credentials", asyn
 
 test("comment automation authorizes callers before privileged jobs", async () => {
   const claude = await workflow("claude.yml");
+  const claudeAgent = await workflow("claude-agent-reusable.yml");
+  const claudeReview = await workflow("claude-code-review-reusable.yml");
   const authorize = claude.slice(claude.indexOf("  authorize:"), claude.indexOf("  claude:"));
   const privilegedJobs = claude.slice(claude.indexOf("  claude:"));
 
@@ -67,4 +69,12 @@ test("comment automation authorizes callers before privileged jobs", async () =>
     /uses: zaks-io\/claude-code-action/u,
     "credentialed jobs must not delegate to workflows with unpinned nested actions",
   );
+  for (const reusableWorkflow of [claudeAgent, claudeReview]) {
+    assert.match(reusableWorkflow, /claude_code_oauth_token:/u);
+    assert.doesNotMatch(
+      reusableWorkflow,
+      /id-token: write/u,
+      "OAuth-authenticated workflows must not mint GitHub OIDC tokens",
+    );
+  }
 });
