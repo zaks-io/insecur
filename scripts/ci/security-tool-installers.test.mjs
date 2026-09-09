@@ -64,9 +64,11 @@ test("security attestation Python scanners use a hash-locked binary-only depende
   assert.match(source, /--only-binary=:all:/u);
   assert.match(source, /--require-hashes/u);
   assert.match(source, /--requirement "\$REQUIREMENTS_FILE"/u);
-  assert.equal(requirementsInput, "checkov==3.2.510\nsemgrep==1.157.0\n");
+  assert.equal(requirementsInput, "checkov==3.2.510\nsemgrep==1.173.0\n");
   assert.match(requirements, /^checkov==3\.2\.510 \\/mu);
-  assert.match(requirements, /^semgrep==1\.157\.0 \\/mu);
+  assert.match(requirements, /^mcp==1\.29\.0 \\/mu);
+  assert.match(requirements, /^pyjwt==2\.13\.0 \\/mu);
+  assert.match(requirements, /^semgrep==1\.173\.0 \\/mu);
 
   const lines = requirements.split("\n");
   const requirementIndexes = lines.flatMap((line, index) =>

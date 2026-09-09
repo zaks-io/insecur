@@ -239,6 +239,13 @@
       "when": 1784950000000,
       "tag": "0033_delivery_risk_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1788923067764,
+      "tag": "0034_tiny_greymalkin",
+      "breakpoints": true
     }
   ]
 }

@@ -189,6 +189,15 @@
     "notes": "CLI `run` missing or invalid command after `--`; API request-body validation (PKCE exchange, run-completed `childExitCode`)."
   },
   {
+    "code": "validation.request_body_too_large",
+    "slug": "validation-request-body-too-large",
+    "typeUri": "https://insecur.dev/errors/validation-request-body-too-large",
+    "exitCode": 2,
+    "httpStatus": 413,
+    "remediationRequired": false,
+    "notes": "Public API request body exceeds the bounded JSON envelope limit and is rejected before analytics, abuse accounting, authentication, RPC, or persistence."
+  },
+  {
     "code": "validation.invalid_display_name",
     "slug": "validation-invalid-display-name",
     "typeUri": "https://insecur.dev/errors/validation-invalid-display-name",

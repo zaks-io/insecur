@@ -4708,7 +4708,15 @@
         "nullsNotDistinct": false
       }
     ],
-    "indexes": [],
+    "indexes": [
+      {
+        "name": "webhook_signing_secrets_one_active_per_subscription",
+        "columns": ["org_id", "subscription_id"],
+        "unique": true,
+        "nullsNotDistinct": false,
+        "whereSql": "\"webhook_signing_secrets\".\"status\" = 'active'"
+      }
+    ],
     "foreignKeys": [
       {
         "name": "webhook_signing_secrets_org_id_organizations_id_fk",

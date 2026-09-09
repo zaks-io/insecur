@@ -64,7 +64,3 @@ export {
   recordApprovalNotificationSent,
 } from "./record-approval-notification-audit.js";
 export { decryptWebhookSigningSecret } from "./decrypt-webhook-signing-secret.js";
-export {
-  mintWebhookSigningSecret,
-  rotateWebhookSigningSecret,
-} from "./webhook-signing-secret-lifecycle.js";

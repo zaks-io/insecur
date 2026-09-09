@@ -12,6 +12,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   boolean,
 } from "./pg-core.js";
 import { organizations } from "./tenant-hierarchy.js";
@@ -82,6 +83,9 @@ export const webhookSigningSecrets = pgTable(
   },
   (table) => [
     unique("webhook_signing_secrets_org_id_id_key").on(table.orgId, table.id),
+    uniqueIndex("webhook_signing_secrets_one_active_per_subscription")
+      .on(table.orgId, table.subscriptionId)
+      .where(sql`${table.status} = 'active'`),
     foreignKey({
       name: orgSubscriptionFkey("webhook_signing_secrets"),
       columns: [table.orgId, table.subscriptionId],

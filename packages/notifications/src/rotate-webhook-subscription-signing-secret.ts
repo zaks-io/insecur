@@ -16,22 +16,28 @@ import {
 } from "@insecur/tenant-store";
 
 import { recordWebhookSubscriptionUpdated } from "./record-webhook-audit.js";
-import { rotateWebhookSigningSecret } from "./webhook-signing-secret-lifecycle.js";
+import { prepareWebhookSigningSecret } from "./webhook-signing-secret-lifecycle.js";
 import {
   assertWebhookManageAccess,
   buildWebhookSubscriptionAuditScope,
 } from "./webhook-subscription-shared.js";
 
-export async function rotateWebhookSubscriptionSigningSecret(input: {
+interface RotateWebhookSubscriptionSigningSecretInput {
   readonly actorUserId: UserId;
   readonly organizationId: OrganizationId;
   readonly subscriptionId: WebhookSubscriptionId;
   readonly keyring: Keyring;
   readonly accessActor: ActorRef;
   readonly requestId?: RequestId;
-}): Promise<{ readonly signingSecret: string }> {
-  await assertWebhookManageAccess(input.accessActor, input.organizationId);
+}
 
+function signingSecretMissingError() {
+  return Object.assign(new Error("Signing secret missing."), {
+    code: NOTIFICATION_ERROR_CODES.signingSecretMissing,
+  });
+}
+
+async function readActiveSigningSecret(input: RotateWebhookSubscriptionSigningSecretInput) {
   const activeSecret = await withTenantScope(
     { kind: "organization", organizationId: input.organizationId },
     async ({ db }) => {
@@ -51,19 +57,53 @@ export async function rotateWebhookSubscriptionSigningSecret(input: {
     },
   );
   if (!activeSecret) {
-    throw Object.assign(new Error("Signing secret missing."), {
-      code: NOTIFICATION_ERROR_CODES.signingSecretMissing,
-    });
+    throw signingSecretMissingError();
   }
+  return activeSecret;
+}
 
-  const newSigningSecretId = webhookSigningSecretId.generate();
-  const { plaintext } = await rotateWebhookSigningSecret({
+async function replaceActiveSigningSecret(
+  input: RotateWebhookSubscriptionSigningSecretInput,
+  activeSecret: Awaited<ReturnType<typeof readActiveSigningSecret>>,
+  replacement: Awaited<ReturnType<typeof prepareWebhookSigningSecret>> & {
+    signingSecretId: ReturnType<typeof webhookSigningSecretId.generate>;
+  },
+): Promise<void> {
+  await withTenantScope(
+    { kind: "organization", organizationId: input.organizationId },
+    async ({ db }) => {
+      const store = new TenantWebhookSigningSecretStore(db);
+      const retired = await store.retireActiveSecret(
+        input.organizationId,
+        input.subscriptionId,
+        activeSecret.id,
+      );
+      if (!retired) {
+        throw signingSecretMissingError();
+      }
+      await store.insertSecret({
+        organizationId: input.organizationId,
+        subscriptionId: input.subscriptionId,
+        signingSecretId: replacement.signingSecretId,
+        wrapped: replacement.wrapped,
+      });
+    },
+  );
+}
+
+export async function rotateWebhookSubscriptionSigningSecret(
+  input: RotateWebhookSubscriptionSigningSecretInput,
+): Promise<{ readonly signingSecret: string }> {
+  await assertWebhookManageAccess(input.accessActor, input.organizationId);
+  const activeSecret = await readActiveSigningSecret(input);
+  const signingSecretId = webhookSigningSecretId.generate();
+  const prepared = await prepareWebhookSigningSecret({
     keyring: input.keyring,
     organizationId: input.organizationId,
     subscriptionId: input.subscriptionId,
-    previousSigningSecretId: activeSecret.id,
-    newSigningSecretId,
+    signingSecretId,
   });
+  await replaceActiveSigningSecret(input, activeSecret, { ...prepared, signingSecretId });
   await recordWebhookSubscriptionUpdated(buildWebhookSubscriptionAuditScope(input));
-  return { signingSecret: bytesToBase64Url(plaintext) };
+  return { signingSecret: bytesToBase64Url(prepared.plaintext) };
 }

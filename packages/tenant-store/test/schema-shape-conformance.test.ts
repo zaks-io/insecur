@@ -33,6 +33,7 @@ import * as tenantWebhooksSchema from "../src/db/schema/tenant-webhooks.js";
 import * as restoreImportSchema from "../src/db/schema/restore-import.js";
 import { environments } from "../src/db/schema/tenant-hierarchy.js";
 import { secrets } from "../src/db/schema/tenant-secrets.js";
+import { webhookSigningSecrets } from "../src/db/schema/tenant-webhooks.js";
 import { materializePgTableExtraConfigs } from "./helpers/materialize-pg-table-extra-config.js";
 
 const USER_SCHEMA_MODULES = {
@@ -118,6 +119,17 @@ describe("schema shape conformance (unit layer)", () => {
         "environments_staging_production_protected_check",
       ].sort(),
     );
+  });
+
+  it("permits only one active signing secret per webhook subscription", () => {
+    const signingSecretShape = extractSchemaShapeTable(webhookSigningSecrets);
+    expect(signingSecretShape.indexes).toContainEqual({
+      name: "webhook_signing_secrets_one_active_per_subscription",
+      columns: ["org_id", "subscription_id"],
+      unique: true,
+      nullsNotDistinct: false,
+      whereSql: '"webhook_signing_secrets"."status" = \'active\'',
+    });
   });
 
   it("formats conformance violations for actionable error output", () => {

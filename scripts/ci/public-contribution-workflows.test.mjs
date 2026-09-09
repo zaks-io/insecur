@@ -18,6 +18,23 @@ test("pull request CI cannot reach privileged Preview deployment", async () => {
   assert.doesNotMatch(deployPreview, /\n\s+pull_request:/u);
 });
 
+test("only reviewed CI refs receive signed remote-cache write credentials", async () => {
+  const ci = await workflow("ci.yml");
+  const trustedWriterCondition =
+    /\(github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'\) \|\| github\.event_name == 'merge_group'/gu;
+
+  assert.equal(
+    ci.match(trustedWriterCondition)?.length,
+    3,
+    "each remote-cache credential must be restricted to main pushes and merge-group commits",
+  );
+  assert.match(ci, /push:\n\s+branches:\n\s+- main\n[\s\S]+- "renovate\/\*\*"/u);
+  assert.doesNotMatch(
+    ci,
+    /\(github\.event_name == 'push' \|\| github\.event_name == 'merge_group'\) && secrets\.TURBO_/u,
+  );
+});
+
 test("comment automation authorizes callers before privileged jobs", async () => {
   const claude = await workflow("claude.yml");
   const authorize = claude.slice(claude.indexOf("  authorize:"), claude.indexOf("  claude:"));
@@ -42,5 +59,12 @@ test("comment automation authorizes callers before privileged jobs", async () =>
     privilegedJobs.match(/needs\.authorize\.outputs\.allowed == 'true'/g)?.length,
     2,
     "each secret-bearing reusable workflow must fail closed for a public caller",
+  );
+  assert.match(privilegedJobs, /uses: \.\/\.github\/workflows\/claude-agent-reusable\.yml/u);
+  assert.match(privilegedJobs, /uses: \.\/\.github\/workflows\/claude-code-review-reusable\.yml/u);
+  assert.doesNotMatch(
+    privilegedJobs,
+    /uses: zaks-io\/claude-code-action/u,
+    "credentialed jobs must not delegate to workflows with unpinned nested actions",
   );
 });

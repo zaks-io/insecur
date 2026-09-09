@@ -45,6 +45,7 @@ export const VALIDATION_ERROR_CODES = {
   displayNameEmpty: "validation.display_name_empty",
   invalidVariableKey: "validation.invalid_variable_key",
   invalidCommandInput: "validation.invalid_command_input",
+  requestBodyTooLarge: "validation.request_body_too_large",
   invalidFeedbackKind: "validation.invalid_feedback_kind",
   invalidFeedbackNoteCode: "validation.invalid_feedback_note_code",
   feedbackAssociationRequired: "validation.feedback_association_required",

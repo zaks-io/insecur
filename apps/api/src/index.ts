@@ -34,10 +34,13 @@ import { registerSessionRoutes } from "./routes/v1/session.js";
 import { registerWebhookSubscriptionsRoutes } from "./routes/v1/webhook-subscriptions.js";
 import type { ApiEnv } from "./env.js";
 import { logUnhandledApiError } from "./log-unhandled-error.js";
+import { apiRequestBodyLimitMiddleware } from "./request-body-limit.js";
 
 const app = new Hono<{ Bindings: ApiEnv }>();
 
 app.use(sentry(app, cloudflareSentryOptions));
+
+app.use(apiRequestBodyLimitMiddleware);
 
 app.use(apiRequestAnalyticsMiddleware);
 
