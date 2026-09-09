@@ -47,11 +47,6 @@ jobs:
               content: 'eyes'
             });
 
-      - name: Checkout code
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          fetch-depth: 1
-
       - name: Create check run
         if: inputs.trigger_type == 'comment'
         id: check
@@ -74,6 +69,13 @@ jobs:
             });
 
             core.setOutput('check_run_id', check.data.id);
+            core.setOutput('head_sha', pr.data.head.sha);
+
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.trigger_type == 'comment' && steps.check.outputs.head_sha || github.event.pull_request.head.sha }}
+          fetch-depth: 1
 
       - name: Claude Code Review
         uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9 # v1.0.170

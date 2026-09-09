@@ -69,6 +69,16 @@ test("comment automation authorizes callers before privileged jobs", async () =>
     /uses: zaks-io\/claude-code-action/u,
     "credentialed jobs must not delegate to workflows with unpinned nested actions",
   );
+  assert.ok(
+    claudeReview.indexOf("- name: Create check run") <
+      claudeReview.indexOf("- name: Checkout code"),
+    "comment-triggered reviews must resolve the pull request head before checkout",
+  );
+  assert.match(claudeReview, /core\.setOutput\('head_sha', pr\.data\.head\.sha\)/u);
+  assert.match(
+    claudeReview,
+    /ref: \$\{\{ inputs\.trigger_type == 'comment' && steps\.check\.outputs\.head_sha \|\| github\.event\.pull_request\.head\.sha \}\}/u,
+  );
   for (const reusableWorkflow of [claudeAgent, claudeReview]) {
     assert.match(reusableWorkflow, /runs-on: blacksmith-2vcpu-ubuntu-2404/u);
     assert.doesNotMatch(reusableWorkflow, /runs-on: ubuntu-latest/u);
