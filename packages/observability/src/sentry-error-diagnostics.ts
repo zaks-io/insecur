@@ -132,7 +132,7 @@ function finiteNumberProperty(value: Record<string, unknown>, key: string): Reco
 
 function scrubText(value: string): string {
   return value
-    .split(/([a-z][a-z0-9+.-]*:\/\/[^\s<>"']+)/giu)
+    .split(/((?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\/[^\s<>"']+)/giu)
     .map((part, index) => (index % 2 === 1 ? scrubUrl(part) : scrubNonUrlText(part, true)))
     .join("");
 }
@@ -198,11 +198,12 @@ function scrubUrlParameters(value: string): string {
   const scrubbed = new URLSearchParams();
   let changed = false;
   for (const [key, parameterValue] of new URLSearchParams(value)) {
+    const safeKey = scrubNonUrlText(key, true);
     const safeValue = isSensitiveUrlParameter(key)
       ? REDACTED
       : scrubNonUrlText(parameterValue, true);
-    changed ||= safeValue !== parameterValue;
-    scrubbed.append(key, safeValue);
+    changed ||= safeKey !== key || safeValue !== parameterValue;
+    scrubbed.append(safeKey, safeValue);
   }
   return changed ? scrubbed.toString() : value;
 }

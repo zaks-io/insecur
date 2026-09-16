@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { prepareSentryErrorDiagnostics } from "./sentry-error-diagnostics.js";
 
 describe("prepareSentryErrorDiagnostics", () => {
+  it.each(["", ":", "://"])(
+    "preserves long non-URL diagnostics ending in %s without repeated scheme scans",
+    (suffix) => {
+      const message = "a".repeat(100_000) + suffix;
+      expect(prepareSentryErrorDiagnostics({ message }).message).toBe(message);
+    },
+  );
+
   it("keeps distinct error messages and complete stack frames", () => {
     const leaseError = prepareSentryErrorDiagnostics({
       message: "Claim lease expired",
@@ -185,6 +193,13 @@ describe("prepareSentryErrorDiagnostics", () => {
       }),
     ).toEqual({
       message: "https://example.test/task?token=%5Bredacted%5D&retry=2",
+    });
+  });
+
+  it("scrubs personal information in URL query and fragment names", () => {
+    const message = "https://example.test/task?alice%40example.com=1&retry=2#203.0.113.42=ready";
+    expect(prepareSentryErrorDiagnostics({ message })).toEqual({
+      message: "https://example.test/task?%5Bredacted-email%5D=1&retry=2#%5Bredacted-ip%5D=ready",
     });
   });
 

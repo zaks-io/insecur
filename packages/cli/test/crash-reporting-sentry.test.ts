@@ -1,5 +1,9 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import * as Sentry from "@sentry/node";
 import { afterEach, describe, expect, it } from "vitest";
+import { loadProjectConfig } from "../src/config/project-config.js";
 import { createCliCrashReporter } from "../src/crash-reporting.js";
 
 const UNSAFE_SENTINEL = "raw-event-baggage-must-be-dropped";
@@ -11,34 +15,7 @@ describe("CLI crash reporting through the Sentry SDK", () => {
 
   it("serializes scrubbed original diagnostics without request, user, tag, or local baggage", async () => {
     const envelopes: string[] = [];
-    const reporter = await createCliCrashReporter({
-      argv: ["node", "insecur", "config", "show"],
-      env: { INSECUR_CLI_SENTRY_DSN: "https://public@example.invalid/1" },
-      sentryRuntime: {
-        init(options) {
-          Sentry.init({
-            ...options,
-            transport: (transportOptions) =>
-              Sentry.createTransport(transportOptions, async (request) => {
-                envelopes.push(
-                  typeof request.body === "string"
-                    ? request.body
-                    : new TextDecoder().decode(request.body),
-                );
-                return { statusCode: 200 };
-              }),
-          });
-        },
-        captureException(error, context) {
-          Sentry.withScope((scope) => {
-            scope.addEventProcessor(addPrivateEventData);
-            Sentry.captureException(error, context);
-          });
-        },
-        flush: Sentry.flush,
-      },
-      version: "0.2.0",
-    });
+    const reporter = await createTestReporter(envelopes);
     const error = new SyntaxError("Config parse failed for alice@example.com");
     error.stack =
       "SyntaxError: Config parse failed for alice@example.com\n" +
@@ -76,6 +53,49 @@ describe("CLI crash reporting through the Sentry SDK", () => {
     expect(JSON.stringify(event)).not.toContain(UNSAFE_SENTINEL);
     expect(JSON.stringify(event)).not.toContain("vars");
   });
+
+  it.each([
+    {
+      field: "variableKey",
+      secretShape: { variableKey: "customer-private-key" },
+      privateValue: "customer-private-key",
+    },
+    {
+      field: "displayName",
+      secretShape: { variableKey: "VALID_KEY", displayName: "private customer label".repeat(12) },
+      privateValue: "private customer label",
+    },
+  ])(
+    "omits raw $field values from malformed project config errors",
+    async ({ field, secretShape, privateValue }) => {
+      const directory = await mkdtemp(path.join(tmpdir(), "insecur-sentry-config-"));
+      const envelopes: string[] = [];
+      const reporter = await createTestReporter(envelopes);
+      try {
+        await writeFile(
+          path.join(directory, ".insecur.json"),
+          JSON.stringify({
+            host: "local",
+            projectId: "prj_test",
+            defaultEnvId: "env_test",
+            profileId: "prof_test",
+            secretShapes: [secretShape],
+          }),
+        );
+        const error = await loadProjectConfig(directory).catch((cause: unknown) => cause);
+        expect(error).toBeInstanceOf(Error);
+        await reporter.captureException(error, { source: "unexpected" });
+        await reporter.flush(2_000);
+        const event = capturedEvent(envelopes);
+        expect(event.exception).toMatchObject({
+          values: [{ type: "Error", value: `secretShapes[0].${field} is invalid` }],
+        });
+        expect(JSON.stringify(event)).not.toContain(privateValue);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 function capturedEvent(envelopes: readonly string[]): Record<string, unknown> {
@@ -112,4 +132,35 @@ function addPrivateEventData(event: Sentry.Event): Sentry.Event {
       })),
     },
   };
+}
+
+async function createTestReporter(envelopes: string[]) {
+  return await createCliCrashReporter({
+    argv: ["node", "insecur", "config", "show"],
+    env: { INSECUR_CLI_SENTRY_DSN: "https://public@example.invalid/1" },
+    sentryRuntime: {
+      init(options) {
+        Sentry.init({
+          ...options,
+          transport: (transportOptions) =>
+            Sentry.createTransport(transportOptions, async (request) => {
+              envelopes.push(
+                typeof request.body === "string"
+                  ? request.body
+                  : new TextDecoder().decode(request.body),
+              );
+              return { statusCode: 200 };
+            }),
+        });
+      },
+      captureException(error, context) {
+        Sentry.withScope((scope) => {
+          scope.addEventProcessor(addPrivateEventData);
+          Sentry.captureException(error, context);
+        });
+      },
+      flush: Sentry.flush,
+    },
+    version: "0.2.0",
+  });
 }

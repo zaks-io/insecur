@@ -23,7 +23,7 @@ function parseOptionalDisplayName(value: unknown, context: string): DisplayName 
   const raw = requireNonEmptyString(value, context);
   const parsed = parseDisplayName(raw);
   if (!parsed.ok) {
-    throw new Error(`${context} is invalid: ${raw}`);
+    throw new Error(`${context} is invalid`);
   }
   return parsed.value;
 }
@@ -36,7 +36,7 @@ function parseVariableKeyField(record: Record<string, unknown>, context: string)
   const variableKeyRaw = requireNonEmptyString(record.variableKey, `${context}.variableKey`);
   const parsedVariableKey = parseVariableKey(variableKeyRaw);
   if (!parsedVariableKey.ok) {
-    throw new Error(`${context}.variableKey is invalid: ${variableKeyRaw}`);
+    throw new Error(`${context}.variableKey is invalid`);
   }
   return parsedVariableKey.value;
 }
