@@ -21,7 +21,7 @@ const METADATA_ONLY_DATA_COLLECTION = {
 };
 
 describe("observability sentry config", () => {
-  it("uses the metadata-only posture in every environment", () => {
+  it("disables personal and request-data collection in every environment", () => {
     for (const environment of [undefined, "preview", "production"]) {
       const options = cloudflareSentryOptions({
         SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
@@ -45,12 +45,12 @@ describe("observability sentry config", () => {
     });
     const event = options.beforeSend?.(
       {
-        message: sentinel,
+        message: "Backup export failed",
         exception: {
           values: [
             {
-              type: sentinel,
-              value: sentinel,
+              type: "TypeError",
+              value: "Cannot read properties of undefined",
               mechanism: { data: { raw: sentinel } },
               stacktrace: { frames: [{ vars: { raw: sentinel }, context_line: sentinel }] },
             },
@@ -131,10 +131,10 @@ describe("observability sentry config", () => {
 
     expect(JSON.stringify({ event, span, transaction })).not.toContain(sentinel);
     expect(event).toMatchObject({
-      message: "[redacted by insecur]",
+      message: "Backup export failed",
       environment: "preview",
       event_id: "0123456789abcdef0123456789abcdef",
-      exception: { values: [{ value: "[redacted by insecur]" }] },
+      exception: { values: [{ type: "TypeError", value: "Cannot read properties of undefined" }] },
       breadcrumbs: [],
       extra: {},
       tags: { service: "insecur-api" },
@@ -258,7 +258,7 @@ describe("observability sentry config", () => {
     });
   });
 
-  it("applies the same metadata-only sanitizers in the browser", () => {
+  it("applies the same privacy filters in the browser", () => {
     const sentinel = "browser-sensitive-value";
     const init = vi.fn<(options: BrowserSentryOptions<object>) => void>();
     vi.stubGlobal("window", {
@@ -272,7 +272,7 @@ describe("observability sentry config", () => {
     initBrowserSentry({}, { init, routerTracingIntegration: () => ({}) });
     const options = init.mock.calls[0]?.[0];
     const event = options?.beforeSend({
-      message: sentinel,
+      message: "Request failed",
       request: { body: sentinel },
       tags: { raw: sentinel },
     });
@@ -282,7 +282,7 @@ describe("observability sentry config", () => {
       enableLogs: false,
     });
     expect(JSON.stringify(event)).not.toContain(sentinel);
-    expect(event).toMatchObject({ tags: { service: "insecur-web" } });
+    expect(event).toMatchObject({ message: "Request failed", tags: { service: "insecur-web" } });
     vi.unstubAllGlobals();
   });
 

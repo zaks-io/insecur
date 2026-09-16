@@ -38,4 +38,5 @@ deploy reports with consistent environment, release, and service tags.
 ## Plaintext Rule
 
 Nothing tenant-scoped or secret-derived may reach a Sentry tag, breadcrumb, or context through
-this package. Telemetry is allowlisted, not filtered after the fact (ADR-0030).
+this package. Error messages and stack locations retain diagnostic detail with targeted personal-information
+and credential scrubbing. Other telemetry fields remain allowlisted (ADR-0030).

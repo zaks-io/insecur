@@ -219,9 +219,26 @@ async function importSentryRuntime(): Promise<SentryRuntime> {
 }
 
 function toErrorForCapture(error: unknown): Error {
-  const captured = new Error("Unexpected CLI failure");
-  captured.name = error instanceof Error ? "Error" : "NonErrorThrown";
+  if (error instanceof Error) {
+    return error;
+  }
+  const captured = new Error(nonErrorThrowMessage(error));
+  captured.name = "NonErrorThrown";
   return captured;
+}
+
+function nonErrorThrowMessage(error: unknown): string {
+  if (
+    error === null ||
+    error === undefined ||
+    typeof error === "string" ||
+    typeof error === "number" ||
+    typeof error === "boolean" ||
+    typeof error === "bigint"
+  ) {
+    return `Non-Error thrown: ${String(error)}`;
+  }
+  return `Non-Error thrown (${typeof error})`;
 }
 
 function optional(value: string | undefined): string | undefined {
