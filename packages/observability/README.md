@@ -21,10 +21,18 @@ and service tags, and so no surface has to hand-roll DSN handling.
 - Source map upload or release creation; those live in the deploy workflows.
 - Audit events (`@insecur/audit`). Observability is operational telemetry, not the record.
 
+## Error diagnostics
+
+Worker, browser, and CLI error reports retain scrubbed messages, exception types, severity,
+and stack locations for grouping and source-map resolution. Request payloads, user profiles,
+breadcrumbs, stack locals, and arbitrary context are excluded. Callers must not interpolate
+secret values or personal records into errors; text scrubbing cannot identify every sensitive
+value. See [ADR-0030](../../docs/adr/0030-hybrid-allowlisted-telemetry.md).
+
 ## Interface Tests
 
-Covered through the consuming apps. Any test added here must assert option construction from
-bindings only; do not assert against a live Sentry client.
+Tests cover SDK option construction, preservation of error diagnostics, and targeted scrubbing
+using synthetic personal information and credentials.
 
 ## Dependency Rule
 

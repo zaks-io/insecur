@@ -1,3 +1,4 @@
+export { prepareSentryErrorDiagnostics } from "./sentry-error-diagnostics.js";
 import type { CloudflareOptions } from "@sentry/cloudflare";
 import {
   prepareSentryEvent,
@@ -42,6 +43,7 @@ export interface BrowserSentryOptions<TIntegration> {
   readonly tracesSampleRate: number;
   readonly dataCollection: MetadataOnlySentryDataCollection;
   readonly enableLogs: boolean;
+  readonly maxBreadcrumbs: number;
   readonly integrations: TIntegration[];
   readonly beforeSend: <TEvent extends SentryEventLike>(event: TEvent) => TEvent;
   readonly beforeSendSpan: <TSpan extends SentrySpanLike>(span: TSpan) => TSpan;
@@ -92,6 +94,7 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
     dataCollection: METADATA_ONLY_DATA_COLLECTION,
     enableLogs: false,
+    maxBreadcrumbs: 0,
     enableRpcTracePropagation: true,
     // Continue inbound traces only when the caller's baggage carries our Sentry org id (extracted
     // from the DSN); arbitrary third-party sentry-trace/baggage on the public edge starts a new
@@ -180,6 +183,7 @@ function browserSentryOptions<TRouter, TIntegration>(
     tracesSampleRate: config.tracesSampleRate,
     dataCollection: METADATA_ONLY_DATA_COLLECTION,
     enableLogs: false,
+    maxBreadcrumbs: 0,
     integrations: [routerTracingIntegration(router)],
     beforeSend(event) {
       return prepareSentryEvent(event, sanitizationMetadata);

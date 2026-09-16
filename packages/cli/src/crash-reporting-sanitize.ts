@@ -1,3 +1,5 @@
+import { prepareSentryErrorDiagnostics } from "@insecur/observability";
+
 type SentryEvent = Record<string, unknown>;
 
 const SAFE_EVENT_FIELDS = [
@@ -36,20 +38,6 @@ function sanitizeTags(value: unknown): Record<string, string> | undefined {
   return Object.keys(tags).length === 0 ? undefined : tags;
 }
 
-function sanitizedExceptionEntry(): { type: string; value: string } {
-  return { type: "Error", value: "Unexpected CLI failure" };
-}
-
-function sanitizeException(value: unknown): unknown {
-  if (typeof value !== "object" || value === null || !("values" in value)) {
-    return undefined;
-  }
-  const values = (value as { values?: unknown }).values;
-  return Array.isArray(values)
-    ? { values: values.map(() => sanitizedExceptionEntry()) }
-    : undefined;
-}
-
 function addSafeTags(sanitized: SentryEvent, event: SentryEvent): void {
   const tags = sanitizeTags(event.tags);
   if (tags !== undefined) {
@@ -58,12 +46,11 @@ function addSafeTags(sanitized: SentryEvent, event: SentryEvent): void {
 }
 
 export function sanitizeSentryEvent(event: SentryEvent): SentryEvent {
-  const sanitized = pickSafeFields(event);
+  const sanitized = {
+    ...pickSafeFields(event),
+    ...prepareSentryErrorDiagnostics(event),
+  };
   addSafeTags(sanitized, event);
-  const exception = sanitizeException(event.exception);
-  if (exception !== undefined) {
-    sanitized.exception = exception;
-  }
   return sanitized;
 }
 

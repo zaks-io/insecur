@@ -1,4 +1,4 @@
-const REDACTED_SENTRY_MESSAGE = "[redacted by insecur]";
+import { prepareSentryErrorDiagnostics } from "./sentry-error-diagnostics.js";
 
 export interface SentryEventLike {
   environment?: string;
@@ -54,7 +54,7 @@ interface SentryExceptionLike {
   value?: string;
 }
 
-/** Redact every telemetry field except explicit metadata allowlists. */
+/** Keep scrubbed error diagnostics without request payloads or stack locals. */
 export function prepareSentryEvent<TEvent extends SentryEventLike>(
   event: TEvent,
   metadata: SentrySanitizationMetadata,
@@ -62,15 +62,10 @@ export function prepareSentryEvent<TEvent extends SentryEventLike>(
   const sanitized: SentryEventLike = {
     ...safeEventIdentityAndTiming(event),
     ...safeConfiguredMetadata(metadata),
-    message: REDACTED_SENTRY_MESSAGE,
+    ...prepareSentryErrorDiagnostics(event),
     breadcrumbs: [],
     extra: {},
   };
-  if (event.exception?.values?.length) {
-    sanitized.exception = {
-      values: event.exception.values.map(() => ({ value: REDACTED_SENTRY_MESSAGE })),
-    };
-  }
   if (metadata.service) {
     sanitized.tags = { service: metadata.service };
   }

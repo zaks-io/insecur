@@ -11,6 +11,7 @@ import { USER_CONFIG_FILE } from "../src/config/paths.js";
 import { createIsolatedHome } from "./helpers/isolated-home.js";
 
 const SENTINEL = "sentinel-plaintext-must-not-leave-cli";
+const ERROR_MESSAGE = "Config parser rejected malformed JSON";
 
 function captureOutput(): {
   readonly stdout: { value: string };
@@ -94,20 +95,56 @@ describe("CLI crash reporting", () => {
     };
     const sanitizedEvent = initOptions.beforeSend({
       event_id: "event-id",
+      level: "error",
       request: { url: SENTINEL, data: SENTINEL },
       breadcrumbs: [{ message: SENTINEL }],
       contexts: { runtime: { value: SENTINEL } },
       extra: { value: SENTINEL },
       tags: { command_family: "secrets.set", unsafe: SENTINEL },
+      user: { email: SENTINEL },
       exception: {
-        values: [{ type: SENTINEL, value: SENTINEL, stacktrace: { frames: [{ vars: SENTINEL }] } }],
+        values: [
+          {
+            type: "SyntaxError",
+            value: ERROR_MESSAGE,
+            stacktrace: {
+              frames: [
+                {
+                  filename: "/app/dist/config.js",
+                  function: "parseConfig",
+                  lineno: 42,
+                  colno: 7,
+                  vars: { unsafe: SENTINEL },
+                },
+              ],
+            },
+          },
+        ],
       },
     });
     expect(JSON.stringify(sanitizedEvent)).not.toContain(SENTINEL);
     expect(sanitizedEvent).toMatchObject({
       event_id: "event-id",
+      level: "error",
       tags: { command_family: "secrets.set" },
-      exception: { values: [{ type: "Error", value: "Unexpected CLI failure" }] },
+      exception: {
+        values: [
+          {
+            type: "SyntaxError",
+            value: ERROR_MESSAGE,
+            stacktrace: {
+              frames: [
+                {
+                  filename: "/app/dist/config.js",
+                  function: "parseConfig",
+                  lineno: 42,
+                  colno: 7,
+                },
+              ],
+            },
+          },
+        ],
+      },
     });
     const sanitizedTransaction = initOptions.beforeSendTransaction({
       transaction: "insecur secrets.set",
@@ -131,11 +168,15 @@ describe("CLI crash reporting", () => {
     expect(productionInit).toHaveBeenCalledWith(
       expect.not.objectContaining({ dataCollection: expect.anything() }),
     );
-    await reporter.captureException(new Error(SENTINEL), { source: "unexpected" });
+    const originalCause = new Error("config file read failed");
+    const originalError = new SyntaxError(ERROR_MESSAGE, { cause: originalCause });
+    await reporter.captureException(originalError, { source: "unexpected" });
     const captured = captureException.mock.calls.at(-1)?.[0] as Error;
-    expect(captured.name).toBe("Error");
-    expect(captured.message).toBe("Unexpected CLI failure");
-    expect(captured.message).not.toContain(SENTINEL);
+    expect(captured).toBe(originalError);
+    expect(captured.name).toBe("SyntaxError");
+    expect(captured.message).toBe(ERROR_MESSAGE);
+    expect(captured.stack).toBe(originalError.stack);
+    expect(captured.cause).toBe(originalCause);
     expect(reporter.traceHeaders()).toEqual({
       "sentry-trace": "trace-id-span-id-1",
       baggage: "sentry-release=insecur-cli",
