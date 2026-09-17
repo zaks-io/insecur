@@ -4,3 +4,6 @@
 .jscpd-report/
 pnpm-lock.yaml
 **/*.gen.ts
+
+# Vendored workflow skills are verified against their upstream source.
+.agents/skills/ziw-*/
