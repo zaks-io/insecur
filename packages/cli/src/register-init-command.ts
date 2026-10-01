@@ -8,7 +8,8 @@ export function registerInitCommand(program: Command, deps: ProgramDeps): void {
     .description("Provision guided organization defaults and write .insecur.json")
     .option("--profile-slug <slug>", "local CLI profile slug", DEFAULT_INIT_PROFILE_SLUG)
     .action(async function initAction(this: CommanderCommand) {
-      const flags = deps.globalFlags(this);
+      const parsedFlags = deps.globalFlags(this);
+      const flags = { ...parsedFlags, configDir: parsedFlags.configDir ?? process.cwd() };
       const options = this.opts<{ profileSlug: string }>();
       const { api, context } = await deps.resolveApi(flags);
       process.exitCode = await runInitCommand(flags, api, context, {

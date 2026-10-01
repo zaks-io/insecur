@@ -38,7 +38,8 @@ export function registerScanCommand(
     .addHelpText(
       "after",
       "\nThe global --config-dir flag sets the project scan root for this command (defaults to " +
-        "the current working directory). Other commands use it only to locate .insecur.json.\n" +
+        "the discovered project config directory within this Git checkout, or the current " +
+        "working directory when none is found). An explicit directory is used exactly.\n" +
         `\n${MACHINE_SCAN_HELP}\n`,
     )
     .action((...args) => runScanAction(deps, args));

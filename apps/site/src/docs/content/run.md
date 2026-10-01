@@ -21,9 +21,27 @@ insecur run --variable-key DATABASE_URL -- node server.js
 
 The child process sees `DATABASE_URL` in its environment. The CLI does not display it, though the child process can.
 
+The child starts in the invocation directory with an OS environment baseline plus the selected
+value. Unrelated shell credentials and other ambient application settings are excluded. Supply
+required non-secret settings through application arguments or configuration. Libraries can still
+read files under `HOME`; this is not filesystem isolation.
+
+Check selection and availability without issuing a grant:
+
+```sh
+insecur config show --json
+insecur run --variable-key DATABASE_URL --plan --json -- node server.js
+```
+
+Inspect `data.plan.ready`; exit `0` alone does not mean a plan is ready. Current source builds
+also include `data.projectConfigPath` when project config was loaded. A ready plan proves a value
+exists, not its provider permissions. Missing values must be supplied by their owner, never borrowed
+from another project. See the [agent implementation guide](/docs/agent-quickstart).
+
 ## Run from a profile policy
 
-A profile's default Runtime Injection Policy binds an exact set of secrets to a command. Run it by naming the profile:
+This requires hosted mode. Local Mode supports only single-variable runs. A hosted profile's
+default Runtime Injection Policy binds an exact set of secrets to a command. Run it by naming the profile:
 
 ```sh
 insecur run my-profile -- node server.js
@@ -46,7 +64,7 @@ insecur run --variable-key DATABASE_URL --watch -- node server.js
 ## How injection works
 
 1. The CLI requests a fresh one-use Runtime Injection Grant for the exact secret bindings.
-2. Decrypt happens inside the private Runtime service, never in the CLI.
+2. Hosted decryption happens inside the private Runtime service. Local Mode decrypts on this machine using its machine key.
 3. The value is injected into the child process environment. Code controlling that process can read it.
 4. Run completion is recorded as metadata.
 
@@ -60,10 +78,11 @@ Secrets must exist before you inject them. Writes are blind: the value is never 
 insecur secrets set DATABASE_URL --value-stdin
 ```
 
-Generate a value instead of supplying one:
+For an application-owned secret, generate a value instead of supplying one. Never generate a
+substitute for a third-party API key:
 
 ```sh
-insecur secrets set API_TOKEN --generate --length 32
+insecur secrets set SESSION_SIGNING_KEY --generate --length 32
 ```
 
 | Flag                | Effect                                              |

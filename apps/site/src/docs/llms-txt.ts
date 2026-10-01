@@ -23,6 +23,9 @@ function buildLlmsTxt(): string {
     "`.md` suffix, and raw markdown at the `.md` URL. The CLI reports secret metadata;",
     "a child process can still print values it receives. Commands support `--json` and stable exit codes.",
     "",
+    `For project adoption, start with the [agent quickstart](${CANONICAL_ORIGIN}/docs/agent-quickstart.md).`,
+    "It covers Local Mode setup, the intended credential, normal commands, and fresh worktree verification.",
+    "",
   ];
 
   for (const group of DOC_SECTIONS) {

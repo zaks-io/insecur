@@ -7,6 +7,11 @@ order: 1
 
 # Using insecur with coding agents
 
+To have an agent add insecur to an existing project, give it
+[the agent quickstart](/docs/agent-quickstart.md). It covers accountless Local Mode, importing
+the intended credential, wrapping the normal command, and verifying a fresh Git worktree.
+The hosted session and attribution features below are optional and require hosted authentication.
+
 Coding agents read your repo and your `.env` files at machine speed. insecur lets you remove plaintext development secrets from project files and attribute each runtime injection to the session that requested it.
 
 With insecur, an agent does not need a static secret in its ambient environment. Every `insecur run` mints a fresh one-use audited injection grant, and every audit event carries the principal chain: which human, which agent, which command.
@@ -15,7 +20,9 @@ This is development-secret custody, not unreadability. The injected value reache
 
 ## Launch an agent in a deny-by-default session
 
-Wrap your agent harness in `insecur agent shell`. The child starts with a derived agent session and an environment that grants nothing by default.
+For hosted projects, wrap your agent harness in `insecur agent shell`. The child starts with a
+derived agent session and a filtered environment. This is not a filesystem sandbox: the agent
+can still access files allowed by its OS user. Local Mode does not require this command.
 
 ```sh
 insecur agent shell -- claude

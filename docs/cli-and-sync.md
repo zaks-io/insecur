@@ -374,6 +374,24 @@ Precedence:
 3. `.insecur.json`.
 4. User profile defaults.
 
+Project config discovery:
+
+- An explicit `--config-dir` selects exactly that directory, without ancestor search.
+- Otherwise, locate the first `.git` file or directory above the invocation directory, then
+  select the nearest `.insecur.json` within that boundary, including the boundary directory.
+  Never follow a worktree Git pointer to the primary checkout or select config above the boundary.
+- Without a Git boundary, or without a config inside it, use the invocation directory. Invalid
+  or unreadable config fails rather than falling back to a different project.
+- Reads and writes use the same selected directory. `init` pins its default to the invocation
+  directory before context resolution, so initialization never silently rewrites an ancestor config.
+- `scan`, development watch, and `agent setup` use the discovered project directory too. Child
+  execution and relative import/local-file arguments retain the invocation working directory.
+- `config show` reports the selected `projectConfigPath`. `run --plan` includes
+  `data.projectConfigPath` when project config exists, alongside its metadata-only plan.
+- Linked worktrees containing the committed config share the same Local Mode values on one
+  machine through project/environment identity. Missing config or values never authorize
+  discovery of credentials in the primary checkout, another project, or ambient environment.
+
 ## Global Flags
 
 All commands should support:
@@ -1389,7 +1407,7 @@ Rules:
 - If `--variable-key-prefix` is supplied, `import` prepends it to every parsed dotenv key before Import Preflight validation, duplicate detection, Secret Shape matching, Secret Import Plan output, and Blind Secret Writes.
 - `--variable-key-prefix`, when supplied, must match `^[A-Z_][A-Z0-9_]*$`. Prefixes are not a normalization feature; the CLI must not silently uppercase, replace separators, trim internal whitespace, or otherwise normalize either the prefix or parsed keys.
 - `import` applies the same final Variable Key format rule, `^[A-Z_][A-Z0-9_]*$`, after applying any Variable Key Prefix.
-- `import` is all-or-nothing. It performs a full preflight parse and validation pass before any Blind Secret Write is sent. If any final Variable Key is invalid, any final Variable Key is duplicated, any final Variable Key already exists in the target Environment, or any parse error occurs, the command writes nothing.
+- `import` preflight is all-or-nothing. It performs a full parse and validation pass before any Blind Secret Write is sent. If any final Variable Key is invalid, any final Variable Key is duplicated, any final Variable Key already exists in the target Environment, or any parse error occurs, the command writes nothing. Writes after preflight are sequential; a later write failure reports completed keys and counts so the caller can reconcile partial progress before retrying.
 - Import preflight error output reports parse errors, lines that do not split into key=value, and any parsed or final key failing the final Variable Key format check `^[A-Z_][A-Z0-9_]*$` by line number and stable error code only; the offending token is never echoed. Key text may appear only for keys that pass the format check — duplicate final Variable Keys and existing-secret conflicts — which are env-var-shaped by construction. Output never includes parsed values or raw file contents (ADR-0016 as amended).
 - Duplicate final Variable Keys are invalid. V1 must not use first-one-wins, last-one-wins, parser-specific dotenv precedence, or automatic merge behavior.
 - `import --dry-run` performs Import Preflight and returns a Secret Import Plan without sending Blind Secret Writes or creating Secrets, Secret Shapes, or Secret Versions.

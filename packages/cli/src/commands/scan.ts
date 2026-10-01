@@ -1,5 +1,5 @@
-import { resolve } from "node:path";
 import type { GlobalCliFlags } from "../cli-options.js";
+import { resolveProjectRoot } from "../config/paths.js";
 import {
   assertScanModeFlagsCompatible,
   assertScanOutputFlagsCompatible,
@@ -72,7 +72,7 @@ export async function runScanCommand(
   assertScanOutputFlagsCompatible(flags, strict);
   assertScanModeFlagsCompatible(commandOptions);
 
-  const rootDir = resolve(flags.configDir ?? process.cwd());
+  const rootDir = resolveProjectRoot(flags.configDir);
   const mode = resolveScanMode(commandOptions);
 
   const result = await runScan(scanRunInput(rootDir, mode, commandOptions));

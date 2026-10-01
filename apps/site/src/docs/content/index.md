@@ -21,6 +21,10 @@ The hosted service and its production no-reveal design are still prelaunch and a
 
 ## Reading these docs as an agent
 
+Start with the [agent implementation guide](/docs/agent-quickstart.md) to add insecur to an
+existing project. It includes credential import, command wiring, fresh-worktree verification,
+and the handoff for a missing or rejected key.
+
 Every page is served in two formats at the same path: rendered HTML at `/docs/<slug>` and raw markdown at `/docs/<slug>.md`. [llms.txt](/llms.txt) is the index of every page with its markdown URL. The [CLI reference](/docs/cli) is generated from the CLI source on every change, so it never disagrees with `--help`. Error responses carry RFC 9457 `type` URIs that resolve to the [error reference](/errors), and `--json` error output includes copy-pasteable remediation commands.
 
 ## Sections

@@ -4,14 +4,15 @@ Playbook for moving project secrets from disk files into insecur without leaking
 
 ## Prerequisites
 
-1. Authenticate and ensure a project scope exists:
+1. Start at the intended checkout's root and inspect its non-secret configuration:
 
 ```bash
-insecur login
-insecur init
+insecur config show --json
 ```
 
-Confirm `.insecur.json` exists in your project root and lists the organization, project, and environment you intend to use.
+Preserve an existing `.insecur.json` binding. If none exists, use `insecur init --host local --json`
+for accountless Local Mode. Hosted projects keep their existing authentication and policy setup.
+Confirm the resolved project and environment; do not silently override them with another profile.
 
 ## Inventory (read-only)
 
@@ -25,18 +26,23 @@ Review the `findings` array. Each migratable dotenv entry includes a `remediatio
 
 ## Migrate values into insecur
 
-3. For each **migratable** finding, store the value in insecur using `--value-stdin`. Source the value from the on-disk file in a subprocess so the value never appears in your shell history or agent transcript:
+3. Import only the exact project dotenv file identified by the user. Let the importer read it
+   without displaying values or executing its contents:
 
 ```bash
-# Example pattern — replace KEY and FILE with the finding's key and source file
-grep '^KEY=' FILE | cut -d= -f2- | insecur secrets set KEY --value-stdin
+insecur import .env --dry-run --json
+insecur import .env --json
+insecur secrets list --json
 ```
 
 Rules:
 
-- Use only `--value-stdin` (or `--generate`) for value movement. Never pass a secret on the command line.
-- Original files are left untouched during this step. Duplicating a value into insecur is harmless.
-- Run one `insecur secrets set` per migratable key.
+- Review the metadata-only dry-run plan before importing. File paths are relative to the invocation directory.
+- Import is create-only. Preflight rejects conflicts before writes; a later write failure can leave partial progress. Reconcile the completed keys reported by that error before retrying.
+- The source stays untouched until the application has been verified and removal is authorized.
+- Never use shell pipelines or `source` to parse dotenv values. Never pass a secret as an argument.
+- If a value is missing, ask its owner to supply it using `insecur secrets set <KEY> --value-stdin` in their own terminal. Do not search other projects or home-directory credentials.
+- Never generate a substitute for a third-party API key. Random generation is for authorized application-owned secrets.
 
 ### Non-migratable findings (manual work)
 
@@ -52,30 +58,37 @@ There is no automated migration path for these yet. Treat them as manual follow-
 4. Switch your application start command to load secrets through insecur instead of dotenv files:
 
 ```bash
-insecur run <profile> -- <your-start-command>
+insecur run --variable-key DATABASE_URL --plan --json -- node server.js
+insecur run --variable-key DATABASE_URL -- node server.js
 ```
 
-Replace `<profile>` with your CLI profile slug from `.insecur.json` (for example `local-dev`) and `<your-start-command>` with whatever you normally run (`npm run dev`, `pnpm start`, etc.).
+Replace the key and child command with the project's actual values. Inspect `data.plan.ready`;
+plans return exit `0` even when not ready. Prefix the existing application script rather than
+creating a second way to run it. Local Mode injects one variable per run. Multi-secret profile
+policies require hosted mode; nested `run` commands do not combine keys.
 
 ## Verify before any destructive step
 
 5. **Prove the app runs correctly with `insecur run` before changing or removing on-disk secrets.**
 
-- Start the app with `insecur run <profile> -- <cmd>`.
+- Run the updated normal project command.
 - Exercise the paths that need the migrated secrets.
-- Fix missing keys or profile bindings until the app is green.
+- Verify the intended provider operation succeeds. A stored value does not prove provider permissions.
+- If a key is missing or rejected, ask the owner to correct the intended binding. Never borrow a substitute.
+- Commit `.insecur.json` and the command change, then repeat from a fresh worktree containing that commit. Worktrees on the same machine use the same local store and committed project binding.
 
 Do not edit, strip, or delete local secret files until this verification succeeds.
 
-## Strip disk secrets (destructive — last)
+## Remove plaintext copies after verification
 
 6. Only after step 5 passes:
 
-- **Back up** each file that still holds plaintext secrets. The backup is your last local plaintext copy.
-- Edit the live project files to **remove secret values** while keeping non-secret entries (ports, feature flags, public URLs).
-- Add a breadcrumb comment pointing operators to insecur, for example: `# secrets managed by insecur — see: insecur guide migrate-env`
+- Preserve non-secret settings the application still needs, without exposing secret contents.
+- With the user's authorization, remove the exact source using `insecur local-files rm .env`.
+- Do not create additional plaintext backups or delete unrelated or untracked files without authorization.
 
-insecur does not delete backups or strip files for you. Deleting a backup is a deliberate, manual act once you are confident insecur is the sole source of truth.
+This is an ordinary file deletion, not secure erasure. Provider credentials remain valid until
+revoked at their provider. insecur does not automate provider rotation.
 
 ## Final verification
 
@@ -86,3 +99,6 @@ insecur scan --strict
 ```
 
 Exit code `0` means no likely secrets remain on disk under the scan rules.
+
+The complete agent implementation and fresh-worktree verification procedure is at
+https://insecur.cloud/docs/agent-quickstart.md.
