@@ -1,6 +1,6 @@
 # Delivered Features
 
-Last reviewed: 2026-09-03.
+Last reviewed: 2026-10-01.
 
 This is the agent-readable map of major functionality that is implemented in the current checkout.
 It is not the future product spec, customer-validation plan, or production launch gate. "Delivered"
@@ -123,6 +123,15 @@ Human and CLI session primitives are implemented:
 The product can distinguish direct human use, registered agent sessions, tag-only agent attribution,
 and derived child credentials in metadata.
 
+Machine access is partially delivered:
+
+- project-scoped Machine Identity and GitHub Actions OIDC auth-method metadata reads
+- short-lived machine access token verification on the Runtime Injection routes
+
+The GitHub Actions OIDC exchange that issues machine access tokens is implemented in
+`@insecur/machine-auth` but is not mounted on any API route, so CI cannot obtain a machine access
+token yet.
+
 ## Tenancy, Onboarding, And Membership
 
 The tenant control-plane basics are implemented:
@@ -151,6 +160,8 @@ The custody core is implemented behind package seams:
 - Secrets Store root-key provider for Worker deploys
 - root-key rewrap primitive
 - decrypt-import lint boundary and package-boundary conformance
+- Storage Security Gate verdict enforcement before Runtime Injection into protected environments
+  and before every Secret Sync run; missing readiness evidence denies delivery
 
 The public/API side works with contracts and wrapped material. Decrypt-capable code stays in the
 Runtime deploy and crypto/keyring packages.
@@ -235,10 +246,12 @@ Secret Sync has an alpha implementation:
 - create, update, plan, revalidate, and run seams execute inside the Runtime boundary
 - one writer per target is enforced through Operation leases and fencing tokens
 - protected execution requires current, single-use approval evidence bound to the target fingerprint
-- GitHub Actions and Cloudflare Worker provider adapters perform exact writes behind provider ports
+- GitHub Actions and Cloudflare Worker provider adapters perform exact writes behind provider ports,
+  tested against fake provider clients
 
-This is code-surface delivery, not a reliability claim. Provider-level and hosted end-to-end
-coverage is still too thin to treat Secret Sync as production-ready.
+This is code-surface delivery, not a working hosted feature. The Runtime composes unconfigured
+GitHub and Cloudflare provider clients that fail closed until real transports exist, and the
+Storage Security Gate blocks every run, so hosted Secret Sync cannot write to a provider yet.
 
 ## Operations, Audit, Webhooks, And Evidence
 
@@ -256,9 +269,9 @@ Operational control surfaces are implemented:
 - preview R2 no-plaintext proof and backup/restore readiness evidence
 - release-gate evidence bundle assembly and metadata-safety checks
 
-The Daily Release train and its Preview proof exist, but a current exact-head Production promotion
-has not completed successfully. Production freshness and launch acceptance are therefore still
-unproven.
+The Daily Release train has deployed exact `main` SHAs through its Preview proof and into
+Production; dated run evidence is in [project-status.md](project-status.md). Launch acceptance is
+still unproven.
 
 ## Verification And Safety Gates
 
@@ -283,9 +296,11 @@ accidentally weaken:
 These are the major product surfaces that should not be described as delivered:
 
 - production launch acceptance
-- production-grade provider Secret Sync reliability and hosted provider-level proof
+- configured provider transports for hosted Secret Sync, plus provider-level and hosted proof
 - Vercel Secret Sync
-- Storage Security Gate enforcement before production delivery/decrypt/provider write
+- Storage Security Gate live readiness-fact composition (enforcement is delivered, so production
+  delivery is denied until the facts are composed)
+- an API route for the GitHub Actions OIDC machine credential exchange
 - complete protected machine Runtime Injection flow
 - Environment Deploy Key fallback and rotation policy
 - current Production backup freshness and a launch-grade restore drill

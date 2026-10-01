@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-08
+Last updated: 2026-10-01
 
 This document owns live implementation, verification, and launch status. It does not redefine
 product behavior. When it disagrees with an owning spec, ADR, generated route inventory, or current
@@ -16,17 +16,18 @@ Worker apps and 33 packages on Node 24 and pnpm 10. The latest published native 
 
 The implemented product surface includes:
 
-- encrypted Local Mode with OS-keystore-backed machine custody and Local Mode-to-hosted migration
+- encrypted Local Mode with OS-keystore-backed (or explicit opt-in `0600` file) machine custody and Local Mode-to-hosted migration
 - the hosted First Value loop for blind write and one-run secret injection
 - WorkOS web and CLI authentication, tenant onboarding, membership, and agent attribution
 - the metadata-only web console, audit feed/export, approvals, and high-assurance step-up
 - protected change, Runtime Injection policy, operation, backup/export, and restore foundations
-- alpha GitHub Actions and Cloudflare Worker Secret Sync adapters
+- alpha GitHub Actions and Cloudflare Worker Secret Sync adapters (not yet wired to real provider
+  transports)
 - capability-isolated API, Runtime, Web, and Site Worker deploys
 
-Provider sync is alpha. The adapters, planning, API/RPC seams, and execution tests exist, but the
-feature does not yet have enough provider-level and hosted end-to-end evidence to be described as
-reliable or production-ready.
+Provider sync is alpha. The adapters, planning, API/RPC seams, and execution tests against fake
+provider clients exist, but the hosted Runtime composes unconfigured provider clients that fail
+closed, so hosted sync cannot write to GitHub or Cloudflare yet.
 
 ## Verification snapshot
 
@@ -42,7 +43,7 @@ Evidence refreshed on 2026-09-03:
 - The `production` release ledger and live API, Web, and Site health identities all match that exact
   `main` SHA. This unmerged documentation branch is not part of that deployment.
 
-This documentation audit passed `pnpm verify`, including policy, generated-documentation,
+The 2026-09-03 documentation audit passed `pnpm verify`, including policy, generated-documentation,
 formatting, lint, typecheck, and unit-test gates.
 
 ## Launch blockers and known limits
@@ -52,8 +53,13 @@ gaps include:
 
 - The Storage Security Gate now fails closed on both production delivery callers, but live evidence
   composition remains incomplete and several readiness controls are still partial.
-- Provider sync needs substantially more provider-level and hosted end-to-end testing.
+- Hosted provider sync cannot write to a provider: the Runtime composes unconfigured GitHub and
+  Cloudflare clients that fail closed, and it then needs provider-level and hosted end-to-end
+  testing.
 - GitHub App installation verification is not provider-backed and continues to fail closed.
+- The GitHub Actions OIDC machine credential exchange exists in `@insecur/machine-auth` but is not
+  mounted on an API route, so CI cannot obtain the short-lived machine access token that Runtime
+  Injection routes accept.
 - Approval notification delivery ports are not wired into Runtime composition.
 - The complete protected machine Runtime Injection and Environment Deploy Key path is not launch
   proven.
@@ -70,7 +76,8 @@ read path.
    fail-closed checks.
 2. Harden provider sync with real provider authorization, writes, metadata-only verification,
    retries, and partial-failure evidence before calling it reliable.
-3. Wire metadata-safe approval notifications and finish the protected machine delivery path.
+3. Wire metadata-safe approval notifications, mount the machine credential exchange, and finish the
+   protected machine delivery path.
 4. Complete the customer-validation and `small_group_production` acceptance evidence.
 
 The milestone sequence and exit gates are in [roadmap.md](roadmap.md). Production acceptance is
