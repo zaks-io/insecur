@@ -42,14 +42,22 @@ documented in the [security model](https://insecur.cloud/docs/security-model) an
 
 - **Find leaks:** `insecur scan` produces an offline, metadata-only secret exposure report for your project, and can optionally scan agent transcripts and well-known credential locations.
 - **Remove a plaintext `.env`:** `insecur import .env` copies a dotenv file into an encrypted
-  development environment, all-or-nothing. The source stays in place until you explicitly run
-  `insecur local-files rm .env`; then `insecur scan` checks its configured paths for readable
-  copies.
+  development environment, all-or-nothing (`--dry-run` previews the plan). The source stays in
+  place until you explicitly run `insecur local-files rm .env`, which is an ordinary filesystem
+  delete, not secure erasure; then `insecur scan` checks its configured paths for readable copies.
 - **Generate secrets without copying them:** `insecur secrets set KEY --generate` creates and stores
-  a value without printing it. There is no `get` or `export` command.
+  a value without printing it. No command prints a stored secret value.
 - **Run without files:** `insecur run` injects secrets into the child process environment for
   one command. Code in that process can read or persist them.
-- **Keep everything on the record:** every grant and use is audited and exportable; machine access uses short-lived scoped credentials, never tokens that live forever.
+- **Keep it on the record:** grants and runs are recorded as metadata-only audit events. Hosted
+  organizations can filter the audit log in the web console and export it as JSONL with a signed
+  manifest (`insecur audit export`, `insecur audit verify`).
+- **Gate protected changes:** in a protected environment, `insecur secrets promote` requests
+  publication of exact draft versions through approval and step-up review. `insecur secrets rollback`
+  copies a retained published version into a new draft; add `--promote` to request its publication
+  the same way.
+- **Move to hosted later:** `insecur projects migrate` moves a Local Mode project to the hosted
+  service, one way.
 
 ## Quickstart
 
@@ -80,38 +88,50 @@ end-to-end verifier in [examples/first-value-proof](examples/first-value-proof).
 
 ## Documentation
 
-- [Product docs](https://insecur.cloud/docs) — quickstart, concepts, guides, and CLI reference (also served as raw markdown and [llms.txt](https://insecur.cloud/llms.txt) for agents)
-- [docs/vision.md](docs/vision.md) — the north star and operating principles
-- [docs/specs/README.md](docs/specs/README.md) — canonical product spec and source-of-truth rules
-- [docs/architecture.md](docs/architecture.md) and [docs/adr/README.md](docs/adr/README.md) — architecture and decision records
-- [CONTEXT-MAP.md](CONTEXT-MAP.md) and [CONTEXT.md](CONTEXT.md) — domain language and context routing for contributors and agents
+- [Product docs](https://insecur.cloud/docs): quickstart, concepts, guides, and CLI reference (also served as raw markdown and [llms.txt](https://insecur.cloud/llms.txt) for agents)
+- [docs/features.md](docs/features.md): what is implemented in this checkout, and what is not
+- [docs/project-status.md](docs/project-status.md): verification evidence and remaining launch work
+- [docs/vision.md](docs/vision.md): the north star and operating principles
+- [docs/specs/README.md](docs/specs/README.md): canonical product spec and source-of-truth rules
+- [docs/architecture.md](docs/architecture.md) and [docs/adr/README.md](docs/adr/README.md): architecture and decision records
+- [CONTEXT-MAP.md](CONTEXT-MAP.md) and [CONTEXT.md](CONTEXT.md): domain language and context routing for contributors and agents
 
 ## Architecture
 
-insecur runs as capability-isolated Cloudflare Workers, never a monolith: a public API Worker that holds no key material, a private Runtime Worker that is the sole holder of the root key and the only place decryption happens (reachable only over a private Service Binding, zero public routes), and a Web BFF. Storage is Neon Postgres behind Hyperdrive with Row-Level Security, envelope encryption via WebCrypto, and tenant-bound data keys so a leak in one org cannot decrypt another.
+insecur runs as four capability-isolated Cloudflare Worker deploys, never a monolith. The public API Worker holds no root-key or data-key material and no database binding. The private Runtime Worker is the sole holder of the root key and the only place decryption happens; it serves zero public routes and is reachable only over a private Service Binding. The Web Worker is the console BFF, and the Site Worker serves the public site, docs, and CLI installers with no auth, database, or keyring access. Storage is Neon Postgres behind Hyperdrive with forced Row-Level Security, envelope encryption via WebCrypto, and organization- and project-bound data keys so a leak in one org cannot decrypt another. The `pnpm conformance:topology` gate enforces this split; [docs/specs/deploy-route-inventory.md](docs/specs/deploy-route-inventory.md) maps every route to its deploy.
 
 ```
 apps/
-  api/      public Cloudflare Worker API (no keyring, no DB bindings)
-  runtime/  private Runtime Worker: DB, keyring, encrypt, decrypt
-  web/      Web BFF on Workers
-  site/     public marketing/documentation site
-packages/
-  domain/             shared domain primitives and vocabulary
-  access/             effective access resolution
-  tenant-store/       tenant-scoped store and RLS adapter contract
-  crypto/             keyring and encryption envelope
-  audit/              audit event writer
-  secret-store/       secret versions and blind secret write rules
-  secret-sync/        alpha GitHub Actions and Cloudflare Worker delivery
-  runtime-injection/  runtime injection grants
-  onboarding/         guided organization provisioning
-  cli/                the `insecur` CLI
+  api/       public API Worker (no keyring, no DB binding)
+  runtime/   private Runtime Worker: DB, keyring, encrypt, decrypt, backups
+  web/       Web Console BFF (WorkOS sessions, metadata views, approvals)
+  site/      public site, product docs, CLI installers
+packages/    33 workspace packages, including the `insecur` CLI (packages/cli)
 ```
+
+The package index with each package's responsibility is [packages/README.md](packages/README.md).
 
 ## Status
 
-insecur is open source (Apache-2.0); the hosted service at insecur.cloud is operated by Zaks.io, LLC. The project is in pre-launch build-out and is not approved for valuable production secrets yet. There is no public sign-up for the hosted service; hosted sign-in works only for accounts that are already enabled. Local Mode, the hosted First Value loop, the metadata web console, and protected-change approval flows are implemented. Provider sync has early GitHub Actions and Cloudflare Worker adapters, but it is alpha and does not yet have enough provider-level testing to be treated as reliable. Production delivery remains blocked until the [Storage Security Gate](docs/storage-security-gate.md) has complete runtime evidence and enforcement. Current code, deployment evidence, and remaining launch work are tracked in [docs/project-status.md](docs/project-status.md).
+insecur is open source (Apache-2.0); the hosted service at insecur.cloud is operated by Zaks.io, LLC. The project is in pre-launch build-out and is not approved for valuable production secrets yet. There is no public sign-up for the hosted service; hosted sign-in works only for accounts that are already enabled.
+
+Implemented:
+
+- Local Mode with an encrypted SQLite store, a root key in the OS keystore (or an explicit opt-in `0600` file), and one-way migration to hosted
+- the hosted First Value loop: blind secret write and one-use Runtime Injection for development secrets
+- WorkOS web and CLI sign-in, organization onboarding, invitations, and agent session attribution
+- the metadata-only web console, audit log and signed export, approvals, and passkey step-up
+- protected promotion and rollback, Runtime Injection policies, durable operations, and encrypted backups
+
+Partial or not yet available:
+
+- Provider sync to GitHub Actions and Cloudflare Workers is alpha and cannot write to a provider yet. The adapters exist and are tested against fakes, but the hosted Runtime wires unconfigured provider clients that fail closed.
+- App Connections can be created and managed, but GitHub App installation verification is not provider-backed and fails closed.
+- Machine access tokens are short-lived and verified on Runtime Injection routes, but the GitHub Actions OIDC exchange that issues them is not exposed yet, so CI cannot obtain one.
+- The [Storage Security Gate](docs/storage-security-gate.md) fails closed on every Secret Sync run and on Runtime Injection into protected environments. Its live evidence is incomplete, so those paths stay blocked.
+- Vercel sync, Service Access, customer-managed keys, self-hosted instances, and public sign-up are deferred.
+
+Revealing a stored secret value is intentionally not a feature. The full capability map is [docs/features.md](docs/features.md); deployment evidence and remaining launch work are in [docs/project-status.md](docs/project-status.md).
 
 ## Development
 
