@@ -136,7 +136,7 @@ Remote cache trust model is ADR-0053. Full file:
   ],
   "globalEnv": ["CI", "NODE_ENV"],
   "futureFlags": { "longerSignatureKey": true },
-  "remoteCache": { "signature": true },
+  "remoteCache": { "signature": true, "teamId": "team_mLKPPoMO54tC6RA3gZjspmKG" },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -171,7 +171,7 @@ The remote cache trust boundary is enforced by the `--cache` flag, not by `turbo
 - Developer machines and agents: `turbo run <task> --cache=local:rw,remote:r`. They read remote, write only local.
 - CI: `turbo run <task> --cache=local:rw,remote:rw`. CI is the only writer of shared artifacts.
 
-Set the developer default by putting `--cache=local:rw,remote:r` into the root scripts (below). CI overrides with `remote:rw` explicitly. The signing key is `TURBO_REMOTE_CACHE_SIGNATURE_KEY`; the cache backend starts on the Vercel-managed endpoint via `TURBO_TOKEN` and `TURBO_TEAM`.
+Set the developer default by putting `--cache=local:rw,remote:r` into the root scripts (below). CI overrides with `remote:rw` explicitly. The signing key is `TURBO_REMOTE_CACHE_SIGNATURE_KEY`; the cache backend starts on the Vercel-managed endpoint via `TURBO_TOKEN` and `TURBO_TEAM`. The artifact HMAC covers the Vercel team ID, so `remoteCache.teamId` pins it in `turbo.json`: CI sets only the `TURBO_TEAM` slug, and without the pin it signs with an empty team ID that `turbo link`ed machines reject. Do not set `TURBO_TEAMID` in env; it overrides the pin.
 
 ## Root package.json Scripts
 
