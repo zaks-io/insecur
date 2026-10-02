@@ -42,9 +42,10 @@ documented in the [security model](https://insecur.cloud/docs/security-model) an
 
 - **Find leaks:** `insecur scan` produces an offline, metadata-only secret exposure report for your project, and can optionally scan agent transcripts and well-known credential locations.
 - **Remove a plaintext `.env`:** `insecur import .env` copies a dotenv file into an encrypted
-  development environment, all-or-nothing (`--dry-run` previews the plan). The source stays in
+  development environment after a full preflight (`--dry-run` previews the plan). A failed
+  preflight writes nothing; a later write failure reports partial progress. The source stays in
   place until you explicitly run `insecur local-files rm .env`, which is an ordinary filesystem
-  delete, not secure erasure; then `insecur scan` checks its configured paths for readable copies.
+  delete, not secure erasure. Then `insecur scan` checks its configured paths for readable copies.
 - **Generate secrets without copying them:** `insecur secrets set KEY --generate` creates and stores
   a value without printing it. No command prints a stored secret value.
 - **Run without files:** `insecur run` injects secrets into the child process environment for

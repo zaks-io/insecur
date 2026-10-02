@@ -1,4 +1,5 @@
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { lstatSync, type Stats } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -7,7 +8,55 @@ const USER_CONFIG_DIR = ".insecur";
 export const USER_CONFIG_FILE = "config.json";
 
 export function resolveProjectRoot(configDir: string | undefined): string {
-  return path.resolve(configDir ?? process.cwd());
+  if (configDir !== undefined) {
+    return path.resolve(configDir);
+  }
+
+  const cwd = process.cwd();
+  const gitRoot = findGitBoundary(cwd);
+  return gitRoot === undefined ? cwd : (findNearestProjectConfig(cwd, gitRoot) ?? cwd);
+}
+
+function findGitBoundary(cwd: string): string | undefined {
+  for (let directory = cwd; ; directory = path.dirname(directory)) {
+    const marker = statIfPresent(path.join(directory, ".git"));
+    if (marker !== null) {
+      if (!marker.isDirectory() && !marker.isFile()) {
+        throw new Error(`invalid Git marker in ${directory}`);
+      }
+      return directory;
+    }
+    if (path.dirname(directory) === directory) {
+      return undefined;
+    }
+  }
+}
+
+function findNearestProjectConfig(cwd: string, gitRoot: string): string | undefined {
+  for (let directory = cwd; ; directory = path.dirname(directory)) {
+    const configPath = projectConfigPath(directory);
+    const config = statIfPresent(configPath);
+    if (config !== null) {
+      if (config.isSymbolicLink()) {
+        throw new Error(`project config must not be a symlink: ${configPath}`);
+      }
+      return directory;
+    }
+    if (directory === gitRoot) {
+      return undefined;
+    }
+  }
+}
+
+function statIfPresent(filePath: string): Stats | null {
+  try {
+    return lstatSync(filePath);
+  } catch (error) {
+    if (isENOENT(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export function projectConfigPath(projectRoot: string): string {

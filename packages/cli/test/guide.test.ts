@@ -74,7 +74,7 @@ describe("insecur guide", () => {
   it("keeps insecur run verification before destructive disk edits in migrate-env", () => {
     const content = getGuideTopic("migrate-env")?.content ?? "";
     const runVerificationIndex = content.indexOf("Prove the app runs correctly with `insecur run`");
-    const destructiveIndex = content.indexOf("Strip disk secrets (destructive");
+    const destructiveIndex = content.indexOf("Remove plaintext copies after verification");
     expect(runVerificationIndex).toBeGreaterThan(-1);
     expect(destructiveIndex).toBeGreaterThan(-1);
     expect(runVerificationIndex).toBeLessThan(destructiveIndex);
@@ -85,6 +85,9 @@ describe("insecur guide", () => {
     expect(content).toContain("--value-stdin");
     expect(content).not.toMatch(/secrets set [^\n]*--value\s/);
     expect(content).not.toMatch(/echo\s+['"]/i);
+    expect(content).toContain("insecur import .env --dry-run --json");
+    expect(content).not.toMatch(/grep .*\|.*secrets set/);
+    expect(content).not.toContain("insecur run <profile>");
   });
 
   it("addresses non-migratable findings as manual work", () => {

@@ -13,10 +13,10 @@ Be clear about the boundary: Local Mode is encrypted custody on your machine. It
 
 ## Start Local Mode
 
-Run `init` without logging in:
+From the project root, select Local Mode explicitly. No login is needed:
 
 ```sh
-insecur init
+insecur init --host local
 ```
 
 This writes a local project config `.insecur.json` with `"host": "local"`. From there the store is encrypted and machine-local.
@@ -45,8 +45,42 @@ Local Mode is intentionally limited to projects and non-protected development en
 - Protected environments
 - Machine access and app connections
 - Sync and production delivery
+- Profile-backed multi-secret injection policies; Local Mode runs one selected variable at a time
+
+Windows can store local secrets, but `run` currently fails closed there until descendant-process
+containment is implemented. Use macOS or Linux for runtime injection.
 
 Any hosted-only command fails fast with a clear `local.cloud_feature_unavailable` error. The failure is deliberate, not a bug: those capabilities require the hosted API.
+
+## Projects and Git worktrees
+
+Commit the non-secret `.insecur.json` with the project's wrapped application command. A worktree
+on the same machine and OS user selects the same encrypted local value through the committed
+project and environment references. No dotenv copy is needed. The worktree's branch must contain
+that config; do not initialize a replacement project when it is missing.
+
+Current source builds find the nearest `.insecur.json` from the invocation directory up to the
+first `.git` file or directory. Discovery never follows a worktree's Git pointer to the primary
+checkout or crosses into a parent repository. Without a Git boundary, or without config inside
+it, the invocation directory remains the target. Invalid config fails instead of falling back.
+
+Reads and writes use that same selected config. Adding a secret from a subdirectory updates the
+project manifest, not a new shadow config. `scan`, development watch, and `agent setup` also use
+the discovered project directory. `init` is the exception: it targets the invocation directory
+unless `--config-dir` explicitly selects another directory.
+
+An explicit `--config-dir` always selects exactly that directory without ancestor discovery.
+It does not change the launched child's working directory or the meaning of relative import/file
+arguments. On released CLIs without discovery, run from the checkout root or use this explicit flag.
+
+Use `insecur config show --json` to inspect `projectConfigPath` and resolved scope. Explicit flags
+and scope environment variables can override the config, so verify them before using a key.
+Missing values stop execution before the child starts; insecur does not substitute an ambient
+key or search another project. This does not prevent the child itself from reading other files.
+
+On another machine, run `insecur init --host local` against the committed config to adopt its
+metadata. Values must be supplied there separately. The [agent quickstart](/docs/agent-quickstart)
+contains the complete adoption and verification procedure.
 
 ## Moving to hosted later
 

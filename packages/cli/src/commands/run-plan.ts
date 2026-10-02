@@ -2,6 +2,7 @@ import { successEnvelope, type NextAction } from "@insecur/domain";
 import type { ApiClient } from "../api/types.js";
 import type { GlobalCliFlags } from "../cli-options.js";
 import type { ResolvedCliContext } from "../config/load-cli-context.js";
+import { projectConfigPath, resolveProjectRoot } from "../config/paths.js";
 import { requireSessionCredential } from "../auth/require-session.js";
 import { cliErrorFromEnvelope } from "../output/cli-error.js";
 import { renderSuccess } from "../output/render.js";
@@ -45,6 +46,12 @@ function profilePlanNext(ready: boolean, runArgv: readonly string[]): readonly N
   ];
 }
 
+function projectConfigLocation(flags: GlobalCliFlags, context: ResolvedCliContext) {
+  return context.projectConfig === null
+    ? {}
+    : { projectConfigPath: projectConfigPath(resolveProjectRoot(flags.configDir)) };
+}
+
 async function planVariableKeyRun(input: {
   readonly flags: GlobalCliFlags;
   readonly api: ApiClient;
@@ -69,6 +76,7 @@ async function planVariableKeyRun(input: {
     (secret) => secret.variableKey === variableKey && secret.currentVersion !== undefined,
   );
   const data = {
+    ...projectConfigLocation(input.flags, input.context),
     plan: {
       mode: "variable_key" as const,
       ready: available,
@@ -127,7 +135,10 @@ async function planProfileRun(input: {
   }
   const activeVersion = result.envelope.data.activeVersion;
   const ready = result.envelope.data.disabledAt === null && activeVersion !== null;
-  const data = buildProfilePlanData(profileRun, command, activeVersion, ready);
+  const data = {
+    ...projectConfigLocation(input.flags, input.context),
+    ...buildProfilePlanData(profileRun, command, activeVersion, ready),
+  };
   const argv = ["insecur", "run", profileRun.profileSlug, "--", ...command];
   renderSuccess(successEnvelope(data, undefined, profilePlanNext(ready, argv)), input.flags, () =>
     ready
@@ -156,8 +167,12 @@ function buildProfilePlanData(
       policyId: profileRun.policyId,
       variableKeys: activeVersion?.variableKeys ?? [],
       command,
-      configuredCommand: activeVersion?.command,
-      commandFingerprint: activeVersion?.commandFingerprint,
+      ...(activeVersion === null
+        ? {}
+        : {
+            configuredCommand: activeVersion.command,
+            commandFingerprint: activeVersion.commandFingerprint,
+          }),
       organizationId: profileRun.runScope.orgId,
       projectId: profileRun.runScope.projectId,
       environmentId: profileRun.runScope.envId,

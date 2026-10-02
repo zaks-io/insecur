@@ -13,7 +13,7 @@ When the scan is **clean**, every recipe below produces **no agent-visible outpu
 ## Prerequisites
 
 - `insecur` on `PATH` (global install or `pnpm exec insecur` adjusted in the commands below).
-- Run hooks from your **project root** (where `.insecur.json` may live). `insecur scan` walks from the current working directory.
+- Run hooks from your project root. Current source builds also discover `.insecur.json` from subdirectories within the current Git checkout and scan from its directory. Use `--config-dir` to select an exact scan root.
 
 ---
 

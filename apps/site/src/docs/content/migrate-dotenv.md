@@ -9,15 +9,18 @@ order: 3
 
 A `.env` file is a plaintext secret sitting in your working tree, one agent read or one stray commit away from exposure. This guide moves those values into a development environment under custody, verifies the move, and removes the plaintext file.
 
-The migration is create-only and all-or-nothing: a preflight checks every key before anything is written, so a partial import cannot leave you in a half-moved state.
+The migration is create-only. Preflight checks every key before writes start. A later write
+failure can leave partial progress; the error reports completed keys so you can reconcile them
+before retrying. The source file stays untouched.
 
 ## Recommended order
 
-1. Scan first, so you know what plaintext is on the machine. See [Scanning for exposed secrets](/docs/scan).
+1. Select the intended project with `insecur config show --json` and identify its approved source file. Scan the project for likely exposure without displaying values. See [Scanning for exposed secrets](/docs/scan).
 2. Import with `--dry-run` to review the plan.
 3. Import for real.
 4. Verify with `insecur secrets list` and a real `insecur run`.
-5. Remove the plaintext file.
+5. Remove only the approved plaintext file after obtaining authorization.
+6. Run `insecur scan --strict --json` and resolve or report any remaining findings.
 
 For a guided offline playbook of the whole move:
 
@@ -41,7 +44,9 @@ The plan lists the keys that will be created. Values never appear in the plan.
 insecur import .env
 ```
 
-The preflight runs all-or-nothing: if any key would conflict, the whole import stops and nothing is written. Import targets non-protected development environments.
+If any key would conflict during preflight, import stops before writes. Import targets
+non-protected development environments. Use the exact source identified for this project;
+do not search other projects or home-directory credentials for substitutes.
 
 Prefix imported keys when you need to namespace them:
 
@@ -60,14 +65,16 @@ insecur secrets list
 Then confirm injection works end to end with a real run:
 
 ```sh
-insecur run --variable-key DATABASE_URL -- node -e "process.env.DATABASE_URL && console.log('ok')"
+insecur run --variable-key DATABASE_URL -- node -e "if (!process.env.DATABASE_URL) process.exit(1); console.log('injection present')"
 ```
 
-The value reaches the child process. The CLI does not display it, though the child process can. See [Running commands with secrets](/docs/run) for details.
+This checks presence only. Also run the application's real database or provider operation before
+removing its source file. The value reaches the child process, which can read it. See
+[Running commands with secrets](/docs/run) and the [agent implementation guide](/docs/agent-quickstart).
 
 ## Remove the plaintext file
 
-Once the values are in custody and verified, delete the file:
+Once the values are in custody and verified, delete only the approved source file. Obtain authorization before deletion:
 
 ```sh
 insecur local-files rm .env
@@ -80,6 +87,16 @@ insecur local-files rm .env --yes
 ```
 
 This is an ordinary filesystem delete. There is no secure-erasure claim: treat any value that lived in the file as worth rotating at its provider. insecur does not automate provider rotation today, and storing a replacement does not revoke the old credential.
+
+## Check for remaining plaintext
+
+After removing the approved source, run a strict scan:
+
+```sh
+insecur scan --strict --json
+```
+
+If the scan finds likely secrets, resolve findings within the approved scope or report what remains. Do not delete other files without authorization. A clean scan covers its configured paths and detectors, not every copy on the machine.
 
 ## Related
 

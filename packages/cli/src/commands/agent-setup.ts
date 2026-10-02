@@ -14,12 +14,18 @@ const AGENT_INSTRUCTIONS = `${START}
 ## Secrets with insecur
 
 - Start with \`insecur agent status --json\` and follow the ordered \`next\` actions.
+- Check \`insecur config show --json\` selects this checkout's committed configuration; do not repoint it to fix a missing key.
 - Use \`insecur describe <command> --json\` instead of parsing help text.
 - Never read, echo, request, or place a plaintext secret in arguments or agent context.
 - Plan with \`insecur run --plan ...\` and use secrets only through \`insecur run\`.
-- Create generated values with \`insecur secrets set <KEY> --generate random --json\`.
+- If a third-party API key is missing or rejected, stop and ask its owner to supply or correct it. Never generate or borrow a substitute.
+- Never search other projects, home-directory credentials, agent settings, history, or transcripts for a key.
+- Import only an explicitly identified project dotenv file with \`insecur import\`; never display or execute its contents.
+- Generate only authorized application-owned secrets with \`insecur secrets set <KEY> --generate random --json\`.
 - For human-provided values, ask the human to use \`--value-stdin\`; do not receive the value.
 - Treat exit 10 as a human handoff and execute the envelope's ordered \`next\` actions.
+- Local Mode needs no hosted login and injects one selected variable per run. Worktrees on this machine reuse the committed project binding.
+- Implementation and verification guide: https://insecur.cloud/docs/agent-quickstart.md
 ${END}`;
 
 const STRICT_HOOK = `#!/usr/bin/env bash

@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCoreChecks } from "./local-feature-suite-core-checks.mjs";
 import { runImportAndGuardrailChecks } from "./local-feature-suite-import-checks.mjs";
+import { runWorktreeChecks } from "./local-feature-suite-worktree-checks.mjs";
 import { createCli, redact } from "./local-feature-suite-support.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -53,6 +54,7 @@ async function main() {
 
   await runCoreChecks(context);
   await runImportAndGuardrailChecks(context);
+  await runWorktreeChecks(context);
 
   const failed = checks.filter((entry) => !entry.ok);
   console.log(
