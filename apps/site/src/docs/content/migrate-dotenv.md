@@ -19,7 +19,8 @@ before retrying. The source file stays untouched.
 2. Import with `--dry-run` to review the plan.
 3. Import for real.
 4. Verify with `insecur secrets list` and a real `insecur run`.
-5. Remove the plaintext file.
+5. Remove only the approved plaintext file after obtaining authorization.
+6. Run `insecur scan --strict --json` and resolve or report any remaining findings.
 
 For a guided offline playbook of the whole move:
 
@@ -73,7 +74,7 @@ removing its source file. The value reaches the child process, which can read it
 
 ## Remove the plaintext file
 
-Once the values are in custody and verified, delete the file:
+Once the values are in custody and verified, delete only the approved source file. Obtain authorization before deletion:
 
 ```sh
 insecur local-files rm .env
@@ -86,6 +87,16 @@ insecur local-files rm .env --yes
 ```
 
 This is an ordinary filesystem delete. There is no secure-erasure claim: treat any value that lived in the file as worth rotating at its provider. insecur does not automate provider rotation today, and storing a replacement does not revoke the old credential.
+
+## Check for remaining plaintext
+
+After removing the approved source, run a strict scan:
+
+```sh
+insecur scan --strict --json
+```
+
+If the scan finds likely secrets, resolve findings within the approved scope or report what remains. Do not delete other files without authorization. A clean scan covers its configured paths and detectors, not every copy on the machine.
 
 ## Related
 
