@@ -133,6 +133,7 @@ jobs:
         run: |
           bash scripts/ci/install-gitleaks.sh
           bash scripts/ci/gitleaks-detect.sh detect
+          bash scripts/ci/gitleaks-probe-script-probe.sh
 
       - name: Setup pnpm
         if: needs.changes.outputs.product_code == 'true' || needs.changes.outputs.workflow_config == 'true' || needs.changes.outputs.security_docs == 'true'
