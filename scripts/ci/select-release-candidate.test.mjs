@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   assertCandidateNotBehindVerifiedLive,
@@ -162,6 +163,20 @@ test("accepts equal or older verified live deployments and rejects divergent liv
 });
 
 test("fails closed when Git cannot resolve the verified live commit", (t) => {
+  // Hooks export routing/config variables that override Git's cwd. Run this
+  // fixture in a clean child before any Git command can reach the parent repo.
+  if (Object.keys(process.env).some((key) => key.startsWith("GIT_"))) {
+    execFileSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-name-pattern=fails closed when Git cannot resolve",
+        fileURLToPath(import.meta.url),
+      ],
+      { env: cleanGitEnv(), stdio: "pipe" },
+    );
+    return;
+  }
   const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-ancestry-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const git = (...args) => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -212,6 +227,44 @@ test("fails closed when Git cannot resolve the verified live commit", (t) => {
       liveSha: oldSha,
       verifiedLiveRun: true,
     }),
+  );
+});
+
+function cleanGitEnv() {
+  return Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")));
+}
+
+test("isolates real-Git fixtures from inherited hook repository routing", (t) => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-hook-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const env = cleanGitEnv();
+  execFileSync("git", ["init", "--quiet"], { cwd, env });
+  const gitDir = path.join(cwd, ".git");
+  execFileSync(
+    process.execPath,
+    [
+      "--test",
+      "--test-name-pattern=fails closed when Git cannot resolve",
+      fileURLToPath(import.meta.url),
+    ],
+    {
+      env: {
+        ...env,
+        GIT_DIR: gitDir,
+        GIT_WORK_TREE: cwd,
+        GIT_COMMON_DIR: gitDir,
+        GIT_INDEX_FILE: path.join(gitDir, "index"),
+        GIT_OBJECT_DIRECTORY: path.join(gitDir, "objects"),
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "commit.gpgsign",
+        GIT_CONFIG_VALUE_0: "false",
+      },
+      stdio: "pipe",
+    },
+  );
+  assert.throws(
+    () => execFileSync("git", ["rev-parse", "--verify", "HEAD"], { cwd, env, stdio: "pipe" }),
+    /Command failed/u,
   );
 });
 
