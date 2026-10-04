@@ -4,7 +4,7 @@ import {
   INSECUR_CSRF_HEADER,
   WORKOS_SESSION_COOKIE,
 } from "@insecur/auth";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeWebEnv } from "../../test/support/fake-web-env.js";
 import {
   beginBrowserLogin,
@@ -25,6 +25,9 @@ const pkceLiterals = vi.hoisted(() => ({
   codeVerifier: "verifier_browser_login",
 }));
 const { authorizationCode, enrollmentBlockedCode, codeVerifier } = pkceLiterals;
+beforeEach(() => vi.stubEnv("DEV", false));
+afterEach(() => vi.unstubAllEnvs());
+
 const oauthState = "state_browser_login";
 
 vi.mock("./workos-port.js", async () => {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   readLoginFormData,
   readTurnstileToken,
@@ -18,6 +18,41 @@ function request(host = "app.insecur.cloud") {
     headers: { "CF-Connecting-IP": "203.0.113.10" },
   });
 }
+
+beforeEach(() => {
+  vi.stubEnv("DEV", false);
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+describe("local development", () => {
+  it("renders no challenge without requiring Turnstile configuration", () => {
+    vi.stubEnv("DEV", true);
+    expect(turnstileSiteKey({} as WebEnv)).toBeNull();
+  });
+
+  it("skips Siteverify even when no token or keys are configured", async () => {
+    vi.stubEnv("DEV", true);
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    try {
+      await expect(
+        verifyTurnstileToken(request("localhost:8790"), {} as WebEnv, null),
+      ).resolves.toEqual({ ok: true });
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it("requires a token in production builds even on localhost", async () => {
+    await expect(verifyTurnstileToken(request("localhost:8790"), env, null)).resolves.toEqual({
+      ok: false,
+      reason: "missing_token",
+    });
+  });
+});
 
 describe("turnstileSiteKey", () => {
   it("returns the configured public site key", () => {

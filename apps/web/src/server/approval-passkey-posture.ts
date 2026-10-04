@@ -7,6 +7,7 @@ import {
   parseRequestCredentials,
 } from "@insecur/auth";
 import { createWorkOSSessionPortFromEnv } from "../auth/workos-port.js";
+import { resolveBrowserActor } from "../auth/resolve-browser-actor.js";
 import { asWebEnv } from "../env.js";
 
 export type ApprovalPasskeyPosture =
@@ -21,6 +22,12 @@ export const loadApprovalPasskeyPosture = createServerFn({ method: "GET" }).hand
   async (): Promise<ApprovalPasskeyPosture> => {
     try {
       const request = getRequest();
+      if (import.meta.env.DEV) {
+        const resolved = await resolveBrowserActor(request, asWebEnv(env));
+        return resolved.ok
+          ? { kind: "authenticated", enrolled: false }
+          : { kind: "unauthenticated" };
+      }
       const credentials = parseRequestCredentials({
         authorizationHeader: request.headers.get("Authorization"),
         cookieHeader: request.headers.get("Cookie"),

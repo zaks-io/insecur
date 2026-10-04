@@ -66,6 +66,24 @@ describe("requireUserActor CLI session revocation", () => {
     runtime = createFakeAdmissionRuntime({ [workosUserId]: admittedUserId });
   });
 
+  it("authenticates signed bearers without WorkOS credentials and still requires a signer", async () => {
+    const env = {
+      ...envWith(runtime),
+      WORKOS_API_KEY: "",
+      WORKOS_CLIENT_ID: "",
+      WORKOS_COOKIE_PASSWORD: "",
+    };
+    const headers = await admittedBearerHeaders();
+    expect((await createProtectedApp().request("/protected", { headers }, env)).status).toBe(200);
+    await expect(
+      createProtectedApp().request(
+        "/protected",
+        { headers },
+        { ...env, SESSION_SIGNING_SECRET: "short" },
+      ),
+    ).rejects.toThrow("sessionSigningSecret");
+  });
+
   it("folds revocation into resolveAdmission and issues only one pre-auth RPC", async () => {
     const app = createProtectedApp();
     const response = await app.request(

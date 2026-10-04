@@ -249,6 +249,9 @@ const mf = new Miniflare({
         // Ephemeral smoke credentials stand in for the WorkOS cookie so the authed console shell
         // can be exercised without a live IdP (same mechanism preview smoke uses).
         PREVIEW_SMOKE_SESSION_CREDENTIALS: "true",
+        LOCAL_DEV_ACCOUNTS_JSON: JSON.stringify([
+          { subject: "user_local_alice", displayName: "Alice" },
+        ]),
       },
       serviceBindings: {
         API: async (request) => {
@@ -505,8 +508,18 @@ async function assertLoginFormActionAllowsAuthkit(expectedOrigins) {
   console.log(`ok /login form-action allows ${expectedOrigins.join(" ")} (no wildcard)`);
 }
 
-async function assertMalformedLoginPostsFailClosed() {
-  const malformedRequests = [
+async function assertInvalidLoginPostsFailClosed() {
+  const invalidRequests = [
+    {
+      label: "local account submission in a production build",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Origin: "http://web.local" },
+      body: "local-account=user_local_alice",
+    },
+    {
+      label: "valid form without a Turnstile token in a production build",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "",
+    },
     {
       label: "unsupported content type",
       headers: { "Content-Type": "application/json" },
@@ -519,22 +532,24 @@ async function assertMalformedLoginPostsFailClosed() {
     },
   ];
 
-  for (const malformedRequest of malformedRequests) {
+  for (const invalidRequest of invalidRequests) {
     const response = await mf.dispatchFetch("http://web.local/login", {
       method: "POST",
-      headers: { accept: "text/html", ...malformedRequest.headers },
-      body: malformedRequest.body,
+      headers: { accept: "text/html", ...invalidRequest.headers },
+      body: invalidRequest.body,
       redirect: "manual",
     });
     const location = response.headers.get("location") ?? "";
     if (response.status !== 303 || location !== "/login?error=verification") {
       throw new Error(
-        `/login ${malformedRequest.label} expected a verification retry, got ${response.status} ${location}`,
+        `/login ${invalidRequest.label} expected a verification retry, got ${response.status} ${location}`,
       );
     }
   }
 
-  console.log("ok /login malformed form posts fail closed with a verification retry");
+  console.log(
+    "ok /login invalid forms and missing Turnstile tokens fail closed with a verification retry",
+  );
 }
 
 async function assertUnauthenticatedConsoleRedirect(path) {
@@ -566,12 +581,24 @@ try {
   // The web root serves no document: it always forwards into the console shell (unauth lands on
   // /login via the /orgs guard, asserted below).
   await assertAuthenticatedRedirect("/", {}, "/orgs");
-  await assertRouteHasMatchingCspNonce("/login");
+  await assertRouteHasMatchingCspNonce("/login", {
+    expect: ["Checking your browser...", 'name="cf-turnstile-response"'],
+  });
   await assertLoginFormActionAllowsAuthkit([
     "https://api.workos.com",
     "https://tenant-ssr-csp.authkit.app",
   ]);
-  await assertMalformedLoginPostsFailClosed();
+  await assertInvalidLoginPostsFailClosed();
+  const localCookieResponse = await fetchPath("/orgs", {
+    Cookie: `__Host-wos-session=${await mintSmokeCredential()}`,
+  });
+  if (
+    ![302, 303, 307].includes(localCookieResponse.status) ||
+    !localCookieResponse.headers.get("location")?.startsWith("/login")
+  ) {
+    throw new Error("Production build must reject a local signed browser session cookie");
+  }
+  console.log("ok production build rejects local account submission and signed browser cookie");
   await assertUnauthenticatedConsoleRedirect(`/orgs/${ORG.organizationId}`);
   await assertRouteHasMatchingCspNonce("/whoami", { headers: authorization, authedDocument: true });
   await assertRouteHasMatchingCspNonce(`/orgs/${ORG.organizationId}`, {

@@ -25,7 +25,10 @@ function normalizeConfigValue(value: string | undefined): string | null {
   return normalized.length > 0 ? normalized : null;
 }
 
-export function turnstileSiteKey(env: WebEnv): string {
+export function turnstileSiteKey(env: WebEnv): string | null {
+  if (import.meta.env.DEV) {
+    return null;
+  }
   const siteKey = normalizeConfigValue(env.TURNSTILE_SITE_KEY);
   if (siteKey === null) {
     throw new Error("turnstile configuration invalid: TURNSTILE_SITE_KEY must be set");
@@ -189,6 +192,11 @@ export async function verifyTurnstileToken(
   token: string | null,
   expectedAction = TURNSTILE_LOGIN_ACTION,
 ): Promise<TurnstileVerificationResult> {
+  // Vite removes this branch from hosted builds; Worker configuration cannot enable it.
+  if (import.meta.env.DEV) {
+    return { ok: true };
+  }
+
   const secret = turnstileSecretKey(env);
   if (token === null) {
     return { ok: false, reason: "missing_token" };

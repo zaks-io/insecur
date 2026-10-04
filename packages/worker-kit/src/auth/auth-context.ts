@@ -44,10 +44,14 @@ export function validateAuthContext(config: InsecurAuthConfig): void {
   if (isBlank(config.workos.cookiePassword)) {
     throw new AuthConfigError("workos.cookiePassword");
   }
-  if (isBlank(config.sessionSigningSecret)) {
+  validateSessionSigningSecret(config.sessionSigningSecret);
+}
+
+export function validateSessionSigningSecret(sessionSigningSecret: string): void {
+  if (isBlank(sessionSigningSecret)) {
     throw new AuthConfigError("sessionSigningSecret");
   }
-  if (config.sessionSigningSecret.length < 32) {
+  if (sessionSigningSecret.length < 32) {
     throw new AuthConfigError("sessionSigningSecret");
   }
 }

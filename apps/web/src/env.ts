@@ -9,6 +9,7 @@ interface WebEnvSecrets {
   readonly WORKOS_COOKIE_PASSWORD: string;
   readonly SESSION_SIGNING_SECRET: string;
   readonly WORKOS_FAKE_SESSIONS_JSON?: string;
+  readonly LOCAL_DEV_ACCOUNTS_JSON?: string;
   readonly TURNSTILE_SECRET_KEY: string;
 }
 

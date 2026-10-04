@@ -14,8 +14,8 @@
     "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:canary": "vitest run --config vitest.canary.config.ts",
-    "wrangler:types": "wrangler types src/worker-configuration.d.ts --config wrangler.jsonc --env-interface CloudflareEnv --include-runtime false --strict-vars false",
-    "wrangler:types:check": "wrangler types src/worker-configuration.d.ts --config wrangler.jsonc --env-interface CloudflareEnv --include-runtime false --strict-vars false --check",
+    "wrangler:types": "node ../../scripts/wrangler-types.mjs --app api",
+    "wrangler:types:check": "node ../../scripts/wrangler-types.mjs --app api --check",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .wrangler"
   },

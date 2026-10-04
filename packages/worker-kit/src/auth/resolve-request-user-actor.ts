@@ -1,5 +1,7 @@
 import { parseRequestCredentials, resolveUserActor } from "@insecur/auth";
-import { createAuthContext } from "./auth-context.js";
+import { validateSessionSigningSecret } from "./auth-context.js";
+import { createAuthConfig } from "./config.js";
+import { createRuntimeAdmittedUserResolver } from "./admitted-user-resolver.js";
 import type { AuthWorkerEnv } from "./auth-worker-env.js";
 
 export interface ResolveRequestUserActorInput {
@@ -18,7 +20,10 @@ export interface ResolveRequestUserActorInput {
 
 /** Parse request credentials and resolve a user actor when present and valid. */
 export async function resolveRequestUserActor(input: ResolveRequestUserActorInput) {
-  const { config, resolveAdmittedUser } = createAuthContext(input.env);
+  // Bearer authentication uses our signer and admission, without contacting the OAuth provider.
+  const config = createAuthConfig(input.env);
+  validateSessionSigningSecret(config.sessionSigningSecret);
+  const resolveAdmittedUser = createRuntimeAdmittedUserResolver(input.env);
   const credentials = parseRequestCredentials({
     authorizationHeader: input.authorizationHeader,
     cookieHeader: input.cookieHeader,

@@ -1,4 +1,4 @@
-import { AUTH_ERROR_CODES, isKnownErrorCodeInCatalog, type KnownErrorCode } from "@insecur/domain";
+import { AUTH_ERROR_CODES, type KnownErrorCode } from "@insecur/domain";
 
 import { isWizardMutationCsrfValid } from "./csrf-check.js";
 
@@ -22,21 +22,6 @@ export function isWizardMutationGateFailure<TApi>(
   result: WizardMutationApiResult<TApi>,
 ): result is WizardMutationGateFailure {
   return "ok" in result;
-}
-
-/**
- * Shared API-envelope error parsing for wizard hops: catalogued codes only, metadata-safe.
- */
-export function parseCataloguedApiFailure(
-  envelope: Record<string, unknown>,
-): WizardMutationGateFailure {
-  if (envelope.ok === false && typeof envelope.error === "object" && envelope.error !== null) {
-    const code = (envelope.error as Record<string, unknown>).code;
-    if (typeof code === "string" && isKnownErrorCodeInCatalog(code)) {
-      return { ok: false, code };
-    }
-  }
-  return { ok: false, code: "web.unexpected_response" };
 }
 
 /**
