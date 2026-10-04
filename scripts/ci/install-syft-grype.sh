@@ -34,5 +34,14 @@ install_anchore_cli() {
   "${name}" version
 }
 
-install_anchore_cli syft "${syft_version}"
-install_anchore_cli grype "${grype_version}"
+for tool in syft grype; do
+  if tool_path="$(command -v "${tool}")" && [ -x "${tool_path}" ]; then
+    continue
+  fi
+
+  version="${syft_version}"
+  if [ "${tool}" = "grype" ]; then
+    version="${grype_version}"
+  fi
+  install_anchore_cli "${tool}" "${version}"
+done
