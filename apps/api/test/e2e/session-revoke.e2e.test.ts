@@ -56,32 +56,49 @@ describeIntegration("session revoke integration", () => {
     await closeRuntimeSql();
   });
 
-  it("revokes the calling session and rejects replay on whoami", async () => {
-    const sessionId = "session_revoke_integration";
-    const headers = await authHeaders(sessionId);
+  it.each(["configured", "absent"])(
+    "revokes the calling session and rejects replay with WorkOS %s",
+    async (workosConfiguration) => {
+      const sessionEnv = {
+        ...env,
+        ...(workosConfiguration === "absent"
+          ? { WORKOS_API_KEY: "", WORKOS_CLIENT_ID: "", WORKOS_COOKIE_PASSWORD: "" }
+          : {}),
+      };
+      const sessionId = `session_revoke_integration_${workosConfiguration}`;
+      const headers = await authHeaders(sessionId);
 
-    const whoamiBefore = await app.request("/v1/session/whoami", { method: "GET", headers }, env);
-    expect(whoamiBefore.status).toBe(200);
+      const whoamiBefore = await app.request(
+        "/v1/session/whoami",
+        { method: "GET", headers },
+        sessionEnv,
+      );
+      expect(whoamiBefore.status).toBe(200);
 
-    const revoke = await app.request(
-      "/v1/session/revoke",
-      { method: "POST", headers, body: "{}" },
-      env,
-    );
-    expect(revoke.status).toBe(200);
-    const revokeBody: unknown = await revoke.json();
-    expect(revokeBody).toMatchObject({ ok: true, data: { revoked: true } });
+      const revoke = await app.request(
+        "/v1/session/revoke",
+        { method: "POST", headers, body: "{}" },
+        sessionEnv,
+      );
+      expect(revoke.status).toBe(200);
+      const revokeBody: unknown = await revoke.json();
+      expect(revokeBody).toMatchObject({ ok: true, data: { revoked: true } });
 
-    await expect(isCliSessionRevoked(TEST_INSTANCE_ID, sessionId)).resolves.toBe(true);
+      await expect(isCliSessionRevoked(TEST_INSTANCE_ID, sessionId)).resolves.toBe(true);
 
-    const whoamiAfter = await app.request("/v1/session/whoami", { method: "GET", headers }, env);
-    expect(whoamiAfter.status).toBe(401);
-    const whoamiBody: unknown = await whoamiAfter.json();
-    expect(whoamiBody).toMatchObject({
-      ok: false,
-      error: { code: "auth.invalid" },
-    });
-  });
+      const whoamiAfter = await app.request(
+        "/v1/session/whoami",
+        { method: "GET", headers },
+        sessionEnv,
+      );
+      expect(whoamiAfter.status).toBe(401);
+      const whoamiBody: unknown = await whoamiAfter.json();
+      expect(whoamiBody).toMatchObject({
+        ok: false,
+        error: { code: "auth.invalid" },
+      });
+    },
+  );
 
   it("no-ops revoke without authentication", async () => {
     const response = await app.request(

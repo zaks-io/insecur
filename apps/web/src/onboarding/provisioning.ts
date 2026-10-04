@@ -7,7 +7,7 @@ import {
   teamId,
   type KnownErrorCode,
 } from "@insecur/domain";
-import { parseCataloguedApiFailure } from "./wizard-mutation-gate.js";
+import { parseCataloguedApiFailure } from "./api-failure.js";
 
 /**
  * The full client-minted ID set for `POST /v1/onboarding/personal-organization`. Minted once per

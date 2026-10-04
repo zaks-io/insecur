@@ -288,39 +288,48 @@ describe("worker session routes", () => {
     expect(body).toMatchObject({ ok: true, data: { revoked: false } });
   });
 
-  it("forwards POST /revoke over the RUNTIME seam for authenticated callers", async () => {
-    const runtime = createRuntimeRpcStub();
-    runtime.revokeCliSession.mockResolvedValue({ ok: true, value: { revoked: true } });
-    const minted = await mintEphemeralSessionCredential({
-      actor: {
-        type: "user",
-        userId: admittedUserId,
-        workosUserId,
-        sessionId: "session_revoke_route",
-      },
-      signingSecret: env.SESSION_SIGNING_SECRET,
-    });
-    const response = await app.request(
-      "/v1/session/revoke",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${minted.credential}`,
-          "Content-Type": "application/json",
+  it.each(["configured", "absent"])(
+    "forwards POST /revoke over RUNTIME with WorkOS %s",
+    async (workosConfiguration) => {
+      const runtime = createRuntimeRpcStub();
+      runtime.revokeCliSession.mockResolvedValue({ ok: true, value: { revoked: true } });
+      const minted = await mintEphemeralSessionCredential({
+        actor: {
+          type: "user",
+          userId: admittedUserId,
+          workosUserId,
+          sessionId: "session_revoke_route",
         },
-        body: "{}",
-      },
-      { ...env, RUNTIME: runtime },
-    );
-    expect(response.status).toBe(200);
-    const body: unknown = await response.json();
-    expect(body).toMatchObject({ ok: true, data: { revoked: true } });
-    expect(runtime.revokeCliSession).toHaveBeenCalledOnce();
-    const input = runtime.revokeCliSession.mock.calls[0]?.[0];
-    expect(input?.requestId).toEqual(expect.any(String));
-    expect(input?.instanceId).toBe("inst_LOCAL_DEV");
-    expect(input?.sessionExpiresAt).toBe(minted.expiresAt);
-  });
+        signingSecret: env.SESSION_SIGNING_SECRET,
+      });
+      const response = await app.request(
+        "/v1/session/revoke",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${minted.credential}`,
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+        },
+        {
+          ...env,
+          ...(workosConfiguration === "absent"
+            ? { WORKOS_API_KEY: "", WORKOS_CLIENT_ID: "", WORKOS_COOKIE_PASSWORD: "" }
+            : {}),
+          RUNTIME: runtime,
+        },
+      );
+      expect(response.status).toBe(200);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject({ ok: true, data: { revoked: true } });
+      expect(runtime.revokeCliSession).toHaveBeenCalledOnce();
+      const input = runtime.revokeCliSession.mock.calls[0]?.[0];
+      expect(input?.requestId).toEqual(expect.any(String));
+      expect(input?.instanceId).toBe("inst_LOCAL_DEV");
+      expect(input?.sessionExpiresAt).toBe(minted.expiresAt);
+    },
+  );
 
   it("revokes a derived credential through the parent session expiry", async () => {
     const runtime = createRuntimeRpcStub();

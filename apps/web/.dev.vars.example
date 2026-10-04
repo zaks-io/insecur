@@ -6,12 +6,18 @@
 #
 # Deployed/preview environments deliver these via encrypted Worker secrets, not plaintext vars.
 
+# Generate a local signer; use the same value in API. No WorkOS secrets are needed in Vite dev.
+INSTANCE_ID=inst_LOCAL_DEV
+SESSION_SIGNING_SECRET=
+# Populated by pnpm dev:account; restart Web dev after creating accounts.
+LOCAL_DEV_ACCOUNTS_JSON='[]'
+
+# Required when explicitly testing built-Worker WorkOS flows.
 WORKOS_API_KEY=
 WORKOS_CLIENT_ID=
 WORKOS_COOKIE_PASSWORD=
-SESSION_SIGNING_SECRET=
 
-# Cloudflare Turnstile. Dummy keys are safe for local development and automated tests.
+# Vite dev skips WorkOS and Turnstile. Dummy keys are for built-Worker automated tests.
 TURNSTILE_SITE_KEY=1x00000000000000000000AA
 TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 

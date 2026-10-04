@@ -9,11 +9,9 @@ import {
 import {
   INSECUR_SESSION_CREDENTIAL_HEADER,
   mintDerivedAgentSessionCredential,
-  readSessionCredentialMetadata,
 } from "@insecur/auth";
 import {
   createRequestId,
-  createAuthContext,
   domainErrorEnvelope,
   handleRoute,
   requireUserActor,
@@ -76,21 +74,8 @@ function parseOptionalEnvironmentId(raw: string) {
   return parsed.value;
 }
 
-async function readRevocationSessionExpiry(
-  context: SessionRouteContext,
-  authorizationHeader: string | undefined,
-): Promise<string> {
-  const bearerCredential = authorizationHeader?.startsWith("Bearer ")
-    ? authorizationHeader.slice("Bearer ".length)
-    : undefined;
-  if (bearerCredential === undefined) {
-    return new Date(Date.now() + 86_400_000).toISOString();
-  }
-  const { config } = createAuthContext(context.env);
-  const metadata = await readSessionCredentialMetadata(
-    bearerCredential,
-    config.sessionSigningSecret,
-  );
+async function readRevocationSessionExpiry(context: SessionRouteContext): Promise<string> {
+  const metadata = await readRequestSessionMetadata(context);
   return metadata.parentExpiresAt ?? metadata.expiresAt;
 }
 
@@ -261,7 +246,7 @@ sessionRoutes.post("/revoke", async (context) =>
     if (!resolved.ok) {
       return { revoked: false };
     }
-    const sessionExpiresAt = await readRevocationSessionExpiry(context, authorizationHeader);
+    const sessionExpiresAt = await readRevocationSessionExpiry(context);
     const revoked = await runtimeClientFor(context.env, resolved.actor).revokeCliSession({
       instanceId: resolveInstanceId(context.env),
       requestId: reqId,

@@ -71,6 +71,9 @@ async function resolveBrowserActorUncached(
       return smokeResult;
     }
   }
+  if (import.meta.env.DEV && credentials.workosSealedSession !== undefined) {
+    return resolvePreviewSmokeActor(credentials.workosSealedSession, env, resolveAdmittedUser);
+  }
   return resolveWorkosCookieActor(credentials.workosSealedSession, env, resolveAdmittedUser);
 }
 

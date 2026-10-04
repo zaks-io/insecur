@@ -1,6 +1,6 @@
 import { INSECUR_CSRF_COOKIE } from "@insecur/auth";
 import { createFakeWorkOSSessionPort, type FakeWorkOSSessionEntry } from "@insecur/auth/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FAKE_ADMITTED_USER_ID,
   FAKE_SEALED_SESSION,
@@ -48,7 +48,9 @@ describe("hasWorkosSessionCookie", () => {
 });
 
 describe("resolveBrowserActor", () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
+    vi.stubEnv("DEV", false);
     vi.clearAllMocks();
     setResponseHeaderMock.mockReset();
     workosPortMock.createWorkOSSessionPortFromEnv.mockImplementation(() =>

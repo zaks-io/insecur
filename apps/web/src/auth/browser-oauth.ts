@@ -168,7 +168,9 @@ export async function logoutBrowserSession(
   if (!validateCsrfToken(credentials.csrfCookie, presentedCsrf)) {
     return { ok: false, status: 403 };
   }
-  const providerLogoutUrl = await workosLogoutRedirect(env, credentials.workosSealedSession);
+  const providerLogoutUrl = import.meta.env.DEV
+    ? null
+    : await workosLogoutRedirect(env, credentials.workosSealedSession);
   return {
     ok: true,
     redirectTo: providerLogoutUrl ?? "/login",

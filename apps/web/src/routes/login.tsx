@@ -17,13 +17,16 @@ import {
   verifyTurnstileToken,
   TURNSTILE_RESPONSE_FIELD,
 } from "../auth/turnstile.js";
+import { LocalAccountFields } from "../components/local-account-fields.js";
 import { LoginPrivacyNotice } from "../components/login-privacy-notice.js";
 import { SiteFrame } from "../components/site-frame.js";
 import { TurnstileWidget } from "../components/turnstile-widget.js";
+import { beginLocalLogin, localLoginAccounts, type LocalAccount } from "../auth/local-login.js";
 import { asWebEnv } from "../env.js";
 
 interface LoginChallenge {
-  readonly siteKey: string;
+  readonly siteKey: string | null;
+  readonly localAccounts: readonly LocalAccount[] | null;
   readonly errorCode: LoginErrorCode | null;
 }
 
@@ -34,6 +37,7 @@ const loadLoginChallenge = createServerFn({ method: "GET" }).handler((): LoginCh
   const url = new URL(request.url);
   return {
     siteKey: turnstileSiteKey(asWebEnv(env)),
+    localAccounts: localLoginAccounts(asWebEnv(env)),
     errorCode: parseLoginErrorCode(url.searchParams.get("error")),
   };
 });
@@ -47,6 +51,12 @@ export const Route = createFileRoute("/login")({
         const formData = await readLoginFormData(request);
         if (formData === null) {
           return redirectResponse(loginRetryUrl(request), [], 303);
+        }
+        if (import.meta.env.DEV) {
+          const local = await beginLocalLogin(request, webEnv, formData);
+          return local === null
+            ? redirectResponse(loginRetryUrl(request), [], 303)
+            : redirectResponse(local.redirectTo, local.setCookieHeaders, 303);
         }
         const verified = await verifyTurnstileToken(request, webEnv, readTurnstileToken(formData));
         if (!verified.ok) {
@@ -63,7 +73,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { siteKey, errorCode } = Route.useLoaderData();
+  const challenge = Route.useLoaderData();
 
   return (
     <SiteFrame>
@@ -74,7 +84,7 @@ function LoginPage() {
             <CardDescription>Continue to the tenant console.</CardDescription>
           </CardHeader>
           <CardContent>
-            <LoginForm siteKey={siteKey} errorCode={errorCode} />
+            <LoginForm {...challenge} />
           </CardContent>
         </Card>
       </section>
@@ -82,7 +92,7 @@ function LoginPage() {
   );
 }
 
-function LoginForm({ siteKey, errorCode }: LoginChallenge) {
+function LoginForm({ siteKey, errorCode, localAccounts }: LoginChallenge) {
   const login = useAutoLoginForm();
 
   return (
@@ -92,30 +102,38 @@ function LoginForm({ siteKey, errorCode }: LoginChallenge) {
           {loginErrorMessage(errorCode)}
         </p>
       ) : null}
-      <input
-        ref={login.tokenInputRef}
-        type="hidden"
-        name={TURNSTILE_RESPONSE_FIELD}
-        defaultValue=""
-      />
-      <TurnstileWidget
-        siteKey={siteKey}
-        onFailure={login.handleTurnstileFailure}
-        onInteractiveChange={login.handleInteractiveChange}
-        onTokenChange={login.handleTurnstileToken}
-      />
-      <LoginVerificationStatus state={login.verificationState} />
-      <LoginPrivacyNotice />
-      {login.verificationState === "failed" ? (
-        <Button type="button" variant="outline" onClick={reloadPage}>
-          Retry
-        </Button>
-      ) : null}
-      <noscript>
-        <p className="text-sm text-destructive" role="alert">
-          JavaScript is required to verify this sign-in attempt.
-        </p>
-      </noscript>
+      {localAccounts !== null ? (
+        <LocalAccountFields accounts={localAccounts} />
+      ) : siteKey === null ? (
+        <Button type="submit">Continue to sign in</Button>
+      ) : (
+        <>
+          <input
+            ref={login.tokenInputRef}
+            type="hidden"
+            name={TURNSTILE_RESPONSE_FIELD}
+            defaultValue=""
+          />
+          <TurnstileWidget
+            siteKey={siteKey}
+            onFailure={login.handleTurnstileFailure}
+            onInteractiveChange={login.handleInteractiveChange}
+            onTokenChange={login.handleTurnstileToken}
+          />
+          <LoginVerificationStatus state={login.verificationState} />
+          <LoginPrivacyNotice />
+          {login.verificationState === "failed" ? (
+            <Button type="button" variant="outline" onClick={reloadPage}>
+              Retry
+            </Button>
+          ) : null}
+          <noscript>
+            <p className="text-sm text-destructive" role="alert">
+              JavaScript is required to verify this sign-in attempt.
+            </p>
+          </noscript>
+        </>
+      )}
     </form>
   );
 }

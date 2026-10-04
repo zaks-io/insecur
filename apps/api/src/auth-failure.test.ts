@@ -203,7 +203,7 @@ describe("centralized AuthFailure HTTP mapping", () => {
       meta?: { requestId?: unknown };
     };
     expect(typeof envelope.error?.message).toBe("string");
-    expect(envelope.error?.message).toContain("workos.clientId");
+    expect(envelope.error?.message).toContain("sessionSigningSecret");
     expect(envelope.error?.message).not.toContain("undefined");
     expect(typeof envelope.meta?.requestId).toBe("string");
     expect(envelope.meta?.requestId).toMatch(/^req_/);

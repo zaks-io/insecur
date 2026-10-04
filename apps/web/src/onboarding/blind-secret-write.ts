@@ -8,7 +8,7 @@ import {
 
 import type { ProvisionedWorkspace } from "./provisioning.js";
 import { parseProvisionedWorkspace } from "./parse-provisioned-workspace.js";
-import { parseCataloguedApiFailure } from "./wizard-mutation-gate.js";
+import { parseCataloguedApiFailure } from "./api-failure.js";
 
 /** Metadata-only blind secret write receipt (ADR-0052). No Sensitive Values. */
 export interface BlindSecretWriteReceipt {

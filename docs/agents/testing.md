@@ -9,6 +9,36 @@ The decision record is [ADR-0065](../adr/0065-test-layers-and-preview-smoke.md).
 | Integration + RLS    | Postgres 17                | Node Vitest, real route stack + `postgres` driver                                  | `pnpm smoke:local` against configured Postgres, or `pnpm smoke:local:docker` to reset Docker Compose Postgres first                                                                                                                                  | local, CI, agents, PRs |
 | Shared preview smoke | shared preview Neon branch | deployed Cloudflare Workers + Hyperdrive + Runtime Service Binding + Secrets Store | `Preview Smoke` stage in the daily release train, or `node packages/tenant-store/scripts/prune-preview-smoke-organizations.mjs && node packages/tenant-store/scripts/seed-preview-smoke-admission.mjs && pnpm smoke:preview` after deploying preview | shared preview only    |
 
+## Local browser and API accounts
+
+Vite development uses synthetic accounts at `/login` and skips Turnstile and WorkOS.
+Create accounts against the local database, then restart Web dev to load the account picker:
+
+```bash
+nvm use
+pnpm dev:account --name alice --display-name Alice
+pnpm dev:account --name bob --display-name Bob
+```
+
+The command loads the project dotenv, requires loopback `DATABASE_URL_MIGRATION`, and reads
+`INSTANCE_ID` and `SESSION_SIGNING_SECRET` from `apps/web/.dev.vars`. It upserts active admissions
+and writes the picker catalog to that ignored file. Reusing a name preserves the same user.
+Use the same locally generated session signer in API and Web; never copy deployed signing keys
+into local fixtures. API and Web do not need WorkOS secrets for this flow.
+
+For programmatic testing, POST a URL-encoded `local-account=user_local_alice` form to the local
+Web `/login` with `Origin` matching the Web URL and redirects disabled. Retain the returned
+cookies for Web requests. The signed `__Host-wos-session` value can also authenticate API and
+CLI test requests as a bearer. Keep credentials in memory or ignored mode-0600 files and never
+print them. Browser cookies require HTTPS; sandbox previews supply it.
+
+Local sessions retain signature, expiry, admission, revocation, CSRF, and tenant authorization
+checks. Test accounts receive no operator or tenant grants from the seeder; normal onboarding
+creates their workspace. Passkey enrollment and provider-backed high-assurance flows still need
+WorkOS and are not simulated by these accounts. Local account sign-in and cookie acceptance are
+removed by Vite production builds, including deployed previews. The built-Worker SSR/CSP probe
+checks that configured local account metadata cannot enable the bypass in a production bundle.
+
 ## Manual Mutation Review
 
 Mutation testing is advisory only. It is not part of `pnpm verify`, CI, or pre-push.

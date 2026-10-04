@@ -15,8 +15,8 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
     "test:coverage": "vitest run --coverage --config ../../vitest.coverage.config.ts",
-    "wrangler:types": "wrangler types src/worker-configuration.d.ts --config wrangler.jsonc --env-interface CloudflareEnv --include-runtime false --strict-vars false",
-    "wrangler:types:check": "wrangler types src/worker-configuration.d.ts --config wrangler.jsonc --env-interface CloudflareEnv --include-runtime false --strict-vars false --check",
+    "wrangler:types": "node ../../scripts/wrangler-types.mjs --app runtime",
+    "wrangler:types:check": "node ../../scripts/wrangler-types.mjs --app runtime --check",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .wrangler"
   },

@@ -1,5 +1,5 @@
 import type { KnownErrorCode } from "@insecur/domain";
-import { parseCataloguedApiFailure } from "./wizard-mutation-gate.js";
+import { parseCataloguedApiFailure } from "./api-failure.js";
 
 /** Metadata-only First Value usage counters for the handoff indicator. */
 interface FirstValueUsageStatus {
