@@ -4,8 +4,7 @@
 // explicit in apps/*/src/env.ts.
 
 import { spawnSync } from "node:child_process";
-import { devNull } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -21,7 +20,7 @@ export const WRANGLER_TYPE_TARGETS = [
 ];
 
 const OUTPUT = "src/worker-configuration.d.ts";
-function wranglerTypesArgs(mode) {
+function wranglerTypesArgs(cwd, mode) {
   return [
     "types",
     OUTPUT,
@@ -29,7 +28,7 @@ function wranglerTypesArgs(mode) {
     "wrangler.jsonc",
     // An explicit empty env file excludes developer .dev.vars and .env keys from shared types.
     "--env-file",
-    devNull,
+    relative(cwd, join(repoRoot, "scripts", "wrangler-types.env")),
     "--env-interface",
     "CloudflareEnv",
     "--include-runtime",
@@ -41,7 +40,7 @@ function wranglerTypesArgs(mode) {
 }
 
 export function runWranglerTypes(cwd, mode) {
-  return spawnSync("pnpm", ["exec", "wrangler", ...wranglerTypesArgs(mode)], {
+  return spawnSync("pnpm", ["exec", "wrangler", ...wranglerTypesArgs(cwd, mode)], {
     cwd,
     env: { ...process.env, CLOUDFLARE_INCLUDE_PROCESS_ENV: "false" },
     encoding: "utf8",

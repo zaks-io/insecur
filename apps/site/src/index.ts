@@ -2,11 +2,13 @@ import {
   cloudflareSentryOptions,
   sentryBrowserConfig,
   sentryFetchWithBaggageGuard,
+  workerFetchWithTraceCorrelation,
 } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import serverEntry from "@tanstack/react-start/server-entry";
 import type { SiteEnv } from "./env.js";
+import { sentryTraceNames } from "./sentry-trace-names.js";
 import { withSecurityHeaders } from "./security-headers.js";
 import { tryStaticSiteResponse } from "./static-site-routes.js";
 
@@ -40,7 +42,15 @@ const handler = {
   },
 } satisfies ExportedHandler<SiteEnv>;
 
-const sentryHandler = Sentry.withSentry<SiteEnv>(cloudflareSentryOptions, handler);
+handler.fetch = workerFetchWithTraceCorrelation(
+  handler.fetch.bind(handler),
+  () => Sentry.getActiveSpan()?.spanContext().traceId,
+);
+
+const sentryHandler = Sentry.withSentry<SiteEnv>(
+  (env) => cloudflareSentryOptions(env, sentryTraceNames),
+  handler,
+);
 
 export default {
   fetch: sentryFetchWithBaggageGuard(sentryHandler, handler.fetch.bind(handler)),

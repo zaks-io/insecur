@@ -11,9 +11,13 @@ import {
 } from "./sentry-sanitization.js";
 
 export {
-  requestWithoutSentryBaggage,
+  sanitizeSentryRequest,
   sentryFetchWithBaggageGuard,
+  workerFetchWithTraceCorrelation,
 } from "./sentry-request-handler.js";
+export { prepareSentryTraceContext } from "./sentry-sanitization.js";
+export { registerSentryRouteNames, sentryRouterTraceNames } from "./sentry-trace-names.js";
+export { withWorkerTraceCorrelation } from "./worker-trace-correlation.js";
 
 export interface SentryBindings {
   readonly SENTRY_DSN?: string;
@@ -31,6 +35,7 @@ export interface SentryBrowserConfig {
   readonly tracesSampleRate: number;
 }
 export interface BrowserSentryRuntime<TRouter, TIntegration> {
+  readonly traceNames?: ReadonlySet<string>;
   readonly init: (options: BrowserSentryOptions<TIntegration>) => void;
   readonly routerTracingIntegration: (router: TRouter) => TIntegration;
 }
@@ -76,7 +81,10 @@ const METADATA_ONLY_DATA_COLLECTION: MetadataOnlySentryDataCollection = {
   userInfo: false,
 };
 
-export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions {
+export function cloudflareSentryOptions(
+  env: SentryBindings,
+  traceNames?: ReadonlySet<string>,
+): CloudflareOptions {
   const dsn = optional(env.SENTRY_DSN);
   const environment = optional(env.SENTRY_ENVIRONMENT);
   const release = optional(env.SENTRY_RELEASE);
@@ -86,6 +94,7 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
     ...(release ? { release } : {}),
     ...(service ? { service } : {}),
   });
+  if (traceNames) sanitizationMetadata.traceNames = traceNames;
   return {
     enabled: Boolean(dsn),
     ...(dsn ? { dsn } : {}),
@@ -104,7 +113,7 @@ export function cloudflareSentryOptions(env: SentryBindings): CloudflareOptions 
       return prepareSentryEvent(event, sanitizationMetadata);
     },
     beforeSendSpan(span) {
-      return prepareSentrySpan(span);
+      return prepareSentrySpan(span, traceNames);
     },
     beforeSendTransaction(event) {
       return prepareSentryTransaction(event, sanitizationMetadata);
@@ -153,7 +162,9 @@ export function initBrowserSentry<TRouter, TIntegration>(
     return;
   }
 
-  runtime.init(browserSentryOptions(config, router, runtime.routerTracingIntegration));
+  runtime.init(
+    browserSentryOptions(config, router, runtime.routerTracingIntegration, runtime.traceNames),
+  );
   browserSentryInitialized = true;
 }
 
@@ -173,8 +184,10 @@ function browserSentryOptions<TRouter, TIntegration>(
   config: SentryBrowserConfig,
   router: TRouter,
   routerTracingIntegration: (router: TRouter) => TIntegration,
+  traceNames?: ReadonlySet<string>,
 ): BrowserSentryOptions<TIntegration> {
   const sanitizationMetadata = sentrySanitizationMetadata(config);
+  if (traceNames) sanitizationMetadata.traceNames = traceNames;
   return {
     dsn: config.dsn,
     enabled: true,
@@ -189,7 +202,7 @@ function browserSentryOptions<TRouter, TIntegration>(
       return prepareSentryEvent(event, sanitizationMetadata);
     },
     beforeSendSpan(span) {
-      return prepareSentrySpan(span);
+      return prepareSentrySpan(span, traceNames);
     },
     beforeSendTransaction(event) {
       return prepareSentryTransaction(event, sanitizationMetadata);

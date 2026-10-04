@@ -3,6 +3,7 @@ import { createRouter } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
 import * as Sentry from "@sentry/tanstackstart-react";
 import { routeTree } from "./routeTree.gen";
+import { sentryTraceNames } from "./sentry-trace-names.js";
 
 type BrowserTracingRouter = Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0];
 
@@ -28,6 +29,7 @@ export function getRouter() {
   }
 
   initBrowserSentry(router, {
+    traceNames: sentryTraceNames,
     init: (options) => Sentry.init(options as Parameters<typeof Sentry.init>[0]),
     routerTracingIntegration: (sentryRouter) =>
       Sentry.tanstackRouterBrowserTracingIntegration(sentryRouter as BrowserTracingRouter),

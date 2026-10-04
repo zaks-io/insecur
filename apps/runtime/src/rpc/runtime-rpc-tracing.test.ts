@@ -10,7 +10,7 @@ const wrapRequestHandler = vi.hoisted(() =>
   ),
 );
 
-vi.mock("@sentry/cloudflare", () => ({ wrapRequestHandler }));
+vi.mock("@sentry/cloudflare", () => ({ wrapRequestHandler, getActiveSpan: vi.fn() }));
 
 const { instrumentRuntimeRpcTracing, splitTrailingSentryRpcMeta } =
   await import("./runtime-rpc-tracing.js");
@@ -18,7 +18,7 @@ const { instrumentRuntimeRpcTracing, splitTrailingSentryRpcMeta } =
 const RPC_META = {
   __sentry_rpc_meta__: {
     "sentry-trace": "0123456789abcdef0123456789abcdef-0123456789abcdef-1",
-    baggage: "sentry-release=insecur-api",
+    baggage: "sentry-org_id=42",
   },
 };
 

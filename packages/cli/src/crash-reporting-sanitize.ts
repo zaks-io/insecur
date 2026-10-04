@@ -1,4 +1,4 @@
-import { prepareSentryErrorDiagnostics } from "@insecur/observability";
+import { prepareSentryErrorDiagnostics, prepareSentryTraceContext } from "@insecur/observability";
 
 type SentryEvent = Record<string, unknown>;
 
@@ -45,17 +45,26 @@ function addSafeTags(sanitized: SentryEvent, event: SentryEvent): void {
   }
 }
 
+function addSafeTraceContext(sanitized: SentryEvent, event: SentryEvent): void {
+  const trace = prepareSentryTraceContext(event.contexts);
+  if (trace !== undefined) {
+    sanitized.contexts = { trace };
+  }
+}
+
 export function sanitizeSentryEvent(event: SentryEvent): SentryEvent {
   const sanitized = {
     ...pickSafeFields(event),
     ...prepareSentryErrorDiagnostics(event),
   };
   addSafeTags(sanitized, event);
+  addSafeTraceContext(sanitized, event);
   return sanitized;
 }
 
 export function sanitizeSentryTransaction(event: SentryEvent): SentryEvent {
   const sanitized = { ...pickSafeFields(event), type: "transaction" };
   addSafeTags(sanitized, event);
+  addSafeTraceContext(sanitized, event);
   return sanitized;
 }

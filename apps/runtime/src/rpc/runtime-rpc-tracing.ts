@@ -1,4 +1,9 @@
-import { cloudflareSentryOptions, type SentryBindings } from "@insecur/observability";
+import {
+  cloudflareSentryOptions,
+  sanitizeSentryRequest,
+  withWorkerTraceCorrelation,
+  type SentryBindings,
+} from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 
 /**
@@ -67,7 +72,7 @@ export function instrumentRuntimeRpcTracing(prototype: object): void {
 function tracedRpcMethod(methodName: string, original: RpcMethod): RpcMethod {
   return function traced(this: RpcHost, ...rawArgs: unknown[]): unknown {
     const { args, trace } = splitTrailingSentryRpcMeta(rawArgs);
-    const options = cloudflareSentryOptions(this.env);
+    const options = cloudflareSentryOptions(this.env, new Set([`POST /rpc/${methodName}`]));
     if (options.enabled !== true) {
       return original.apply(this, args);
     }
@@ -86,9 +91,16 @@ function tracedRpcMethod(methodName: string, original: RpcMethod): RpcMethod {
     });
 
     let value: unknown;
-    return Sentry.wrapRequestHandler({ options, request, context: this.ctx }, async () => {
-      value = await original.apply(this, args);
-      return new Response(null, { status: 200 });
-    }).then(() => value);
+    return Sentry.wrapRequestHandler(
+      { options, request: sanitizeSentryRequest(request), context: this.ctx },
+      async () => {
+        value = await withWorkerTraceCorrelation(
+          this.ctx,
+          Sentry.getActiveSpan()?.spanContext().traceId,
+          () => original.apply(this, args),
+        );
+        return new Response(null, { status: 200 });
+      },
+    ).then(() => value);
   };
 }

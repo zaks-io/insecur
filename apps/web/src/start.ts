@@ -1,4 +1,5 @@
 import type { SentryBrowserConfig } from "@insecur/observability";
+import type { WebEnv } from "./env.js";
 import { createStart } from "@tanstack/react-start";
 import {
   sentryGlobalFunctionMiddleware,
@@ -17,6 +18,7 @@ declare module "@tanstack/react-start" {
         nonce?: string;
         sentry?: SentryBrowserConfig;
         host?: string;
+        workerEnv?: WebEnv;
       };
     };
   }
