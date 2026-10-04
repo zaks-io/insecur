@@ -48,6 +48,7 @@ export interface SentrySanitizationMetadata {
   platform: "javascript";
   release?: string;
   service?: string;
+  traceNames?: ReadonlySet<string>;
 }
 
 interface SentryExceptionLike {
@@ -69,14 +70,17 @@ export function prepareSentryEvent<TEvent extends SentryEventLike>(
   if (metadata.service) {
     sanitized.tags = { service: metadata.service };
   }
-  const trace = safeTraceContext(event.contexts);
+  const trace = prepareSentryTraceContext(event.contexts);
   if (trace !== undefined) {
     sanitized.contexts = { trace };
   }
   return sanitized as TEvent;
 }
 
-export function prepareSentrySpan<TSpan extends SentrySpanLike>(span: TSpan): TSpan {
+export function prepareSentrySpan<TSpan extends SentrySpanLike>(
+  span: TSpan,
+  traceNames?: ReadonlySet<string>,
+): TSpan {
   const sanitized: SentrySpanLike = {
     data: {},
     ...safeSpanIdentifiers(span),
@@ -86,7 +90,7 @@ export function prepareSentrySpan<TSpan extends SentrySpanLike>(span: TSpan): TS
   if (op !== undefined) {
     sanitized.op = op;
   }
-  const description = sanitizedSpanDescription(span.op, span.description);
+  const description = sanitizedSpanDescription(span.op, span.description, traceNames);
   if (description !== undefined) {
     sanitized.description = description;
   }
@@ -106,12 +110,12 @@ export function prepareSentryTransaction<TEvent extends SentryTransactionLike>(
   if (isFiniteNumber(event.start_timestamp)) {
     sanitized.start_timestamp = event.start_timestamp;
   }
-  const transaction = sanitizedTransactionName(event.transaction);
+  const transaction = sanitizedTransactionName(event.transaction, metadata.traceNames);
   if (transaction !== undefined) {
     sanitized.transaction = transaction;
   }
   if (event.spans) {
-    sanitized.spans = event.spans.map(prepareSentrySpan);
+    sanitized.spans = event.spans.map((span) => prepareSentrySpan(span, metadata.traceNames));
   }
   return sanitized as TEvent;
 }
@@ -133,7 +137,7 @@ function safeConfiguredMetadata(
   };
 }
 
-function safeTraceContext(contexts: unknown): Record<string, string> | undefined {
+export function prepareSentryTraceContext(contexts: unknown): Record<string, string> | undefined {
   if (!isRecord(contexts) || !isRecord(contexts.trace)) return undefined;
   const trace = contexts.trace;
   const traceId = safeHexId(trace.trace_id, 32);
@@ -171,27 +175,37 @@ function safeSpanTiming(span: SentrySpanLike): Partial<SentrySpanLike> {
 }
 
 function sanitizedSpanOp(op: string | undefined): string | undefined {
-  return /^(?:cli\.command|db|http\.(?:client|server))$/u.test(op ?? "") ? op : undefined;
+  return /^(?:cli\.command|db|http\.(?:client|server)|middleware\.(?:hono|tanstackstart)|pageload|navigation|function\.tanstackstart)$/u.test(
+    op ?? "",
+  )
+    ? op
+    : undefined;
 }
 
 function sanitizedSpanDescription(
   op: string | undefined,
   description: string | undefined,
+  traceNames?: ReadonlySet<string>,
 ): string | undefined {
   if (!description) return undefined;
-  if (op?.startsWith("http.")) {
-    const [method, target] = splitHttpTransactionName(description);
-    return target && isHttpMethod(method) ? method : undefined;
-  }
+  if (traceNames?.has(description)) return description;
+  if (op?.startsWith("http.")) return sanitizedHttpName(description);
   if (op === "cli.command" && /^insecur [a-z.]+$/u.test(description)) return description;
   return undefined;
 }
 
-function sanitizedTransactionName(name: string | undefined): string | undefined {
-  if (!name) return undefined;
+function sanitizedHttpName(name: string): string | undefined {
   const [method, target] = splitHttpTransactionName(name);
-  if (target && isHttpMethod(method)) return method;
-  return /^insecur [a-z.]+$/u.test(name) ? name : undefined;
+  return target && isHttpMethod(method) ? method : undefined;
+}
+
+function sanitizedTransactionName(
+  name: string | undefined,
+  traceNames?: ReadonlySet<string>,
+): string | undefined {
+  if (!name) return undefined;
+  if (traceNames?.has(name)) return name;
+  return sanitizedHttpName(name) ?? (/^insecur [a-z.]+$/u.test(name) ? name : undefined);
 }
 
 function splitHttpTransactionName(name: string): [string, string | undefined] {

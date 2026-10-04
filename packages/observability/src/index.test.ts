@@ -3,7 +3,7 @@ import {
   DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
   cloudflareSentryOptions,
   initBrowserSentry,
-  requestWithoutSentryBaggage,
+  sanitizeSentryRequest,
   sentryBrowserConfig,
   sentryBrowserConfigScript,
   type BrowserSentryOptions,
@@ -232,7 +232,7 @@ describe("observability sentry config", () => {
         "sentry-trace": "0123456789abcdef0123456789abcdef-0123456789abcdef-1",
       },
     });
-    const sanitized = requestWithoutSentryBaggage(request);
+    const sanitized = sanitizeSentryRequest(request);
 
     expect(sanitized.headers.get("baggage")).toBeNull();
     expect(sanitized.headers.get("sentry-trace")).toBe(

@@ -27,6 +27,8 @@ function wranglerTypesArgs() {
     OUTPUT,
     "--config",
     "wrangler.jsonc",
+    "--env-file",
+    "../../scripts/wrangler-types.env",
     "--env-interface",
     "CloudflareEnv",
     "--include-runtime",

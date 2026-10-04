@@ -2,11 +2,13 @@ import {
   cloudflareSentryOptions,
   sentryBrowserConfig,
   sentryFetchWithBaggageGuard,
+  workerFetchWithTraceCorrelation,
 } from "@insecur/observability";
 import * as Sentry from "@sentry/cloudflare";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import serverEntry from "@tanstack/react-start/server-entry";
 import type { WebEnv } from "./env.js";
+import { sentryTraceNames } from "./sentry-trace-names.js";
 import { buildContentSecurityPolicy, generateCspNonce } from "./security/csp.js";
 
 const sentryServerEntry = wrapFetchWithSentry({
@@ -45,7 +47,7 @@ function withSecurityHeaders(
 const handler = {
   async fetch(
     request: Request,
-    // Cloudflare passes bindings per request; app code reads them via `cloudflare:workers`.
+    // Sentry instruments these bindings before they enter the server request context.
     env: WebEnv,
     ctx: ExecutionContext,
   ): Promise<Response> {
@@ -64,7 +66,7 @@ const handler = {
     const nonce = generateCspNonce();
     const sentry = sentryBrowserConfig(env);
     const response = await sentryServerEntry.fetch(request, {
-      context: { nonce, sentry, host: new URL(request.url).host },
+      context: { nonce, sentry, host: new URL(request.url).host, workerEnv: env },
     });
     return withSecurityHeaders(response, nonce, {
       sentryDsn: sentry?.dsn,
@@ -73,7 +75,15 @@ const handler = {
   },
 } satisfies ExportedHandler<WebEnv>;
 
-const sentryHandler = Sentry.withSentry<WebEnv>(cloudflareSentryOptions, handler);
+handler.fetch = workerFetchWithTraceCorrelation(
+  handler.fetch.bind(handler),
+  () => Sentry.getActiveSpan()?.spanContext().traceId,
+);
+
+const sentryHandler = Sentry.withSentry<WebEnv>(
+  (env) => cloudflareSentryOptions(env, sentryTraceNames),
+  handler,
+);
 
 export default {
   fetch: sentryFetchWithBaggageGuard(sentryHandler, handler.fetch.bind(handler)),

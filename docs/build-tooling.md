@@ -727,9 +727,36 @@ point for the CLI, Workers, and browser. It is currently `1`, so every new root 
 The originating service's decision is propagated downstream in `sentry-trace` and `baggage`; Sentry
 Dynamic Sampling controls server-side retention after that decision. The shared Sentry config
 disables PII, request bodies, query parameters, cookies, headers, local variables, source context,
-logs, and arbitrary span attributes. Public Workers preserve incoming `sentry-trace` for correlation
-but drop incoming `baggage` before Sentry sees it, so caller-controlled dynamic sampling context
-cannot carry OAuth state or other request parameters into telemetry.
+logs, and arbitrary span attributes. Public Workers validate incoming `sentry-trace` and retain
+only bounded, validated Sentry organization/trace/public-key identifiers and numeric or boolean
+sampling fields from `baggage`. Free-text fields such as transaction, release, environment, OAuth
+state, and arbitrary baggage are removed before Sentry sees them. Strict trace continuation still
+requires the incoming organization ID to match the configured Sentry organization; it is a tracing
+filter, not an authentication or authorization check. Callers can influence their own sampling
+decision, so traces are not an audit trail.
+
+Trace labels retain only registered HTTP route templates, router paths, middleware names, and
+Runtime RPC method names. Concrete request paths, query strings, and database statements remain
+excluded. Web server functions use the Sentry-instrumented Worker bindings carried in their
+server-only request context, so private API fetches and admission RPC calls propagate the active
+trace instead of using the uninstrumented global bindings. CLI transactions and errors retain
+validated trace/span identifiers so they join the same application trace.
+
+Cloudflare-native traces and Sentry SDK traces remain separate waterfalls. When the native custom
+span API and an active Sentry trace are available, each API/Web/Site fetch and Runtime RPC adds an `insecur.application` span
+with the validated SDK trace ID in `sentry.trace_id`. This permits correlation across the two
+streams without claiming shared native parentage. Native exports bypass the SDK sanitizers and
+remain subject to the independent no-plaintext evidence requirements in ADR-0085. Cloudflare's
+[native tracing limitations](https://developers.cloudflare.com/workers/observability/traces/known-limitations/)
+and [custom span limitations](https://developers.cloudflare.com/workers/observability/traces/custom-spans/#limitations)
+prevent reading or manually joining native span identifiers today.
+
+`apps/api/test/e2e/sentry-trace-continuity.e2e.test.ts`, inside the DB-backed smoke loop, captures
+real SDK envelopes from an authenticated API request through Runtime RPC and Postgres. It checks
+one trace ID, parent relationships, registered labels, service/release/environment identity,
+native correlation attributes, and exclusion of private request metadata and credentials. Shared
+observability and CLI SDK tests also check error correlation and rejection of foreign or malformed
+trace context.
 
 #### Sentry auth token setup (human step)
 

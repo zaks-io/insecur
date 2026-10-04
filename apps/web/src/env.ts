@@ -1,4 +1,5 @@
 import type { RuntimeAdmissionRpc } from "./runtime/admission-types.js";
+import { getGlobalStartContext } from "@tanstack/react-start";
 
 /**
  * Worker secrets and RPC contracts Wrangler cannot infer from wrangler.jsonc. Generated bindings
@@ -25,5 +26,13 @@ export type WebEnv = Omit<CloudflareEnv, "RUNTIME"> &
 
 /** Bridge TanStack Start's generated `Cloudflare.Env` to the full BFF contract at runtime. */
 export function asWebEnv(env: Cloudflare.Env): WebEnv {
+  // The request context carries Sentry's instrumented bindings; the global import does not.
+  let requestEnv: WebEnv | undefined;
+  try {
+    requestEnv = getGlobalStartContext()?.workerEnv;
+  } catch {
+    // Direct calls outside a Start request (including unit fixtures) have no request context.
+  }
+  if (requestEnv) return requestEnv;
   return env as unknown as WebEnv;
 }
