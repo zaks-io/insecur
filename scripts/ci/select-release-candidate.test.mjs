@@ -163,9 +163,10 @@ test("accepts equal or older verified live deployments and rejects divergent liv
 });
 
 test("fails closed when Git cannot resolve the verified live commit", (t) => {
-  // Hooks export routing/config variables that override Git's cwd. Run this
-  // fixture in a clean child before any Git command can reach the parent repo.
-  if (Object.keys(process.env).some((key) => key.startsWith("GIT_"))) {
+  // Run Git only in a clean child with an explicit global config. Restore the
+  // synthetic config after clearing inherited routing/config injection variables.
+  const globalConfig = process.env.INSECUR_RELEASE_FIXTURE_GLOBAL_CONFIG;
+  if (process.env.INSECUR_RELEASE_FIXTURE_CHILD !== "1") {
     execFileSync(
       process.execPath,
       [
@@ -173,9 +174,24 @@ test("fails closed when Git cannot resolve the verified live commit", (t) => {
         "--test-name-pattern=fails closed when Git cannot resolve",
         fileURLToPath(import.meta.url),
       ],
-      { env: cleanGitEnv(), stdio: "pipe" },
+      {
+        env: {
+          ...cleanGitEnv(),
+          INSECUR_RELEASE_FIXTURE_CHILD: "1",
+          GIT_CONFIG_GLOBAL: globalConfig ?? "/dev/null",
+          GIT_CONFIG_NOSYSTEM: "1",
+        },
+        stdio: "pipe",
+      },
     );
     return;
+  }
+  if (globalConfig) {
+    const configValue = (key) =>
+      execFileSync("git", ["config", "--global", "--get", key], { encoding: "utf8" }).trim();
+    assert.equal(configValue("commit.gpgsign"), "true");
+    assert.equal(configValue("gpg.program"), path.join(path.dirname(globalConfig), "signer"));
+    assert.equal(configValue("core.hooksPath"), path.join(path.dirname(globalConfig), "hooks"));
   }
   const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-ancestry-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
@@ -275,9 +291,7 @@ test("isolates real-Git fixtures from inherited hook repository routing", (t) =>
 test("Git ancestry fixture never invokes global signing or hooks", (t) => {
   const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-global-config-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  const configDir = path.join(cwd, "git");
   const hooksDir = path.join(cwd, "hooks");
-  mkdirSync(configDir);
   mkdirSync(hooksDir);
   const signer = path.join(cwd, "signer");
   const hook = path.join(hooksDir, "pre-commit");
@@ -285,14 +299,19 @@ test("Git ancestry fixture never invokes global signing or hooks", (t) => {
     writeFileSync(script, '#!/bin/sh\nprintf invoked > "$0.called"\nexit 1\n', { mode: 0o700 });
   }
   const config = `[commit]\n  gpgsign = true\n[gpg]\n  program = ${JSON.stringify(signer)}\n[core]\n  hooksPath = ${JSON.stringify(hooksDir)}\n`;
-  const configFile = path.join(configDir, "config");
+  const configFile = path.join(cwd, "gitconfig");
   writeFileSync(configFile, config);
-  const env = { ...cleanGitEnv(), XDG_CONFIG_HOME: cwd };
+  const env = {
+    ...cleanGitEnv(),
+    GIT_CONFIG_GLOBAL: configFile,
+    GIT_CONFIG_NOSYSTEM: "1",
+    INSECUR_RELEASE_FIXTURE_GLOBAL_CONFIG: configFile,
+  };
   const git = (...args) => execFileSync("git", args, { env, encoding: "utf8" }).trim();
   const callerHead = git("rev-parse", "HEAD");
-  assert.equal(git("config", "--get", "commit.gpgsign"), "true");
-  assert.equal(git("config", "--get", "gpg.program"), signer);
-  assert.equal(git("config", "--get", "core.hooksPath"), hooksDir);
+  assert.equal(git("config", "--global", "--get", "commit.gpgsign"), "true");
+  assert.equal(git("config", "--global", "--get", "gpg.program"), signer);
+  assert.equal(git("config", "--global", "--get", "core.hooksPath"), hooksDir);
   execFileSync(
     process.execPath,
     [
