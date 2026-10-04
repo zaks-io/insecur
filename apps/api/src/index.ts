@@ -7,7 +7,12 @@ import {
   RuntimeTokenSigningSecretConfigError,
   domainErrorEnvelope,
 } from "@insecur/worker-kit";
-import { cloudflareSentryOptions, requestWithoutSentryBaggage } from "@insecur/observability";
+import {
+  cloudflareSentryOptions,
+  sanitizeSentryRequest,
+  workerFetchWithTraceCorrelation,
+} from "@insecur/observability";
+import { getActiveSpan } from "@sentry/cloudflare";
 import { sentry } from "@sentry/hono/cloudflare";
 import { Hono } from "hono";
 import { apiRequestAnalyticsMiddleware } from "./api-request-analytics.js";
@@ -38,7 +43,13 @@ import { apiRequestBodyLimitMiddleware } from "./request-body-limit.js";
 
 const app = new Hono<{ Bindings: ApiEnv }>();
 
-app.use(sentry(app, cloudflareSentryOptions));
+app.fetch = workerFetchWithTraceCorrelation(
+  app.fetch.bind(app),
+  () => getActiveSpan()?.spanContext().traceId,
+);
+
+const traceNames = new Set<string>();
+app.use(sentry(app, (env) => cloudflareSentryOptions(env, traceNames)));
 
 app.use(apiRequestBodyLimitMiddleware);
 
@@ -122,7 +133,13 @@ registerRuntimeInjectionRoutes(app);
 registerSessionRoutes(app);
 registerWebhookSubscriptionsRoutes(app);
 
+// Only code-registered route templates and middleware names may leave in trace labels.
+for (const route of app.routes) {
+  if (route.method !== "ALL") traceNames.add(`${route.method} ${route.path}`);
+  if (route.handler.name) traceNames.add(route.handler.name);
+}
+
 const sentryFetch = app.fetch.bind(app);
-app.fetch = (request, env, ctx) => sentryFetch(requestWithoutSentryBaggage(request), env, ctx);
+app.fetch = (request, env, ctx) => sentryFetch(sanitizeSentryRequest(request), env, ctx);
 
 export default app;

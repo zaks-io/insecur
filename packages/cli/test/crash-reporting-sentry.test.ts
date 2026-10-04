@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/node";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadProjectConfig } from "../src/config/project-config.js";
 import { createCliCrashReporter } from "../src/crash-reporting.js";
+import { sanitizeSentryEvent, sanitizeSentryTransaction } from "../src/crash-reporting-sanitize.js";
 
 const UNSAFE_SENTINEL = "raw-event-baggage-must-be-dropped";
 
@@ -12,6 +13,73 @@ describe("CLI crash reporting through the Sentry SDK", () => {
   afterEach(async () => {
     await Sentry.close(100);
   });
+
+  it("emits a command transaction and attached error with the propagated trace identity", async () => {
+    const envelopes: string[] = [];
+    const reporter = await createTestReporter(envelopes);
+    let propagatedTrace: string | undefined;
+
+    await reporter.withCommandTrace(["node", "insecur", "config", "show"], async () => {
+      propagatedTrace = reporter.traceHeaders()["sentry-trace"];
+      await reporter.captureException(new Error("Config parse failed"), { source: "unexpected" });
+    });
+    await reporter.flush(2_000);
+
+    const [traceId, spanId] = propagatedTrace?.split("-") ?? [];
+    expect(traceId).toMatch(/^[a-f0-9]{32}$/u);
+    expect(spanId).toMatch(/^[a-f0-9]{16}$/u);
+    const event = capturedEvent(envelopes);
+    const transaction = envelopes
+      .flatMap((envelope) => envelope.split("\n"))
+      .map(parseEnvelopeLine)
+      .find((value) => value?.type === "transaction" && value.transaction !== undefined);
+    expect(transaction).toBeDefined();
+    for (const captured of [event, transaction]) {
+      expect(captured?.contexts).toMatchObject({
+        trace: { trace_id: traceId, span_id: spanId },
+      });
+      expect(JSON.stringify(captured)).not.toContain(UNSAFE_SENTINEL);
+    }
+    expect(transaction?.contexts).toMatchObject({ trace: { op: "cli.command" } });
+  });
+
+  it.each([sanitizeSentryEvent, sanitizeSentryTransaction])(
+    "retains only validated correlation metadata in %s",
+    (sanitize) => {
+      const trace = {
+        trace_id: "0123456789abcdef0123456789abcdef",
+        span_id: "0123456789abcdef",
+        parent_span_id: "fedcba9876543210",
+        op: "cli.command",
+        status: "ok",
+      };
+      const sanitized = sanitize({
+        contexts: {
+          trace: { ...trace, data: { private: UNSAFE_SENTINEL }, description: UNSAFE_SENTINEL },
+          runtime: { private: UNSAFE_SENTINEL },
+        },
+      });
+      expect(sanitized.contexts).toEqual({ trace });
+      expect(JSON.stringify(sanitized)).not.toContain(UNSAFE_SENTINEL);
+      for (const invalidId of [UNSAFE_SENTINEL, 123, "g".repeat(32), "f".repeat(31)]) {
+        expect(
+          sanitize({ contexts: { trace: { ...trace, trace_id: invalidId } } }),
+        ).not.toHaveProperty("contexts");
+      }
+      expect(
+        sanitize({
+          contexts: {
+            trace: {
+              ...trace,
+              parent_span_id: UNSAFE_SENTINEL,
+              op: UNSAFE_SENTINEL,
+              status: UNSAFE_SENTINEL,
+            },
+          },
+        }).contexts,
+      ).toEqual({ trace: { trace_id: trace.trace_id, span_id: trace.span_id } });
+    },
+  );
 
   it("serializes scrubbed original diagnostics without request, user, tag, or local baggage", async () => {
     const envelopes: string[] = [];
@@ -119,6 +187,11 @@ function addPrivateEventData(event: Sentry.Event): Sentry.Event {
     ...event,
     request: { data: UNSAFE_SENTINEL, url: `https://${UNSAFE_SENTINEL}.invalid` },
     user: { email: `${UNSAFE_SENTINEL}@example.com` },
+    contexts: {
+      ...event.contexts,
+      runtime: { name: UNSAFE_SENTINEL },
+      trace: { ...event.contexts?.trace, data: { private: UNSAFE_SENTINEL } },
+    },
     tags: { ...event.tags, unsafe: UNSAFE_SENTINEL },
     exception: {
       values: event.exception?.values?.map((value) => ({
@@ -160,6 +233,8 @@ async function createTestReporter(envelopes: string[]) {
         });
       },
       flush: Sentry.flush,
+      getTraceData: Sentry.getTraceData,
+      startSpan: Sentry.startSpan,
     },
     version: "0.2.0",
   });
