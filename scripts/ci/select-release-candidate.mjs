@@ -37,8 +37,7 @@ async function main() {
     candidateSha: candidate.head_sha,
     mainSha,
     productionSha,
-    isAncestor: (ancestor, descendant) =>
-      gitStatus("merge-base", "--is-ancestor", ancestor, descendant) === 0,
+    isAncestor: gitIsAncestor,
   });
 
   const live = await readProductionIdentity();
@@ -49,8 +48,7 @@ async function main() {
     candidateSha: candidate.head_sha,
     liveSha: live?.deploySha,
     verifiedLiveRun,
-    isAncestor: (ancestor, descendant) =>
-      gitStatus("merge-base", "--is-ancestor", ancestor, descendant) === 0,
+    isAncestor: gitIsAncestor,
   });
   const action = decideReleaseAction({
     candidateSha: candidate.head_sha,
@@ -119,14 +117,15 @@ export function assertCandidateNotBehindVerifiedLive({
   liveSha,
   verifiedLiveRun,
 }) {
-  if (
-    verifiedLiveRun &&
-    isCommitSha(liveSha) &&
-    candidateSha !== liveSha &&
-    isAncestor(candidateSha, liveSha)
-  ) {
+  if (!verifiedLiveRun || !isCommitSha(liveSha) || candidateSha === liveSha) return;
+  if (isAncestor(candidateSha, liveSha)) {
     throw new Error(
       `Release candidate ${candidateSha} is behind verified live deployment ${liveSha}; refusing to roll production back.`,
+    );
+  }
+  if (!isAncestor(liveSha, candidateSha)) {
+    throw new Error(
+      `Verified live deployment ${liveSha} and release candidate ${candidateSha} have diverged; refusing to deploy.`,
     );
   }
 }
@@ -255,12 +254,18 @@ function git(...args) {
   return execFileSync("git", args, { encoding: "utf8" }).trim();
 }
 
-function gitStatus(...args) {
+export function gitIsAncestor(ancestor, descendant, cwd = process.cwd()) {
   try {
-    execFileSync("git", args, { stdio: "ignore" });
-    return 0;
+    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+      cwd,
+      stdio: "ignore",
+    });
+    return true;
   } catch (error) {
-    return typeof error?.status === "number" ? error.status : 1;
+    if (error?.status === 1) return false;
+    throw new Error(
+      `Cannot verify Git ancestry from ${ancestor} to ${descendant}; refresh the release refs before selecting a release.`,
+    );
   }
 }
 

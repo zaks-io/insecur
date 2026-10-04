@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -6,6 +10,7 @@ import {
   assertReleaseAncestry,
   buildReleaseCandidateEvidence,
   decideReleaseAction,
+  gitIsAncestor,
   parseHealthIdentities,
   selectNewestSuccessfulMainRun,
 } from "./select-release-candidate.mjs";
@@ -131,6 +136,85 @@ test("rejects a candidate behind a verified live deployment", () => {
   );
 });
 
+test("accepts equal or older verified live deployments and rejects divergent live history", () => {
+  const isAncestor = (ancestor, descendant) =>
+    ancestor === descendant || (ancestor === OLD_SHA && descendant === NEW_SHA);
+  for (const liveSha of [OLD_SHA, NEW_SHA]) {
+    assert.doesNotThrow(() =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: NEW_SHA,
+        isAncestor,
+        liveSha,
+        verifiedLiveRun: true,
+      }),
+    );
+  }
+  assert.throws(
+    () =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: NEW_SHA,
+        isAncestor,
+        liveSha: "3".repeat(40),
+        verifiedLiveRun: true,
+      }),
+    /have diverged; refusing to deploy/u,
+  );
+});
+
+test("fails closed when Git cannot resolve the verified live commit", (t) => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-ancestry-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const git = (...args) => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  git("init", "--quiet");
+  const commit = () => {
+    git(
+      "-c",
+      "user.name=Release test",
+      "-c",
+      "user.email=release@example.test",
+      "commit",
+      "--allow-empty",
+      "--quiet",
+      "-m",
+      "Release fixture",
+    );
+    return git("rev-parse", "HEAD");
+  };
+  const oldSha = commit();
+  const newSha = commit();
+  const isAncestor = (ancestor, descendant) => gitIsAncestor(ancestor, descendant, cwd);
+  assert.equal(isAncestor(oldSha, newSha), true);
+  assert.equal(isAncestor(newSha, oldSha), false);
+  assert.throws(
+    () =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: oldSha,
+        isAncestor,
+        liveSha: NEW_SHA,
+        verifiedLiveRun: true,
+      }),
+    /Cannot verify Git ancestry/u,
+  );
+  assert.throws(
+    () =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: oldSha,
+        isAncestor,
+        liveSha: newSha,
+        verifiedLiveRun: true,
+      }),
+    /refusing to roll production back/u,
+  );
+  assert.doesNotThrow(() =>
+    assertCandidateNotBehindVerifiedLive({
+      candidateSha: newSha,
+      isAncestor,
+      liveSha: oldSha,
+      verifiedLiveRun: true,
+    }),
+  );
+});
+
 test("records the exact candidate, main, production, and live identities", () => {
   assert.deepEqual(
     buildReleaseCandidateEvidence({
@@ -155,6 +239,16 @@ test("records the exact candidate, main, production, and live identities", () =>
 });
 
 test("selects no-op, branch repair, and deployment actions", () => {
+  assert.equal(
+    decideReleaseAction({
+      candidateSha: OLD_SHA,
+      liveSha: NEW_SHA,
+      productionSha: NEW_SHA,
+      relation: "production-ahead",
+      verifiedLiveRun: true,
+    }),
+    "noop",
+  );
   assert.equal(
     decideReleaseAction({
       candidateSha: NEW_SHA,
