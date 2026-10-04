@@ -6,6 +6,22 @@ import path from "node:path";
 import test from "node:test";
 
 const scannerScript = new URL("./sbom-grype.sh", import.meta.url).pathname;
+const hostToolNames = ["bash", "dirname", "mktemp", "rm", "awk", "cp", "chmod", "mkdir", "install"];
+
+function resolveHostTools(searchPath = "/usr/bin:/bin") {
+  return Object.fromEntries(
+    hostToolNames.map((name) => {
+      const result = spawnSync("/bin/sh", ["-c", 'command -v "$1"', "resolve-host-tool", name], {
+        encoding: "utf8",
+        env: { PATH: searchPath },
+      });
+      assert.equal(result.status, 0, `cannot resolve host utility ${name}: ${result.stderr}`);
+      return [name, result.stdout.trim()];
+    }),
+  );
+}
+
+const systemTools = resolveHostTools();
 
 async function fixture(
   t,
@@ -14,6 +30,7 @@ async function fixture(
     installMode = "success",
     unavailable = "",
     installerReportsSuccess = false,
+    hostTools = systemTools,
   } = {},
 ) {
   const directory = await mkdtemp(path.join(tmpdir(), "insecur-scanner-startup-"));
@@ -40,7 +57,7 @@ async function fixture(
   }
 
   for (const name of ["bash", "dirname", "mktemp", "rm", "awk"]) {
-    await symlink(`/usr/bin/${name}`, path.join(directory, name));
+    await symlink(hostTools[name], path.join(directory, name));
   }
   const scanner =
     'name="${0##*/}"\nprintf "%s %s\\n" "$name" "$*" >> "$CALLS"\n' +
@@ -64,25 +81,25 @@ async function fixture(
       'else printf archive > "$output"; fi',
   );
   await tool("sha256sum", 'printf "abc %s\\n" "$1"');
-  await tool("tar", '/usr/bin/cp "$FIXTURE/scanner-template" "$4/$5"');
+  await tool("tar", '"$HOST_CP" "$FIXTURE/scanner-template" "$4/$5"');
   await tool(
     "install",
     'name="${4##*/}"\nprintf "install %s\\n" "$name" >> "$CALLS"\n' +
       'if [ "$INSTALL_MODE" = fail ]; then\n' +
-      '  /usr/bin/install -m 0755 "$3" "$FIXTURE/unwritable-prefix/$name"\n  exit\nfi\n' +
+      '  "$HOST_INSTALL" -m 0755 "$3" "$FIXTURE/unwritable-prefix/$name"\n  exit\nfi\n' +
       'if [ "$name" = "$UNAVAILABLE" ] && [ "$INSTALL_MODE" = missing ]; then exit 0; fi\n' +
-      '/usr/bin/cp "$3" "$FIXTURE/$name"\n' +
+      '"$HOST_CP" "$3" "$FIXTURE/$name"\n' +
       'if [ "$name" = "$UNAVAILABLE" ] && [ "$INSTALL_MODE" = nonexec ]; then\n' +
-      '  /usr/bin/chmod 0644 "$FIXTURE/$name"\nelse /usr/bin/chmod 0755 "$FIXTURE/$name"; fi',
+      '  "$HOST_CHMOD" 0644 "$FIXTURE/$name"\nelse "$HOST_CHMOD" 0755 "$FIXTURE/$name"; fi',
   );
   const sbomPath = path.join(directory, "sbom.json");
   const jsonPath = path.join(directory, "reports", "grype.json");
-  await symlink("/usr/bin/mkdir", path.join(directory, "mkdir"));
+  await symlink(hostTools.mkdir, path.join(directory, "mkdir"));
   return {
     sbomPath,
     jsonPath,
     run(extraEnv = {}, threshold = "high") {
-      return spawnSync("/bin/bash", [localScript, threshold], {
+      return spawnSync(hostTools.bash, [localScript, threshold], {
         cwd: directory,
         encoding: "utf8",
         ...(dropPrivileges ? { uid: 65534, gid: 65534 } : {}),
@@ -93,6 +110,9 @@ async function fixture(
           INSTALL_MODE: installMode,
           UNAVAILABLE: unavailable,
           SBOM_PATH: sbomPath,
+          HOST_CP: hostTools.cp,
+          HOST_CHMOD: hostTools.chmod,
+          HOST_INSTALL: hostTools.install,
           ...extraEnv,
         },
       });
@@ -102,6 +122,30 @@ async function fixture(
     },
   };
 }
+
+test("startup fixture supports host utilities split across macOS-style bin directories", async (t) => {
+  const layout = await mkdtemp(path.join(tmpdir(), "insecur-scanner-host-layout-"));
+  t.after(() => rm(layout, { recursive: true, force: true }));
+  const usrBin = path.join(layout, "usr", "bin");
+  const bin = path.join(layout, "bin");
+  await mkdir(usrBin, { recursive: true });
+  await mkdir(bin);
+  const binTools = ["bash", "rm", "cp", "chmod", "mkdir"];
+  for (const name of hostToolNames) {
+    await symlink(systemTools[name], path.join(binTools.includes(name) ? bin : usrBin, name));
+  }
+  const hostTools = resolveHostTools(`${usrBin}:${bin}`);
+  for (const name of binTools) assert.equal(hostTools[name], path.join(bin, name));
+  const tools = await fixture(t, { hostTools });
+  const result = tools.run({ GRYPE_JSON_PATH: tools.jsonPath });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual((await tools.calls()).slice(-3), [
+    `syft scan dir:. -o cyclonedx-json=${tools.sbomPath}`,
+    `grype sbom:${tools.sbomPath} -o json`,
+    `grype sbom:${tools.sbomPath} --fail-on high`,
+  ]);
+  assert.equal(await readFile(tools.jsonPath, "utf8"), "[]\n");
+});
 
 test("non-root installation into an unwritable prefix fails before scanning", async (t) => {
   const tools = await fixture(t, { installMode: "fail" });
