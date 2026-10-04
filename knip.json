@@ -95,5 +95,5 @@
       "ignoreDependencies": ["@sentry/cli", "dependency-cruiser"]
     }
   },
-  "ignoreBinaries": ["actionlint", "psql", "taskkill"]
+  "ignoreBinaries": ["actionlint", "gitleaks", "psql", "taskkill"]
 }
