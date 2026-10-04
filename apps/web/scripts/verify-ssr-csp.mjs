@@ -211,6 +211,7 @@ const RUNTIME_STUB = `
 import { WorkerEntrypoint } from "cloudflare:workers";
 const ADMISSIONS = {
   "${USER_WORKOS_ID}": "${USER_ID}",
+  "user_local_alice": "${USER_ID}",
   "${ORG_LESS_WORKOS_ID}": "${ORG_LESS_USER_ID}",
 };
 export class RuntimeStub extends WorkerEntrypoint {
@@ -539,6 +540,11 @@ async function assertInvalidLoginPostsFailClosed() {
       body: invalidRequest.body,
       redirect: "manual",
     });
+    if (
+      response.headers.getSetCookie().some((cookie) => cookie.startsWith("__Host-wos-session="))
+    ) {
+      throw new Error(`/login ${invalidRequest.label} must not establish a browser session`);
+    }
     const location = response.headers.get("location") ?? "";
     if (response.status !== 303 || location !== "/login?error=verification") {
       throw new Error(
