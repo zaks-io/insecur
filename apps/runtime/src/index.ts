@@ -18,7 +18,7 @@ const handler = {
     return new Response("not found", { status: 404 });
   },
   scheduled(controller: ScheduledController, env: RuntimeEnv, ctx: ExecutionContext): void {
-    ctx.waitUntil(runTriggeredBackupExport(env, controller.cron, controller.scheduledTime));
+    ctx.waitUntil(runTriggeredBackupExport(env, controller.cron, controller.scheduledTime, ctx));
   },
 } satisfies ExportedHandler<RuntimeEnv>;
 
