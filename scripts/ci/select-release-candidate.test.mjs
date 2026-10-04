@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -179,7 +179,11 @@ test("fails closed when Git cannot resolve the verified live commit", (t) => {
   }
   const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-ancestry-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  const git = (...args) => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  const git = (...args) =>
+    execFileSync("git", ["-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args], {
+      cwd,
+      encoding: "utf8",
+    }).trim();
   git("init", "--quiet");
   const commit = () => {
     git(
@@ -266,6 +270,42 @@ test("isolates real-Git fixtures from inherited hook repository routing", (t) =>
     () => execFileSync("git", ["rev-parse", "--verify", "HEAD"], { cwd, env, stdio: "pipe" }),
     /Command failed/u,
   );
+});
+
+test("Git ancestry fixture never invokes global signing or hooks", (t) => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-global-config-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const configDir = path.join(cwd, "git");
+  const hooksDir = path.join(cwd, "hooks");
+  mkdirSync(configDir);
+  mkdirSync(hooksDir);
+  const signer = path.join(cwd, "signer");
+  const hook = path.join(hooksDir, "pre-commit");
+  for (const script of [signer, hook]) {
+    writeFileSync(script, '#!/bin/sh\nprintf invoked > "$0.called"\nexit 1\n', { mode: 0o700 });
+  }
+  const config = `[commit]\n  gpgsign = true\n[gpg]\n  program = ${JSON.stringify(signer)}\n[core]\n  hooksPath = ${JSON.stringify(hooksDir)}\n`;
+  const configFile = path.join(configDir, "config");
+  writeFileSync(configFile, config);
+  const env = { ...cleanGitEnv(), XDG_CONFIG_HOME: cwd };
+  const git = (...args) => execFileSync("git", args, { env, encoding: "utf8" }).trim();
+  const callerHead = git("rev-parse", "HEAD");
+  assert.equal(git("config", "--get", "commit.gpgsign"), "true");
+  assert.equal(git("config", "--get", "gpg.program"), signer);
+  assert.equal(git("config", "--get", "core.hooksPath"), hooksDir);
+  execFileSync(
+    process.execPath,
+    [
+      "--test",
+      "--test-name-pattern=fails closed when Git cannot resolve",
+      fileURLToPath(import.meta.url),
+    ],
+    { env, stdio: "pipe" },
+  );
+  assert.equal(existsSync(`${signer}.called`), false);
+  assert.equal(existsSync(`${hook}.called`), false);
+  assert.equal(readFileSync(configFile, "utf8"), config);
+  assert.equal(git("rev-parse", "HEAD"), callerHead);
 });
 
 test("records the exact candidate, main, production, and live identities", () => {
