@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   assertCandidateNotBehindVerifiedLive,
   assertReleaseAncestry,
   buildReleaseCandidateEvidence,
   decideReleaseAction,
+  gitIsAncestor,
   parseHealthIdentities,
   selectNewestSuccessfulMainRun,
 } from "./select-release-candidate.mjs";
@@ -131,6 +137,196 @@ test("rejects a candidate behind a verified live deployment", () => {
   );
 });
 
+test("accepts equal or older verified live deployments and rejects divergent live history", () => {
+  const isAncestor = (ancestor, descendant) =>
+    ancestor === descendant || (ancestor === OLD_SHA && descendant === NEW_SHA);
+  for (const liveSha of [OLD_SHA, NEW_SHA]) {
+    assert.doesNotThrow(() =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: NEW_SHA,
+        isAncestor,
+        liveSha,
+        verifiedLiveRun: true,
+      }),
+    );
+  }
+  assert.throws(
+    () =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: NEW_SHA,
+        isAncestor,
+        liveSha: "3".repeat(40),
+        verifiedLiveRun: true,
+      }),
+    /have diverged; refusing to deploy/u,
+  );
+});
+
+test("fails closed when Git cannot resolve the verified live commit", (t) => {
+  // Run Git only in a clean child with an explicit global config. Restore the
+  // synthetic config after clearing inherited routing/config injection variables.
+  const globalConfig = process.env.INSECUR_RELEASE_FIXTURE_GLOBAL_CONFIG;
+  if (process.env.INSECUR_RELEASE_FIXTURE_CHILD !== "1") {
+    execFileSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-name-pattern=fails closed when Git cannot resolve",
+        fileURLToPath(import.meta.url),
+      ],
+      {
+        env: {
+          ...cleanGitEnv(),
+          INSECUR_RELEASE_FIXTURE_CHILD: "1",
+          GIT_CONFIG_GLOBAL: globalConfig ?? "/dev/null",
+          GIT_CONFIG_NOSYSTEM: "1",
+        },
+        stdio: "pipe",
+      },
+    );
+    return;
+  }
+  if (globalConfig) {
+    const configValue = (key) =>
+      execFileSync("git", ["config", "--global", "--get", key], { encoding: "utf8" }).trim();
+    assert.equal(configValue("commit.gpgsign"), "true");
+    assert.equal(configValue("gpg.program"), path.join(path.dirname(globalConfig), "signer"));
+    assert.equal(configValue("core.hooksPath"), path.join(path.dirname(globalConfig), "hooks"));
+  }
+  const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-ancestry-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync("git", ["-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args], {
+      cwd,
+      encoding: "utf8",
+    }).trim();
+  git("init", "--quiet");
+  const commit = () => {
+    git(
+      "-c",
+      "user.name=Release test",
+      "-c",
+      "user.email=release@example.test",
+      "commit",
+      "--allow-empty",
+      "--quiet",
+      "-m",
+      "Release fixture",
+    );
+    return git("rev-parse", "HEAD");
+  };
+  const oldSha = commit();
+  const newSha = commit();
+  const isAncestor = (ancestor, descendant) => gitIsAncestor(ancestor, descendant, cwd);
+  assert.equal(isAncestor(oldSha, newSha), true);
+  assert.equal(isAncestor(newSha, oldSha), false);
+  assert.throws(
+    () =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: oldSha,
+        isAncestor,
+        liveSha: NEW_SHA,
+        verifiedLiveRun: true,
+      }),
+    /Cannot verify Git ancestry/u,
+  );
+  assert.throws(
+    () =>
+      assertCandidateNotBehindVerifiedLive({
+        candidateSha: oldSha,
+        isAncestor,
+        liveSha: newSha,
+        verifiedLiveRun: true,
+      }),
+    /refusing to roll production back/u,
+  );
+  assert.doesNotThrow(() =>
+    assertCandidateNotBehindVerifiedLive({
+      candidateSha: newSha,
+      isAncestor,
+      liveSha: oldSha,
+      verifiedLiveRun: true,
+    }),
+  );
+});
+
+function cleanGitEnv() {
+  return Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")));
+}
+
+test("isolates real-Git fixtures from inherited hook repository routing", (t) => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-hook-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const env = cleanGitEnv();
+  execFileSync("git", ["init", "--quiet"], { cwd, env });
+  const gitDir = path.join(cwd, ".git");
+  execFileSync(
+    process.execPath,
+    [
+      "--test",
+      "--test-name-pattern=fails closed when Git cannot resolve",
+      fileURLToPath(import.meta.url),
+    ],
+    {
+      env: {
+        ...env,
+        GIT_DIR: gitDir,
+        GIT_WORK_TREE: cwd,
+        GIT_COMMON_DIR: gitDir,
+        GIT_INDEX_FILE: path.join(gitDir, "index"),
+        GIT_OBJECT_DIRECTORY: path.join(gitDir, "objects"),
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "commit.gpgsign",
+        GIT_CONFIG_VALUE_0: "false",
+      },
+      stdio: "pipe",
+    },
+  );
+  assert.throws(
+    () => execFileSync("git", ["rev-parse", "--verify", "HEAD"], { cwd, env, stdio: "pipe" }),
+    /Command failed/u,
+  );
+});
+
+test("Git ancestry fixture never invokes global signing or hooks", (t) => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "insecur-release-global-config-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const hooksDir = path.join(cwd, "hooks");
+  mkdirSync(hooksDir);
+  const signer = path.join(cwd, "signer");
+  const hook = path.join(hooksDir, "pre-commit");
+  for (const script of [signer, hook]) {
+    writeFileSync(script, '#!/bin/sh\nprintf invoked > "$0.called"\nexit 1\n', { mode: 0o700 });
+  }
+  const config = `[commit]\n  gpgsign = true\n[gpg]\n  program = ${JSON.stringify(signer)}\n[core]\n  hooksPath = ${JSON.stringify(hooksDir)}\n`;
+  const configFile = path.join(cwd, "gitconfig");
+  writeFileSync(configFile, config);
+  const env = {
+    ...cleanGitEnv(),
+    GIT_CONFIG_GLOBAL: configFile,
+    GIT_CONFIG_NOSYSTEM: "1",
+    INSECUR_RELEASE_FIXTURE_GLOBAL_CONFIG: configFile,
+  };
+  const git = (...args) => execFileSync("git", args, { env, encoding: "utf8" }).trim();
+  const callerHead = git("rev-parse", "HEAD");
+  assert.equal(git("config", "--global", "--get", "commit.gpgsign"), "true");
+  assert.equal(git("config", "--global", "--get", "gpg.program"), signer);
+  assert.equal(git("config", "--global", "--get", "core.hooksPath"), hooksDir);
+  execFileSync(
+    process.execPath,
+    [
+      "--test",
+      "--test-name-pattern=fails closed when Git cannot resolve",
+      fileURLToPath(import.meta.url),
+    ],
+    { env, stdio: "pipe" },
+  );
+  assert.equal(existsSync(`${signer}.called`), false);
+  assert.equal(existsSync(`${hook}.called`), false);
+  assert.equal(readFileSync(configFile, "utf8"), config);
+  assert.equal(git("rev-parse", "HEAD"), callerHead);
+});
+
 test("records the exact candidate, main, production, and live identities", () => {
   assert.deepEqual(
     buildReleaseCandidateEvidence({
@@ -155,6 +351,16 @@ test("records the exact candidate, main, production, and live identities", () =>
 });
 
 test("selects no-op, branch repair, and deployment actions", () => {
+  assert.equal(
+    decideReleaseAction({
+      candidateSha: OLD_SHA,
+      liveSha: NEW_SHA,
+      productionSha: NEW_SHA,
+      relation: "production-ahead",
+      verifiedLiveRun: true,
+    }),
+    "noop",
+  );
   assert.equal(
     decideReleaseAction({
       candidateSha: NEW_SHA,
