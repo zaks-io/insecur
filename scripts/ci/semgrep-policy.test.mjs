@@ -56,7 +56,7 @@ test("scanner errors and incomplete reports fail closed", () => {
     { results: [], errors: [{ level: "warn" }, { level: "error" }] },
     [],
   );
-  assert.equal(policy.scanner_error_count, 1);
+  assert.equal(policy.scanner_error_count, 2);
   for (const report of [{}, { results: [] }, { errors: [] }]) {
     assert.throws(() => evaluateSemgrep(report, []), /must contain/u);
   }
@@ -64,6 +64,30 @@ test("scanner errors and incomplete reports fail closed", () => {
     () => evaluateSemgrep({ results: [{}], errors: [] }, []),
     /missing valid metadata/u,
   );
+});
+
+test("warning-level scan failures block, including the upstream timeout report shape", () => {
+  for (const type of ["Timeout", "OutOfMemory", "StackOverflow", "ParseError", "unknown"]) {
+    const policy = evaluateSemgrep({ results: [], errors: [{ level: "warn", type }] }, []);
+    assert.equal(policy.scanner_error_count, 1);
+  }
+});
+
+test("only known partial parsing on unchanged reviewed files is accepted", (t) => {
+  const { root, exception } = fixture(t);
+  const parsing = [{ path: exception.path, file_sha256: exception.file_sha256 }];
+  const warning = { level: "warn", type: ["PartialParsing", [{ path: exception.path }]] };
+  const evaluate = (error) => evaluateSemgrep({ results: [], errors: [error] }, [], root, parsing);
+  assert.equal(evaluate(warning).scanner_error_count, 0);
+  assert.equal(evaluate({ ...warning, level: "error" }).scanner_error_count, 1);
+  assert.equal(
+    evaluate({ ...warning, type: ["PartialParsing", [{ path: "unreviewed.ts" }]] })
+      .scanner_error_count,
+    1,
+  );
+  assert.equal(evaluate({ ...warning, type: ["PartialParsing", []] }).scanner_error_count, 1);
+  writeFileSync(join(root, exception.path), "changed source");
+  assert.equal(evaluate(warning).scanner_error_count, 1);
 });
 
 test("findings in TanStack parameter routes retain their metadata and block", (t) => {

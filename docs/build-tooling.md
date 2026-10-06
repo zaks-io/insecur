@@ -947,8 +947,12 @@ Jobs:
   path, line, and source-file SHA-256 match a reviewed exception in
   `config/semgrep-exceptions.json`. Exceptions document escaped regex inputs, the literal `DENY`
   header, and ADR-0056's three-day quarantine where upstream rules demand seven days or target npm
-  rather than the pinned pnpm. A file change invalidates its exceptions. Scanner errors still fail
-  the job. The `semgrep-policy` artifact retains rule, path, line, severity, and disposition for
+  rather than the pinned pnpm. A file change invalidates its exceptions. Scanner errors, including
+  warning-level timeouts and resource failures, fail the job. Known `PartialParsing` warnings for
+  TypeScript type syntax, a PowerShell workflow block, and a multiline regex remain accepted only
+  for the reviewed file hashes in `partial_parsing`; unreviewed or changed files fail. Those
+  constructs are also checked by repository typechecks, workflow lint, and script tests.
+  The `semgrep-policy` artifact retains rule, path, line, severity, and disposition for
   every finding, without source snippets or scanner messages. Raw scanner JSON stays on the runner.
 - **Secret scan history:** gitleaks over default-branch HEAD history only (`gitleaks-detect.sh git` with
   `GITLEAKS_LOG_OPTS=HEAD`). Open or draft PR refs must not fail the scheduled default-branch scan; PR

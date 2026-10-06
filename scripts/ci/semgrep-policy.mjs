@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
-export function evaluateSemgrep(report, exceptions, rootDir = repoRoot) {
+export function evaluateSemgrep(report, exceptions, rootDir = repoRoot, parsingExceptions = []) {
   if (!Array.isArray(report?.results) || !Array.isArray(report?.errors)) {
     throw new Error("Semgrep report must contain results and errors arrays");
   }
@@ -38,8 +38,32 @@ export function evaluateSemgrep(report, exceptions, rootDir = repoRoot) {
   return {
     findings,
     blocking_count: findings.filter((finding) => !finding.accepted).length,
-    scanner_error_count: report.errors.filter((error) => error.level !== "warn").length,
+    scanner_error_count: report.errors.filter(
+      (error) => !isAcceptedPartialParsing(error, parsingExceptions, rootDir),
+    ).length,
   };
+}
+
+function isAcceptedPartialParsing(error, exceptions, rootDir) {
+  if (
+    error.level !== "warn" ||
+    !Array.isArray(error.type) ||
+    error.type[0] !== "PartialParsing" ||
+    !Array.isArray(error.type[1]) ||
+    error.type[1].length === 0
+  ) {
+    return false;
+  }
+  // Known parser limitations are accepted only for the exact reviewed source files.
+  return error.type[1].every((span) => {
+    const hash = exceptions.find((entry) => entry.path === span.path)?.file_sha256;
+    return (
+      typeof hash === "string" &&
+      createHash("sha256")
+        .update(readFileSync(join(rootDir, span.path)))
+        .digest("hex") === hash
+    );
+  });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -51,7 +75,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const exceptions = JSON.parse(
     readFileSync(join(repoRoot, "config/semgrep-exceptions.json"), "utf8"),
   );
-  const policy = evaluateSemgrep(report, exceptions);
+  const policy = evaluateSemgrep(report, exceptions.findings, repoRoot, exceptions.partial_parsing);
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `${JSON.stringify(policy, null, 2)}\n`);
   console.log(
