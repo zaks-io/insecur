@@ -128,41 +128,74 @@ test("Linear fingerprint lookup is scoped to the INS team filter", async (t) => 
   assert.equal(issue.id, "issue-id");
 });
 
-test("Linear team resolution filters team query server-side", async (t) => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (_url, options) => {
-    const body = JSON.parse(options.body);
-    assert.deepEqual(body.variables.filter, {
-      or: [{ id: { eq: "Insecur" } }, { key: { eq: "Insecur" } }, { name: { eq: "Insecur" } }],
-    });
-    return jsonResponse({
-      data: {
-        teams: {
-          nodes: [
-            {
-              id: "other-team-id",
-              key: "SPL",
-              name: "Splitch",
-              labels: { nodes: [] },
+const teamId = "bfbdcafe-cafe-41a4-b35a-30d3f8f6a0b0";
+for (const [teamQuery, expectedFilter] of [
+  ["INS", { or: [{ key: { eq: "INS" } }, { name: { eq: "INS" } }] }],
+  ["Insecur", { or: [{ key: { eq: "Insecur" } }, { name: { eq: "Insecur" } }] }],
+  [teamId, { id: { eq: teamId } }],
+]) {
+  test(`Linear resolves ${teamQuery} with team and workspace labels`, async (t) => {
+    let requests = 0;
+    t.mock.method(globalThis, "fetch", async (_url, options) => {
+      const body = JSON.parse(options.body);
+      requests += 1;
+      if (requests === 1) {
+        assert.deepEqual(body.variables.filter, expectedFilter);
+        return jsonResponse({
+          data: {
+            teams: {
+              nodes: [
+                { id: "other-team-id", key: "SPL", name: "Splitch" },
+                { id: teamId, key: "INS", name: "Insecur" },
+              ],
             },
-            {
-              id: "insecur-team-id",
-              key: "INS",
-              name: "Insecur",
-              labels: { nodes: [{ id: "bug-label-id", name: "Bug" }] },
-            },
-          ],
+          },
+        });
+      }
+      assert.match(body.query, /\$filter: IssueLabelFilter!/u);
+      assert.deepEqual(body.variables.filter, {
+        name: { in: ["Bug", "risk-security-sensitive"] },
+        or: [{ team: { id: { eq: teamId } } }, { team: { null: true } }],
+      });
+      return jsonResponse({
+        data: {
+          issueLabels: {
+            nodes: [
+              { id: "workspace-bug-label", name: "Bug" },
+              { id: "team-risk-label", name: "risk-security-sensitive" },
+            ],
+          },
         },
-      },
+      });
     });
-  };
-  t.after(() => {
-    globalThis.fetch = originalFetch;
+
+    const resolved = await new LinearClient("test-api-key").resolveTeamAndLabels(teamQuery, [
+      "Bug",
+      "risk-security-sensitive",
+    ]);
+
+    assert.deepEqual(resolved, {
+      teamId,
+      labelIds: ["workspace-bug-label", "team-risk-label"],
+    });
+    assert.equal(requests, 2);
+  });
+}
+
+test("Linear reporting refuses to file without all required labels", async (t) => {
+  t.mock.method(globalThis, "fetch", async (_url, options) => {
+    const body = JSON.parse(options.body);
+    return jsonResponse({
+      data: body.query.includes("SecurityFindingTeam")
+        ? { teams: { nodes: [{ id: teamId, key: "INS", name: "Insecur" }] } }
+        : { issueLabels: { nodes: [] } },
+    });
   });
 
-  const resolved = await new LinearClient("test-api-key").resolveTeamAndLabels("Insecur", ["Bug"]);
-
-  assert.deepEqual(resolved, { teamId: "insecur-team-id", labelIds: ["bug-label-id"] });
+  await assert.rejects(
+    new LinearClient("test-api-key").resolveTeamAndLabels("INS", ["Bug"]),
+    /Linear labels not found: Bug/u,
+  );
 });
 
 test("metadata validation rejects raw scanner payload keys", () => {

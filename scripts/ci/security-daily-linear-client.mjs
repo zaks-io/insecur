@@ -8,12 +8,18 @@ export class LinearClient {
   }
 
   async resolveTeamAndLabels(teamQuery, labelNames) {
-    const data = await this.request(TEAM_AND_LABELS_QUERY, { filter: teamFilter(teamQuery) });
+    const data = await this.request(TEAM_QUERY, { filter: teamFilter(teamQuery) });
     const team = data.teams.nodes.find((candidate) => matchesTeam(candidate, teamQuery));
     if (!team) {
       throw new Error(`Linear team not found: ${teamQuery}`);
     }
-    return { teamId: team.id, labelIds: labelIdsByName(team.labels.nodes, labelNames) };
+    const labels = await this.request(LABELS_QUERY, {
+      filter: {
+        name: { in: labelNames },
+        or: [{ team: { id: { eq: team.id } } }, { team: { null: true } }],
+      },
+    });
+    return { teamId: team.id, labelIds: labelIdsByName(labels.issueLabels.nodes, labelNames) };
   }
 
   async findIssueByFingerprint(fingerprint, teamId) {
@@ -73,8 +79,11 @@ function normalizeTeamQuery(value) {
 }
 
 function teamFilter(teamQuery) {
+  if (/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/iu.test(teamQuery)) {
+    return { id: { eq: teamQuery } };
+  }
   return {
-    or: [{ id: { eq: teamQuery } }, { key: { eq: teamQuery } }, { name: { eq: teamQuery } }],
+    or: [{ key: { eq: teamQuery } }, { name: { eq: teamQuery } }],
   };
 }
 
@@ -98,19 +107,24 @@ function parseJsonText(text) {
   }
 }
 
-const TEAM_AND_LABELS_QUERY = `
-  query TeamAndLabels($filter: TeamFilter!) {
+const TEAM_QUERY = `
+  query SecurityFindingTeam($filter: TeamFilter!) {
     teams(filter: $filter, first: 10) {
       nodes {
         id
         key
         name
-        labels {
-          nodes {
-            id
-            name
-          }
-        }
+      }
+    }
+  }
+`;
+
+const LABELS_QUERY = `
+  query SecurityFindingLabels($filter: IssueLabelFilter!) {
+    issueLabels(filter: $filter, first: 250) {
+      nodes {
+        id
+        name
       }
     }
   }
