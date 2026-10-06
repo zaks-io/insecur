@@ -13,10 +13,6 @@ on:
         description: Whether every Preview proof and its credential cleanup passed
         value: ${{ jobs.smoke.outputs.proof_passed }}
     secrets:
-      CLOUDFLARE_ACCOUNT_ID:
-        required: true
-      CLOUDFLARE_API_TOKEN:
-        required: true
       PREVIEW_DATABASE_URL_MIGRATION:
         required: true
       SESSION_SIGNING_SECRET:
@@ -33,13 +29,7 @@ jobs:
   smoke:
     name: Preview Smoke
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    # The R2 backup sweep waits up to 15min for the Runtime schedule plus 12min for the export it
-    # requests. That 27min runs alongside the Playwright suite, not after it, so the floor is 27min
-    # plus roughly 8min of checkout, install, browser download, CLI build, prune, and seed. A
-    # 25-minute ceiling cancelled the job before the sweep could report its own diagnosis (INS-642).
-    # Keep the slack modest: `preview-fleet` below is shared with Deploy Preview, so every extra
-    # minute here is a minute a hung job blocks preview deploys and holds preview Neon awake.
-    timeout-minutes: 45
+    timeout-minutes: 25
     outputs:
       proof_passed: ${{ steps.preview_proofs.outcome == 'success' && steps.artifact_sweep.outcome == 'success' }}
     environment:
@@ -162,19 +152,13 @@ jobs:
       - name: Build CLI for preview smoke
         run: pnpm --filter @insecur/cli build
 
-      # The R2 proof waits for Preview's committed every-minute backup trigger while the application
-      # suite runs. Neither proof mutates deployment configuration. This job owns Preview's
-      # environment credentials, so a proof failure is returned to the release train as an output
+      # This job owns Preview's environment credentials, so a proof failure is returned as an output
       # and failed by its non-deployment gate instead of marking the deployed fleet as failed.
       - name: Run Preview proofs
         id: preview_proofs
         continue-on-error: true
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PREVIEW_DATABASE_URL_MIGRATION: ${{ secrets.PREVIEW_DATABASE_URL_MIGRATION }}
-          PREVIEW_RUNTIME_BACKUPS_BUCKET_NAME: ${{ vars.PREVIEW_RUNTIME_BACKUPS_BUCKET_NAME }}
-          PREVIEW_INSTANCE_ID: ${{ vars.PREVIEW_INSTANCE_ID }}
           SMOKE_API_BASE_URL: https://api.preview.insecur.cloud
           SMOKE_WEB_BASE_URL: https://app.preview.insecur.cloud
           SMOKE_SITE_BASE_URL: https://preview.insecur.cloud
@@ -184,19 +168,7 @@ jobs:
           SMOKE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_WORKOS_USER_ID }}
           SMOKE_INVITEE_ADMITTED_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_ADMITTED_USER_ID }}
           SMOKE_INVITEE_WORKOS_USER_ID: ${{ vars.PREVIEW_SMOKE_INVITEE_WORKOS_USER_ID }}
-        run: |
-          set +e
-          pnpm --filter @insecur/preview-smoke sweep:r2-backup &
-          r2_pid=$!
-          unset CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN
-          unset PREVIEW_RUNTIME_BACKUPS_BUCKET_NAME PREVIEW_INSTANCE_ID
-          pnpm smoke:preview
-          application_status=$?
-          wait "$r2_pid"
-          r2_status=$?
-          if [ "$application_status" -ne 0 ] || [ "$r2_status" -ne 0 ]; then
-            exit 1
-          fi
+        run: pnpm smoke:preview
 
       - name: Revoke and sweep preview smoke artifacts
         id: artifact_sweep
