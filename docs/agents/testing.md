@@ -157,6 +157,11 @@ tests. `pnpm smoke:local` and CI's DB-backed runner include this suite after `te
 
 ## Layer boundaries
 
+The daily release train does not run the R2 backup no-plaintext sweep. Its backup claim lease
+expired intermittently even when the application smoke suite passed. The sweep remains available
+as `pnpm --filter @insecur/preview-smoke sweep:r2-backup` for explicit diagnostics. Application
+smoke, deploy identity verification, and credential revocation and artifact scanning remain required.
+
 - **Unit vs integration**: DB-backed package integration suites live alongside unit tests but are
   excluded from ordinary package `test` tasks. Run them through `pnpm test:rls`, where
   `tenant-store/test/rls/load-env` loads local DB env and the CI gate fails closed when the runtime
