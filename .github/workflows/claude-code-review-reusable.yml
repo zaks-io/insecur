@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: React to comment
         if: inputs.trigger_type == 'comment'
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             await github.rest.reactions.createForIssueComment({
@@ -50,7 +50,7 @@ jobs:
       - name: Create check run
         if: inputs.trigger_type == 'comment'
         id: check
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const pr = await github.rest.pulls.get({
@@ -111,7 +111,7 @@ jobs:
 
       - name: Complete check run
         if: always() && inputs.trigger_type == 'comment'
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const checkId = ${{ steps.check.outputs.check_run_id }};
@@ -128,7 +128,7 @@ jobs:
 
       - name: React to completion
         if: always() && inputs.trigger_type == 'comment'
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const emoji = '${{ job.status }}' === 'success' ? 'rocket' : 'confused';
