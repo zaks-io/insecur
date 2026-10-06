@@ -13,7 +13,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@sentry/cloudflare": "^10.63.0"
+    "@sentry/cloudflare": "^11.4.0",
+    "@sentry/core": "^11.4.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",

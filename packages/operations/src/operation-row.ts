@@ -67,6 +67,5 @@ export function toOperationRecord(row: OperationRow): OperationRecord {
  */
 export function toOperationPollResult(record: OperationRecord): OperationPollResult {
   const { revision, ...operation } = record;
-  void revision;
   return operation;
 }

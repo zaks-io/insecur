@@ -264,6 +264,14 @@ export default tseslint.config(
   },
   {
     rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", ignoreRestSiblings: true },
+      ],
+    },
+  },
+  {
+    rules: {
       complexity: ["error", 8],
       "max-depth": ["error", 3],
       "max-lines": ["error", { max: 250, skipBlankLines: true, skipComments: true }],

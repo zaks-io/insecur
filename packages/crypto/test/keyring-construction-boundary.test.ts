@@ -194,7 +194,15 @@ describe("keyring-construction lint boundary (ADR-0064/0077)", () => {
 
   it("allows type-only Keyring imports outside runtime", () => {
     expectLintClean(positiveKeyringTypeFixture);
-    expectLintClean(typeOnlyConsumerModule);
+    // Mutation instrumentation changes other lint results; this test owns the import boundary.
+    const result = lintResultFor(typeOnlyConsumerModule);
+    expect(result.fatalErrorCount).toBe(0);
+    expect(
+      result.messages.filter(
+        (message) =>
+          message.ruleId === "no-restricted-imports" || message.ruleId === "no-restricted-syntax",
+      ),
+    ).toEqual([]);
   });
 
   it(

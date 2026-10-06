@@ -1,12 +1,12 @@
 export { prepareSentryErrorDiagnostics } from "./sentry-error-diagnostics.js";
 import type { CloudflareOptions } from "@sentry/cloudflare";
+import { withStaticSpan } from "@sentry/core";
 import {
   prepareSentryEvent,
   prepareSentrySpan,
   prepareSentryTransaction,
   type SentryEventLike,
   type SentrySanitizationMetadata,
-  type SentrySpanLike,
   type SentryTransactionLike,
 } from "./sentry-sanitization.js";
 
@@ -47,11 +47,12 @@ export interface BrowserSentryOptions<TIntegration> {
   readonly release?: string;
   readonly tracesSampleRate: number;
   readonly dataCollection: MetadataOnlySentryDataCollection;
-  readonly enableLogs: boolean;
+  readonly beforeSendLog: NonNullable<CloudflareOptions["beforeSendLog"]>;
   readonly maxBreadcrumbs: number;
   readonly integrations: TIntegration[];
   readonly beforeSend: <TEvent extends SentryEventLike>(event: TEvent) => TEvent;
-  readonly beforeSendSpan: <TSpan extends SentrySpanLike>(span: TSpan) => TSpan;
+  readonly traceLifecycle: "static";
+  readonly beforeSendSpan: NonNullable<CloudflareOptions["beforeSendSpan"]>;
   readonly beforeSendTransaction: <TEvent extends SentryTransactionLike>(event: TEvent) => TEvent;
 }
 
@@ -61,25 +62,31 @@ let browserSentryInitialized = false;
 
 interface MetadataOnlySentryDataCollection {
   readonly cookies: false;
+  readonly databaseQueryData: false;
+  readonly graphQL: { readonly document: false; readonly variables: false };
   readonly frameContextLines: 0;
   readonly genAI: { readonly inputs: false; readonly outputs: false };
   readonly httpBodies: never[];
   readonly httpHeaders: { readonly request: false; readonly response: false };
-  readonly queryParams: false;
+  readonly queues: false;
+  readonly urlQueryParams: false;
   readonly stackFrameVariables: false;
   readonly userInfo: false;
 }
 
-const METADATA_ONLY_DATA_COLLECTION: MetadataOnlySentryDataCollection = {
+export const METADATA_ONLY_SENTRY_DATA_COLLECTION: MetadataOnlySentryDataCollection = {
   cookies: false,
-  frameContextLines: 0,
+  databaseQueryData: false,
+  graphQL: { document: false, variables: false },
+  frameContextLines: 0 as const,
   genAI: { inputs: false, outputs: false },
   httpBodies: [],
   httpHeaders: { request: false, response: false },
-  queryParams: false,
+  queues: false,
+  urlQueryParams: false,
   stackFrameVariables: false,
   userInfo: false,
-};
+} satisfies NonNullable<CloudflareOptions["dataCollection"]>;
 
 export function cloudflareSentryOptions(
   env: SentryBindings,
@@ -97,14 +104,16 @@ export function cloudflareSentryOptions(
   if (traceNames) sanitizationMetadata.traceNames = traceNames;
   return {
     enabled: Boolean(dsn),
+    // Worker entrypoints in one isolate have distinct per-invocation span allowlists.
+    cacheClient: false,
     ...(dsn ? { dsn } : {}),
     ...(environment ? { environment } : {}),
     ...(release ? { release } : {}),
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
-    dataCollection: METADATA_ONLY_DATA_COLLECTION,
-    enableLogs: false,
+    traceLifecycle: "static",
+    dataCollection: METADATA_ONLY_SENTRY_DATA_COLLECTION,
     maxBreadcrumbs: 0,
-    enableRpcTracePropagation: true,
+    rpcTracePropagationBindings: ["RUNTIME"],
     // Continue inbound traces only when the caller's baggage carries our Sentry org id (extracted
     // from the DSN); arbitrary third-party sentry-trace/baggage on the public edge starts a new
     // trace instead of joining ours.
@@ -112,9 +121,7 @@ export function cloudflareSentryOptions(
     beforeSend(event) {
       return prepareSentryEvent(event, sanitizationMetadata);
     },
-    beforeSendSpan(span) {
-      return prepareSentrySpan(span, traceNames);
-    },
+    beforeSendSpan: withStaticSpan((span) => prepareSentrySpan(span, traceNames)),
     beforeSendTransaction(event) {
       return prepareSentryTransaction(event, sanitizationMetadata);
     },
@@ -194,16 +201,17 @@ function browserSentryOptions<TRouter, TIntegration>(
     ...(config.environment ? { environment: config.environment } : {}),
     ...(config.release ? { release: config.release } : {}),
     tracesSampleRate: config.tracesSampleRate,
-    dataCollection: METADATA_ONLY_DATA_COLLECTION,
-    enableLogs: false,
+    traceLifecycle: "static",
+    dataCollection: METADATA_ONLY_SENTRY_DATA_COLLECTION,
     maxBreadcrumbs: 0,
     integrations: [routerTracingIntegration(router)],
+    beforeSendLog() {
+      return null;
+    },
     beforeSend(event) {
       return prepareSentryEvent(event, sanitizationMetadata);
     },
-    beforeSendSpan(span) {
-      return prepareSentrySpan(span, traceNames);
-    },
+    beforeSendSpan: withStaticSpan((span) => prepareSentrySpan(span, traceNames)),
     beforeSendTransaction(event) {
       return prepareSentryTransaction(event, sanitizationMetadata);
     },

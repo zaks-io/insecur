@@ -21,6 +21,7 @@ describe("CLI crash reporting through the Sentry SDK", () => {
 
     await reporter.withCommandTrace(["node", "insecur", "config", "show"], async () => {
       propagatedTrace = reporter.traceHeaders()["sentry-trace"];
+      Sentry.logger.info(UNSAFE_SENTINEL);
       await reporter.captureException(new Error("Config parse failed"), { source: "unexpected" });
     });
     await reporter.flush(2_000);
@@ -34,6 +35,7 @@ describe("CLI crash reporting through the Sentry SDK", () => {
       .map(parseEnvelopeLine)
       .find((value) => value?.type === "transaction" && value.transaction !== undefined);
     expect(transaction).toBeDefined();
+    expect(envelopes.join("\n")).not.toContain(UNSAFE_SENTINEL);
     for (const captured of [event, transaction]) {
       expect(captured?.contexts).toMatchObject({
         trace: { trace_id: traceId, span_id: spanId },

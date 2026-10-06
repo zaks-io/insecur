@@ -85,7 +85,6 @@ function applySyncTargetLeasePatch(
 ): OperationProgress {
   if (syncTargetLease === null) {
     const { syncTargetLease: binding, ...withoutLease } = merged;
-    void binding;
     return withoutLease;
   }
   if (syncTargetLease !== undefined) {

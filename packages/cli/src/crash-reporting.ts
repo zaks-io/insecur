@@ -1,5 +1,8 @@
 import process from "node:process";
-import { DEFAULT_SENTRY_TRACES_SAMPLE_RATE } from "@insecur/observability";
+import {
+  DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
+  METADATA_ONLY_SENTRY_DATA_COLLECTION,
+} from "@insecur/observability";
 import { resolveCliCommandFamily } from "./crash-command-family.js";
 import { loadUserConfig } from "./config/user-config.js";
 import { sanitizeSentryEvent, sanitizeSentryTransaction } from "./crash-reporting-sanitize.js";
@@ -103,6 +106,8 @@ function sentryOptions(settings: CrashReporterSettings): Record<string, unknown>
   return {
     beforeSend: sanitizeSentryEvent,
     beforeSendTransaction: sanitizeSentryTransaction,
+    beforeSendLog: () => null,
+    traceLifecycle: "static",
     defaultIntegrations: false,
     dsn: settings.dsn,
     enabled: true,
@@ -111,7 +116,7 @@ function sentryOptions(settings: CrashReporterSettings): Record<string, unknown>
     integrations: [],
     maxBreadcrumbs: 0,
     release: `insecur-cli@${settings.version}`,
-    sendDefaultPii: false,
+    dataCollection: METADATA_ONLY_SENTRY_DATA_COLLECTION,
     tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
   };
 }

@@ -24,7 +24,7 @@ below are declared in TypeScript—not hand-appended to SQL:
 | `secrets_org_id_id_current_version_id_fkey`                                              | `tenant-secrets.ts` (deferred `foreignKey` after `secretVersions`)  |
 | `invitations_one_pending_per_invitee_org_project` (`NULLS NOT DISTINCT`, partial unique) | `tenant-collaboration.ts` via `uniqueIndex(...).nullsNotDistinct()` |
 
-`drizzle-kit@0.31.10` is patched (`pnpm.patchedDependencies`) so partial unique indexes emit
+`drizzle-kit@0.31.11` is patched (`pnpm.patchedDependencies`) so partial unique indexes emit
 `NULLS NOT DISTINCT` in snapshots and migrations. `pg-core.ts` extends `IndexBuilder` with
 `.nullsNotDistinct()` for schema authoring.
 

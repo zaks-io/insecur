@@ -1,0 +1,13 @@
+diff --git a/index.d.ts b/index.d.ts
+index e3acc2d5a44a9dd72d71b5a84ef71e5e0180d426..ba13350b5bcdf75bafe4a018047ded83aa0ce9d0 100755
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -483,8 +483,6 @@ declare const scheduler: Scheduler;
+ declare const performance: Performance;
+ declare const Cloudflare: Cloudflare;
+ declare const origin: string;
+-declare const Buffer: any;
+-declare const process: any;
+ declare const global: ServiceWorkerGlobalScope;
+ declare function setImmediate(
+   $function: (...param0: any[]) => void,

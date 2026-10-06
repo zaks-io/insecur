@@ -13,9 +13,9 @@ runs:
       shell: bash
       env:
         GITLEAKS_VERSION: 8.30.1
-        TRIVY_VERSION: 0.69.3
-        SYFT_VERSION: 1.42.4
-        GRYPE_VERSION: 0.111.0
+        TRIVY_VERSION: 0.75.0
+        SYFT_VERSION: 1.54.0
+        GRYPE_VERSION: 0.120.0
       run: |
         set -euo pipefail
         {
@@ -31,11 +31,11 @@ runs:
         GITLEAKS_VERSION: ${{ steps.tools.outputs.gitleaks }}
         GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
         TRIVY_VERSION: ${{ steps.tools.outputs.trivy }}
-        TRIVY_SHA256: 1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75
+        TRIVY_SHA256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
         SYFT_VERSION: ${{ steps.tools.outputs.syft }}
-        SYFT_SHA256: 590650c2743b83f327d1bf9bec64f6f83b7fec504187bb84f500c862bf8f2a0f
+        SYFT_SHA256: 54a87372498168b2d033e876fd41fa4e8035b872699e525a57046e1f2f09c860
         GRYPE_VERSION: ${{ steps.tools.outputs.grype }}
-        GRYPE_SHA256: 18ed2048d7a233566b681121d4632364f5f25d72cca86acc4c7ac57210d78a87
+        GRYPE_SHA256: a5a1218dce63acdac152a6b3b5bb366e7267e36f4069848cf455543b3fa5700e
       run: |
         set -euo pipefail
         tmp_dir="$(mktemp -d)"
@@ -115,7 +115,7 @@ runs:
         echo "$RUNNER_TEMP/security-attestation-tools/venv/bin" >> "$GITHUB_PATH"
 
     - name: Restore scanner database cache
-      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/.cache/trivy

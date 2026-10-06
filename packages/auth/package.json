@@ -18,7 +18,7 @@
   "dependencies": {
     "@insecur/domain": "workspace:*",
     "@insecur/token-signing": "workspace:*",
-    "@workos-inc/node": "^10.7.0"
+    "@workos-inc/node": "^11.0.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

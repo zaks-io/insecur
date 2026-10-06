@@ -127,11 +127,11 @@ vi.mock("@insecur/tenant-store", async (importOriginal) => {
       secretIds: [],
     });
   }
-  const assertProjectEnvironmentCoordinate = vi.fn((db: MockTransactionDb, coordinate: unknown) => {
-    void db;
-    void coordinate;
-    return Promise.resolve({ isProtected: true });
-  });
+  const assertProjectEnvironmentCoordinate = vi.fn(
+    (_db: MockTransactionDb, _coordinate: unknown) => {
+      return Promise.resolve({ isProtected: true });
+    },
+  );
   return {
     ...actual,
     withTenantScope,

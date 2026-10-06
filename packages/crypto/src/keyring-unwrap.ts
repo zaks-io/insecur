@@ -130,7 +130,6 @@ export class WrappedDefaultTenantDataKeySource implements TenantDataKeySource {
   getActiveOrganizationVersions(
     _organizationId: OrganizationId,
   ): Promise<OrganizationDataKeyVersions> {
-    void _organizationId;
     return Promise.resolve({
       rootKeyVersion: DEFAULT_ROOT_KEY_VERSION,
       organizationDataKeyVersion: DEFAULT_ORGANIZATION_DATA_KEY_VERSION,
@@ -141,7 +140,6 @@ export class WrappedDefaultTenantDataKeySource implements TenantDataKeySource {
     _organizationId: OrganizationId,
     organizationDataKeyVersion: KeyVersion,
   ): Promise<OrganizationDataKeyVersions> {
-    void _organizationId;
     return Promise.resolve({
       rootKeyVersion: DEFAULT_ROOT_KEY_VERSION,
       organizationDataKeyVersion,

@@ -126,7 +126,7 @@ test("scanner execution stays in a least-privilege job", async () => {
   assert.match(securityJob, /uses: actions\/checkout@[0-9a-f]{40}[\s\S]*?fetch-depth: 0/u);
   assert.match(securityJob, /uses: \.\/\.github\/actions\/setup-security-attestation-tools/u);
   assert.match(securityJob, /run: pnpm security:attest/u);
-  assert.match(securityJob, /uses: anchore\/scan-action@[0-9a-f]{40} # v7\.4\.0/u);
+  assert.match(securityJob, /uses: anchore\/scan-action@[0-9a-f]{40} # v7\.4\.2/u);
 
   assert.doesNotMatch(releaseJob, /setup-security-attestation-tools|pnpm security:attest/u);
   assert.doesNotMatch(releaseJob, /anchore\/scan-action|pnpm/u);
@@ -166,7 +166,7 @@ test("CLI releases sync the package version to Linear with the isolated credenti
 
   assert.match(
     workflow,
-    /release:[\s\S]*?environment: Production[\s\S]*?- name: Sync CLI release to Linear[\s\S]*?uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.14\.5[\s\S]*?access_key: \$\{\{ secrets\.CLI_LINEAR_ACCESS_KEY \}\}[\s\S]*?version: \$\{\{ steps\.linear-cli-release\.outputs\.version \}\}[\s\S]*?release_notes: dist-binaries\/RELEASE_NOTES\.md/u,
+    /release:[\s\S]*?environment: Production[\s\S]*?- name: Sync CLI release to Linear[\s\S]*?uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.18\.0[\s\S]*?access_key: \$\{\{ secrets\.CLI_LINEAR_ACCESS_KEY \}\}[\s\S]*?version: \$\{\{ steps\.linear-cli-release\.outputs\.version \}\}[\s\S]*?release_notes: dist-binaries\/RELEASE_NOTES\.md/u,
   );
   assert.ok(workflow.includes(`include_paths: "${cliReleasePaths}"`));
   assert.doesNotMatch(workflow, /include_paths: "[^"]*apps\//u);

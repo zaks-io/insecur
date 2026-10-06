@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 /** Prefix for inline ciphertext bytes stored in `secret_versions.ciphertext_storage_ref`. */
 export const INLINE_CIPHERTEXT_STORAGE_PREFIX = "inline:b64:" as const;
 

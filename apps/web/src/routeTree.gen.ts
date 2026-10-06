@@ -9,47 +9,37 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WhoamiRouteImport } from './routes/whoami'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as LogoutRouteImport } from './routes/logout'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as LogoutRouteImport } from './routes/logout'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as WhoamiRouteImport } from './routes/whoami'
+import { Route as AuthApprovalStepUpRouteImport } from './routes/auth.approval-step-up'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AuthEnrollPasskeyRouteImport } from './routes/auth.enroll-passkey'
+import { Route as AuthStepUpRouteImport } from './routes/auth.step-up'
 import { Route as OrgsIndexRouteImport } from './routes/orgs.index'
 import { Route as OrgsOrgIdRouteImport } from './routes/orgs.$orgId'
-import { Route as AuthStepUpRouteImport } from './routes/auth.step-up'
-import { Route as AuthEnrollPasskeyRouteImport } from './routes/auth.enroll-passkey'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AuthApprovalStepUpRouteImport } from './routes/auth.approval-step-up'
-import { Route as OrgsOrgIdIndexRouteImport } from './routes/orgs.$orgId.index'
-import { Route as OrgsOrgIdSettingsRouteImport } from './routes/orgs.$orgId.settings'
-import { Route as OrgsOrgIdPeopleRouteImport } from './routes/orgs.$orgId.people'
-import { Route as OrgsOrgIdAuditRouteImport } from './routes/orgs.$orgId.audit'
-import { Route as OrgsOrgIdApprovalsRouteImport } from './routes/orgs.$orgId.approvals'
-import { Route as AuthStepUpCallbackRouteImport } from './routes/auth.step-up.callback'
-import { Route as AuthEnrollPasskeyCallbackRouteImport } from './routes/auth.enroll-passkey.callback'
 import { Route as AuthApprovalStepUpCallbackRouteImport } from './routes/auth.approval-step-up.callback'
+import { Route as AuthEnrollPasskeyCallbackRouteImport } from './routes/auth.enroll-passkey.callback'
+import { Route as AuthStepUpCallbackRouteImport } from './routes/auth.step-up.callback'
+import { Route as OrgsOrgIdIndexRouteImport } from './routes/orgs.$orgId.index'
+import { Route as OrgsOrgIdApprovalsRouteImport } from './routes/orgs.$orgId.approvals'
+import { Route as OrgsOrgIdAuditRouteImport } from './routes/orgs.$orgId.audit'
+import { Route as OrgsOrgIdPeopleRouteImport } from './routes/orgs.$orgId.people'
+import { Route as OrgsOrgIdSettingsRouteImport } from './routes/orgs.$orgId.settings'
+import { Route as OrgsOrgIdApprovalsIdRouteImport } from './routes/orgs.$orgId.approvals_.$id'
 import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs.$orgId.projects.index'
 import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs.$orgId.projects.$projectId'
-import { Route as OrgsOrgIdApprovalsIdRouteImport } from './routes/orgs.$orgId.approvals_.$id'
 import { Route as OrgsOrgIdProjectsProjectIdIndexRouteImport } from './routes/orgs.$orgId.projects.$projectId.index'
-import { Route as OrgsOrgIdProjectsProjectIdSecretsRouteImport } from './routes/orgs.$orgId.projects.$projectId.secrets'
-import { Route as OrgsOrgIdProjectsProjectIdDeliveryRouteImport } from './routes/orgs.$orgId.projects.$projectId.delivery'
 import { Route as OrgsOrgIdProjectsProjectIdAccessRouteImport } from './routes/orgs.$orgId.projects.$projectId.access'
+import { Route as OrgsOrgIdProjectsProjectIdDeliveryRouteImport } from './routes/orgs.$orgId.projects.$projectId.delivery'
+import { Route as OrgsOrgIdProjectsProjectIdSecretsRouteImport } from './routes/orgs.$orgId.projects.$projectId.secrets'
 import { Route as OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRouteImport } from './routes/orgs.$orgId.projects.$projectId.envs.$envId.secrets.$secretId'
 
-const WhoamiRoute = WhoamiRouteImport.update({
-  id: '/whoami',
-  path: '/whoami',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LogoutRoute = LogoutRouteImport.update({
-  id: '/logout',
-  path: '/logout',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -57,9 +47,39 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LogoutRoute = LogoutRouteImport.update({
+  id: '/logout',
+  path: '/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WhoamiRoute = WhoamiRouteImport.update({
+  id: '/whoami',
+  path: '/whoami',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthApprovalStepUpRoute = AuthApprovalStepUpRouteImport.update({
+  id: '/auth/approval-step-up',
+  path: '/auth/approval-step-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthEnrollPasskeyRoute = AuthEnrollPasskeyRouteImport.update({
+  id: '/auth/enroll-passkey',
+  path: '/auth/enroll-passkey',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthStepUpRoute = AuthStepUpRouteImport.update({
+  id: '/auth/step-up',
+  path: '/auth/step-up',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgsIndexRoute = OrgsIndexRouteImport.update({
@@ -72,44 +92,26 @@ const OrgsOrgIdRoute = OrgsOrgIdRouteImport.update({
   path: '/orgs/$orgId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthStepUpRoute = AuthStepUpRouteImport.update({
-  id: '/auth/step-up',
-  path: '/auth/step-up',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthEnrollPasskeyRoute = AuthEnrollPasskeyRouteImport.update({
-  id: '/auth/enroll-passkey',
-  path: '/auth/enroll-passkey',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthApprovalStepUpRoute = AuthApprovalStepUpRouteImport.update({
-  id: '/auth/approval-step-up',
-  path: '/auth/approval-step-up',
-  getParentRoute: () => rootRouteImport,
+const AuthApprovalStepUpCallbackRoute =
+  AuthApprovalStepUpCallbackRouteImport.update({
+    id: '/callback',
+    path: '/callback',
+    getParentRoute: () => AuthApprovalStepUpRoute,
+  } as any)
+const AuthEnrollPasskeyCallbackRoute =
+  AuthEnrollPasskeyCallbackRouteImport.update({
+    id: '/callback',
+    path: '/callback',
+    getParentRoute: () => AuthEnrollPasskeyRoute,
+  } as any)
+const AuthStepUpCallbackRoute = AuthStepUpCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthStepUpRoute,
 } as any)
 const OrgsOrgIdIndexRoute = OrgsOrgIdIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => OrgsOrgIdRoute,
-} as any)
-const OrgsOrgIdSettingsRoute = OrgsOrgIdSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => OrgsOrgIdRoute,
-} as any)
-const OrgsOrgIdPeopleRoute = OrgsOrgIdPeopleRouteImport.update({
-  id: '/people',
-  path: '/people',
-  getParentRoute: () => OrgsOrgIdRoute,
-} as any)
-const OrgsOrgIdAuditRoute = OrgsOrgIdAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
   getParentRoute: () => OrgsOrgIdRoute,
 } as any)
 const OrgsOrgIdApprovalsRoute = OrgsOrgIdApprovalsRouteImport.update({
@@ -117,23 +119,26 @@ const OrgsOrgIdApprovalsRoute = OrgsOrgIdApprovalsRouteImport.update({
   path: '/approvals',
   getParentRoute: () => OrgsOrgIdRoute,
 } as any)
-const AuthStepUpCallbackRoute = AuthStepUpCallbackRouteImport.update({
-  id: '/callback',
-  path: '/callback',
-  getParentRoute: () => AuthStepUpRoute,
+const OrgsOrgIdAuditRoute = OrgsOrgIdAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => OrgsOrgIdRoute,
 } as any)
-const AuthEnrollPasskeyCallbackRoute =
-  AuthEnrollPasskeyCallbackRouteImport.update({
-    id: '/callback',
-    path: '/callback',
-    getParentRoute: () => AuthEnrollPasskeyRoute,
-  } as any)
-const AuthApprovalStepUpCallbackRoute =
-  AuthApprovalStepUpCallbackRouteImport.update({
-    id: '/callback',
-    path: '/callback',
-    getParentRoute: () => AuthApprovalStepUpRoute,
-  } as any)
+const OrgsOrgIdPeopleRoute = OrgsOrgIdPeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
+const OrgsOrgIdSettingsRoute = OrgsOrgIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
+const OrgsOrgIdApprovalsIdRoute = OrgsOrgIdApprovalsIdRouteImport.update({
+  id: '/approvals_/$id',
+  path: '/approvals/$id',
+  getParentRoute: () => OrgsOrgIdRoute,
+} as any)
 const OrgsOrgIdProjectsIndexRoute = OrgsOrgIdProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
@@ -145,21 +150,16 @@ const OrgsOrgIdProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => OrgsOrgIdRoute,
   } as any)
-const OrgsOrgIdApprovalsIdRoute = OrgsOrgIdApprovalsIdRouteImport.update({
-  id: '/approvals_/$id',
-  path: '/approvals/$id',
-  getParentRoute: () => OrgsOrgIdRoute,
-} as any)
 const OrgsOrgIdProjectsProjectIdIndexRoute =
   OrgsOrgIdProjectsProjectIdIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
   } as any)
-const OrgsOrgIdProjectsProjectIdSecretsRoute =
-  OrgsOrgIdProjectsProjectIdSecretsRouteImport.update({
-    id: '/secrets',
-    path: '/secrets',
+const OrgsOrgIdProjectsProjectIdAccessRoute =
+  OrgsOrgIdProjectsProjectIdAccessRouteImport.update({
+    id: '/access',
+    path: '/access',
     getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
   } as any)
 const OrgsOrgIdProjectsProjectIdDeliveryRoute =
@@ -168,10 +168,10 @@ const OrgsOrgIdProjectsProjectIdDeliveryRoute =
     path: '/delivery',
     getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
   } as any)
-const OrgsOrgIdProjectsProjectIdAccessRoute =
-  OrgsOrgIdProjectsProjectIdAccessRouteImport.update({
-    id: '/access',
-    path: '/access',
+const OrgsOrgIdProjectsProjectIdSecretsRoute =
+  OrgsOrgIdProjectsProjectIdSecretsRouteImport.update({
+    id: '/secrets',
+    path: '/secrets',
     getParentRoute: () => OrgsOrgIdProjectsProjectIdRoute,
   } as any)
 const OrgsOrgIdProjectsProjectIdEnvsEnvIdSecretsSecretIdRoute =
@@ -371,25 +371,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/whoami': {
-      id: '/whoami'
-      path: '/whoami'
-      fullPath: '/whoami'
-      preLoaderRoute: typeof WhoamiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/logout': {
-      id: '/logout'
-      path: '/logout'
-      fullPath: '/logout'
-      preLoaderRoute: typeof LogoutRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -399,11 +385,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/logout': {
+      id: '/logout'
+      path: '/logout'
+      fullPath: '/logout'
+      preLoaderRoute: typeof LogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/whoami': {
+      id: '/whoami'
+      path: '/whoami'
+      fullPath: '/whoami'
+      preLoaderRoute: typeof WhoamiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/approval-step-up': {
+      id: '/auth/approval-step-up'
+      path: '/auth/approval-step-up'
+      fullPath: '/auth/approval-step-up'
+      preLoaderRoute: typeof AuthApprovalStepUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/enroll-passkey': {
+      id: '/auth/enroll-passkey'
+      path: '/auth/enroll-passkey'
+      fullPath: '/auth/enroll-passkey'
+      preLoaderRoute: typeof AuthEnrollPasskeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/step-up': {
+      id: '/auth/step-up'
+      path: '/auth/step-up'
+      fullPath: '/auth/step-up'
+      preLoaderRoute: typeof AuthStepUpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orgs/': {
@@ -420,60 +448,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/step-up': {
-      id: '/auth/step-up'
-      path: '/auth/step-up'
-      fullPath: '/auth/step-up'
-      preLoaderRoute: typeof AuthStepUpRouteImport
-      parentRoute: typeof rootRouteImport
+    '/auth/approval-step-up/callback': {
+      id: '/auth/approval-step-up/callback'
+      path: '/callback'
+      fullPath: '/auth/approval-step-up/callback'
+      preLoaderRoute: typeof AuthApprovalStepUpCallbackRouteImport
+      parentRoute: typeof AuthApprovalStepUpRoute
     }
-    '/auth/enroll-passkey': {
-      id: '/auth/enroll-passkey'
-      path: '/auth/enroll-passkey'
-      fullPath: '/auth/enroll-passkey'
-      preLoaderRoute: typeof AuthEnrollPasskeyRouteImport
-      parentRoute: typeof rootRouteImport
+    '/auth/enroll-passkey/callback': {
+      id: '/auth/enroll-passkey/callback'
+      path: '/callback'
+      fullPath: '/auth/enroll-passkey/callback'
+      preLoaderRoute: typeof AuthEnrollPasskeyCallbackRouteImport
+      parentRoute: typeof AuthEnrollPasskeyRoute
     }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/approval-step-up': {
-      id: '/auth/approval-step-up'
-      path: '/auth/approval-step-up'
-      fullPath: '/auth/approval-step-up'
-      preLoaderRoute: typeof AuthApprovalStepUpRouteImport
-      parentRoute: typeof rootRouteImport
+    '/auth/step-up/callback': {
+      id: '/auth/step-up/callback'
+      path: '/callback'
+      fullPath: '/auth/step-up/callback'
+      preLoaderRoute: typeof AuthStepUpCallbackRouteImport
+      parentRoute: typeof AuthStepUpRoute
     }
     '/orgs/$orgId/': {
       id: '/orgs/$orgId/'
       path: '/'
       fullPath: '/orgs/$orgId/'
       preLoaderRoute: typeof OrgsOrgIdIndexRouteImport
-      parentRoute: typeof OrgsOrgIdRoute
-    }
-    '/orgs/$orgId/settings': {
-      id: '/orgs/$orgId/settings'
-      path: '/settings'
-      fullPath: '/orgs/$orgId/settings'
-      preLoaderRoute: typeof OrgsOrgIdSettingsRouteImport
-      parentRoute: typeof OrgsOrgIdRoute
-    }
-    '/orgs/$orgId/people': {
-      id: '/orgs/$orgId/people'
-      path: '/people'
-      fullPath: '/orgs/$orgId/people'
-      preLoaderRoute: typeof OrgsOrgIdPeopleRouteImport
-      parentRoute: typeof OrgsOrgIdRoute
-    }
-    '/orgs/$orgId/audit': {
-      id: '/orgs/$orgId/audit'
-      path: '/audit'
-      fullPath: '/orgs/$orgId/audit'
-      preLoaderRoute: typeof OrgsOrgIdAuditRouteImport
       parentRoute: typeof OrgsOrgIdRoute
     }
     '/orgs/$orgId/approvals': {
@@ -483,26 +483,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdApprovalsRouteImport
       parentRoute: typeof OrgsOrgIdRoute
     }
-    '/auth/step-up/callback': {
-      id: '/auth/step-up/callback'
-      path: '/callback'
-      fullPath: '/auth/step-up/callback'
-      preLoaderRoute: typeof AuthStepUpCallbackRouteImport
-      parentRoute: typeof AuthStepUpRoute
+    '/orgs/$orgId/audit': {
+      id: '/orgs/$orgId/audit'
+      path: '/audit'
+      fullPath: '/orgs/$orgId/audit'
+      preLoaderRoute: typeof OrgsOrgIdAuditRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
     }
-    '/auth/enroll-passkey/callback': {
-      id: '/auth/enroll-passkey/callback'
-      path: '/callback'
-      fullPath: '/auth/enroll-passkey/callback'
-      preLoaderRoute: typeof AuthEnrollPasskeyCallbackRouteImport
-      parentRoute: typeof AuthEnrollPasskeyRoute
+    '/orgs/$orgId/people': {
+      id: '/orgs/$orgId/people'
+      path: '/people'
+      fullPath: '/orgs/$orgId/people'
+      preLoaderRoute: typeof OrgsOrgIdPeopleRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
     }
-    '/auth/approval-step-up/callback': {
-      id: '/auth/approval-step-up/callback'
-      path: '/callback'
-      fullPath: '/auth/approval-step-up/callback'
-      preLoaderRoute: typeof AuthApprovalStepUpCallbackRouteImport
-      parentRoute: typeof AuthApprovalStepUpRoute
+    '/orgs/$orgId/settings': {
+      id: '/orgs/$orgId/settings'
+      path: '/settings'
+      fullPath: '/orgs/$orgId/settings'
+      preLoaderRoute: typeof OrgsOrgIdSettingsRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
+    }
+    '/orgs/$orgId/approvals_/$id': {
+      id: '/orgs/$orgId/approvals_/$id'
+      path: '/approvals/$id'
+      fullPath: '/orgs/$orgId/approvals/$id'
+      preLoaderRoute: typeof OrgsOrgIdApprovalsIdRouteImport
+      parentRoute: typeof OrgsOrgIdRoute
     }
     '/orgs/$orgId/projects/': {
       id: '/orgs/$orgId/projects/'
@@ -518,13 +525,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdRouteImport
       parentRoute: typeof OrgsOrgIdRoute
     }
-    '/orgs/$orgId/approvals_/$id': {
-      id: '/orgs/$orgId/approvals_/$id'
-      path: '/approvals/$id'
-      fullPath: '/orgs/$orgId/approvals/$id'
-      preLoaderRoute: typeof OrgsOrgIdApprovalsIdRouteImport
-      parentRoute: typeof OrgsOrgIdRoute
-    }
     '/orgs/$orgId/projects/$projectId/': {
       id: '/orgs/$orgId/projects/$projectId/'
       path: '/'
@@ -532,11 +532,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdIndexRouteImport
       parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
     }
-    '/orgs/$orgId/projects/$projectId/secrets': {
-      id: '/orgs/$orgId/projects/$projectId/secrets'
-      path: '/secrets'
-      fullPath: '/orgs/$orgId/projects/$projectId/secrets'
-      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdSecretsRouteImport
+    '/orgs/$orgId/projects/$projectId/access': {
+      id: '/orgs/$orgId/projects/$projectId/access'
+      path: '/access'
+      fullPath: '/orgs/$orgId/projects/$projectId/access'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdAccessRouteImport
       parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
     }
     '/orgs/$orgId/projects/$projectId/delivery': {
@@ -546,11 +546,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdDeliveryRouteImport
       parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
     }
-    '/orgs/$orgId/projects/$projectId/access': {
-      id: '/orgs/$orgId/projects/$projectId/access'
-      path: '/access'
-      fullPath: '/orgs/$orgId/projects/$projectId/access'
-      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdAccessRouteImport
+    '/orgs/$orgId/projects/$projectId/secrets': {
+      id: '/orgs/$orgId/projects/$projectId/secrets'
+      path: '/secrets'
+      fullPath: '/orgs/$orgId/projects/$projectId/secrets'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdSecretsRouteImport
       parentRoute: typeof OrgsOrgIdProjectsProjectIdRoute
     }
     '/orgs/$orgId/projects/$projectId/envs/$envId/secrets/$secretId': {

@@ -2,8 +2,8 @@
 # Install pinned syft and grype CLIs with release tarball checksum verification.
 set -euo pipefail
 
-syft_version="${SYFT_VERSION:-1.46.0}"
-grype_version="${GRYPE_VERSION:-0.115.0}"
+syft_version="${SYFT_VERSION:-1.54.0}"
+grype_version="${GRYPE_VERSION:-0.120.0}"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 

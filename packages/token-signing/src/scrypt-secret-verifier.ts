@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 export const SCRYPT_V1_ALGORITHM = "scrypt_v1" as const;
@@ -16,8 +17,8 @@ export function hashScryptSecret(secret: string): ScryptSecretVerifierMaterial {
   const hash = scryptSync(secret, salt, SCRYPT_KEY_LENGTH, SCRYPT_OPTIONS);
   return {
     algorithm: SCRYPT_V1_ALGORITHM,
-    saltB64: salt.toString("base64url"),
-    hashB64: hash.toString("base64url"),
+    saltB64: Buffer.from(salt).toString("base64url"),
+    hashB64: Buffer.from(hash).toString("base64url"),
   };
 }
 

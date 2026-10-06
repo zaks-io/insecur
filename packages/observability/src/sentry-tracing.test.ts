@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/cloudflare";
+import { wrapRequestHandler } from "@sentry/cloudflare/request";
 import { describe, expect, it } from "vitest";
 import {
   cloudflareSentryOptions,
@@ -88,6 +89,7 @@ describe("safe trace labels and native correlation", () => {
     });
     const options = cloudflareSentryOptions({}, names);
     for (const name of ["GET /orgs/$orgId", "/orgs/$orgId/", "/orgs/$orgId/approvals_/$id"]) {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- Static lifecycle still requires the final transaction privacy filter.
       expect(options.beforeSendTransaction?.({ transaction: name } as never, {})).toMatchObject({
         transaction: name,
       });
@@ -107,6 +109,7 @@ describe("safe trace labels and native correlation", () => {
     registerSentryRouteNames(names, ["/orgs/$orgId"]);
     const options = cloudflareSentryOptions({}, names);
     for (const name of ["POST /rpc/writeSecret", "GET /orgs/$orgId", "/orgs/$orgId"]) {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- Static lifecycle still requires the final transaction privacy filter.
       expect(options.beforeSendTransaction?.({ transaction: name } as never, {})).toMatchObject({
         transaction: name,
       });
@@ -119,6 +122,7 @@ describe("safe trace labels and native correlation", () => {
       } as never),
     ).not.toHaveProperty("description");
     expect(
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- Static lifecycle still requires the final transaction privacy filter.
       options.beforeSendTransaction?.({ transaction: `GET /orgs/${SENTINEL}` } as never, {}),
     ).toMatchObject({ transaction: "GET" });
   });
@@ -193,18 +197,15 @@ async function assertTraceContinuation(orgId: number): Promise<void> {
     }),
   );
   let traceId: string | undefined;
-  const response = await Sentry.wrapRequestHandler(
-    { options, request, context: context as never },
-    () => {
-      const root = Sentry.getActiveSpan();
-      root?.updateName(routeName);
-      traceId = root?.spanContext().traceId;
-      Sentry.startSpan({ name: `SELECT '${SENTINEL}'`, op: "db" }, () => {
-        Sentry.captureException(new Error("Trace diagnostic failure"));
-      });
-      return Promise.resolve(new Response(null));
-    },
-  );
+  const response = await wrapRequestHandler({ options, request, context: context as never }, () => {
+    const root = Sentry.getActiveSpan();
+    root?.updateName(routeName);
+    traceId = root?.spanContext().traceId;
+    Sentry.startSpan({ name: `SELECT '${SENTINEL}'`, op: "db" }, () => {
+      Sentry.captureException(new Error("Trace diagnostic failure"));
+    });
+    return Promise.resolve(new Response(null));
+  });
   expect(response.status).toBe(200);
   await Promise.all(pending);
   const events = envelopes.flatMap((envelope) =>

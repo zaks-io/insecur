@@ -90,7 +90,7 @@ test("daily release records the exact SHA in environment-scoped Linear pipelines
     );
     assert.match(release, /base_ref: refs\/remotes\/origin\/production/u);
     assert.match(release, /access_key: \$\{\{ secrets\.LINEAR_ACCESS_KEY \}\}/u);
-    assert.match(release, /uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.14\.5/u);
+    assert.match(release, /uses: linear\/linear-release-action@[0-9a-f]{40} # v0\.18\.0/u);
     assert.match(release, /Daily Release=\$\{\{ github\.server_url \}\}/u);
   }
   assert.doesNotMatch(daily, /linear-release-stage\.yml/u);
