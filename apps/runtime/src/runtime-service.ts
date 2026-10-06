@@ -70,7 +70,10 @@ import {
 } from "./rpc/runtime-onboarding-rpc-delegates.js";
 import { completeBootstrapOperatorClaimRpc } from "./rpc/runtime-bootstrap-rpc-delegates.js";
 import { withRuntimeRpcEntry, type RuntimeRpcActorContext } from "./rpc/runtime-rpc-entry.js";
-import { instrumentRuntimeRpcTracing } from "./rpc/runtime-rpc-tracing.js";
+import {
+  instrumentRuntimeRpcTracing,
+  runtimeRpcWithBaggageGuard,
+} from "./rpc/runtime-rpc-tracing.js";
 import { withRuntimeRpcUnauthEntry } from "./rpc/runtime-rpc-unauthenticated-entry.js";
 
 type SentryRuntimeServiceConstructor = new (
@@ -275,7 +278,7 @@ class RuntimeServiceBase extends WorkerEntrypoint<RuntimeEnv> {
 
 Object.assign(RuntimeServiceBase.prototype, RuntimeServiceDelegatedPostAuthRpc);
 
-instrumentRuntimeRpcTracing(RuntimeServiceBase.prototype);
+const runtimeRpcTraceNames = instrumentRuntimeRpcTracing(RuntimeServiceBase.prototype);
 
 /**
  * Type-only re-export of the pre-Sentry-wrap class (INS-512). `Sentry.withSentry` returns its input
@@ -289,9 +292,10 @@ instrumentRuntimeRpcTracing(RuntimeServiceBase.prototype);
  */
 export type { RuntimeServiceBase };
 
-export const RuntimeService = Sentry.withSentry<
-  RuntimeEnv,
-  unknown,
-  unknown,
-  SentryRuntimeServiceConstructor
->(cloudflareSentryOptions, RuntimeServiceBase as unknown as SentryRuntimeServiceConstructor);
+export const RuntimeService = runtimeRpcWithBaggageGuard(
+  Sentry.withSentry<RuntimeEnv, unknown, unknown, SentryRuntimeServiceConstructor>(
+    (env) => cloudflareSentryOptions(env, runtimeRpcTraceNames),
+    RuntimeServiceBase as unknown as SentryRuntimeServiceConstructor,
+  ),
+  RuntimeServiceBase as unknown as SentryRuntimeServiceConstructor,
+);

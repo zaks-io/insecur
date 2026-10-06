@@ -9,10 +9,11 @@
 // `pnpm verify`: the full vite build + wrangler dry-run + Miniflare boot is too slow for the
 // pre-push/verify hot path. Run manually with `pnpm --filter @insecur/web build && node
 // scripts/verify-ssr-csp.mjs`.
+import { globSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { Miniflare } = await import(
+const { Miniflare, convertV4MiniflareOptions } = await import(
   require.resolve("miniflare", { paths: [require.resolve("wrangler/package.json")] })
 );
 
@@ -225,149 +226,159 @@ export class RuntimeStub extends WorkerEntrypoint {
 export default { fetch: () => new Response(null, { status: 404 }) };
 `;
 
-const mf = new Miniflare({
-  workers: [
-    {
-      name: "web",
-      modules: true,
-      modulesRoot: "dist/server",
-      scriptPath: "dist/server/index.js",
-      modulesRules: [{ type: "ESModule", include: ["**/*.js", "**/*.mjs"] }],
-      compatibilityDate: "2026-05-27",
-      compatibilityFlags: ["nodejs_compat"],
-      assets: { directory: "dist/client", routerConfig: { has_user_worker: true } },
-      bindings: {
-        WORKOS_API_KEY: "sk_test_fake",
-        WORKOS_CLIENT_ID: "client_fake",
-        WORKOS_COOKIE_PASSWORD: "a".repeat(32),
-        SESSION_SIGNING_SECRET,
-        TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
-        TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
-        INSTANCE_ID: "inst_LOCAL_DEV",
-        // Stands in for the per-environment WorkOS redirect chain (SDK host + hosted AuthKit domain)
-        // so the /login CSP form-action can be asserted to allow every off-origin hop (INS-417).
-        WORKOS_AUTHKIT_ORIGIN: "https://api.workos.com https://tenant-ssr-csp.authkit.app",
-        // Ephemeral smoke credentials stand in for the WorkOS cookie so the authed console shell
-        // can be exercised without a live IdP (same mechanism preview smoke uses).
-        PREVIEW_SMOKE_SESSION_CREDENTIALS: "true",
-        LOCAL_DEV_ACCOUNTS_JSON: JSON.stringify([
-          { subject: "user_local_alice", displayName: "Alice" },
-        ]),
-      },
-      serviceBindings: {
-        API: async (request) => {
-          const url = new URL(request.url);
-          const actorUserId = userIdFromAuth(request);
-          if (url.pathname === "/v1/session/memberships") {
-            const organizations = actorUserId === ORG_LESS_USER_ID ? [] : [ORG, EMPTY_ORG];
-            return Response.json({ ok: true, data: { organizations } });
-          }
-          if (url.pathname === `/v1/orgs/${ORG.organizationId}/projects`) {
-            return Response.json({ ok: true, data: { projects: [PROJECT, BARE_PROJECT] } });
-          }
-          if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/projects`) {
-            return Response.json({ ok: true, data: { projects: [] } });
-          }
-          if (url.pathname === `/v1/orgs/${ORG.organizationId}/audit-events`) {
-            return Response.json({ ok: true, data: { events: [], nextCursor: null } });
-          }
-          if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/audit-events`) {
-            return Response.json({ ok: true, data: { events: [], nextCursor: null } });
-          }
-          if (url.pathname === `/v1/orgs/${ORG.organizationId}/high-assurance-challenges`) {
-            return Response.json({ ok: true, data: { challenges: [] } });
-          }
-          if (
-            url.pathname ===
-            `/v1/orgs/${ORG.organizationId}/high-assurance-challenges/${PENDING_CHALLENGE.operationId}`
-          ) {
-            return Response.json({ ok: true, data: { challenge: PENDING_CHALLENGE } });
-          }
-          if (
-            url.pathname ===
-              `/v1/orgs/${ORG.organizationId}/high-assurance-challenges/${PENDING_CHALLENGE.operationId}/deny` &&
-            request.method === "POST"
-          ) {
-            return Response.json({
-              ok: true,
-              data: {
-                operationId: PENDING_CHALLENGE.operationId,
-                challengeId: PENDING_CHALLENGE.challengeId,
-                state: "canceled",
-              },
-            });
-          }
-          if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/high-assurance-challenges`) {
-            return Response.json({ ok: true, data: { challenges: [] } });
-          }
-          if (url.pathname === `/v1/orgs/${ORG.organizationId}/approval-requests`) {
-            return Response.json({ ok: true, data: { approvalRequests: [] } });
-          }
-          if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/approval-requests`) {
-            return Response.json({ ok: true, data: { approvalRequests: [] } });
-          }
-          if (
-            url.pathname ===
-            `/v1/orgs/${ORG.organizationId}/approval-requests/${PENDING_APPROVAL_REQUEST.approvalRequestId}`
-          ) {
-            return Response.json({
-              ok: true,
-              data: { approvalRequest: PENDING_APPROVAL_REQUEST_DETAIL },
-            });
-          }
-          if (
-            url.pathname ===
-            `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/environments`
-          ) {
-            return Response.json({ ok: true, data: { environments: ENVIRONMENTS } });
-          }
-          if (
-            url.pathname ===
-            `/v1/orgs/${ORG.organizationId}/projects/${BARE_PROJECT.projectId}/environments`
-          ) {
-            return Response.json({ ok: true, data: { environments: [] } });
-          }
-          if (
-            url.pathname === `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/secrets`
-          ) {
-            return Response.json({ ok: true, data: PROJECT_SECRETS_MATRIX });
-          }
-          if (
-            url.pathname ===
-            `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/machine-identities`
-          ) {
-            return Response.json({ ok: true, data: { machineIdentities: [] } });
-          }
-          if (
-            url.pathname ===
-            `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/injection-grants`
-          ) {
-            return Response.json({ ok: true, data: { grants: [] } });
-          }
-          if (url.pathname === `/v1/orgs/${ORG.organizationId}/members`) {
-            return Response.json({ ok: true, data: { members: [MEMBER] } });
-          }
-          if (url.pathname === `/v1/orgs/${ORG.organizationId}/invitations`) {
-            return Response.json({ ok: true, data: { invitations: [] } });
-          }
-          if (url.pathname === "/v1/session/whoami") {
-            return Response.json({
-              ok: true,
-              data: { actorType: "user", userId: actorUserId, sessionId: "session_ssr" },
-            });
-          }
-          return Response.json({ ok: false, error: { code: "auth.required" } }, { status: 401 });
+// Miniflare 5's adapter requires an explicit module manifest for an unbundled Worker.
+const webModules = [
+  { type: "ESModule", path: "dist/server/index.js" },
+  ...globSync("**/*.{js,mjs}", { cwd: "dist/server" })
+    .filter((path) => path !== "index.js")
+    .sort()
+    .map((path) => ({ type: "ESModule", path: `dist/server/${path}` })),
+];
+
+const mf = new Miniflare(
+  convertV4MiniflareOptions({
+    workers: [
+      {
+        name: "web",
+        modules: webModules,
+        modulesRoot: "dist/server",
+        compatibilityDate: "2026-05-27",
+        compatibilityFlags: ["nodejs_compat"],
+        assets: { directory: "dist/client", routerConfig: { has_user_worker: true } },
+        bindings: {
+          WORKOS_API_KEY: "sk_test_fake",
+          WORKOS_CLIENT_ID: "client_fake",
+          WORKOS_COOKIE_PASSWORD: "a".repeat(32),
+          SESSION_SIGNING_SECRET,
+          TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+          TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+          INSTANCE_ID: "inst_LOCAL_DEV",
+          // Stands in for the per-environment WorkOS redirect chain (SDK host + hosted AuthKit domain)
+          // so the /login CSP form-action can be asserted to allow every off-origin hop (INS-417).
+          WORKOS_AUTHKIT_ORIGIN: "https://api.workos.com https://tenant-ssr-csp.authkit.app",
+          // Ephemeral smoke credentials stand in for the WorkOS cookie so the authed console shell
+          // can be exercised without a live IdP (same mechanism preview smoke uses).
+          PREVIEW_SMOKE_SESSION_CREDENTIALS: "true",
+          LOCAL_DEV_ACCOUNTS_JSON: JSON.stringify([
+            { subject: "user_local_alice", displayName: "Alice" },
+          ]),
         },
-        RUNTIME: { name: "runtime-stub", entrypoint: "RuntimeStub" },
+        serviceBindings: {
+          API: async (request) => {
+            const url = new URL(request.url);
+            const actorUserId = userIdFromAuth(request);
+            if (url.pathname === "/v1/session/memberships") {
+              const organizations = actorUserId === ORG_LESS_USER_ID ? [] : [ORG, EMPTY_ORG];
+              return Response.json({ ok: true, data: { organizations } });
+            }
+            if (url.pathname === `/v1/orgs/${ORG.organizationId}/projects`) {
+              return Response.json({ ok: true, data: { projects: [PROJECT, BARE_PROJECT] } });
+            }
+            if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/projects`) {
+              return Response.json({ ok: true, data: { projects: [] } });
+            }
+            if (url.pathname === `/v1/orgs/${ORG.organizationId}/audit-events`) {
+              return Response.json({ ok: true, data: { events: [], nextCursor: null } });
+            }
+            if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/audit-events`) {
+              return Response.json({ ok: true, data: { events: [], nextCursor: null } });
+            }
+            if (url.pathname === `/v1/orgs/${ORG.organizationId}/high-assurance-challenges`) {
+              return Response.json({ ok: true, data: { challenges: [] } });
+            }
+            if (
+              url.pathname ===
+              `/v1/orgs/${ORG.organizationId}/high-assurance-challenges/${PENDING_CHALLENGE.operationId}`
+            ) {
+              return Response.json({ ok: true, data: { challenge: PENDING_CHALLENGE } });
+            }
+            if (
+              url.pathname ===
+                `/v1/orgs/${ORG.organizationId}/high-assurance-challenges/${PENDING_CHALLENGE.operationId}/deny` &&
+              request.method === "POST"
+            ) {
+              return Response.json({
+                ok: true,
+                data: {
+                  operationId: PENDING_CHALLENGE.operationId,
+                  challengeId: PENDING_CHALLENGE.challengeId,
+                  state: "canceled",
+                },
+              });
+            }
+            if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/high-assurance-challenges`) {
+              return Response.json({ ok: true, data: { challenges: [] } });
+            }
+            if (url.pathname === `/v1/orgs/${ORG.organizationId}/approval-requests`) {
+              return Response.json({ ok: true, data: { approvalRequests: [] } });
+            }
+            if (url.pathname === `/v1/orgs/${EMPTY_ORG.organizationId}/approval-requests`) {
+              return Response.json({ ok: true, data: { approvalRequests: [] } });
+            }
+            if (
+              url.pathname ===
+              `/v1/orgs/${ORG.organizationId}/approval-requests/${PENDING_APPROVAL_REQUEST.approvalRequestId}`
+            ) {
+              return Response.json({
+                ok: true,
+                data: { approvalRequest: PENDING_APPROVAL_REQUEST_DETAIL },
+              });
+            }
+            if (
+              url.pathname ===
+              `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/environments`
+            ) {
+              return Response.json({ ok: true, data: { environments: ENVIRONMENTS } });
+            }
+            if (
+              url.pathname ===
+              `/v1/orgs/${ORG.organizationId}/projects/${BARE_PROJECT.projectId}/environments`
+            ) {
+              return Response.json({ ok: true, data: { environments: [] } });
+            }
+            if (
+              url.pathname ===
+              `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/secrets`
+            ) {
+              return Response.json({ ok: true, data: PROJECT_SECRETS_MATRIX });
+            }
+            if (
+              url.pathname ===
+              `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/machine-identities`
+            ) {
+              return Response.json({ ok: true, data: { machineIdentities: [] } });
+            }
+            if (
+              url.pathname ===
+              `/v1/orgs/${ORG.organizationId}/projects/${PROJECT.projectId}/injection-grants`
+            ) {
+              return Response.json({ ok: true, data: { grants: [] } });
+            }
+            if (url.pathname === `/v1/orgs/${ORG.organizationId}/members`) {
+              return Response.json({ ok: true, data: { members: [MEMBER] } });
+            }
+            if (url.pathname === `/v1/orgs/${ORG.organizationId}/invitations`) {
+              return Response.json({ ok: true, data: { invitations: [] } });
+            }
+            if (url.pathname === "/v1/session/whoami") {
+              return Response.json({
+                ok: true,
+                data: { actorType: "user", userId: actorUserId, sessionId: "session_ssr" },
+              });
+            }
+            return Response.json({ ok: false, error: { code: "auth.required" } }, { status: 401 });
+          },
+          RUNTIME: { name: "runtime-stub", entrypoint: "RuntimeStub" },
+        },
       },
-    },
-    {
-      name: "runtime-stub",
-      modules: [{ type: "ESModule", path: "runtime-stub.mjs", contents: RUNTIME_STUB }],
-      compatibilityDate: "2026-05-27",
-    },
-  ],
-});
+      {
+        name: "runtime-stub",
+        modules: [{ type: "ESModule", path: "runtime-stub.mjs", contents: RUNTIME_STUB }],
+        compatibilityDate: "2026-05-27",
+      },
+    ],
+  }),
+);
 
 // Inline-style ban: the nonce CSP allows no `style` attribute in server-rendered markup. The
 // character class covers both quote styles so a single-quoted `style='...'` cannot slip past the
@@ -443,11 +454,17 @@ async function assertRouteHasMatchingCspNonce(
 
   const nonce = nonceMatch[1];
   const html = await response.text();
-  if (!html.includes(`id="$tsr-stream-barrier"`)) {
-    throw new Error(`${path} missing TanStack stream barrier script`);
+  if (!html.includes("/*$tsr-stream-boundary*/")) {
+    throw new Error(`${path} missing TanStack stream boundary script`);
   }
-  if (!html.includes(`nonce="${nonce}"`) && !html.includes(`nonce='${nonce}'`)) {
-    throw new Error(`${path} inline scripts missing matching nonce attribute`);
+  const scripts = [...html.matchAll(/<script\b([^>]*)>/gi)];
+  if (scripts.length === 0) {
+    throw new Error(`${path} missing hydration scripts`);
+  }
+  for (const [, attributes] of scripts) {
+    if (!attributes.includes(`nonce="${nonce}"`) && !attributes.includes(`nonce='${nonce}'`)) {
+      throw new Error(`${path} script missing matching nonce attribute`);
+    }
   }
   // The nonce CSP blocks style attributes entirely: server-rendered markup must not carry any,
   // whether double- or single-quoted.

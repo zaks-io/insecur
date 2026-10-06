@@ -182,7 +182,6 @@ export class StaticRootKeyProvider implements RootKeyProvider {
   constructor(private readonly rootKeyBytes: Uint8Array) {}
 
   getRootKeyBytes(_version: KeyVersion): Promise<Uint8Array> {
-    void _version;
     return Promise.resolve(this.rootKeyBytes);
   }
 }

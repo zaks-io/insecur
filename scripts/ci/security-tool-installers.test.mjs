@@ -26,6 +26,20 @@ const attestationRequirementsPromise = readFile(
   "utf8",
 );
 
+function assertScannerPinsMatchLock(requirementsInput, lockedPins) {
+  const inputPins = requirementsInput
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "" && !line.startsWith("#"));
+  const scanners = ["checkov", "semgrep"];
+  assert.equal(inputPins.length, scanners.length);
+  for (const [index, scanner] of scanners.entries()) {
+    const pin = inputPins[index];
+    assert.match(pin, new RegExp(`^${scanner}==\\d+\\.\\d+\\.\\d+$`, "u"));
+    assert.ok(lockedPins.includes(pin), `scanner input pin missing from lock: ${pin}`);
+  }
+}
+
 for (const [file, checksum] of installers) {
   test(`${file} verifies its pinned release checksum before extraction`, async () => {
     const source = await readFile(new URL(file, import.meta.url), "utf8");
@@ -39,9 +53,9 @@ test("security attestation binary scanners use repository-owned archive hashes",
   const source = await attestationActionPromise;
   const checksums = [
     "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
-    "1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75",
-    "590650c2743b83f327d1bf9bec64f6f83b7fec504187bb84f500c862bf8f2a0f",
-    "18ed2048d7a233566b681121d4632364f5f25d72cca86acc4c7ac57210d78a87",
+    "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f",
+    "54a87372498168b2d033e876fd41fa4e8035b872699e525a57046e1f2f09c860",
+    "a5a1218dce63acdac152a6b3b5bb366e7267e36f4069848cf455543b3fa5700e",
   ];
 
   for (const checksum of checksums) {
@@ -64,16 +78,15 @@ test("security attestation Python scanners use a hash-locked binary-only depende
   assert.match(source, /--only-binary=:all:/u);
   assert.match(source, /--require-hashes/u);
   assert.match(source, /--requirement "\$REQUIREMENTS_FILE"/u);
-  assert.equal(requirementsInput, "checkov==3.2.510\nsemgrep==1.173.0\n");
-  assert.match(requirements, /^checkov==3\.2\.510 \\/mu);
-  assert.match(requirements, /^mcp==1\.29\.0 \\/mu);
-  assert.match(requirements, /^pyjwt==2\.13\.0 \\/mu);
-  assert.match(requirements, /^semgrep==1\.173\.0 \\/mu);
-
   const lines = requirements.split("\n");
-  const requirementIndexes = lines.flatMap((line, index) =>
-    /^[a-z0-9][a-z0-9._-]*==[^ ]+ \\$/u.test(line) ? [index] : [],
-  );
+  const requirementIndexes = lines.flatMap((line, index) => {
+    if (!line.trim() || line.trimStart().startsWith("#") || line.startsWith(" ")) return [];
+    assert.match(line, /^[a-z0-9][a-z0-9._-]*==[^ ]+ \\$/u);
+    return [index];
+  });
+  const lockedPins = requirementIndexes.map((index) => lines[index].slice(0, -2));
+  assert.equal(new Set(lockedPins.map((pin) => pin.split("==")[0])).size, lockedPins.length);
+  assertScannerPinsMatchLock(requirementsInput, lockedPins);
   assert.ok(requirementIndexes.length > 2, "expected the full transitive dependency lock");
   for (const [position, start] of requirementIndexes.entries()) {
     const end = requirementIndexes[position + 1] ?? lines.length;

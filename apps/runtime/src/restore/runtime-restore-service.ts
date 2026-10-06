@@ -5,6 +5,10 @@ import type { RuntimeRpcError, RuntimeRpcResult } from "@insecur/worker-kit";
 import * as Sentry from "@sentry/cloudflare";
 
 import type { RuntimeEnv } from "../env.js";
+import {
+  instrumentRuntimeRpcTracing,
+  runtimeRpcWithBaggageGuard,
+} from "../rpc/runtime-rpc-tracing.js";
 import { toRuntimeRpcError } from "../rpc/runtime-rpc-error.js";
 import { executeRestoreImport, type RestoreImportRpcInput } from "./execute-restore-import.js";
 
@@ -45,12 +49,12 @@ class RuntimeRestoreServiceBase extends WorkerEntrypoint<RuntimeEnv> {
   }
 }
 
-export const RuntimeRestoreService = Sentry.withSentry<
-  RuntimeEnv,
-  unknown,
-  unknown,
-  SentryRuntimeRestoreServiceConstructor
->(
-  cloudflareSentryOptions,
+const runtimeRestoreTraceNames = instrumentRuntimeRpcTracing(RuntimeRestoreServiceBase.prototype);
+
+export const RuntimeRestoreService = runtimeRpcWithBaggageGuard(
+  Sentry.withSentry<RuntimeEnv, unknown, unknown, SentryRuntimeRestoreServiceConstructor>(
+    (env) => cloudflareSentryOptions(env, runtimeRestoreTraceNames),
+    RuntimeRestoreServiceBase as unknown as SentryRuntimeRestoreServiceConstructor,
+  ),
   RuntimeRestoreServiceBase as unknown as SentryRuntimeRestoreServiceConstructor,
 );

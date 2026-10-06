@@ -109,7 +109,6 @@ export class MetadataTenantDataKeySource implements TenantDataKeySource {
     organizationDataKeyVersion: KeyVersion,
     _rootKeyVersion: KeyVersion,
   ): Promise<string> {
-    void _rootKeyVersion;
     const organizationKey = await this.metadata.getOrganizationDataKeyVersion(
       organizationId,
       organizationDataKeyVersion,
@@ -126,7 +125,6 @@ export class MetadataTenantDataKeySource implements TenantDataKeySource {
     projectDataKeyVersion: KeyVersion,
     _rootKeyVersion: KeyVersion,
   ): Promise<string> {
-    void _rootKeyVersion;
     const projectKey = await this.metadata.getProjectDataKeyVersion(
       organizationId,
       projectId,

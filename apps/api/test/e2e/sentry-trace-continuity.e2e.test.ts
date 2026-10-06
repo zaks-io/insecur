@@ -1,11 +1,7 @@
 import { mintEphemeralSessionCredential } from "@insecur/auth";
 import { testSessionSigningSecret } from "@insecur/auth/testing";
 import { userId } from "@insecur/domain";
-import {
-  cloudflareSentryOptions,
-  sanitizeSentryRequest,
-  withWorkerTraceCorrelation,
-} from "@insecur/observability";
+import * as observability from "@insecur/observability";
 import { RuntimeService } from "@insecur/runtime/service";
 import { closeRuntimeSql } from "@insecur/tenant-store";
 import type { RuntimeRpc } from "@insecur/worker-kit";
@@ -149,10 +145,10 @@ describeIntegration("Sentry Web to API to Runtime to Postgres trace continuity",
       }),
     };
     const web = Sentry.withSentry(
-      (env: typeof webEnv) => cloudflareSentryOptions(env, new Set(["GET /whoami"])),
+      (env: typeof webEnv) => observability.cloudflareSentryOptions(env, new Set(["GET /whoami"])),
       {
         fetch(_request: Request, env: typeof webEnv, ctx: ExecutionContext): Promise<Response> {
-          return withWorkerTraceCorrelation(
+          return observability.withWorkerTraceCorrelation(
             ctx,
             Sentry.getActiveSpan()?.spanContext().traceId,
             async () => {
@@ -164,7 +160,7 @@ describeIntegration("Sentry Web to API to Runtime to Postgres trace continuity",
         },
       },
     );
-    const request = sanitizeSentryRequest(
+    const request = observability.sanitizeSentryRequest(
       new Request("https://insecur-web.test/whoami", {
         headers: {
           Authorization: `Bearer ${session.credential}`,
@@ -256,10 +252,10 @@ function isolatedBinding<T extends object>(binding: T): T {
       }
       const value: unknown = Reflect.get(target, property, receiver);
       if (typeof value !== "function") return value;
-      // Real Service Bindings enter a separate Worker isolate with its own current scope.
+      // Emulate both scopes of a separate Worker isolate for a service hop.
       return (...args: unknown[]) =>
-        Sentry.withScope(() =>
-          Sentry.withActiveSpan(null, () => Reflect.apply(value, target, args)),
+        Sentry.withIsolationScope(new Sentry.Scope(), () =>
+          Sentry.withScope(new Sentry.Scope(), () => Reflect.apply(value, target, args)),
         );
     },
   });

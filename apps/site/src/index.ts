@@ -13,8 +13,7 @@ import { withSecurityHeaders } from "./security-headers.js";
 import { tryStaticSiteResponse } from "./static-site-routes.js";
 
 const sentryServerEntry = wrapFetchWithSentry({
-  fetch(request, opts) {
-    // @ts-expect-error TanStack Start's server entry type currently misses Cloudflare wrapper opts.
+  fetch(request: Request, opts: Parameters<typeof serverEntry.fetch>[1]) {
     return serverEntry.fetch(request, opts);
   },
 });
@@ -27,9 +26,7 @@ const sentryServerEntry = wrapFetchWithSentry({
  * (docs/specs/deploy-route-inventory.md).
  */
 const handler = {
-  async fetch(request: Request, env: SiteEnv, ctx: ExecutionContext): Promise<Response> {
-    void ctx;
-
+  async fetch(request: Request, env: SiteEnv, _ctx: ExecutionContext): Promise<Response> {
     const { pathname, host } = new URL(request.url);
     const staticResponse = tryStaticSiteResponse(pathname, request.method, env);
     if (staticResponse !== null) {
@@ -47,7 +44,7 @@ handler.fetch = workerFetchWithTraceCorrelation(
   () => Sentry.getActiveSpan()?.spanContext().traceId,
 );
 
-const sentryHandler = Sentry.withSentry<SiteEnv>(
+const sentryHandler = Sentry.withSentry<SiteEnv, unknown, unknown, typeof handler>(
   (env) => cloudflareSentryOptions(env, sentryTraceNames),
   handler,
 );

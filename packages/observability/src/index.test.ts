@@ -11,11 +11,14 @@ import {
 
 const METADATA_ONLY_DATA_COLLECTION = {
   cookies: false,
+  databaseQueryData: false,
+  graphQL: { document: false, variables: false },
   frameContextLines: 0,
   genAI: { inputs: false, outputs: false },
   httpBodies: [],
   httpHeaders: { request: false, response: false },
-  queryParams: false,
+  queues: false,
+  urlQueryParams: false,
   stackFrameVariables: false,
   userInfo: false,
 };
@@ -30,7 +33,11 @@ describe("observability sentry config", () => {
       });
 
       expect(options.dataCollection).toEqual(METADATA_ONLY_DATA_COLLECTION);
-      expect(options.enableLogs).toBe(false);
+      expect(options.beforeSendLog?.({ body: "sensitive" } as never)).toBeNull();
+      expect(options.traceLifecycle).toBe("static");
+      expect(options.cacheClient).toBe(false);
+      expect(options.beforeSendSpan).toHaveProperty("_static", true);
+      expect(options.rpcTracePropagationBindings).toEqual(["RUNTIME"]);
       expect(options.strictTraceContinuation).toBe(true);
       expect(options.tracesSampleRate).toBe(DEFAULT_SENTRY_TRACES_SAMPLE_RATE);
     }
@@ -97,6 +104,7 @@ describe("observability sentry config", () => {
       timestamp: 2,
       trace_id: "0123456789abcdef0123456789abcdef",
     } as never);
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Static lifecycle still requires the final transaction privacy filter.
     const transaction = options.beforeSendTransaction?.(
       {
         contexts: {
@@ -199,6 +207,7 @@ describe("observability sentry config", () => {
       } as never,
       {},
     );
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Static lifecycle still requires the final transaction privacy filter.
     const transaction = options.beforeSendTransaction?.(
       {
         contexts: {
@@ -279,8 +288,17 @@ describe("observability sentry config", () => {
 
     expect(options).toMatchObject({
       dataCollection: METADATA_ONLY_DATA_COLLECTION,
-      enableLogs: false,
+      traceLifecycle: "static",
     });
+    expect(options?.beforeSendLog({ body: sentinel } as never)).toBeNull();
+    expect(options?.beforeSendSpan).toHaveProperty("_static", true);
+    const span = options?.beforeSendSpan({
+      data: { raw: sentinel },
+      description: `SELECT '${sentinel}'`,
+      op: "db",
+    } as never);
+    expect(JSON.stringify(span)).not.toContain(sentinel);
+    expect(span).toEqual({ data: {}, op: "db" });
     expect(JSON.stringify(event)).not.toContain(sentinel);
     expect(event).toMatchObject({ message: "Request failed", tags: { service: "insecur-web" } });
     vi.unstubAllGlobals();

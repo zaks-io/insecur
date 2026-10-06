@@ -12,8 +12,7 @@ import { sentryTraceNames } from "./sentry-trace-names.js";
 import { buildContentSecurityPolicy, generateCspNonce } from "./security/csp.js";
 
 const sentryServerEntry = wrapFetchWithSentry({
-  fetch(request, opts) {
-    // @ts-expect-error TanStack Start's server entry type currently misses Cloudflare wrapper opts.
+  fetch(request: Request, opts: Parameters<typeof serverEntry.fetch>[1]) {
     return serverEntry.fetch(request, opts);
   },
 });
@@ -49,10 +48,8 @@ const handler = {
     request: Request,
     // Sentry instruments these bindings before they enter the server request context.
     env: WebEnv,
-    ctx: ExecutionContext,
+    _ctx: ExecutionContext,
   ): Promise<Response> {
-    void ctx;
-
     if (new URL(request.url).pathname === "/healthz") {
       return Response.json({
         ok: true,
@@ -80,7 +77,7 @@ handler.fetch = workerFetchWithTraceCorrelation(
   () => Sentry.getActiveSpan()?.spanContext().traceId,
 );
 
-const sentryHandler = Sentry.withSentry<WebEnv>(
+const sentryHandler = Sentry.withSentry<WebEnv, unknown, unknown, typeof handler>(
   (env) => cloudflareSentryOptions(env, sentryTraceNames),
   handler,
 );

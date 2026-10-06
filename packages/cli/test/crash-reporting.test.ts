@@ -1,7 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { CLI_ERROR_CODES } from "@insecur/domain";
-import { DEFAULT_SENTRY_TRACES_SAMPLE_RATE } from "@insecur/observability";
+import {
+  DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
+  METADATA_ONLY_SENTRY_DATA_COLLECTION,
+} from "@insecur/observability";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveCliCommandFamily } from "../src/crash-command-family.js";
 import { createCliCrashReporter, NOOP_CRASH_REPORTER } from "../src/crash-reporting.js";
@@ -82,13 +85,12 @@ describe("CLI crash reporting", () => {
         defaultIntegrations: false,
         integrations: [],
         maxBreadcrumbs: 0,
-        sendDefaultPii: false,
+        dataCollection: METADATA_ONLY_SENTRY_DATA_COLLECTION,
+        traceLifecycle: "static",
         tracesSampleRate: DEFAULT_SENTRY_TRACES_SAMPLE_RATE,
       }),
     );
-    expect(init).toHaveBeenCalledWith(
-      expect.not.objectContaining({ dataCollection: expect.anything() }),
-    );
+
     const initOptions = init.mock.calls[0]?.[0] as {
       beforeSend: (event: Record<string, unknown>) => Record<string, unknown>;
       beforeSendTransaction: (event: Record<string, unknown>) => Record<string, unknown>;
@@ -166,7 +168,7 @@ describe("CLI crash reporting", () => {
       expect.objectContaining({ environment: "production" }),
     );
     expect(productionInit).toHaveBeenCalledWith(
-      expect.not.objectContaining({ dataCollection: expect.anything() }),
+      expect.objectContaining({ dataCollection: METADATA_ONLY_SENTRY_DATA_COLLECTION }),
     );
     const originalCause = new Error("config file read failed");
     const originalError = new SyntaxError(ERROR_MESSAGE, { cause: originalCause });

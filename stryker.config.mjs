@@ -3,6 +3,8 @@
 const config = {
   packageManager: "pnpm",
   inPlace: true,
+  // Keep lint fixtures unchanged so boundary tests inspect their original directives.
+  disableTypeChecks: "{apps,packages}/**/*.{js,ts,jsx,tsx,html,vue,mjs,mts,cts,cjs}",
   plugins: ["@stryker-mutator/vitest-runner"],
   testRunner: "vitest",
   mutate: [

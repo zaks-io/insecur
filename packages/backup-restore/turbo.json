@@ -1,0 +1,12 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "test:rls": {
+      "passThroughEnv": [
+        "INSECUR_POSTGRES_PORT",
+        "INSECUR_POSTGRES_SUPERUSER",
+        "INSECUR_POSTGRES_SUPERUSER_PASSWORD"
+      ]
+    }
+  }
+}

@@ -43,7 +43,7 @@
     "@insecur/tenant-keyring": "workspace:*",
     "@insecur/tenant-store": "workspace:*",
     "@insecur/worker-kit": "workspace:*",
-    "@sentry/cloudflare": "^10.63.0"
+    "@sentry/cloudflare": "^11.4.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",

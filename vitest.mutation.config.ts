@@ -1,6 +1,7 @@
 import { defineConfig, mergeConfig } from "vitest/config";
 
 import rootConfig from "./vitest.config.js";
+import { markdownTextPlugin } from "./packages/cli/test/markdown-text-plugin.js";
 
 const testExclude = [
   "**/node_modules/**",
@@ -37,10 +38,12 @@ const projectRoots = [
 export default mergeConfig(
   rootConfig,
   defineConfig({
+    plugins: [markdownTextPlugin()],
     test: {
       fileParallelism: false,
       projects: projectRoots.map((root) => ({
         extends: "./vitest.config.ts",
+        ...(root === "packages/cli" ? { plugins: [markdownTextPlugin()] } : {}),
         test: {
           root,
           name: root,

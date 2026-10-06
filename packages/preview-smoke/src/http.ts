@@ -179,7 +179,7 @@ function responseStatus(response: PageResponse | Response | null): number | unde
     return undefined;
   }
   // Support both Fetch Response and Playwright PageResponse shapes.
-  return typeof response.status === "number" ? response.status : response.status();
+  return response instanceof Response ? response.status : response.status();
 }
 
 function headerValue(response: PageResponse | Response, name: string): string | null {

@@ -55,7 +55,6 @@ export const test = base.extend<object, PreviewWorkerFixtures>({
   ],
   preview: [
     async ({ browserName: _browserName }, use) => {
-      void _browserName;
       await use(loadPreviewConfig());
     },
     { scope: "worker" },
