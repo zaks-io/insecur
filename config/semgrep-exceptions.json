@@ -1,0 +1,72 @@
+[
+  {
+    "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+    "path": ".agents/skills/ziw-orchestrate/scripts/active-dispatches.mjs",
+    "line": 43,
+    "file_sha256": "b38fac0467660979bb4407c848ba76be896acd88e97af9efa236234e1ceb0a77",
+    "rationale": "The identifier is escaped before interpolation; this generated skill must be updated at its canonical source."
+  },
+  {
+    "rule": "package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age",
+    "path": ".npmrc",
+    "line": 1,
+    "file_sha256": "7151cf397def0c2cb0ab65643701d27d335a72c90f775675b5f826bc7005818a",
+    "rationale": "This repository uses pinned pnpm 10, whose three-day quarantine is enforced in pnpm-workspace.yaml; this rule targets npm 11."
+  },
+  {
+    "rule": "javascript.express.security.x-frame-options-misconfiguration.x-frame-options-misconfiguration",
+    "path": "apps/web/src/index.ts",
+    "line": 36,
+    "file_sha256": "f815d5acceda458a02d2b8a3c789336227ef3b00de3cb246aceeb6123ad0e261",
+    "rationale": "X-Frame-Options is set to the literal DENY; the Express taint rule incorrectly treats copied Fetch response headers as the header value."
+  },
+  {
+    "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+    "path": "config/vite/tanstack-worker.ts",
+    "line": 27,
+    "file_sha256": "17ca7f30bf6fe6abb78ed92a54e7330af8cc464c1df2879b3882c63e84fd5eb7",
+    "rationale": "The workspace specifier is escaped before interpolation into an anchored literal alias."
+  },
+  {
+    "rule": "package_managers.pnpm.pnpm-missing-minimum-release-age.pnpm-minimum-release-age",
+    "path": "pnpm-workspace.yaml",
+    "line": 14,
+    "file_sha256": "164cb65b5ce2d5f193abf6e3d2191a1f58dea4db2e397a3ca7195da9192f39fb",
+    "rationale": "ADR-0056 deliberately enforces 4320 minutes, three days, rather than this rule's seven-day preference."
+  },
+  {
+    "rule": "package_managers.renovate.renovate-missing-minimum-release-age.renovate-missing-minimum-release-age",
+    "path": "renovate.json",
+    "line": 29,
+    "file_sha256": "d24c0d33074cb6792162897d7f9efed88f166f1cd010b655b15c8affbf476190",
+    "rationale": "ADR-0056 deliberately enforces three days for npm and Actions; renovate-conformance checks both quarantine rules."
+  },
+  {
+    "rule": "package_managers.renovate.renovate-missing-minimum-release-age.renovate-missing-minimum-release-age",
+    "path": "renovate.json",
+    "line": 35,
+    "file_sha256": "d24c0d33074cb6792162897d7f9efed88f166f1cd010b655b15c8affbf476190",
+    "rationale": "ADR-0056 deliberately enforces three days for npm and Actions; renovate-conformance checks both quarantine rules."
+  },
+  {
+    "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+    "path": "scripts/ci/deploy-routes.mjs",
+    "line": 144,
+    "file_sha256": "da719da0dcb2140cbd8903452bd53744a5c0ac82d6b769fce88c3c3851c32b91",
+    "rationale": "Route prefixes are escaped before interpolation; router names are restricted to JavaScript identifiers and methods come from the fixed HTTP_METHODS list."
+  },
+  {
+    "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+    "path": "scripts/ci/deploy-routes.mjs",
+    "line": 145,
+    "file_sha256": "da719da0dcb2140cbd8903452bd53744a5c0ac82d6b769fce88c3c3851c32b91",
+    "rationale": "Route prefixes are escaped before interpolation; router names are restricted to JavaScript identifiers and methods come from the fixed HTTP_METHODS list."
+  },
+  {
+    "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+    "path": "scripts/ci/deploy-routes.mjs",
+    "line": 178,
+    "file_sha256": "da719da0dcb2140cbd8903452bd53744a5c0ac82d6b769fce88c3c3851c32b91",
+    "rationale": "Route prefixes are escaped before interpolation; router names are restricted to JavaScript identifiers and methods come from the fixed HTTP_METHODS list."
+  }
+]

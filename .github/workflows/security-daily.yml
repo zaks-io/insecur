@@ -71,14 +71,27 @@ jobs:
       - name: Run semgrep
         id: semgrep
         continue-on-error: true
-        run: semgrep scan --config auto --sarif --output semgrep.sarif --error .
+        run: |
+          semgrep scan --config auto --json --output "${RUNNER_TEMP}/semgrep.json" .
+          node scripts/ci/semgrep-policy.mjs \
+            "${RUNNER_TEMP}/semgrep.json" \
+            "${RUNNER_TEMP}/semgrep-policy.json"
+
+      - name: Upload all semgrep finding metadata
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: semgrep-policy
+          path: ${{ runner.temp }}/semgrep-policy.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Summarize critical semgrep findings
         if: always()
         run: |
-          if [ -f semgrep.sarif ]; then
+          if [ -f "${RUNNER_TEMP}/semgrep.json" ]; then
             node scripts/ci/security-daily-linear-reporting.mjs summarize-semgrep \
-              --input semgrep.sarif \
+              --input "${RUNNER_TEMP}/semgrep.json" \
               --output security-daily-findings/semgrep.json \
               --workflow-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           else
