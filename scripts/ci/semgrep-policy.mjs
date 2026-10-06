@@ -15,7 +15,7 @@ export function evaluateSemgrep(report, exceptions, rootDir = repoRoot) {
       typeof rule !== "string" ||
       !/^[\w.-]+$/u.test(rule) ||
       typeof path !== "string" ||
-      !/^[\w./@-]+$/u.test(path) ||
+      !/^[\w.$/@-]+$/u.test(path) ||
       !Number.isInteger(start?.line) ||
       start.line < 1 ||
       typeof extra?.severity !== "string" ||

@@ -65,3 +65,11 @@ test("scanner errors and incomplete reports fail closed", () => {
     /missing valid metadata/u,
   );
 });
+
+test("findings in TanStack parameter routes retain their metadata and block", (t) => {
+  const { root, result } = fixture(t);
+  const path = "apps/web/src/routes/orgs.$orgId.tsx";
+  const policy = evaluateSemgrep({ results: [{ ...result, path }], errors: [] }, [], root);
+  assert.equal(policy.blocking_count, 1);
+  assert.equal(policy.findings[0].path, path);
+});
