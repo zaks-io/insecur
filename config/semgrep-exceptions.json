@@ -1,0 +1,204 @@
+{
+  "findings": [
+    {
+      "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "path": ".agents/skills/ziw-orchestrate/scripts/active-dispatches.mjs",
+      "line": 43,
+      "file_sha256": "b38fac0467660979bb4407c848ba76be896acd88e97af9efa236234e1ceb0a77",
+      "rationale": "The identifier is escaped before interpolation; this generated skill must be updated at its canonical source."
+    },
+    {
+      "rule": "package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age",
+      "path": ".npmrc",
+      "line": 1,
+      "file_sha256": "7151cf397def0c2cb0ab65643701d27d335a72c90f775675b5f826bc7005818a",
+      "rationale": "This repository uses pinned pnpm 10, whose three-day quarantine is enforced in pnpm-workspace.yaml; this rule targets npm 11."
+    },
+    {
+      "rule": "javascript.express.security.x-frame-options-misconfiguration.x-frame-options-misconfiguration",
+      "path": "apps/web/src/index.ts",
+      "line": 36,
+      "file_sha256": "f815d5acceda458a02d2b8a3c789336227ef3b00de3cb246aceeb6123ad0e261",
+      "rationale": "X-Frame-Options is set to the literal DENY; the Express taint rule incorrectly treats copied Fetch response headers as the header value."
+    },
+    {
+      "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "path": "config/vite/tanstack-worker.ts",
+      "line": 27,
+      "file_sha256": "17ca7f30bf6fe6abb78ed92a54e7330af8cc464c1df2879b3882c63e84fd5eb7",
+      "rationale": "The workspace specifier is escaped before interpolation into an anchored literal alias."
+    },
+    {
+      "rule": "package_managers.pnpm.pnpm-missing-minimum-release-age.pnpm-minimum-release-age",
+      "path": "pnpm-workspace.yaml",
+      "line": 14,
+      "file_sha256": "164cb65b5ce2d5f193abf6e3d2191a1f58dea4db2e397a3ca7195da9192f39fb",
+      "rationale": "ADR-0056 deliberately enforces 4320 minutes, three days, rather than this rule's seven-day preference."
+    },
+    {
+      "rule": "package_managers.renovate.renovate-missing-minimum-release-age.renovate-missing-minimum-release-age",
+      "path": "renovate.json",
+      "line": 29,
+      "file_sha256": "d24c0d33074cb6792162897d7f9efed88f166f1cd010b655b15c8affbf476190",
+      "rationale": "ADR-0056 deliberately enforces three days for npm and Actions; renovate-conformance checks both quarantine rules."
+    },
+    {
+      "rule": "package_managers.renovate.renovate-missing-minimum-release-age.renovate-missing-minimum-release-age",
+      "path": "renovate.json",
+      "line": 35,
+      "file_sha256": "d24c0d33074cb6792162897d7f9efed88f166f1cd010b655b15c8affbf476190",
+      "rationale": "ADR-0056 deliberately enforces three days for npm and Actions; renovate-conformance checks both quarantine rules."
+    },
+    {
+      "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "path": "scripts/ci/deploy-routes.mjs",
+      "line": 144,
+      "file_sha256": "da719da0dcb2140cbd8903452bd53744a5c0ac82d6b769fce88c3c3851c32b91",
+      "rationale": "Route prefixes are escaped before interpolation; router names are restricted to JavaScript identifiers and methods come from the fixed HTTP_METHODS list."
+    },
+    {
+      "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "path": "scripts/ci/deploy-routes.mjs",
+      "line": 145,
+      "file_sha256": "da719da0dcb2140cbd8903452bd53744a5c0ac82d6b769fce88c3c3851c32b91",
+      "rationale": "Route prefixes are escaped before interpolation; router names are restricted to JavaScript identifiers and methods come from the fixed HTTP_METHODS list."
+    },
+    {
+      "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+      "path": "scripts/ci/deploy-routes.mjs",
+      "line": 178,
+      "file_sha256": "da719da0dcb2140cbd8903452bd53744a5c0ac82d6b769fce88c3c3851c32b91",
+      "rationale": "Route prefixes are escaped before interpolation; router names are restricted to JavaScript identifiers and methods come from the fixed HTTP_METHODS list."
+    }
+  ],
+  "partial_parsing": [
+    {
+      "path": ".github/workflows/cli-release.yml",
+      "file_sha256": "7a657a3bfce2afbb2fa3484c1de73c32439552243ea5025bc9a4c95fd3d1a153"
+    },
+    {
+      "path": "apps/api/src/auth-failure.test.ts",
+      "file_sha256": "029f4cc18fcb19fc58304c651d9775f0bfdf11585114106783329746497009d7"
+    },
+    {
+      "path": "apps/api/src/routes/v1/approval-requests-routes.test.ts",
+      "file_sha256": "ba906ab3462beb1b2467cd90ab21c1b39530c5e483a2bb16c3e686ab1face826"
+    },
+    {
+      "path": "apps/api/src/routes/v1/auth-device-routes.test.ts",
+      "file_sha256": "b338079138b5ed8a7c1774906fb90893919a3b3fbac4c7b8ce7b471fc3cefd5e"
+    },
+    {
+      "path": "apps/api/src/routes/v1/high-assurance-challenges-routes.test.ts",
+      "file_sha256": "ada0e720f15d63a5ae01f11e42a8f1c55cc9c2bf505e4edfe4bf8290ac8d8249"
+    },
+    {
+      "path": "apps/api/src/session.test.ts",
+      "file_sha256": "e109726f418bb039043dae3f75189c379856a469ed74299cf7d4f1bab890cfe2"
+    },
+    {
+      "path": "apps/runtime/src/operations/cancel-operation-operation.test.ts",
+      "file_sha256": "697eb6574a7dbdb09be820d3c5777ceebd2b4b43598c8f4b634d01f3f5a08b36"
+    },
+    {
+      "path": "apps/runtime/src/operations/capture-first-value-feedback-operation.test.ts",
+      "file_sha256": "ef5b8f2457a2f6b996e00cd5393bc8748cdb57f8b8e915f2ab855e19812b4006"
+    },
+    {
+      "path": "apps/runtime/src/operations/check-secret-possession-operation.test.ts",
+      "file_sha256": "0ee75357780701b6c5f9a26b768c84b9a82566ce4c1f7d4e4e51af85cfc6e5f9"
+    },
+    {
+      "path": "apps/runtime/src/operations/create-project-operation.test.ts",
+      "file_sha256": "bcfbc65bc17928a57de5e5ab880c7db4492881b81394bd5d84ed62a63a31a07d"
+    },
+    {
+      "path": "apps/runtime/src/operations/export-tenant-audit-operation.test.ts",
+      "file_sha256": "9550eb671a2733f1889cb07eafb3885fa1e79c9a9accf014d0135eabea547919"
+    },
+    {
+      "path": "apps/runtime/src/operations/get-operation-operation.test.ts",
+      "file_sha256": "b2882e70772cc700a0cf0a02ad9555e0d1f6dac726328f101149fae6fdca0022"
+    },
+    {
+      "path": "apps/runtime/src/operations/high-assurance-review-access.test.ts",
+      "file_sha256": "a107ac8ac53ed5849ea519e823e8a4b2d5de1f72a18b111a3d3c63123364c395"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-audit-events-operation.test.ts",
+      "file_sha256": "ce82d14325edb303f4204cb88377af81f7cd4646cbba2bdd292ce83467e7a3a8"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-environment-secrets-operation.test.ts",
+      "file_sha256": "efa360a36ad7be161c183a9a75f7acec2b0408a57addcd56fa92dbf39c28b0e1"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-environments-operation.test.ts",
+      "file_sha256": "02138e26940083a4a2c6702bd4782a4ea71fee003904a7d6f9cb435172362875"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-organization-invitations-operation.test.ts",
+      "file_sha256": "49ade079d1bfa6fd073c79b38e51a8b01fb9d0424138ad44d42ccece3ee0b240"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-organization-members-operation.test.ts",
+      "file_sha256": "b76dd6c115911167ed24d36a0e0537f2b0b8892beea6c5d4c19415b85a43890f"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-project-access-operation.test.ts",
+      "file_sha256": "ac97b17a4ba516a94c4f54674182f38caee208c6f6f1d6a6bd875c2a80070418"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-project-secrets-operation.test.ts",
+      "file_sha256": "59265d160ead25362b2fa9ae350d73ad580c61d3083846be6f0873588cfdc50f"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-projects-operation.test.ts",
+      "file_sha256": "a8e47899ac50dcb59035b3c88d998baec1e3e09460978282b05aa027dbebc917"
+    },
+    {
+      "path": "apps/runtime/src/operations/list-session-organizations-operation.test.ts",
+      "file_sha256": "69e7927375dbb2747ab3938ac7b534fb9ebc10dd49fb7ef9d6ae070c6ca18403"
+    },
+    {
+      "path": "apps/runtime/src/operations/query-first-value-usage-operation.test.ts",
+      "file_sha256": "032e502878b6b34d757fcd66f2f77c83d3c8687cd33728c2a0f726102a476145"
+    },
+    {
+      "path": "apps/runtime/src/operations/record-device-authorization-audit-operation.test.ts",
+      "file_sha256": "4fdb721924372c9cbc82da1efa8dabf0c10cb00fa50b7282d9d4c4329bf1c58f"
+    },
+    {
+      "path": "apps/runtime/src/operations/runtime-run-policies-operations.test.ts",
+      "file_sha256": "1935d339a28dc9a9fca40a47cd24c4be687c118265d2bbb1287edf7f4b916b25"
+    },
+    {
+      "path": "apps/runtime/src/operations/webhook-subscription-operations.test.ts",
+      "file_sha256": "c0170da7307c023990c40f938e69d6bd8f17c45dd0f6861d322e66b423ea7075"
+    },
+    {
+      "path": "apps/runtime/src/operations/write-secret-operation.test.ts",
+      "file_sha256": "bc8b81b747f3bacf75b2aafc62a685d95d68bed62f92eb24d988eb552fdbbb5f"
+    },
+    {
+      "path": "apps/web/src/auth/browser-challenge-clear-step-up.test.ts",
+      "file_sha256": "161efaaf0ac49187937b63770e79c1b86be06564d36622eb6bb42a588d1c3bda"
+    },
+    {
+      "path": "packages/runtime-injection-issue/src/assert-runtime-policy-key-grant-binding.test.ts",
+      "file_sha256": "9807b9cfd0440990dc45e843345aa99afffe87f15da1a6b0611c0f0087c0ec44"
+    },
+    {
+      "path": "packages/runtime-injection-issue/src/issue-injection-grant.test.ts",
+      "file_sha256": "ac31f98c31edd35f53da879a9327f6d2fd932b609a93e2016d6f03ee48b8f044"
+    },
+    {
+      "path": "packages/worker-kit/src/index.ts",
+      "file_sha256": "2efec9bf0149b80d550efec9fbe82908fb9df0fa1dfed813d96b292699bdcd87"
+    },
+    {
+      "path": "scripts/ci/cli-release-notes-lib.mjs",
+      "file_sha256": "6ac0d29a572e474ce6450e711297163e253914cbec92d91e62b9da5a0f6434a7"
+    }
+  ]
+}
