@@ -73,6 +73,34 @@ test("warning-level scan failures block, including the upstream timeout report s
   }
 });
 
+test("scanner diagnostics retain error kinds and locations without source text", () => {
+  const policy = evaluateSemgrep(
+    {
+      results: [],
+      errors: [
+        {
+          level: "warn",
+          type: "Timeout",
+          path: "apps/web/src/index.ts",
+          rule_id: "javascript.slow-rule",
+          message: "REDACTED source",
+          details: "REDACTED details",
+        },
+        { type: ["PatternParseError", ["REDACTED pattern"]] },
+        { type: "REDACTED unknown", path: "REDACTED source\n", rule_id: "REDACTED rule\n" },
+      ],
+    },
+    [],
+  );
+  assert.equal(policy.scanner_error_count, 3);
+  assert.deepEqual(policy.scanner_errors, [
+    { type: "Timeout", path: "apps/web/src/index.ts", rule: "javascript.slow-rule" },
+    { type: "PatternParseError" },
+    { type: "Unknown" },
+  ]);
+  assert.equal(JSON.stringify(policy).includes("REDACTED"), false);
+});
+
 test("only known partial parsing on unchanged reviewed files is accepted", (t) => {
   const { root, exception } = fixture(t);
   const parsing = [{ path: exception.path, file_sha256: exception.file_sha256 }];

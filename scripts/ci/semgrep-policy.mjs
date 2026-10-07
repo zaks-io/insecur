@@ -35,12 +35,56 @@ export function evaluateSemgrep(report, exceptions, rootDir = repoRoot, parsingE
     );
     return { rule, path, line: start.line, severity: extra.severity, accepted };
   });
+  const scannerErrors = report.errors.filter(
+    (error) => !isAcceptedPartialParsing(error, parsingExceptions, rootDir),
+  );
   return {
     findings,
     blocking_count: findings.filter((finding) => !finding.accepted).length,
-    scanner_error_count: report.errors.filter(
-      (error) => !isAcceptedPartialParsing(error, parsingExceptions, rootDir),
-    ).length,
+    scanner_error_count: scannerErrors.length,
+    scanner_errors: scannerErrors.map(scannerErrorMetadata),
+  };
+}
+
+function scannerErrorMetadata(error) {
+  const type = Array.isArray(error.type) ? error.type[0] : error.type;
+  // Scanner messages and variant payloads can contain source text. Keep only known error kinds.
+  const knownTypes = [
+    "Timeout",
+    "Out of memory",
+    "Stack overflow",
+    "Fixpoint timeout",
+    "Timeout during interfile analysis",
+    "OOM during interfile analysis",
+    "PartialParsing",
+    "Syntax error",
+    "Other syntax error",
+    "Lexical error",
+    "AST builder error",
+    "Rule parse error",
+    "PatternParseError",
+    "Pattern parse error",
+    "SemgrepWarning",
+    "SemgrepError",
+    "InvalidRuleSchemaError",
+    "UnknownLanguageError",
+    "Invalid YAML",
+    "Internal matching error",
+    "Too many matches",
+    "Fatal error",
+    "Missing plugin",
+    "IncompatibleRule",
+    "Incompatible rule",
+    "DependencyResolutionError",
+  ];
+  return {
+    type: knownTypes.includes(type) ? type : "Unknown",
+    ...(typeof error.path === "string" && /^[\w.$/@-]+$/u.test(error.path)
+      ? { path: error.path }
+      : {}),
+    ...(typeof error.rule_id === "string" && /^[\w.-]+$/u.test(error.rule_id)
+      ? { rule: error.rule_id }
+      : {}),
   };
 }
 
@@ -81,5 +125,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   console.log(
     `Semgrep: ${policy.findings.length} findings, ${policy.blocking_count} blocking, ${policy.scanner_error_count} scanner errors.`,
   );
+  for (const error of policy.scanner_errors) {
+    console.log(`Semgrep scanner error: ${JSON.stringify(error)}`);
+  }
   process.exitCode = policy.blocking_count > 0 || policy.scanner_error_count > 0 ? 1 : 0;
 }
