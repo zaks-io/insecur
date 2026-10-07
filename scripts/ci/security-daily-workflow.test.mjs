@@ -12,3 +12,17 @@ test("daily vulnerability scanning preserves reports and fails on high findings"
   assert.match(workflow, /name: Fail if grype failed[\s\S]*steps\.grype\.outcome == 'failure'/u);
   assert.match(workflow, /LINEAR_SECURITY_REPORTING_ENABLED != 'false'/u);
 });
+
+test("daily Semgrep gives slow rules time to finish and retains the scanner-error gate", async () => {
+  const workflow = await readFile(
+    new URL("../../.github/workflows/security-daily.yml", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(workflow, /semgrep scan --config auto --timeout 30 --json/u);
+  assert.match(workflow, /node scripts\/ci\/semgrep-policy\.mjs/u);
+  assert.match(
+    workflow,
+    /name: Fail if semgrep failed[\s\S]*steps\.semgrep\.outcome == 'failure'/u,
+  );
+});

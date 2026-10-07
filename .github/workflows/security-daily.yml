@@ -72,7 +72,8 @@ jobs:
         id: semgrep
         continue-on-error: true
         run: |
-          semgrep scan --config auto --json --output "${RUNNER_TEMP}/semgrep.json" .
+          # The orchestration validator's taint rules exceed Semgrep's 5s default on this runner.
+          semgrep scan --config auto --timeout 30 --json --output "${RUNNER_TEMP}/semgrep.json" .
           node scripts/ci/semgrep-policy.mjs \
             "${RUNNER_TEMP}/semgrep.json" \
             "${RUNNER_TEMP}/semgrep-policy.json"
