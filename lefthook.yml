@@ -49,13 +49,14 @@ pre-commit:
       run: pnpm exec turbo run typecheck --cache=local:rw,remote:r
 
 pre-push:
-  parallel: true
   jobs:
     # Pre-push mirrors the PR CI hot path: policy checks, affected Turbo checks,
     # and the full DB-less coverage ratchet.
     # Security scanners (semgrep, grype) stay CI-only: low frequency, not the hot path.
-    - name: verify-pr
-      run: pnpm verify:pr
-
-    - name: test-coverage
-      run: pnpm test:coverage
+    # One serial job with capped Turbo tasks and Vitest workers: the default fan-out
+    # (two Turbo graphs x 10 tasks x one Vitest worker per CPU) OOMs a 24 GiB sandbox.
+    - name: verify-prepush
+      run: pnpm verify:prepush
+      env:
+        TURBO_CONCURRENCY: "4"
+        VITEST_MAX_WORKERS: "4"

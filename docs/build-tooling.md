@@ -562,13 +562,18 @@ pre-commit:
       run: pnpm exec turbo run typecheck --cache=local:rw,remote:r
 
 pre-push:
-  parallel: true
   jobs:
-    - name: verify-pr
-      run: pnpm verify:pr
-    - name: test-coverage
-      run: pnpm test:coverage
+    - name: verify-prepush
+      run: pnpm verify:prepush
+      env:
+        TURBO_CONCURRENCY: "4"
+        VITEST_MAX_WORKERS: "4"
 ```
+
+Pre-push runs as one serial job with Turbo capped at 4 tasks and each Vitest run at 4 workers. The
+uncapped fan-out (two parallel Turbo graphs, 10 tasks each, one Vitest worker per CPU) exhausts
+memory on shared sandboxes. `VITEST_MAX_WORKERS` is a Turbo `globalPassThroughEnv` so it reaches
+Vitest under strict env mode without changing task hashes.
 
 `gitleaks protect --staged` is the pre-commit form for gitleaks 8.x; on gitleaks 8.18 and later use the equivalent `gitleaks git --staged --redact`. The same gitleaks scan runs authoritatively in CI regardless, so a bypassed hook is still caught.
 
