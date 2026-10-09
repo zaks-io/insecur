@@ -37,7 +37,7 @@
     "test:cli:postgres": "INSECUR_CI_RLS_GATE=1 pnpm --filter @insecur/cli test:integration",
     "test:cli:local-features": "pnpm --filter @insecur/cli test:local-features",
     "test:coverage": "node scripts/clean-coverage.mjs && turbo run test:coverage --cache=\"${TURBO_CACHE:-local:rw,remote:r}\" && node scripts/merge-coverage.mjs",
-    "test:coverage:strict": "node scripts/clean-coverage.mjs && turbo run test:coverage --force --cache=\"${TURBO_CACHE:-local:rw,remote:r}\" && node scripts/merge-coverage.mjs",
+    "test:coverage:strict": "node scripts/clean-coverage.mjs && turbo run test:coverage --cache=local:w && node scripts/merge-coverage.mjs",
     "mutation:dry-run": "pnpm build && stryker run --dryRunOnly",
     "mutation:review": "pnpm build && stryker run",
     "mutation:force": "pnpm build && stryker run --force",

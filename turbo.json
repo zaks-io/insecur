@@ -15,6 +15,8 @@
     ".prettierignore"
   ],
   "globalEnv": ["CI", "NODE_ENV"],
+  "globalPassThroughEnv": ["SBX_AGENT_ID", "VITEST_MAX_WORKERS"],
+  "agentGuidance": false,
   "futureFlags": {
     "longerSignatureKey": true
   },
