@@ -200,7 +200,7 @@ flags, gates, and test layers). The dev conveniences (`dev`, `dev:workers`, `dep
     "test:scripts": "node --test scripts/*.test.mjs scripts/ci/*.test.mjs",
     "test": "pnpm test:scripts && turbo run test --cache=\"${TURBO_CACHE:-local:rw,remote:r}\"",
     "test:coverage": "node scripts/clean-coverage.mjs && turbo run test:coverage --cache=\"${TURBO_CACHE:-local:rw,remote:r}\" && node scripts/merge-coverage.mjs",
-    "test:coverage:strict": "node scripts/clean-coverage.mjs && turbo run test:coverage --force --cache=\"${TURBO_CACHE:-local:rw,remote:r}\" && node scripts/merge-coverage.mjs",
+    "test:coverage:strict": "node scripts/clean-coverage.mjs && turbo run test:coverage --cache=local:w && node scripts/merge-coverage.mjs",
     "test:rls": "turbo run test:rls",
     "test:e2e": "turbo run test:e2e",
     "test:canary": "turbo run test:canary",
@@ -248,7 +248,8 @@ validation command. `ci:check` is a compatibility alias for `verify`.
 Turbo, then merges every `coverage/coverage-final.json` into the root report and enforces the
 repo-wide floor in `scripts/merge-coverage.mjs`. Coverage intentionally stays full scope because the
 merge step requires every workspace report. `test:coverage:strict` uses the same merge path but
-passes `--force` to recompute every workspace report. `prepare` installs the lefthook hooks via
+passes `--cache=local:w` to recompute every workspace report without reading any cache or writing
+the Remote Cache (Turbo rejects `--force` combined with `--cache`). `prepare` installs the lefthook hooks via
 `scripts/lefthook-install.mjs` on every install.
 
 ## Duplicate Code Detection
@@ -571,9 +572,11 @@ pre-push:
 ```
 
 Pre-push runs as one serial job with Turbo capped at 4 tasks and each Vitest run at 4 workers. The
-uncapped fan-out (two parallel Turbo graphs, 10 tasks each, one Vitest worker per CPU) exhausts
-memory on shared sandboxes. `VITEST_MAX_WORKERS` is a Turbo `globalPassThroughEnv` so it reaches
-Vitest under strict env mode without changing task hashes.
+uncapped fan-out (two parallel Turbo graphs, 10 tasks each, one Vitest worker per available CPU)
+exhausts memory on shared sandboxes. `VITEST_MAX_WORKERS` is a Turbo `globalPassThroughEnv` so it
+reaches Vitest under strict env mode without changing task hashes. `SBX_AGENT_ID` passes through the
+same way so sandbox process tooling (`sbx-ps`, `sbx-reap`) can attribute task processes to the
+agent that started them.
 
 `gitleaks protect --staged` is the pre-commit form for gitleaks 8.x; on gitleaks 8.18 and later use the equivalent `gitleaks git --staged --redact`. The same gitleaks scan runs authoritatively in CI regardless, so a bypassed hook is still caught.
 
