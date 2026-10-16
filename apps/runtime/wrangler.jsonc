@@ -116,8 +116,8 @@
         },
       ],
       "triggers": {
-        // This trigger is a no-op until Preview Smoke writes the one-shot R2 proof request.
-        "crons": ["* * * * *"],
+        // Daily backups run independently; the minute trigger is idle without a smoke proof request.
+        "crons": ["0 3 * * *", "* * * * *"],
       },
     },
   },

@@ -36,25 +36,27 @@ function runtimeEnv(stored: R2ObjectBody | null, putResults: (R2Object | null)[]
   } as unknown as RuntimeEnv;
 }
 
+const ctx = { waitUntil: vi.fn() };
+
 describe("runTriggeredBackupExport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     runScheduledBackupExportMock.mockResolvedValue(undefined);
   });
 
-  it("always runs the Production cron without consulting the proof request", async () => {
+  it("always runs the daily cron without consulting the proof request", async () => {
     const env = runtimeEnv(null);
 
-    await runTriggeredBackupExport(env, "0 3 * * *", 42);
+    await runTriggeredBackupExport(env, "0 3 * * *", 42, ctx);
 
-    expect(runScheduledBackupExportMock).toHaveBeenCalledWith(env, 42);
+    expect(runScheduledBackupExportMock).toHaveBeenCalledWith(env, 42, ctx);
     expect(env.BACKUPS.get).not.toHaveBeenCalled();
   });
 
   it("rejects an unknown cron instead of changing export behavior", async () => {
     const env = runtimeEnv(null);
 
-    await expect(runTriggeredBackupExport(env, "*/5 * * * *", 42)).rejects.toThrow(
+    await expect(runTriggeredBackupExport(env, "*/5 * * * *", 42, ctx)).rejects.toThrow(
       "unsupported backup export cron",
     );
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
@@ -63,7 +65,7 @@ describe("runTriggeredBackupExport", () => {
   it("keeps an idle Preview minute trigger cheap", async () => {
     const env = runtimeEnv(null);
 
-    await runTriggeredBackupExport(env, "* * * * *", 42);
+    await runTriggeredBackupExport(env, "* * * * *", 42, ctx);
 
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
     expect(env.BACKUPS.put).not.toHaveBeenCalled();
@@ -72,7 +74,7 @@ describe("runTriggeredBackupExport", () => {
   it("leaves a request for the first cron tick at or after notBefore", async () => {
     const env = runtimeEnv(r2Object(request));
 
-    await runTriggeredBackupExport(env, "* * * * *", 99);
+    await runTriggeredBackupExport(env, "* * * * *", 99, ctx);
 
     expect(env.BACKUPS.put).not.toHaveBeenCalled();
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
@@ -84,7 +86,7 @@ describe("runTriggeredBackupExport", () => {
       { etag: "complete-etag" } as R2Object,
     ]);
 
-    await runTriggeredBackupExport(env, "* * * * *", 100);
+    await runTriggeredBackupExport(env, "* * * * *", 100, ctx);
 
     expect(env.BACKUPS.put).toHaveBeenNthCalledWith(
       1,
@@ -92,7 +94,7 @@ describe("runTriggeredBackupExport", () => {
       expect.stringMatching(/"attempts":1.*"status":"claimed"/),
       { onlyIf: { etagMatches: "request-etag" } },
     );
-    expect(runScheduledBackupExportMock).toHaveBeenCalledWith(env, 100);
+    expect(runScheduledBackupExportMock).toHaveBeenCalledWith(env, 100, ctx);
     expect(env.BACKUPS.put).toHaveBeenNthCalledWith(
       2,
       BACKUP_EXPORT_PROOF_REQUEST_KEY,
@@ -104,7 +106,7 @@ describe("runTriggeredBackupExport", () => {
   it("does not export when another trigger wins the claim", async () => {
     const env = runtimeEnv(r2Object(request), [null]);
 
-    await runTriggeredBackupExport(env, "* * * * *", 100);
+    await runTriggeredBackupExport(env, "* * * * *", 100, ctx);
 
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
   });
@@ -114,7 +116,7 @@ describe("runTriggeredBackupExport", () => {
       r2Object({ ...request, status: "claimed", leaseUntil: 200, attempts: 1 }),
     );
 
-    await runTriggeredBackupExport(env, "* * * * *", 199);
+    await runTriggeredBackupExport(env, "* * * * *", 199, ctx);
 
     expect(env.BACKUPS.put).not.toHaveBeenCalled();
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
@@ -126,7 +128,7 @@ describe("runTriggeredBackupExport", () => {
       [{ etag: "failed-etag" } as R2Object],
     );
 
-    await expect(runTriggeredBackupExport(env, "* * * * *", 200)).rejects.toThrow(
+    await expect(runTriggeredBackupExport(env, "* * * * *", 200, ctx)).rejects.toThrow(
       "claim lease expired before the export finished",
     );
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
@@ -143,7 +145,7 @@ describe("runTriggeredBackupExport", () => {
       r2Object({ ...request, status: "failed", attempts: 1, reason: "claim lease expired" }),
     );
 
-    await runTriggeredBackupExport(env, "* * * * *", 500);
+    await runTriggeredBackupExport(env, "* * * * *", 500, ctx);
 
     expect(env.BACKUPS.put).not.toHaveBeenCalled();
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();
@@ -153,7 +155,9 @@ describe("runTriggeredBackupExport", () => {
     const env = runtimeEnv(r2Object(request), [{ etag: "claim-etag" } as R2Object, null]);
     runScheduledBackupExportMock.mockRejectedValue(new Error("export failed"));
 
-    await expect(runTriggeredBackupExport(env, "* * * * *", 100)).rejects.toThrow("export failed");
+    await expect(runTriggeredBackupExport(env, "* * * * *", 100, ctx)).rejects.toThrow(
+      "export failed",
+    );
     expect(env.BACKUPS.put).toHaveBeenNthCalledWith(
       2,
       BACKUP_EXPORT_PROOF_REQUEST_KEY,
@@ -173,7 +177,7 @@ describe("runTriggeredBackupExport", () => {
       { etag: "failed-etag" } as R2Object,
     ]);
 
-    await expect(runTriggeredBackupExport(env, "* * * * *", 100)).rejects.toThrow(
+    await expect(runTriggeredBackupExport(env, "* * * * *", 100, ctx)).rejects.toThrow(
       "abandoned after 3 failed export attempts",
     );
     expect(runScheduledBackupExportMock).not.toHaveBeenCalled();

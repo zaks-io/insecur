@@ -7,8 +7,13 @@ import {
 import type { RuntimeEnv } from "../env.js";
 import { runScheduledBackupExport } from "./run-scheduled-backup-export.js";
 
+interface BackupExportContext {
+  env: RuntimeEnv;
+  ctx: Pick<ExecutionContext, "waitUntil">;
+}
+
 const PREVIEW_PROOF_CRON = "* * * * *";
-const PRODUCTION_BACKUP_CRON = "0 3 * * *";
+const DAILY_BACKUP_CRON = "0 3 * * *";
 const CLAIM_LEASE_MS = 10 * 60_000;
 /** Thrown exports (Neon cold start, transient R2) get a few retries; a wall-clock kill gets none. */
 const MAX_EXPORT_ATTEMPTS = 3;
@@ -73,24 +78,29 @@ function encodeProofRequest(request: StoredProofRequest): string {
   return JSON.stringify(request);
 }
 
-/** Production always exports. Preview consumes one R2 request so its minute trigger is idle otherwise. */
+/** The daily cron always exports. Preview consumes one R2 request so its minute trigger is idle otherwise. */
 export async function runTriggeredBackupExport(
   env: RuntimeEnv,
   cron: string,
   scheduledTime: number,
+  ctx: Pick<ExecutionContext, "waitUntil">,
 ): Promise<void> {
-  if (cron === PRODUCTION_BACKUP_CRON) {
-    await runScheduledBackupExport(env, scheduledTime);
+  if (cron === DAILY_BACKUP_CRON) {
+    await runScheduledBackupExport(env, scheduledTime, ctx);
     return;
   }
   if (cron !== PREVIEW_PROOF_CRON) {
     throw new Error(`unsupported backup export cron: ${cron}`);
   }
 
-  await runRequestedPreviewExport(env, scheduledTime);
+  await runRequestedPreviewExport(env, scheduledTime, ctx);
 }
 
-async function runRequestedPreviewExport(env: RuntimeEnv, scheduledTime: number): Promise<void> {
+async function runRequestedPreviewExport(
+  env: RuntimeEnv,
+  scheduledTime: number,
+  ctx: Pick<ExecutionContext, "waitUntil">,
+): Promise<void> {
   const request = await env.BACKUPS.get(BACKUP_EXPORT_PROOF_REQUEST_KEY);
   if (request === null) {
     return;
@@ -117,11 +127,11 @@ async function runRequestedPreviewExport(env: RuntimeEnv, scheduledTime: number)
     );
   }
 
-  await startRequestedExport(env, scheduledTime, stored, request.etag);
+  await startRequestedExport({ env, ctx }, scheduledTime, stored, request.etag);
 }
 
 async function startRequestedExport(
-  env: RuntimeEnv,
+  { env, ctx }: BackupExportContext,
   scheduledTime: number,
   stored: RequestedProofRequest,
   requestEtag: string,
@@ -139,11 +149,16 @@ async function startRequestedExport(
     );
   }
 
-  await claimAndExport(env, scheduledTime, { ...stored, attempts: attempts + 1 }, requestEtag);
+  await claimAndExport(
+    { env, ctx },
+    scheduledTime,
+    { ...stored, attempts: attempts + 1 },
+    requestEtag,
+  );
 }
 
 async function claimAndExport(
-  env: RuntimeEnv,
+  { env, ctx }: BackupExportContext,
   scheduledTime: number,
   stored: Required<RequestedProofRequest>,
   requestEtag: string,
@@ -166,7 +181,7 @@ async function claimAndExport(
   }
 
   try {
-    await runScheduledBackupExport(env, scheduledTime);
+    await runScheduledBackupExport(env, scheduledTime, ctx);
   } catch (error) {
     await env.BACKUPS.put(
       BACKUP_EXPORT_PROOF_REQUEST_KEY,
