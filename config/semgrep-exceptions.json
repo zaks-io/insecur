@@ -2,10 +2,10 @@
   "findings": [
     {
       "rule": "javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
-      "path": ".agents/skills/ziw-orchestrate/scripts/active-dispatches.mjs",
-      "line": 43,
-      "file_sha256": "b38fac0467660979bb4407c848ba76be896acd88e97af9efa236234e1ceb0a77",
-      "rationale": "The identifier is escaped before interpolation; this generated skill must be updated at its canonical source."
+      "path": ".agents/skills/ziw-orchestrate/scripts/delivery-identity.mjs",
+      "line": 22,
+      "file_sha256": "4967e1de68fe11c4991bd7a3d7f4ea2d4d9e679713a3534bc43eda21294cbd72",
+      "rationale": "The issue key is escaped before interpolation into a linear boundary-anchored pattern; this generated skill must be updated at its canonical source."
     },
     {
       "rule": "package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age",
@@ -32,7 +32,7 @@
       "rule": "package_managers.pnpm.pnpm-missing-minimum-release-age.pnpm-minimum-release-age",
       "path": "pnpm-workspace.yaml",
       "line": 14,
-      "file_sha256": "164cb65b5ce2d5f193abf6e3d2191a1f58dea4db2e397a3ca7195da9192f39fb",
+      "file_sha256": "3c20a8267b128e6c8e5e01ef2633c1e519ebbf256624c9e34fe15d8d57a3cf4d",
       "rationale": "ADR-0056 deliberately enforces 4320 minutes, three days, rather than this rule's seven-day preference."
     },
     {
